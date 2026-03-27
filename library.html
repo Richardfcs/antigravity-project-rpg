@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biblioteca - Escudo do Daimyo</title>
+  <style>
+    :root {
+      --bg-deep: #0f1115;
+      --bg-panel: #1a1d24;
+      --border-panel: #2a2e38;
+      --gold: #D4A846;
+      --gold-dim: rgba(212, 175, 70, 0.2);
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --red-accent: #C41E3A;
+      --red-failure: #7a1224;
+      --blue-info: #3B82F6;
+      --radius-lg: 12px;
+      --radius: 6px;
+      --font-display: 'Noto Serif JP', serif;
+      --font-body: 'Inter', sans-serif;
+      --transition: 0.2s ease-out;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: var(--font-body); background-color: var(--bg-deep); color: var(--text-primary); line-height: 1.5; font-size: 14px; -webkit-font-smoothing: antialiased; }
+    
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
+
+    .header { background: var(--bg-panel); padding: 10px 20px; border-bottom: 1px solid var(--border-panel); display: flex; align-items: center; justify-content: space-between; }
+    .header__title { font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: var(--gold); letter-spacing: 0.05em; display: flex; align-items: center; gap: 10px; }
+    .header__title span { color: var(--text-primary); }
+
+    .tab-nav { display: flex; gap: 8px; margin-right: auto; margin-left: 30px; }
+    .tab-nav__link { text-decoration: none; padding: 6px 12px; border-radius: var(--radius); color: var(--text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; transition: all var(--transition); border-bottom: 2px solid transparent; }
+    .tab-nav__link:hover { color: var(--text-secondary); background: rgba(255,255,255,0.03); }
+    .tab-nav__link--active { color: var(--gold); border-bottom: 2px solid var(--gold); }
+
+    .btn-ghost { background: transparent; border: 1px solid var(--border-panel); color: var(--text-secondary); text-decoration: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; transition: all var(--transition); border-radius: var(--radius); }
+    .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+
+    /* LAYOUT BIBLIOTECA */
+    .library-main { max-width: 1400px; margin: 20px auto; display: grid; grid-template-columns: 280px 1fr; gap: 20px; padding: 0 20px; height: calc(100vh - 120px); overflow: hidden; }
+
+    /* MENU LATERAL CATEGORIAS */
+    .sidebar { background: var(--bg-panel); border: 1px solid var(--border-panel); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 10px; }
+    
+    .sidebar__title { font-family: var(--font-display); color: var(--gold); border-bottom: 1px solid var(--gold-dim); padding-bottom: 10px; margin-bottom: 10px; font-size: 1.2rem; }
+    
+    .cat-btn { background: transparent; border: none; color: var(--text-secondary); text-align: left; font-family: var(--font-body); padding: 10px 12px; border-radius: var(--radius); cursor: pointer; transition: all var(--transition); display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 0.9rem; border: 1px solid transparent; }
+    .cat-btn:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+    .cat-btn.active { background: var(--gold-dim); color: var(--gold); border-color: rgba(212, 175, 70, 0.4); }
+    .cat-btn__count { font-size: 0.75rem; background: var(--border-panel); padding: 2px 6px; border-radius: 10px; color: var(--text-muted); }
+
+    /* AREA CENTRAL DE CONTEÚDO */
+    .content-area { background: var(--bg-panel); border: 1px solid var(--border-panel); border-radius: var(--radius-lg); display: flex; flex-direction: column; overflow: hidden; }
+    
+    .search-box { padding: 20px; border-bottom: 1px solid var(--border-panel); background: rgba(0,0,0,0.2); }
+    .search-input { width: 100%; padding: 14px 20px; font-size: 1.1rem; border-radius: var(--radius); border: 1px solid var(--gold-dim); background: var(--bg-deep); color: var(--text-primary); outline: none; transition: border-color var(--transition); font-family: var(--font-body); }
+    .search-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(212,175,70,0.1); }
+    .search-input::placeholder { color: var(--text-muted); }
+
+    /* CARDS DA BIBLIOTECA */
+    .results-area { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+    
+    .lib-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border-panel); border-radius: var(--radius); overflow: hidden; flex-shrink: 0; }
+    .lib-card__header { padding: 15px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all var(--transition); }
+    .lib-card__header:hover { background: rgba(255,255,255,0.05); }
+    .lib-card__title { font-family: var(--font-display); font-size: 1.1rem; color: var(--gold); font-weight: 700; display:flex; gap:10px; align-items: center;}
+    .lib-card__type { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; font-family: var(--font-body); font-weight: 700; text-transform: uppercase; background: var(--bg-deep); border: 1px solid var(--border-panel); color: #FFF; }
+    
+    /* Cores das Tags */
+    .tag-vantagem { color: #10b981; border-color: rgba(16,185,129,0.3); }
+    .tag-desvantagem { color: var(--red-accent); border-color: rgba(196,30,58,0.3); }
+    .tag-pericia { color: var(--blue-info); border-color: rgba(59,130,246,0.3); }
+    .tag-budo { color: var(--gold); border-color: var(--gold-dim); }
+    .tag-oculto { color: #9f7aea; border-color: rgba(159,122,234,0.3); }
+    .tag-item { color: #a0aec0; border-color: rgba(160,174,192,0.3); }
+    .tag-regra { color: #f59e0b; border-color: rgba(245,158,11,0.3); }
+    .tag-arquetipo { color: #ec4899; border-color: rgba(236,72,153,0.3); }
+    .tag-atlas { color: #06b6d4; border-color: rgba(6,182,212,0.3); }
+    .tag-yokai { color: #ef4444; border-color: rgba(239,68,68,0.3); }
+
+    .lib-card__cost { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 5px; }
+
+    .lib-card__body { padding: 0 20px 20px 20px; color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; display: none; border-top: 1px dashed rgba(255,255,255,0.1); margin-top: 10px; padding-top: 15px; white-space: pre-line; }
+    .lib-card__body b { color: var(--gold); }
+    .lib-card.expanded .lib-card__body { display: block; }
+    .lib-card.expanded .lib-card__header { background: rgba(0,0,0,0.2); }
+
+    .empty-msg { text-align: center; color: var(--text-muted); padding: 40px; font-size: 1.1rem; }
+
+    @media (max-width: 900px) {
+      .header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 10px; }
+      .header__meta { display: none; }
+      .tab-nav { margin: 0; width: 100%; flex-wrap: wrap; justify-content: center; }
+
+      .library-main { grid-template-columns: 1fr; height: auto; display: flex; flex-direction: column; overflow-y: visible; }
+      .sidebar { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; height: auto; padding: 10px; border-radius: 0; margin-bottom: 10px; border-left: none; border-right: none; }
+      .sidebar__title { display: none; }
+      .cat-btn { flex: 0 0 auto; min-width: max-content; justify-content: center; padding: 8px 16px; font-size: 0.85rem; }
+      .cat-btn__count { display: inline-block; }
+      .content-area { border-radius: 0; border-left: none; border-right: none; flex: 1; min-height: 70vh; }
+      .results-area { padding: 10px; }
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  
+  <!-- PWA METATAGS -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0A0A0A">
+  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
+  <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+</head>
+<body>
+
+  <div id="daimyo-header"></div>
+  <script src="js/header-loader.js"></script>
+
+  <main class="library-main">
+    
+    <aside class="sidebar">
+      <h2 class="sidebar__title">Categorias</h2>
+      <button class="cat-btn active" data-cat="all">📚 Ver Tudo <span class="cat-btn__count" id="count-all">0</span></button>
+      <button class="cat-btn" data-cat="Vantagem">🌟 Vantagens <span class="cat-btn__count" id="count-van">0</span></button>
+      <button class="cat-btn" data-cat="Desvantagem">⛓️ Desvantagens <span class="cat-btn__count" id="count-des">0</span></button>
+      <button class="cat-btn" data-cat="Qualidade">🎭 Quali/Peculiaridade <span class="cat-btn__count" id="count-qua">0</span></button>
+      <button class="cat-btn" data-cat="Pericia">🥋 Perícias <span class="cat-btn__count" id="count-per">0</span></button>
+      <button class="cat-btn" data-cat="Budo">⚔️ Estilos (Budô) <span class="cat-btn__count" id="count-bud">0</span></button>
+      <button class="cat-btn" data-cat="Arquétipo">👥 Arquétipos <span class="cat-btn__count" id="count-arq">0</span></button>
+      <button class="cat-btn" data-cat="Yokai">👻 Bestiário (Yokai) <span class="cat-btn__count" id="count-yok">0</span></button>
+      <button class="cat-btn" data-cat="Alquimia">🧪 Alquimia / Itens <span class="cat-btn__count" id="count-alq">0</span></button>
+      <button class="cat-btn" data-cat="Atlas">🗺️ Atlas (Geografia) <span class="cat-btn__count" id="count-atl">0</span></button>
+      <button class="cat-btn" data-cat="Regra">📜 Regras & Cultura <span class="cat-btn__count" id="count-reg">0</span></button>
+    </aside>
+
+    <section class="content-area">
+      <div class="search-box">
+        <input type="text" id="input-search" class="search-input" placeholder="Buscar por Nome, Efeito, ou Custo... (Ex: Iaijutsu, Reflexos, -15)">
+      </div>
+      <div class="results-area" id="results-area">
+        <!-- Rendered purely via JS -->
+      </div>
+    </section>
+
+  </main>
+
+  <script src="js/library-data.js"></script>
+  <script>
+    // INITIALIZATION
+    const container = document.getElementById('results-area');
+    const searchInput = document.getElementById('input-search');
+    let currentCategory = 'all';
+
+    function init() {
+      // Setup counts
+      if (typeof libraryData === 'undefined') {
+        container.innerHTML = `<div class="empty-msg">Erro: Não foi possível carregar o banco de dados. Verifique library-data.js.</div>`;
+        return;
+      }
+      
+      document.getElementById('count-all').textContent = libraryData.length;
+      document.getElementById('count-van').textContent = libraryData.filter(i => i.cat === 'Vantagem').length;
+      document.getElementById('count-des').textContent = libraryData.filter(i => i.cat === 'Desvantagem').length;
+      document.getElementById('count-qua').textContent = libraryData.filter(i => i.cat === 'Qualidade' || i.cat === 'Peculiaridade').length;
+      document.getElementById('count-per').textContent = libraryData.filter(i => i.cat === 'Perícia' || i.cat === 'Pericia').length;
+      document.getElementById('count-bud').textContent = libraryData.filter(i => i.cat === 'Budo').length;
+      document.getElementById('count-arq').textContent = libraryData.filter(i => i.cat === 'Arquétipo').length;
+      document.getElementById('count-yok').textContent = libraryData.filter(i => i.cat === 'Yokai').length;
+      document.getElementById('count-alq').textContent = libraryData.filter(i => i.cat === 'Alquimia').length;
+      document.getElementById('count-atl').textContent = libraryData.filter(i => i.cat === 'Atlas').length;
+      document.getElementById('count-reg').textContent = libraryData.filter(i => i.cat === 'Regra').length;
+
+      renderLibrary();
+
+      // Events
+      searchInput.addEventListener('input', renderLibrary);
+      
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          currentCategory = this.getAttribute('data-cat');
+          renderLibrary();
+        });
+      });
+    }
+
+    function renderLibrary() {
+      const term = searchInput.value.toLowerCase();
+      
+      const filtered = libraryData.filter(item => {
+          const matchCat = (currentCategory === 'all' || 
+                          item.cat === currentCategory || 
+                          (currentCategory === 'Pericia' && (item.cat === 'Perícia' || item.cat === 'Pericia')) ||
+                          (currentCategory === 'Qualidade' && (item.cat === 'Peculiaridade' || item.cat === 'Qualidade')));
+        const matchSearch = item.nome.toLowerCase().includes(term) || 
+                            item.desc.toLowerCase().includes(term) || 
+                            item.cust.toLowerCase().includes(term) ||
+                            item.cat.toLowerCase().includes(term);
+        return matchCat && matchSearch;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-msg">Nenhum registro encontrado associado a "${term}".</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(item => {
+        // Mapeamento dinâmico de classe CSS baseado na categoria
+        let tagClass = 'tag-regra';
+        const catMap = {
+            'Vantagem': 'tag-vantagem',
+            'Desvantagem': 'tag-desvantagem',
+            'Perícia': 'tag-pericia',
+            'Pericia': 'tag-pericia',
+            'Budo': 'tag-budo',
+            'Yokai': 'tag-yokai',
+            'Arquétipo': 'tag-arquetipo',
+            'Atlas': 'tag-atlas',
+            'Alquimia': 'tag-item',
+            'Regra': 'tag-regra',
+            'Qualidade': 'tag-item',
+            'Peculiaridade': 'tag-item'
+        };
+        tagClass = catMap[item.cat] || 'tag-regra';
+
+        return `
+        <div class="lib-card">
+          <div class="lib-card__header" onclick="this.parentElement.classList.toggle('expanded')">
+            <div class="lib-card__title">
+              <span class="lib-card__type ${tagClass}">${item.cat}</span> 
+              ${item.nome}
+            </div>
+            <div class="lib-card__cost">${item.cust} <span style="font-size:1.2rem; margin-left:10px">+</span></div>
+          </div>
+          <div class="lib-card__body">
+            ${item.desc}
+          </div>
+        </div>
+      `;}).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

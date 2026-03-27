@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escudo do Daimyo — Controle de Tempo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+JP:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #0a0a0c;
+      --bg-panel: #16161a;
+      --border-panel: rgba(212,175,55,0.15);
+      --gold: #D4AF37;
+      --gold-dim: #997a1d;
+      --red-accent: #C41E3A;
+      --red-failure: #ef4444;
+      --blue-info: #3b82f6;
+      --text-primary: #e2e2e7;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --radius: 6px;
+      --radius-lg: 12px;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --font-display: 'Noto Serif JP', serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background-color: var(--bg-deep); color: var(--text-primary); font-family: var(--font-body); line-height: 1.5; overflow-x: hidden; }
+    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; appearance: none; }
+    input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+    #app { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+
+    /* HEADER */
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg-panel); border-bottom: 1px solid var(--border-panel); flex-wrap: wrap; gap: 8px; }
+    .header__title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text-primary); letter-spacing: 0.02em; text-decoration: none; }
+    .header__title span { color: var(--red-accent); }
+    
+    /* TAB NAV */
+    .tab-nav { display: flex; gap: 4px; border-bottom: 2px solid rgba(212,175,55,0.1); margin-right: 20px; }
+    .tab-nav__link { font-family: var(--font-body); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); text-decoration: none; padding: 8px 16px; border-radius: var(--radius) var(--radius) 0 0; transition: all var(--transition); border: 1px solid transparent; border-bottom: none; margin-bottom: -2px; }
+    .tab-nav__link:hover { color: var(--text-secondary); background: rgba(255,255,255,0.03); }
+    .tab-nav__link--active { color: var(--gold); border-color: var(--border-panel); background: var(--bg-panel); border-bottom: 2px solid var(--gold); }
+
+    .header__nav { display: flex; gap: 12px; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border-panel); color: var(--text-muted); font-size: 0.7rem; padding: 5px 10px; border-radius: var(--radius); text-decoration: none; transition: var(--transition); }
+    .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+
+    /* MAIN LAYOUT */
+    .main { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; width: 100%; height: 100%; overflow: hidden; }
+
+    .panel { background: var(--bg-panel); border: 1px solid var(--border-panel); border-radius: var(--radius-lg); display: flex; flex-direction: column; overflow-y: auto; }
+    .panel__header { padding: 16px 20px; border-bottom: 1px solid var(--border-panel); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); }
+    .panel__title { font-family: var(--font-display); font-size: 1rem; color: var(--gold); display: flex; align-items: center; gap: 10px; }
+
+    /* COMBATANTS LIST */
+    .combatant-list { padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+    .combatant-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: var(--radius); display: flex; align-items: center; gap: 15px; position: relative; }
+    .card__info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .card__name { font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; }
+    .card__stats { display: flex; gap: 10px; font-size: 0.7rem; color: var(--text-secondary); }
+    .card__bars { display: flex; gap: 8px; align-items: center; }
+    .bar { height: 6px; border-radius: 3px; background: var(--bg-deep); flex: 1; min-width: 60px; overflow: hidden; position: relative; }
+    .bar__fill { height: 100%; transition: width 400ms ease; }
+    .bar--hp .bar__fill { background: linear-gradient(90deg, var(--red-failure), var(--red-accent)); }
+    .bar--fp .bar__fill { background: linear-gradient(90deg, #1D4ED8, var(--blue-info)); }
+    .bar__label { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); min-width: 40px; }
+    
+    .card__tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+    .tag { font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; }
+    .tag--bleeding { background: rgba(196,30,58,0.2); color: var(--red-accent); border: 1px solid rgba(196,30,58,0.4); animation: pulse 1.5s infinite; }
+    .tag--exhausted { background: rgba(59,130,246,0.15); color: var(--blue-info); border: 1px solid rgba(59,130,246,0.3); }
+
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+    /* CONTROLS */
+    .controls { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+    .btn { font-family: var(--font-body); font-weight: 700; font-size: 0.8rem; padding: 12px 20px; border-radius: var(--radius); border: none; cursor: pointer; transition: all var(--transition); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-primary { background: var(--gold); color: #000; }
+    .btn-primary:hover { background: #eac04d; transform: translateY(-1px); }
+    .btn-secondary { background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-panel); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+
+    .control-card { background: rgba(0,0,0,0.2); border: 1px solid var(--border-panel); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .control-card__title { font-size: 0.85rem; font-weight: 700; color: var(--gold); }
+    .control-card__desc { font-size: 0.75rem; color: var(--text-muted); }
+
+    /* LOG */
+    .log-panel { flex: 1; display: flex; flex-direction: column; background: rgba(0,0,0,0.1); border-top: 1px solid var(--border-panel); min-height: 250px; }
+    .log-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; font-family: monospace; overflow-x: hidden; }
+    .log-entry { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border-left: 2px solid transparent; background: rgba(255,255,255,0.02); word-break: break-word; white-space: pre-wrap; line-height: 1.4; }
+    .log-entry--time { border-left-color: var(--gold); }
+    .log-entry--rest { border-left-color: var(--blue-info); }
+    .log-entry--fail { border-left-color: var(--red-failure); }
+    .log-entry--success { border-left-color: #10b981; }
+    .log-time { color: var(--text-muted); margin-right: 8px; flex-shrink: 0; }
+    .log-empty { text-align: center; color: var(--text-muted); padding: 20px; font-size: 0.8rem; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
+
+    @media (max-width: 900px) {
+      body, html { overflow: auto; min-height: 100vh; }
+      #app { height: auto; min-height: 100vh; grid-template-rows: auto 1fr; display: block; }
+      .main { grid-template-columns: 1fr; overflow-y: visible; height: auto; padding: 10px; display: flex; flex-direction: column; }
+      .header { flex-wrap: wrap; gap: 10px; }
+      .header__nav { width: 100%; justify-content: space-between; border-top: 1px solid var(--border-panel); padding-top: 10px; order: 4; }
+      .tab-nav { margin-right: 0; width: 100%; overflow-x: auto; white-space: nowrap; flex-wrap: nowrap; border-bottom: 1px solid rgba(212,175,55,0.1); padding-bottom: 2px; order: 2; }
+      .tab-nav::-webkit-scrollbar { display: none; }
+    }
+  </style>
+
+  
+  <!-- PWA METATAGS -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0A0A0A">
+  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
+  <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+</head>
+<body>
+<div id="app">
+
+  <div id="daimyo-header"></div>
+  <script src="js/header-loader.js"></script>
+
+  <main class="main">
+    <!-- LEFT: COMBATANTS -->
+    <section class="panel">
+      <div class="panel__header">
+        <h2 class="panel__title">👥 Estado dos Combatentes</h2>
+        <span id="combatant-count" style="font-size: 0.7rem; color: var(--text-muted)">0 combatentes</span>
+      </div>
+      <div class="combatant-list" id="combatant-list">
+        <div class="log-empty">Nenhum combatente no sistema. Adicione-os na aba de Combate.</div>
+      </div>
+
+      <!-- LEGACY SECTION -->
+      <div class="panel__header" style="border-top:1px solid var(--border-panel)">
+        <h2 class="panel__title">💀 Crônicas de Legado (Espadas Quebradas)</h2>
+      </div>
+      <div class="combatant-list" id="legacy-list" style="max-height: 300px; background: rgba(139,0,0,0.03)">
+        <div class="log-empty">Nenhum herói tombou ainda. As lendas aguardam.</div>
+      </div>
+    </section>
+
+    <!-- RIGHT: TIME CONTROLS -->
+    <section class="panel">
+      <div class="panel__header">
+        <h2 class="panel__title">⏱ Controle de Tempo</h2>
+      </div>
+      
+      <div class="controls">
+        <div class="control-card">
+          <span class="control-card__title">🌀 Espiral da Morte</span>
+          <p class="control-card__desc">Rola 3d6 contra o HT de todos os combatentes sangrando (PV < 0). Falha custa 1 PV.</p>
+          <button class="btn btn-primary" id="btn-advance-min">⏱ Avançar 1 Minuto</button>
+        </div>
+
+        <div class="control-card">
+          <span class="control-card__title">💤 Descanso Breve</span>
+          <p class="control-card__desc">Todos os personagens recuperam +1 PF (Ki). Limite de 1 PF a cada 10 minutos.</p>
+          <button class="btn btn-secondary" id="btn-rest-10">💤 Descansar 10 Minutos</button>
+        </div>
+
+        <div class="control-card">
+          <span class="control-card__title">🌙 Passar a Noite</span>
+          <p class="control-card__desc">Restaura 100% do PF. Rola HT passivamente para todos não sangrando para curar +1 PV natural.</p>
+          <button class="btn btn-secondary" id="btn-long-rest" style="border-color:var(--blue-info); color:var(--blue-info)">🌙 Descanso Longo (8h)</button>
+        </div>
+
+        <div class="control-card">
+          <span class="control-card__title">💖 Tratamento Médico</span>
+          <p class="control-card__desc">Cure ferimentos físicos ou aplique Primeiros Socorros para estancar sangramentos.</p>
+          <div class="field" style="margin-bottom:8px">
+            <select class="field__select" id="select-heal-target" style="width:100%; padding:8px; border-radius:var(--radius); background:rgba(0,0,0,0.3); color:var(--text-primary); border:1px solid var(--border-panel)">
+              <option value="">— Selecione —</option>
+            </select>
+          </div>
+          <div style="display:flex; gap:8px; margin-bottom:8px">
+            <input type="number" id="input-heal-amount" min="1" max="99" value="1" style="width:60px; padding:8px; border-radius:var(--radius); background:rgba(0,0,0,0.3); color:var(--text-primary); border:1px solid var(--border-panel); text-align:center">
+            <button class="btn btn-secondary" id="btn-heal-hp" style="flex:1">💖 Curar PV</button>
+          </div>
+          <button class="btn btn-primary" id="btn-first-aid" style="width:100%; font-size:0.75rem">🩹 Primeiros Socorros (Curar 1 PV + Estancar)</button>
+        </div>
+      </div>
+
+      <div class="log-panel">
+        <div class="panel__header" style="padding: 8px 16px; border-top: 1px solid var(--border-panel); border-bottom: none;">
+          <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted)">📜 Histórico Local</span>
+          <button class="btn-ghost" style="padding: 2px 6px; font-size: 0.6rem;" id="btn-clear-log">Limpar</button>
+        </div>
+        <div class="log-list" id="log-list">
+          <p class="log-empty">Nenhum evento registrado.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+</div>
+
+<script>
+/* ═════════════════════════════════════════════
+   GURPS 4e ENGINE — Escudo do Daimyo
+   Milestone Final: Controle de Tempo
+   ═════════════════════════════════════════════ */
+
+const STATE_KEY = 'daimyoShieldState';
+const TIME_LOG_KEY = 'daimyoShieldTimeLog';
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function saveState(state) {
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+
+function loadTimeLog() {
+  try {
+    const raw = localStorage.getItem(TIME_LOG_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function saveTimeLog(log) {
+  localStorage.setItem(TIME_LOG_KEY, JSON.stringify(log.slice(0, 50)));
+}
+
+function addTimeLog(type, text) {
+  const log = loadTimeLog();
+  log.unshift({ type, text, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) });
+  saveTimeLog(log);
+  renderLog();
+}
+
+function roll3d6() {
+  const d1 = Math.floor(Math.random() * 6) + 1;
+  const d2 = Math.floor(Math.random() * 6) + 1;
+  const d3 = Math.floor(Math.random() * 6) + 1;
+  return { dice: [d1, d2, d3], total: d1 + d2 + d3 };
+}
+
+// ══════ FUNCTIONS ══════
+
+function handleBleedingRolls() {
+  const state = loadState();
+  if (!state || !state.combatants.length) return;
+
+  let checksCount = 0;
+  
+  state.combatants.forEach(c => {
+    // Auto-bleed check if PV < 0
+    if (c.hpCur < 0) {
+      c.isBleeding = true;
+    }
+
+    if (c.isBleeding) {
+      checksCount++;
+      const roll = roll3d6();
+      const success = roll.total <= c.ht;
+      
+      if (!success) {
+        c.hpCur -= 1;
+        addTimeLog('fail', `${c.name}: Falhou no Sangramento (${roll.total} > HT ${c.ht}). PV: ${c.hpCur}`);
+      } else {
+        addTimeLog('success', `${c.name}: Estabilizou neste minuto (${roll.total} ≤ HT ${c.ht}).`);
+      }
+    }
+  });
+
+  if (checksCount === 0) {
+    addTimeLog('time', "Avançado 1 minuto. Ninguém sangrando.");
+  }
+
+  saveState(state);
+  renderCombatants();
+}
+
+function handleRest() {
+  const state = loadState();
+  if (!state || !state.combatants.length) return;
+
+  let units = 0;
+  state.combatants.forEach(c => {
+    if (c.fpCur < c.fpMax) {
+      c.fpCur += 1;
+      units++;
+    }
+  });
+
+  addTimeLog('rest', `Descanso de 10 min concluído. ${units} personagem(ns) recuperaram +1 PF.`);
+  
+  saveState(state);
+  renderCombatants();
+}
+
+function handleLongRest() {
+  const state = loadState();
+  if (!state || !state.combatants.length) return;
+
+  if (!confirm('Deseja rolar cura natural e restaurar todo o Ki para todo o grupo?')) return;
+
+  let healedCount = 0;
+  let fpCount = 0;
+
+  state.combatants.forEach(c => {
+    // 1. Restaura FP totalmente
+    if (c.fpCur < c.fpMax) {
+      c.fpCur = c.fpMax;
+      fpCount++;
+    }
+
+    // 2. Recuperação de PV Natural (se não estiver sangrando e PV estiver acima de Vidas Negativas Críticas)
+    if (c.hpCur < c.hpMax && !c.isBleeding) {
+      const roll = roll3d6();
+      if (roll.total <= c.ht) {
+        c.hpCur += 1;
+        healedCount++;
+        addTimeLog('success', `${c.name}: Passou em Cura Natural (${roll.total} ≤ ${c.ht}). +1 PV.`);
+      } else {
+        addTimeLog('fail', `${c.name}: Falhou na Cura Natural (${roll.total} > ${c.ht}). Sem PV.`);
+      }
+    }
+  });
+
+  addTimeLog('rest', `Descanso Longo Concluído. PF restaurado integralmente. PVs recuperados passivamente.`);
+  
+  saveState(state);
+  renderCombatants();
+}
+
+function handleHeal(isFirstAid = false) {
+  const state = loadState();
+  if (!state || !state.combatants.length) return;
+  
+  const targetId = document.getElementById('select-heal-target').value;
+  const amount = parseInt(document.getElementById('input-heal-amount').value) || 1;
+  if (!targetId) return;
+
+  const healVal = isFirstAid ? 1 : amount;
+  let targets = [];
+
+  if (targetId.startsWith('TAG:')) {
+    const tag = targetId.substring(4);
+    targets = state.combatants.filter(c => c.tag === tag);
+  } else {
+    const c = state.combatants.find(x => x.id === targetId);
+    if (c) targets.push(c);
+  }
+
+  if (targets.length === 0) return;
+
+  const timeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  let totalHealedCount = 0;
+
+  targets.forEach(c => {
+    let actuallyHealed = 0;
+    if (c.hpCur < c.hpMax) {
+      actuallyHealed = Math.min(c.hpMax - c.hpCur, healVal);
+      c.hpCur += actuallyHealed;
+    }
+    
+    if (isFirstAid && c.isBleeding) {
+      c.isBleeding = false;
+      totalHealedCount++;
+      state.history.unshift({ type: 'dano', text: `${c.name} recebeu P.S e estancou sangramento.`, damage: `+${actuallyHealed} PV`, time: timeStr });
+    } else if (actuallyHealed > 0) {
+      totalHealedCount++;
+      state.history.unshift({ type: 'dano', text: `${c.name} curado.`, damage: `+${actuallyHealed} PV`, time: timeStr });
+    }
+  });
+
+  if (targets.length > 1) {
+    addTimeLog('success', `Cura em Grupo (${targetId.substring(4)}): ${totalHealedCount} personagens curados.`);
+  } else if (targets.length === 1) {
+    const n = targets[0].name;
+    if (isFirstAid) addTimeLog('success', `${n}: Primeiros Socorros aplicados.`);
+    else addTimeLog('success', `${n}: Tratamento mágico/médico. +${healVal} PV.`);
+  }
+
+  if (state.history.length > 50) state.history = state.history.slice(0, 50);
+  
+  saveState(state);
+  renderCombatants();
+}
+
+// ══════ RENDER ══════
+
+function renderCombatants() {
+  const state = loadState();
+  const container = document.getElementById('combatant-list');
+  const countSpan = document.getElementById('combatant-count');
+
+  if (!state || !state.combatants.length) {
+    container.innerHTML = '<p class="log-empty">Nenhum combatente encontrado. Adicione no menu de Combate.</p>';
+    countSpan.textContent = '0 combatentes';
+    document.getElementById('select-heal-target').innerHTML = '<option value="">— Selecione —</option>';
+    return;
+  }
+
+  // Populate heal select
+  const sel = document.getElementById('select-heal-target');
+  const currentVal = sel.value;
+  
+  const tags = [...new Set(state.combatants.map(c => c.tag).filter(t => t && t.trim() !== ''))];
+  let tagsOptions = '';
+  if (tags.length > 0) {
+    tagsOptions = '<optgroup label="Cura em Grupo">' + tags.map(t => `<option value="TAG:${t}">Todos com a Tag: ${t}</option>`).join('') + '</optgroup>';
+  }
+
+  const individualOptions = '<optgroup label="Individuais">' + state.combatants.map(c => `<option value="${c.id}">${c.name} ${c.tag ? `[${c.tag}]` : ''} (PV: ${c.hpCur}/${c.hpMax})</option>`).join('') + '</optgroup>';
+
+  sel.innerHTML = '<option value="">— Selecione —</option>' + tagsOptions + individualOptions;
+  if (currentVal && sel.querySelector(`option[value="${currentVal}"]`)) sel.value = currentVal;
+
+  countSpan.textContent = `${state.combatants.length} combatentes`;
+  container.innerHTML = state.combatants.map(c => {
+    const hpPct = Math.max(0, Math.min(100, (c.hpCur / c.hpMax) * 100));
+    const fpPct = Math.max(0, Math.min(100, (c.fpCur / c.fpMax) * 100));
+    const bleeding = c.hpCur < 0 || c.isBleeding;
+
+    return `
+      <div class="combatant-card">
+        <div class="card__info">
+          <div style="display:flex; justify-content: space-between; align-items: center">
+            <span class="card__name">${c.name}</span>
+            <span style="font-size: 0.7rem; color: var(--gold)">HT ${c.ht}</span>
+          </div>
+          <div class="card__bars">
+            <span class="bar__label">PV</span>
+            <div class="bar bar--hp"><div class="bar__fill" style="width:${hpPct}%"></div></div>
+            <span class="bar__label">${c.hpCur}/${c.hpMax}</span>
+          </div>
+          <div class="card__bars">
+            <span class="bar__label">PF</span>
+            <div class="bar bar--fp"><div class="bar__fill" style="width:${fpPct}%"></div></div>
+            <span class="bar__label">${c.fpCur}/${c.fpMax}</span>
+          </div>
+          <div class="card__tags">
+            ${c.tag ? `<span class="tag" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2)">${c.tag}</span>` : ''}
+            ${bleeding ? '<span class="tag tag--bleeding">🩸 Sangrando</span>' : ''}
+            ${c.fpCur <= 0 ? '<span class="tag tag--exhausted">Exausto</span>' : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderLog() {
+  const log = loadTimeLog();
+  const container = document.getElementById('log-list');
+  
+  if (!log.length) {
+    container.innerHTML = '<p class="log-empty">Nenhum evento registrado.</p>';
+    return;
+  }
+
+  container.innerHTML = log.map(e => `
+    <div class="log-entry log-entry--${e.type}">
+      <span class="log-time">${e.time}</span>
+      <span class="log-text">${e.text}</span>
+    </div>
+  `).join('');
+}
+
+function renderLegacy() {
+  const state = loadState();
+  const container = document.getElementById('legacy-list');
+  if (!state || !state.legacyLog || state.legacyLog.length === 0) {
+    container.innerHTML = '<div class="log-empty">Nenhum herói tombou ainda. As lendas aguardam.</div>';
+    return;
+  }
+
+  container.innerHTML = state.legacyLog.map(l => `
+    <div class="log-entry" style="border-left-color: var(--red-accent); margin-bottom:4px">
+      <span class="log-time">${l.time}</span>
+      <strong style="color:var(--red-accent)">💀 MORTE & LEGADO:</strong> ${l.text}
+    </div>
+  `).join('');
+}
+
+// ── Clear Legacy ──
+function clearLegacy() {
+  if (confirm('Deseja apagar as crônicas de legado?')) {
+    const state = loadState();
+    state.legacyLog = [];
+    saveState(state);
+    renderLegacy();
+  }
+}
+
+// ══════ INIT ══════
+
+document.getElementById('btn-advance-min').addEventListener('click', handleBleedingRolls);
+document.getElementById('btn-rest-10').addEventListener('click', handleRest);
+document.getElementById('btn-long-rest').addEventListener('click', handleLongRest);
+document.getElementById('btn-first-aid').addEventListener('click', () => handleHeal(true));
+document.getElementById('btn-heal-hp').addEventListener('click', () => handleHeal(false));
+document.getElementById('btn-clear-log').addEventListener('click', () => {
+  if (confirm('Deseja limpar o histórico de tempo?')) {
+    saveTimeLog([]);
+    renderLog();
+  }
+});
+
+// Periodic refresh if state changes from other tabs
+window.addEventListener('storage', (e) => {
+  if (e.key === STATE_KEY) renderCombatants();
+});
+
+renderCombatants();
+renderLog();
+renderLegacy();
+
+</script>
+</body>
+</html>

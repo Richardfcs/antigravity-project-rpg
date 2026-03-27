@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escudo do Daimyo — Kegare, Pânico e Exaustão</title>
+  <meta name="description" content="Módulo de Sanidade e Corrupção GURPS 4e para A Era das Espadas Quebradas. Relógio da Mácula, Testes de Pânico e Exaustão.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #0A0A0A; --bg-panel: #111; --bg-card: #181818; --bg-input: #0F0F0F;
+      --border-panel: #2A2A2A; --border-input: #333; --border-focus: #8B0000;
+      --red-blood: #8B0000; --red-accent: #C41E3A; --red-glow: rgba(196,30,58,0.4); --red-failure: #DC2626;
+      --gold: #D4A846; --gold-glow: rgba(212,168,70,0.5);
+      --green-success: #22C55E; --blue-info: #3B82F6;
+      --kegare-pure: #22C55E; --kegare-tainted: #EAB308; --kegare-doomed: #DC2626;
+      --text-primary: #F5F0E8; --text-secondary: #9CA3AF; --text-muted: #6B7280;
+      --font-display: 'Noto Serif JP', serif; --font-body: 'Inter', system-ui, sans-serif;
+      --radius: 6px; --radius-lg: 10px; --transition: 200ms ease;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-body); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    body { overflow-y: auto; }
+    #app { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+
+    /* HEADER */
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg-panel); border-bottom: 1px solid var(--border-panel); flex-wrap: wrap; gap: 10px; }
+    .header__title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text-primary); letter-spacing: 0.02em; }
+    .header__title span { color: var(--red-accent); }
+    .header__nav { display: flex; align-items: center; gap: 10px; }
+
+    /* KEGARE CLOCK */
+    .kegare-clock { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--bg-deep); border: 1px solid var(--border-panel); border-radius: var(--radius-lg); }
+    .kegare-clock__label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-family: var(--font-display); }
+    .kegare-clock__segments { display: flex; gap: 3px; }
+    .kegare-seg { width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border-input); cursor: pointer; transition: all var(--transition); display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 700; color: var(--text-muted); }
+    .kegare-seg:hover { border-color: var(--text-secondary); transform: scale(1.1); }
+    .kegare-seg.active-pure { background: var(--kegare-pure); border-color: var(--kegare-pure); color: #0A0A0A; }
+    .kegare-seg.active-tainted { background: var(--kegare-tainted); border-color: var(--kegare-tainted); color: #0A0A0A; }
+    .kegare-seg.active-doomed { background: var(--kegare-doomed); border-color: var(--kegare-doomed); color: #FFF; }
+    .kegare-clock__status { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; min-width: 80px; text-align: center; }
+    .kegare-clock__mod { font-size: 0.65rem; color: var(--text-muted); font-family: monospace; }
+
+    /* MAIN LAYOUT */
+    .main { display: grid; grid-template-columns: 1fr 420px; gap: 1px; background: var(--border-panel); min-height: 0; }
+
+    /* PANELS */
+    .panel { background: var(--bg-panel); padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; min-height: 0; }
+    .panel__header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--border-panel); }
+    .panel__title { font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
+
+    /* FORM */
+    .field { display: flex; flex-direction: column; gap: 3px; }
+    .field__label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
+    .field__input, .field__select { background: var(--bg-input); border: 1px solid var(--border-input); border-radius: var(--radius); color: var(--text-primary); font-family: var(--font-body); font-size: 1rem; font-weight: 600; padding: 8px 10px; text-align: center; transition: border-color var(--transition); width: 100%; outline: none; }
+    .field__input:focus, .field__select:focus { border-color: var(--border-focus); box-shadow: 0 0 0 2px var(--red-glow); }
+    .field__select { text-align: left; cursor: pointer; }
+    .field__select option { background: var(--bg-panel); }
+    .field__input::-webkit-outer-spin-button, .field__input::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; }
+    .field__input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .field-row-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+
+    /* ADD FORM */
+    .add-form { display: grid; gap: 8px; padding: 12px; background: var(--bg-deep); border-radius: var(--radius-lg); border: 1px solid var(--border-panel); }
+    .add-form__toggle { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-family: var(--font-body); font-size: 0.8rem; font-weight: 600; text-align: left; padding: 4px 0; letter-spacing: 0.04em; }
+    .add-form__toggle:hover { color: var(--text-primary); }
+    .add-form__body { display: grid; gap: 8px; }
+
+    /* BUTTONS */
+    .btn { border: none; border-radius: var(--radius); cursor: pointer; font-family: var(--font-body); font-weight: 700; letter-spacing: 0.04em; transition: all var(--transition); outline: none; text-transform: uppercase; }
+    .btn-primary { background: linear-gradient(135deg, var(--red-blood), var(--red-accent)); color: var(--text-primary); font-size: 0.85rem; padding: 10px 16px; width: 100%; box-shadow: 0 2px 8px var(--red-glow); }
+    .btn-primary:hover { box-shadow: 0 4px 16px var(--red-glow); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(1px); }
+    .btn-secondary { background: var(--bg-input); border: 1px solid var(--border-input); color: var(--text-secondary); font-size: 0.75rem; padding: 6px 12px; }
+    .btn-secondary:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+    .btn-ghost { background: transparent; border: 1px solid var(--border-panel); color: var(--text-muted); font-size: 0.7rem; padding: 5px 10px; }
+    .btn-ghost:hover { border-color: var(--red-accent); color: var(--red-accent); }
+    .btn-sm { padding: 4px 8px; font-size: 0.65rem; }
+
+    .tab-nav { display: flex; gap: 4px; }
+    .tab-nav__link { font-family: var(--font-body); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); text-decoration: none; padding: 6px 12px; border-radius: var(--radius) var(--radius) 0 0; border: 1px solid transparent; transition: all var(--transition); }
+    .tab-nav__link:hover { color: var(--text-secondary); background: rgba(255,255,255,0.03); }
+    .tab-nav__link--active { color: var(--gold); border-bottom: 2px solid var(--gold); }
+    .btn-ki { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: var(--blue-info); font-size: 0.6rem; padding: 3px 6px; font-weight: 700; }
+    .btn-ki:hover { background: rgba(59,130,246,0.25); }
+    .btn-ki-heal { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: var(--green-success); font-size: 0.6rem; padding: 3px 6px; font-weight: 700; }
+    .btn-ki-heal:hover { background: rgba(34,197,94,0.25); }
+
+    /* COMBATANT CARDS */
+    .combatant-list { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
+    .combatant-card { background: var(--bg-card); border: 1px solid var(--border-panel); border-radius: var(--radius-lg); padding: 10px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; transition: all 300ms ease; cursor: default; }
+    .card__order { font-family: var(--font-display); font-size: 1.4rem; font-weight: 900; color: var(--text-muted); min-width: 28px; text-align: center; }
+    .card__info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .card__name { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card__stats { display: flex; gap: 10px; font-size: 0.7rem; color: var(--text-secondary); font-weight: 500; }
+    .card__bars { display: flex; gap: 8px; align-items: center; }
+    .bar { height: 6px; border-radius: 3px; background: var(--bg-deep); flex: 1; min-width: 60px; overflow: hidden; }
+    .bar__fill { height: 100%; border-radius: 3px; transition: width 400ms ease; }
+    .bar--hp .bar__fill { background: linear-gradient(90deg, var(--red-failure), var(--red-accent)); }
+    .bar--fp .bar__fill { background: linear-gradient(90deg, #1D4ED8, var(--blue-info)); }
+    .bar__label { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); min-width: 20px; }
+    .card__actions { display: flex; flex-direction: column; }
+    /* TAGS / CONDITIONS */
+    .card__tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+    .tag { display: inline-flex; align-items: center; font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; }
+    .tag-close { background: transparent; border: none; color: inherit; margin-left: 6px; font-size: 0.65rem; font-weight: 900; cursor: pointer; opacity: 0.6; display: flex; align-items: center; transition: opacity var(--transition); outline: none; }
+    .tag-close:hover { opacity: 1; }
+    .tag--bleeding { background: rgba(196,30,58,0.2); color: var(--red-accent); border: 1px solid rgba(196,30,58,0.4); animation: pulse-red 1.2s ease infinite; }
+    .tag--exhausted { background: rgba(59,130,246,0.15); color: var(--blue-info); border: 1px solid rgba(59,130,246,0.3); }
+    .tag--panic { background: rgba(217,70,239,0.15); color: #d946ef; border: 1px solid rgba(217,70,239,0.3); animation: pulse-red 1.5s ease infinite; }
+    .tag--shock { background: rgba(234,179,8,0.15); color: #EAB308; border: 1px solid rgba(234,179,8,0.3); }
+    .tag--death { background: rgba(220,38,38,0.25); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.5); animation: pulse-red 1s ease infinite; }
+
+    /* FRIGHT CHECK RESULT */
+    .fright-result { display: none; flex-direction: column; gap: 8px; padding: 14px; border-radius: var(--radius-lg); background: var(--bg-deep); border: 1px solid var(--border-panel); }
+    .fright-result.visible { display: flex; }
+    .fright-result__dice { display: flex; gap: 6px; justify-content: center; align-items: center; }
+    .die { width: 36px; height: 36px; background: var(--bg-card); border: 1px solid var(--border-input); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 900; font-family: var(--font-display); color: var(--text-primary); }
+    .fright-result__total { font-size: 0.75rem; color: var(--text-muted); text-align: center; font-family: monospace; }
+    .fright-result__verdict { text-align: center; font-size: 1rem; font-weight: 700; padding: 6px; border-radius: var(--radius); }
+    .fright-result__verdict.success { background: rgba(34,197,94,0.12); color: var(--green-success); border: 1px solid rgba(34,197,94,0.3); }
+    .fright-result__verdict.failure { background: rgba(220,38,38,0.12); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
+    .fright-result__effect { font-size: 0.8rem; color: var(--text-secondary); text-align: center; padding: 8px; background: var(--bg-card); border-radius: var(--radius); border-left: 3px solid var(--red-accent); }
+    .fright-result__table-roll { font-size: 0.7rem; color: var(--text-muted); text-align: center; font-family: monospace; }
+
+    /* SECTION DIVIDER */
+    .section-divider { border: none; border-top: 1px solid var(--border-panel); margin: 4px 0; }
+
+    /* LOG */
+    .log-list { display: flex; flex-direction: column; gap: 3px; flex: 1; overflow-y: auto; min-height: 60px; max-height: 200px; }
+    .log-entry { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: var(--radius); background: var(--bg-deep); font-size: 0.72rem; border-left: 3px solid var(--border-panel); }
+    .log-entry--panic { border-left-color: #C084FC; }
+    .log-entry--exhaust { border-left-color: var(--blue-info); }
+    .log-entry--kegare { border-left-color: var(--kegare-tainted); }
+    .log-time { color: var(--text-muted); min-width: 40px; }
+    .log-text { color: var(--text-secondary); }
+    .log-empty { color: var(--text-muted); font-size: 0.75rem; text-align: center; padding: 12px; font-style: italic; }
+
+    /* EMPTY STATE */
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; color: var(--text-muted); text-align: center; flex: 1; }
+    .empty-state__icon { font-size: 2.5rem; opacity: 0.3; }
+    .empty-state__text { font-size: 0.85rem; }
+
+    /* ANIMATIONS */
+    @keyframes pulse-red { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+    @keyframes pulse-blue { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    @keyframes slide-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes dice-roll { 0% { transform: rotateZ(0); } 25% { transform: rotateZ(15deg); } 50% { transform: rotateZ(-10deg); } 75% { transform: rotateZ(5deg); } 100% { transform: rotateZ(0); } }
+    .anim-slide { animation: slide-in 300ms ease; }
+    .die.rolling { animation: dice-roll 300ms ease; }
+
+    /* RESPONSIVE */
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+      #app { height: auto; min-height: 100vh; grid-template-rows: auto 1fr; }
+      .main { grid-template-columns: 1fr; overflow-y: visible; height: auto; padding: 10px; }
+      .kegare-clock { flex-wrap: wrap; justify-content: center; width: 100%; order: 3; margin-top: 10px; }
+      .header { gap: 10px; }
+      .header__nav { width: 100%; justify-content: space-between; border-top: 1px solid var(--border-panel); padding-top: 10px; order: 4; }
+      .tab-nav { margin-right: 0; width: 100%; overflow-x: auto; white-space: nowrap; flex-wrap: nowrap; border-bottom: 1px solid rgba(212,175,55,0.1); padding-bottom: 2px; order: 2; }
+      .tab-nav::-webkit-scrollbar { display: none; }
+    }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
+  </style>
+
+  
+  <!-- PWA METATAGS -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0A0A0A">
+  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
+  <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+</head>
+<body>
+<div id="app">
+
+  <div id="daimyo-header"></div>
+  <script src="js/header-loader.js"></script>
+
+  <main class="main">
+    <!-- LEFT: COMBATANTS -->
+    <section class="panel" id="panel-combatants">
+      <div class="panel__header">
+        <h2 class="panel__title">👥 Combatentes</h2>
+      </div>
+
+      <div class="add-form" id="add-form">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <button class="add-form__toggle" id="add-form-toggle">＋ Adicionar Combatente</button>
+          <div style="display: flex; gap: 4px; flex: 1; justify-content: flex-end;">
+            <select id="select-archetype" style="padding:4px; font-size:0.75rem; border-radius:3px; border:1px solid var(--border-panel); background:var(--bg-panel); color:var(--text-primary); max-width:130px;">
+               <option value="capanga">Bandido</option>
+               <option value="nobre">Samurai Nobre</option>
+               <option value="iaijutsu">Duelista (Iaijutsu)</option>
+               <option value="tank">Guerreiro Pesado</option>
+               <option value="arqueiro">Arqueiro</option>
+               <option value="ninja">Ninja</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" id="btn-quick-fill">⚡ Injetar</button>
+          </div>
+        </div>
+        <div class="add-form__body" id="add-form-body" style="display:none">
+          <div class="field">
+            <label class="field__label" for="input-name">Nome</label>
+            <input class="field__input" type="text" id="input-name" placeholder="Ex: Samurai Ronin" style="text-align:left">
+          </div>
+          <div class="field-row-4">
+            <div class="field">
+              <label class="field__label" for="input-hp">PV Máx</label>
+              <input class="field__input" type="number" id="input-hp" min="1" max="999" placeholder="12">
+            </div>
+            <div class="field">
+              <label class="field__label" for="input-fp">PF Máx</label>
+              <input class="field__input" type="number" id="input-fp" min="1" max="999" placeholder="10">
+            </div>
+            <div class="field">
+              <label class="field__label" for="input-will">Vontade</label>
+              <input class="field__input" type="number" id="input-will" min="1" max="30" placeholder="12">
+            </div>
+            <div class="field">
+              <label class="field__label" for="input-dr">RD</label>
+              <input class="field__input" type="number" id="input-dr" min="0" max="99" placeholder="3">
+            </div>
+          </div>
+          <button class="btn btn-primary" id="btn-add-combatant">＋ Adicionar</button>
+        </div>
+      </div>
+
+      <div class="combatant-list" id="combatant-list">
+        <div class="empty-state"><span class="empty-state__icon">🧠</span><p class="empty-state__text">Adicione combatentes para rodar Testes de Pânico e gerenciar Ki.</p></div>
+      </div>
+
+      <hr class="section-divider">
+      <div class="panel__header"><h3 class="panel__title">📜 Registro</h3><button class="btn btn-ghost btn-sm" id="btn-clear-log">Limpar</button></div>
+      <div class="log-list" id="log-list"><p class="log-empty">Nenhuma ação registrada.</p></div>
+    </section>
+
+    <!-- RIGHT: FRIGHT CHECK + EXHAUSTION -->
+    <section class="panel" id="panel-tools">
+      <div class="panel__header">
+        <h2 class="panel__title">🧠 Teste de Pânico</h2>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="select-target">Alvo</label>
+        <select class="field__select" id="select-target">
+          <option value="">— Selecione o alvo —</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="input-monster-mod">Modificador do Monstro</label>
+        <input class="field__input" type="number" id="input-monster-mod" min="-10" max="10" value="0" placeholder="0">
+      </div>
+
+      <button class="btn btn-primary" id="btn-fright-check">🧠 Rolar Teste de Pânico</button>
+
+      <div class="fright-result" id="fright-result">
+        <div class="fright-result__dice" id="fright-dice"></div>
+        <div class="fright-result__total" id="fright-total"></div>
+        <div class="fright-result__verdict" id="fright-verdict"></div>
+        <div class="fright-result__table-roll" id="fright-table-roll" style="display:none"></div>
+        <div class="fright-result__effect" id="fright-effect" style="display:none"></div>
+      </div>
+
+      <hr class="section-divider">
+
+      <div class="panel__header">
+        <h2 class="panel__title">⚡ Gerenciar Ki (PF)</h2>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="select-ki-target">Combatente</label>
+        <select class="field__select" id="select-ki-target">
+          <option value="">— Selecione —</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="input-fp-amount">Pontos de Fadiga</label>
+        <input class="field__input" type="number" id="input-fp-amount" min="1" max="99" value="1" placeholder="1">
+      </div>
+
+      <div class="field-row">
+        <button class="btn btn-ki" id="btn-spend-fp" style="width:100%;padding:10px;font-size:0.8rem">⚡ Gastar PF (Ki)</button>
+        <button class="btn btn-ki-heal" id="btn-recover-fp" style="width:100%;padding:10px;font-size:0.8rem">💚 Recuperar PF</button>
+      </div>
+
+      <div id="exhaust-alert" style="display:none" class="fright-result__effect">⚡ EXAUSTO! PF = 0. Gasto extra consome PV!</div>
+
+    </section>
+  </main>
+
+</div>
+
+<script>
+/* ═════════════════════════════════════════════
+   GURPS 4e ENGINE — Escudo do Daimyo
+   Milestone 2: Kegare, Pânico e Exaustão
+   ═════════════════════════════════════════════ */
+
+/* ═══════ KEGARE CLOCK ═══════ */
+const STATE_KEY = 'daimyoShieldState';
+
+function getDefaultState() {
+  return {
+    combatants: [],
+    combat: { activeIndex: -1, round: 0, isStarted: false, nextId: 1 },
+    kegare: { level: 1 },
+    history: [],
+    kegareLog: []
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) { console.error("Erro ao carregar estado:", e); }
+  return getDefaultState();
+}
+
+function saveState(stateObj) {
+  localStorage.setItem(STATE_KEY, JSON.stringify(stateObj));
+}
+
+function migrateOldData() {
+  const existing = localStorage.getItem(STATE_KEY);
+  if (existing) return;
+
+  console.log("Iniciando migração no Kegare...");
+  const newState = getDefaultState();
+
+  // 1. Migrar combatentes do Kegare
+  try {
+    const oldKegare = JSON.parse(localStorage.getItem('kegare_combatants'));
+    if (oldKegare && oldKegare.combatants) {
+      oldKegare.combatants.forEach(c => {
+        newState.combatants.push({
+          ...c,
+          id: c.id || ('k' + newState.combat.nextId++),
+          speed: 5.0,
+          dx: 10,
+          ht: 10,
+          will: c.will || 10,
+          isBleeding: (c.hpCur < 0),
+          isActive: true,
+          shockPenalty: 0,
+          conditions: c.conditions || []
+        });
+      });
+      newState.combat.nextId = oldKegare.nextId || (newState.combatants.length + 1);
+    }
+  } catch(e) {}
+
+  // 2. Migrar nível de Kegare
+  const kLevel = localStorage.getItem('kegare_level');
+  if (kLevel) newState.kegare.level = parseInt(kLevel) || 1;
+
+  // 3. Migrar históricos
+  try {
+    const hist = JSON.parse(localStorage.getItem('escudo_daimyo_history'));
+    if (hist) newState.history = hist;
+    const kLog = JSON.parse(localStorage.getItem('kegare_log'));
+    if (kLog) newState.kegareLog = kLog;
+  } catch(e) {}
+
+  saveState(newState);
+
+  ['kegare_combatants', 'kegare_level', 'kegare_log', 'escudo_daimyo_history'].forEach(k => localStorage.removeItem(k));
+  console.log("Migração concluída no Kegare.");
+}
+
+let state = loadState();
+
+const KEGARE_TIERS = Object.freeze([
+  { min: 1, max: 2, label: 'Puro',      mod: +2, color: 'pure' },
+  { min: 3, max: 4, label: 'Maculado',  mod: 0,  color: 'tainted' },
+  { min: 5, max: 6, label: 'Condenado', mod: -2, color: 'doomed' },
+]);
+
+function getKegareLevel() { return state.kegare.level; }
+
+function setKegareLevel(level) {
+  state.kegare.level = Math.max(1, Math.min(6, level));
+  saveState(state);
+  renderKegare();
+  return state.kegare.level;
+}
+
+function getKegareTier(level) {
+  return KEGARE_TIERS.find(t => level >= t.min && level <= t.max) || KEGARE_TIERS[0];
+}
+
+function getKegareModifier(level) {
+  return getKegareTier(level || getKegareLevel()).mod;
+}
+
+function renderKegare() {
+  const level = getKegareLevel();
+  const tier = getKegareTier(level);
+  const container = document.getElementById('kegare-segments');
+  container.innerHTML = '';
+  for (let i = 1; i <= 6; i++) {
+    const seg = document.createElement('div');
+    seg.className = 'kegare-seg';
+    seg.textContent = i;
+    if (i <= level) {
+      const segTier = getKegareTier(i);
+      seg.classList.add('active-' + segTier.color);
+    }
+    seg.addEventListener('click', () => {
+      const newLevel = setKegareLevel(i === level ? Math.max(1, i - 1) : i);
+      addLog('kegare', `Relógio da Mácula ajustado para ${newLevel} (${getKegareTier(newLevel).label})`);
+    });
+    container.appendChild(seg);
+  }
+  const statusEl = document.getElementById('kegare-status');
+  statusEl.textContent = tier.label;
+  statusEl.style.color = `var(--kegare-${tier.color})`;
+  const modEl = document.getElementById('kegare-mod');
+  const modSign = tier.mod >= 0 ? '+' : '';
+  modEl.textContent = `Von ${modSign}${tier.mod}`;
+}
+
+/* ═══════ FRIGHT CHECK TABLE ═══════ */
+const FRIGHT_TABLE = Object.freeze([
+  { min: 4,  max: 9,  label: 'Atordoado',      desc: 'Congela por 1 segundo. Larga o que estava na mão.' },
+  { min: 10, max: 12, label: 'Pânico',          desc: 'Foge o mais rápido possível por 1d minutos.' },
+  { min: 13, max: 15, label: 'Vômito/Desmaio',  desc: 'Vomita ou desmaia por 1d minutos.' },
+  { min: 16, max: 18, label: 'Trauma Leve',     desc: 'Adquire uma Peculiaridade (ex: "Medo de escuro", "Cabelo branco").' },
+  { min: 19, max: 99, label: 'Trauma Grave',    desc: 'Desvantagem Mental permanente (Fobia/Pesadelos/Covardia) ou Ataque Cardíaco (teste HT).' },
+]);
+
+function lookupFrightResult(roll) {
+  return FRIGHT_TABLE.find(r => roll >= r.min && roll <= r.max) || FRIGHT_TABLE[FRIGHT_TABLE.length - 1];
+}
+
+/* ═══════ DICE ROLLING ═══════ */
+function rollDie() { return Math.floor(Math.random() * 6) + 1; }
+
+function roll3d6() {
+  const d1 = rollDie(), d2 = rollDie(), d3 = rollDie();
+  return { dice: [d1, d2, d3], total: d1 + d2 + d3 };
+}
+
+/* ═══════ FRIGHT CHECK ENGINE ═══════ */
+function frightCheck(combatant, monsterMod) {
+  const kMod = getKegareModifier();
+  const targetNumber = combatant.will + monsterMod + kMod;
+  const willRoll = roll3d6();
+
+  const result = {
+    combatant,
+    targetNumber,
+    willRoll,
+    kMod,
+    monsterMod,
+    success: willRoll.total <= targetNumber,
+    mof: 0,
+    tableRoll: null,
+    tableResult: null,
+  };
+
+  if (!result.success) {
+    result.mof = willRoll.total - targetNumber;
+    const tableRoll = roll3d6();
+    const tableTotal = tableRoll.total + result.mof;
+    result.tableRoll = { dice: tableRoll.dice, total: tableRoll.total, withMoF: tableTotal };
+    result.tableResult = lookupFrightResult(tableTotal);
+  }
+
+  return result;
+}
+
+function generateId() {
+  const id = 'k' + (state.combat.nextId++);
+  saveState(state);
+  return id;
+}
+
+function addCombatant(data) {
+  const c = {
+    id: generateId(), name: data.name,
+    hpMax: data.hpMax, hpCur: data.hpMax,
+    fpMax: data.fpMax, fpCur: data.fpMax,
+    will: data.will, ht: 10, dr: data.dr,
+    speed: 5.0, dx: 10,
+    shockPenalty: 0, conditions: [], isBleeding: false, isActive: true
+  };
+  state.combatants.push(c);
+  saveState(state);
+  return c;
+}
+
+function removeCombatant(id) {
+  state.combatants = state.combatants.filter(c => c.id !== id);
+  saveState(state);
+}
+
+function findCombatant(id) {
+  return state.combatants.find(c => c.id === id);
+}
+
+/* ═══════ EXHAUSTION ENGINE ═══════ */
+function spendFP(combatantId, amount) {
+  const c = findCombatant(combatantId);
+  if (!c) return null;
+
+  const result = { name: c.name, fpBefore: c.fpCur, hpBefore: c.hpCur, fpSpent: 0, hpSpent: 0, alerts: [] };
+  let remaining = amount;
+
+  if (c.fpCur > 0) {
+    const fromFP = Math.min(remaining, c.fpCur);
+    c.fpCur -= fromFP;
+    result.fpSpent = fromFP;
+    remaining -= fromFP;
+  }
+
+  if (remaining > 0) {
+    c.hpCur -= remaining;
+    result.hpSpent = remaining;
+    result.alerts.push(`⚡ EXAUSTO! ${remaining} PF excedente consumiu ${remaining} PV!`);
+  }
+
+  if (c.fpCur <= 0 && !c.conditions.includes('Exausto')) {
+    c.conditions.push('Exausto');
+    result.alerts.push('⚡ PF = 0. Qualquer gasto adicional de Ki consome PV!');
+  }
+
+  if (c.hpCur <= 0 && !c.conditions.includes('Risco de Morte')) {
+    c.conditions.push('Risco de Morte');
+    result.alerts.push('💀 RISCO DE MORTE! Teste HT a cada turno.');
+  }
+
+  // Auto-set bleeding
+  if (c.hpCur < 0) c.isBleeding = true;
+
+  saveState(state);
+  return result;
+}
+
+function recoverFP(combatantId, amount) {
+  const c = findCombatant(combatantId);
+  if (!c) return null;
+  const before = c.fpCur;
+  c.fpCur = Math.min(c.fpMax, c.fpCur + amount);
+  if (c.fpCur > 0) c.conditions = c.conditions.filter(x => x !== 'Exausto');
+  saveState(state);
+  return { name: c.name, recovered: c.fpCur - before };
+}
+
+/* ═══════ LOG ═══════ */
+function addLog(type, text) {
+  state.kegareLog.unshift({ type, text, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) });
+  if (state.kegareLog.length > 50) state.kegareLog = state.kegareLog.slice(0, 50);
+  saveState(state);
+  renderLog();
+}
+
+function renderLog() {
+  const list = document.getElementById('log-list');
+  const entries = state.kegareLog;
+  if (!entries || entries.length === 0) { list.innerHTML = '<p class="log-empty">Nenhuma ação registrada.</p>'; return; }
+  list.innerHTML = entries.map(e =>
+    `<div class="log-entry log-entry--${e.type} anim-slide"><span class="log-time">${e.time}</span><span class="log-text">${e.text}</span></div>`
+  ).join('');
+}
+
+/* ═══════ RENDER ═══════ */
+function renderAll() {
+  renderCombatants();
+  renderTargetSelects();
+  renderKegare();
+  renderLog();
+}
+
+function renderCombatants() {
+  const container = document.getElementById('combatant-list');
+  if (state.combatants.length === 0) {
+    container.innerHTML = '<div class="empty-state"><span class="empty-state__icon">🧠</span><p class="empty-state__text">Adicione combatentes para rodar Testes de Pânico e gerenciar Ki.</p></div>';
+    return;
+  }
+  container.innerHTML = state.combatants.map((c, i) => {
+    const hpPct = Math.max(0, Math.min(100, (c.hpCur / c.hpMax) * 100));
+    const fpPct = Math.max(0, Math.min(100, (c.fpCur / c.fpMax) * 100));
+    let tags = '';
+    if (c.conditions.includes('Exausto')) tags += `<span class="tag tag--exhausted">Exausto <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Exausto')" title="Curar cond.">✕</button></span>`;
+    if (c.conditions.includes('Risco de Morte')) tags += '<span class="tag tag--death">Risco de Morte</span>';
+    if (c.conditions.includes('Pânico')) tags += `<span class="tag tag--panic">Pânico <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Pânico')" title="Curar cond.">✕</button></span>`;
+    if (c.conditions.includes('Atordoado')) tags += `<span class="tag tag--shock">Atordoado <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Atordoado')" title="Curar cond.">✕</button></span>`;
+    if (c.isBleeding) tags += `<span class="tag tag--bleeding">🩸 Sangrando <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Bleeding')" title="Estancar">✕</button></span>`;
+
+    return `<div class="combatant-card anim-slide" data-id="${c.id}">
+      <span class="card__order">${i + 1}</span>
+      <div class="card__info">
+        <span class="card__name">${c.name}</span>
+        <div class="card__stats"><span>Von ${c.will}</span><span>RD ${c.dr}</span></div>
+        <div class="card__bars">
+          <span class="bar__label">PV</span>
+          <div class="bar bar--hp"><div class="bar__fill" style="width:${hpPct}%"></div></div>
+          <span class="bar__label" style="font-size:0.6rem;min-width:40px">${c.hpCur}/${c.hpMax}</span>
+        </div>
+        <div class="card__bars">
+          <span class="bar__label">PF</span>
+          <div class="bar bar--fp"><div class="bar__fill" style="width:${fpPct}%"></div></div>
+          <span class="bar__label" style="font-size:0.6rem;min-width:40px">${c.fpCur}/${c.fpMax}</span>
+        </div>
+        ${tags ? `<div class="card__tags">${tags}</div>` : ''}
+      </div>
+      <div class="card__actions">
+        <button class="btn btn-ghost btn-sm" onclick="removeCombatantUI('${c.id}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTargetSelects() {
+  const opts = '<option value="">— Selecione —</option>' +
+    state.combatants.map(c => `<option value="${c.id}">${c.name} (Von ${c.will}, PF ${c.fpCur}/${c.fpMax})</option>`).join('');
+  document.getElementById('select-target').innerHTML = opts;
+  document.getElementById('select-ki-target').innerHTML = opts;
+}
+
+/* ═══════ UI EVENT HANDLERS ═══════ */
+
+document.getElementById('add-form-toggle').addEventListener('click', () => {
+  const body = document.getElementById('add-form-body');
+  body.style.display = body.style.display === 'none' ? 'grid' : 'none';
+});
+
+// Quick fill from Archetypes
+document.getElementById('btn-quick-fill').addEventListener('click', () => {
+  const arc = document.getElementById('select-archetype').value;
+  let data = { name: 'Bandido Comum', hpMax: 10, fpMax: 10, will: 10, dr: 0 };
+  
+  if (arc === 'nobre') data = { name: 'Samurai Nobre', hpMax: 11, fpMax: 10, will: 13, dr: 5 };
+  else if (arc === 'iaijutsu') data = { name: 'Duelista', hpMax: 11, fpMax: 13, will: 10, dr: 1 };
+  else if (arc === 'tank') data = { name: 'Guerreiro Pesado', hpMax: 16, fpMax: 13, will: 12, dr: 5 };
+  else if (arc === 'arqueiro') data = { name: 'Arqueiro', hpMax: 11, fpMax: 12, will: 10, dr: 3 };
+  else if (arc === 'ninja') data = { name: 'Ninja', hpMax: 10, fpMax: 10, will: 11, dr: 1 };
+
+  document.getElementById('input-name').value = data.name;
+  document.getElementById('input-hp').value = data.hpMax;
+  document.getElementById('input-fp').value = data.fpMax;
+  document.getElementById('input-will').value = data.will;
+  document.getElementById('input-dr').value = data.dr;
+  document.getElementById('add-form-body').style.display = 'grid';
+});
+
+// Modifiers & Tags removals
+window.removeCondition = function(id, cond) {
+  const target = state.combatants.find(c => c.id === id);
+  if (!target) return;
+  if (cond === 'Bleeding') target.isBleeding = false;
+  else target.conditions = target.conditions.filter(x => x !== cond);
+  saveState(state);
+  renderAll();
+};
+
+document.getElementById('btn-add-combatant').addEventListener('click', () => {
+  const name = document.getElementById('input-name').value.trim();
+  const hpMax = parseInt(document.getElementById('input-hp').value);
+  const fpMax = parseInt(document.getElementById('input-fp').value);
+  const will = parseInt(document.getElementById('input-will').value);
+  const dr = parseInt(document.getElementById('input-dr').value);
+
+  if (!name) { document.getElementById('input-name').focus(); return; }
+  if (isNaN(hpMax) || hpMax < 1) { document.getElementById('input-hp').focus(); return; }
+  if (isNaN(fpMax) || fpMax < 1) { document.getElementById('input-fp').focus(); return; }
+  if (isNaN(will) || will < 1) { document.getElementById('input-will').focus(); return; }
+  if (isNaN(dr) || dr < 0) { document.getElementById('input-dr').focus(); return; }
+
+  addCombatant({ name, hpMax, fpMax, will, dr });
+  ['input-name', 'input-hp', 'input-fp', 'input-will', 'input-dr'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('input-name').focus();
+  renderAll();
+});
+
+function removeCombatantUI(id) { removeCombatant(id); renderAll(); }
+
+// Fright Check
+document.getElementById('btn-fright-check').addEventListener('click', () => {
+  const targetId = document.getElementById('select-target').value;
+  const monsterMod = parseInt(document.getElementById('input-monster-mod').value) || 0;
+  if (!targetId) { document.getElementById('select-target').focus(); return; }
+
+  const c = findCombatant(targetId);
+  if (!c) return;
+
+  const result = frightCheck(c, monsterMod);
+  const box = document.getElementById('fright-result');
+  box.classList.add('visible');
+
+  // Dice display
+  const diceEl = document.getElementById('fright-dice');
+  diceEl.innerHTML = result.willRoll.dice.map(d => `<div class="die rolling">${d}</div>`).join('') +
+    `<span style="font-size:0.8rem;color:var(--text-muted)">=</span><span style="font-size:1.2rem;font-weight:900">${result.willRoll.total}</span>`;
+
+  // Total info
+  document.getElementById('fright-total').textContent =
+    `Alvo: ${result.combatant.will} (Von) ${result.monsterMod >= 0 ? '+' : ''}${result.monsterMod} (Monstro) ${result.kMod >= 0 ? '+' : ''}${result.kMod} (Mácula) = ${result.targetNumber}`;
+
+  // Verdict
+  const verdictEl = document.getElementById('fright-verdict');
+  const tableRollEl = document.getElementById('fright-table-roll');
+  const effectEl = document.getElementById('fright-effect');
+
+  if (result.success) {
+    verdictEl.className = 'fright-result__verdict success';
+    verdictEl.textContent = '✅ Sucesso. Mente intacta.';
+    tableRollEl.style.display = 'none';
+    effectEl.style.display = 'none';
+    addLog('panic', `${c.name}: Teste de Pânico SUCESSO (${result.willRoll.total} ≤ ${result.targetNumber})`);
+  } else {
+    verdictEl.className = 'fright-result__verdict failure';
+    verdictEl.textContent = `❌ Falha! Margem: ${result.mof}`;
+
+    tableRollEl.style.display = 'block';
+    tableRollEl.textContent = `Tabela: 3d6 [${result.tableRoll.dice.join(',')}] = ${result.tableRoll.total} + MoF ${result.mof} = ${result.tableRoll.withMoF}`;
+
+    effectEl.style.display = 'block';
+    effectEl.innerHTML = `<strong>${result.tableResult.label}</strong> — ${result.tableResult.desc}`;
+
+    // Add condition
+    if (result.tableResult.label === 'Pânico' && !c.conditions.includes('Pânico')) c.conditions.push('Pânico');
+    if (result.tableResult.label === 'Atordoado' && !c.conditions.includes('Atordoado')) c.conditions.push('Atordoado');
+    saveState(state);
+
+    addLog('panic', `${c.name}: Pânico FALHA (${result.willRoll.total} > ${result.targetNumber}, MoF ${result.mof}) → ${result.tableResult.label}`);
+  }
+
+  renderCombatants();
+  renderTargetSelects();
+});
+
+// Spend FP
+document.getElementById('btn-spend-fp').addEventListener('click', () => {
+  const targetId = document.getElementById('select-ki-target').value;
+  const amount = parseInt(document.getElementById('input-fp-amount').value) || 1;
+  if (!targetId) { document.getElementById('select-ki-target').focus(); return; }
+
+  const result = spendFP(targetId, amount);
+  if (!result) return;
+
+  const alertEl = document.getElementById('exhaust-alert');
+  if (result.hpSpent > 0) {
+    alertEl.style.display = 'block';
+    alertEl.textContent = result.alerts.join(' ');
+  } else {
+    alertEl.style.display = 'none';
+  }
+
+  const logText = result.hpSpent > 0
+    ? `${result.name}: -${result.fpSpent} PF, -${result.hpSpent} PV (exaustão)`
+    : `${result.name}: -${result.fpSpent} PF (Ki)`;
+  addLog('exhaust', logText);
+
+  renderAll();
+});
+
+// Recover FP
+document.getElementById('btn-recover-fp').addEventListener('click', () => {
+  const targetId = document.getElementById('select-ki-target').value;
+  const amount = parseInt(document.getElementById('input-fp-amount').value) || 1;
+  if (!targetId) { document.getElementById('select-ki-target').focus(); return; }
+
+  const result = recoverFP(targetId, amount);
+  if (!result) return;
+
+  document.getElementById('exhaust-alert').style.display = 'none';
+  addLog('exhaust', `${result.name}: +${result.recovered} PF recuperados`);
+  renderAll();
+});
+
+// Clear Log
+let _clrTimeout;
+document.getElementById('btn-clear-log').addEventListener('click', function() {
+  if (this.dataset.confirming === 'true') {
+    state.kegareLog = [];
+    saveState(state);
+    renderLog();
+    this.dataset.confirming = 'false';
+    this.textContent = 'Limpar';
+    clearTimeout(_clrTimeout);
+  } else {
+    this.dataset.confirming = 'true';
+    this.textContent = 'Confirma?';
+    this.style.color = 'var(--red-accent)';
+    _clrTimeout = setTimeout(() => { this.dataset.confirming = 'false'; this.textContent = 'Limpar'; this.style.color = ''; }, 3000);
+  }
+});
+
+// Enter keys
+document.getElementById('input-dr').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-add').click(); });
+document.getElementById('input-monster-mod').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-fright-check').click(); });
+
+/* ═══════ TESTS ═══════ */
+window.runTests = function() {
+  let pass = 0, total = 0;
+  function assert(name, cond) { total++; if (cond) { pass++; } else { console.error(`❌ ${name}`); } }
+
+  // Kegare modifier
+  assert('Kegare mod level 1 = +2', getKegareModifier(1) === 2);
+  assert('Kegare mod level 2 = +2', getKegareModifier(2) === 2);
+  assert('Kegare mod level 3 = 0', getKegareModifier(3) === 0);
+  assert('Kegare mod level 4 = 0', getKegareModifier(4) === 0);
+  assert('Kegare mod level 5 = -2', getKegareModifier(5) === -2);
+  assert('Kegare mod level 6 = -2', getKegareModifier(6) === -2);
+
+  // Fright table lookup
+  assert('Table 4 = Atordoado', lookupFrightResult(4).label === 'Atordoado');
+  assert('Table 9 = Atordoado', lookupFrightResult(9).label === 'Atordoado');
+  assert('Table 10 = Pânico', lookupFrightResult(10).label === 'Pânico');
+  assert('Table 12 = Pânico', lookupFrightResult(12).label === 'Pânico');
+  assert('Table 13 = Vômito/Desmaio', lookupFrightResult(13).label === 'Vômito/Desmaio');
+  assert('Table 16 = Trauma Leve', lookupFrightResult(16).label === 'Trauma Leve');
+  assert('Table 19 = Trauma Grave', lookupFrightResult(19).label === 'Trauma Grave');
+  assert('Table 25 = Trauma Grave', lookupFrightResult(25).label === 'Trauma Grave');
+
+  // Exhaustion: FP → HP
+  const testC = { id: 'test1', name: 'Test', hpMax: 12, hpCur: 12, fpMax: 10, fpCur: 1, will: 12, dr: 3, conditions: [] };
+  state.combatants.push(testC);
+  const exResult = spendFP('test1', 3);
+  assert('Exhaustion: fpSpent = 1', exResult.fpSpent === 1);
+  assert('Exhaustion: hpSpent = 2', exResult.hpSpent === 2);
+  assert('Exhaustion: fpCur = 0', testC.fpCur === 0);
+  assert('Exhaustion: hpCur = 10', testC.hpCur === 10);
+  assert('Exhaustion: Exausto condition', testC.conditions.includes('Exausto'));
+
+  // Recovery
+  const recResult = recoverFP('test1', 5);
+  assert('Recovery: fpCur = 5', testC.fpCur === 5);
+  assert('Recovery: Exausto removed', !testC.conditions.includes('Exausto'));
+
+  // Cleanup test combatant
+  state.combatants = state.combatants.filter(c => c.id !== 'test1');
+  saveState(state);
+
+  // 3d6 sanity
+  for (let i = 0; i < 100; i++) {
+    const r = roll3d6();
+    if (r.total < 3 || r.total > 18 || r.dice.length !== 3) { console.error('❌ 3d6 out of range'); total++; break; }
+  }
+  total++; pass++;
+
+  console.log(pass === total ? `✅ All ${total} tests passed` : `❌ ${pass}/${total} passed`);
+};
+
+/* ═══════ INIT ═══════ */
+migrateOldData();
+state = loadState();
+renderAll();
+
+window.addEventListener('storage', (e) => {
+  if (e.key === STATE_KEY) {
+    state = loadState();
+    renderAll();
+  }
+});
+</script>
+</body>
+</html>
