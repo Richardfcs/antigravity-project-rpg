@@ -2,7 +2,7 @@
   "name": "Escudo do Daimyo",
   "short_name": "Daimyo",
   "description": "Ferramenta de Mestre para A Era das Espadas Quebradas GURPS 4e",
-  "start_url": "/index.html",
+  "start_url": "antigravity-project-rpg/index.html",
   "display": "standalone",
   "background_color": "#0A0A0A",
   "theme_color": "#0A0A0A",
