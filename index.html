@@ -225,6 +225,8 @@
   <script src="js/header-loader.js"></script>
 
   <script src="js/weapons-data.js"></script>
+  <script src="js/library-data.js"></script>
+  <script src="js/enemy-generator.js"></script>
   <script src="js/narrative-tools.js"></script>
 
   <main class="main">
@@ -246,13 +248,11 @@
           <button class="add-form__toggle" id="add-form-toggle">＋ Adicionar Combatente</button>
           <div style="display: flex; gap: 4px; flex: 1; justify-content: flex-end;">
             <select id="select-archetype" style="padding:4px; font-size:0.75rem; border-radius:3px; border:1px solid var(--border-panel); background:var(--bg-panel); color:var(--text-primary); max-width:130px;">
-               <option value="capanga">Bandido</option>
-               <option value="nobre">Samurai Nobre</option>
-               <option value="iaijutsu">Duelista (Iaijutsu)</option>
-               <option value="tank">Guerreiro Pesado</option>
-               <option value="arqueiro">Arqueiro</option>
-               <option value="ninja">Ninja</option>
+               <option value="capanga">Capanga (10-11 DX)</option>
+               <option value="elite">Elite (12-13 DX)</option>
+               <option value="mestre">Mestre (14+ DX)</option>
             </select>
+            <button class="btn btn-gold btn-sm" id="btn-generate-enemy" title="Gerar Inimigo Procedural">🎲 Gerar</button>
             <button class="btn btn-ghost btn-sm" id="btn-quick-fill">⚡ Injetar</button>
           </div>
         </div>
@@ -626,6 +626,7 @@ function addCombatant(data) {
     hpMax: data.hpMax, hpCur: data.hpMax,
     fpMax: data.fpMax, fpCur: data.fpMax,
     speed: data.speed, st: data.st || 10, dx: data.dx, ht: data.ht, will: data.will, dr: data.dr,
+    equippedWeapon: data.equippedWeapon || '',
     shockPenalty: 0, conditions: [], isBleeding: false, isActive: true
   };
   state.combatants.push(c);
@@ -905,13 +906,11 @@ document.getElementById('add-form-toggle').addEventListener('click', () => {
 // Quick fill from Archetypes
 document.getElementById('btn-quick-fill').addEventListener('click', () => {
   const arc = document.getElementById('select-archetype').value;
+  // Fallback if the archetypes aren't procedural
   let data = { name: 'Bandido Comum', hpMax: 10, fpMax: 10, speed: 5.0, dx: 10, ht: 10, will: 10, dr: 0 };
   
-  if (arc === 'nobre') data = { name: 'Samurai Nobre', hpMax: 11, fpMax: 10, speed: 5.5, dx: 12, ht: 10, will: 13, dr: 5 };
-  else if (arc === 'iaijutsu') data = { name: 'Duelista', hpMax: 11, fpMax: 13, speed: 6.75, dx: 14, ht: 13, will: 10, dr: 1 };
-  else if (arc === 'tank') data = { name: 'Guerreiro Pesado', hpMax: 16, fpMax: 13, speed: 6.25, dx: 12, ht: 13, will: 12, dr: 5 };
-  else if (arc === 'arqueiro') data = { name: 'Arqueiro', hpMax: 11, fpMax: 12, speed: 6.5, dx: 14, ht: 12, will: 10, dr: 3 };
-  else if (arc === 'ninja') data = { name: 'Ninja', hpMax: 10, fpMax: 10, speed: 6.25, dx: 15, ht: 10, will: 11, dr: 1 };
+  if (arc === 'elite') data = { name: 'Guerreiro de Elite', hpMax: 14, fpMax: 12, speed: 6.0, dx: 12, ht: 11, will: 11, dr: 3 };
+  else if (arc === 'mestre') data = { name: 'Mestre de Armas', hpMax: 18, fpMax: 15, speed: 7.25, dx: 15, ht: 13, will: 14, dr: 5 };
 
   document.getElementById('input-name').value = data.name;
   document.getElementById('input-hp').value = data.hpMax;
@@ -922,6 +921,42 @@ document.getElementById('btn-quick-fill').addEventListener('click', () => {
   document.getElementById('input-will').value = data.will;
   document.getElementById('input-dr').value = data.dr;
   document.getElementById('add-form-body').style.display = 'grid';
+});
+
+// Procedural Enemy Generation Bridge
+document.getElementById('btn-generate-enemy').addEventListener('click', () => {
+  if (typeof EnemyGenerator === 'undefined') return alert("Erro: Motor de geração não carregado.");
+  
+  const level = document.getElementById('select-archetype').value;
+  const enemy = EnemyGenerator.generate(level);
+  
+  // Fill UI
+  document.getElementById('input-name').value = enemy.name;
+  document.getElementById('input-hp').value = enemy.hp;
+  document.getElementById('input-fp').value = enemy.pf;
+  document.getElementById('input-speed').value = enemy.velocidade;
+  document.getElementById('input-st').value = enemy.st;
+  document.getElementById('input-dx').value = enemy.dx;
+  document.getElementById('input-ht').value = enemy.ht;
+  document.getElementById('input-dr').value = 0; // Reset DR to be filled manually or by equipment notes
+  document.getElementById('input-tag').value = "Inimigo";
+  
+  // Custom Notes
+  const noteBox = document.getElementById('input-tag');
+  if (enemy.armas) {
+      // Find the first weapon in the generated list and select it in the dropdown
+      const firstWeaponName = enemy.armas.split(',')[0].trim();
+      const weaponObj = weaponsDB.find(w => w.nome === firstWeaponName);
+      if (weaponObj) {
+          document.getElementById('select-weapon').value = weaponObj.id;
+      }
+      addHistory('info', `🎲 Gerado: ${enemy.name} equipado com ${enemy.armas}`);
+  }
+
+  alert(`Gerado com sucesso!\nArmas: ${enemy.armas}\nOráculo: ${enemy.notas}`);
+  
+  document.getElementById('add-form-body').style.display = 'grid';
+  document.getElementById('btn-add-combatant').scrollIntoView({ behavior: 'smooth' });
 });
 
 // Modifiers & Tags removals
@@ -1127,12 +1162,14 @@ state = loadState();
 
 // Initialize Weapon Select
 const wpSelect = document.getElementById('select-weapon');
-weaponsDB.forEach(w => {
-  const opt = document.createElement('option');
-  opt.value = w.id;
-  opt.textContent = w.nome;
-  wpSelect.appendChild(opt);
-});
+if (wpSelect && typeof weaponsDB !== 'undefined') {
+  weaponsDB.forEach(w => {
+    const opt = document.createElement('option');
+    opt.value = w.id;
+    opt.textContent = w.nome;
+    wpSelect.appendChild(opt);
+  });
+}
 
 renderAll();
 renderHistory();

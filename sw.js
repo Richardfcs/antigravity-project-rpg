@@ -1,4 +1,4 @@
-const CACHE_NAME = 'daimyo-cache-v1';
+const CACHE_NAME = 'daimyo-cache-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -12,6 +12,7 @@ const ASSETS = [
   '/js/narrative-tools.js',
   '/js/weapons-data.js',
   '/js/library-data.js',
+  '/js/enemy-generator.js',
   '/manifest.json'
 ];
 

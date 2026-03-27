@@ -50,4 +50,8 @@ function findWeapon(query) {
   return weaponsDB.find(w => w.id === query || w.nome === query);
 }
 
-// Helpers are defined here if needed, but UI mappings should be page-specific.
+
+window.weaponsDB = weaponsDB;
+window.armorDB = armorDB;
+window.gearDB = gearDB;
+window.findWeapon = findWeapon;

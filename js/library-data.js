@@ -146,4 +146,5 @@ const libraryData = [
     { nome: "Âncora Espiritual", cat: "Regra", cust: "Exorcismo", desc: "Objeto físico que prende um Yurei. Deve ser purificado." }
 ];
 
+window.libraryData = libraryData;
 console.log(`Biblioteca Completa: ${libraryData.length} registros técnicos ativos.`);
