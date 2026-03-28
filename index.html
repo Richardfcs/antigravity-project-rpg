@@ -205,6 +205,12 @@
       .header__meta { display: none; }
       .tab-nav { margin: 0; width: 100%; flex-wrap: wrap; justify-content: center; }
       .panel { min-height: 400px; }
+      
+      /* Force 2x2 grid for mass combat fields on mobile */
+      .field-row-4 { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+      .field-row-3 { grid-template-columns: 1fr !important; }
+      .mass-modal { padding: 15px; width: 95%; max-width: 400px; }
+      .drawer { width: 100%; }
     }
 
     ::-webkit-scrollbar { width: 5px; }
@@ -365,6 +371,63 @@
           </div>
           <button class="btn btn-secondary" id="btn-roll-st">🎲 Rolar Dados de Força</button>
           <div id="adv-dmg-log" style="font-size:0.7rem; font-family:monospace; color:var(--text-muted); text-align:center">Base ST aguardando...</div>
+        </div>
+      </div>
+
+      <!-- RANGED CALC INTEGRATION -->
+      <div style="padding: 10px; border: 1px dashed var(--border-panel); border-radius: var(--radius); margin-bottom: 8px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input type="checkbox" id="toggle-ranged-calc" onchange="document.getElementById('rc-panel').style.display = this.checked ? 'flex' : 'none'">
+          <label class="field__label" for="toggle-ranged-calc" style="cursor:pointer; color:var(--gold)">📏 Ativar Cálculo de Distância (SSR)</label>
+        </div>
+        
+        <div id="rc-panel" style="display:none; flex-direction:column; gap:12px; margin-top:10px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field">
+              <label class="field__label">Distância (m)</label>
+              <input type="number" id="rc-distance" class="field__input" value="2" oninput="RangedCalc.update()" style="font-size:1rem; padding:8px;">
+            </div>
+            <div class="field">
+              <label class="field__label">Tamanho (SM)</label>
+              <input type="number" id="rc-sm" class="field__input" value="0" oninput="RangedCalc.update()" style="font-size:1rem; padding:8px;">
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field">
+              <label class="field__label">Precisão (Acc)</label>
+              <input type="number" id="rc-acc" class="field__input" value="0" oninput="RangedCalc.update()" style="font-size:1rem; padding:8px;">
+            </div>
+            <div class="field">
+              <label class="field__label">Turnos de Mira</label>
+              <select id="rc-aim" class="field__input" onchange="RangedCalc.update()" style="font-size:0.9rem; padding:8px;">
+                <option value="0">Nenhum</option>
+                <option value="1">1 Turno (Acc)</option>
+                <option value="2">2 Turnos (Acc+1)</option>
+                <option value="3">3+ Turnos (Acc+2)</option>
+              </select>
+            </div>
+          </div>
+  
+          <div style="display:flex; gap:15px; justify-content:center;">
+             <label style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:5px; cursor:pointer;">
+                <input type="checkbox" id="rc-braced" onchange="RangedCalc.update()"> Apoiado (+1)
+             </label>
+             <label style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:5px; cursor:pointer;">
+                <input type="checkbox" id="rc-determined" onchange="RangedCalc.update()"> Determinada (+1)
+             </label>
+          </div>
+
+          <div class="field">
+            <label class="field__label">Modificador Manual</label>
+            <input type="number" id="rc-custom" class="field__input" value="0" oninput="RangedCalc.update()" style="font-size:1rem; padding:8px;">
+          </div>
+  
+          <div class="result-box" style="min-height:50px; padding:8px; background:rgba(0,0,0,0.2);">
+            <div id="rc-result" style="font-size:1.8rem; font-weight:900; font-family:var(--font-display); color:var(--gold);">+0</div>
+            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Modificador Final</div>
+            <div id="rc-breakdown-range" style="font-size:0.65rem; font-style:italic; color:var(--text-secondary); margin-top:2px;">Distância: +0</div>
+          </div>
         </div>
       </div>
 

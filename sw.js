@@ -1,4 +1,4 @@
-const CACHE_NAME = 'daimyo-cache-v3';
+const CACHE_NAME = 'daimyo-cache-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ASSETS = [
   './kegare-panico.html',
   './combat-calculator.html',
   './js/header-loader.js',
+  './js/theme-manager.js',
   './js/narrative-tools.js',
   './js/weapons-data.js',
   './js/library-data.js',
@@ -16,7 +17,9 @@ const ASSETS = [
   './js/ranged-calc.js',
   './manifest.json',
   './icons/app-icon-192.png',
-  './icons/app-icon-512.png'
+  './icons/app-icon-512.png',
+  './screenshots/desktop.png',
+  './screenshots/mobile.png'
 ];
 
 // INSTALL: Cache current assets

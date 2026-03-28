@@ -27,7 +27,7 @@
     .new-header__title span { color: var(--red-accent); }
     
     .mobile-menu-btn {
-      display: none;
+      display: block;
       background: transparent;
       border: 1px solid var(--border-panel);
       border-radius: var(--radius);
@@ -38,10 +38,15 @@
     }
     
     .new-nav-container {
-      display: flex;
+      display: none;
       flex: 1;
       justify-content: space-between;
       align-items: center;
+    }
+
+    @media (min-width: 900px) {
+      .mobile-menu-btn { display: none; }
+      .new-nav-container { display: flex; }
     }
     
     .new-tab-nav {
@@ -145,19 +150,8 @@
       border-left: 3px solid var(--gold);
     }
     
-    /* PREVENT BODY SCROLL */
-    body.nav-open { overflow: hidden; touch-action: none; }
-
-    @media (max-width: 1320px) {
-      .new-nav-container { display: none; }
-      .mobile-menu-btn { display: flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px;}
-      .new-header { padding: 10px 15px; }
-    }
-  `;
-
-  const calcCss = `
-    /* === RANGED CALC DRAWER === */
-    .ranged-calc-drawer {
+    /* === THEME DRAWER === */
+    .theme-drawer {
       position: fixed;
       top: 0; right: -360px; width: 340px; height: 100vh;
       background: var(--bg-deep);
@@ -167,33 +161,56 @@
       display: flex; flex-direction: column;
       box-shadow: -10px 0 30px rgba(0,0,0,0.5);
     }
-    .ranged-calc-drawer.open { transform: translateX(-360px); }
+    .theme-drawer.open { transform: translateX(-360px); }
     
-    .rc-header { padding: 20px; border-bottom: 1px solid var(--border-panel); display: flex; justify-content: space-between; align-items: center; }
-    .rc-content { padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px; }
-    
-    .rc-field { display: flex; flex-direction: column; gap: 6px; }
-    .rc-field label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
-    .rc-input { width: 100%; padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-panel); border-radius: var(--radius); color: var(--text-primary); font-family: var(--font-body); }
-    
-    .rc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    
-    .rc-result-box {
-      margin-top: 10px;
-      padding: 20px;
-      background: var(--bg-panel);
+    .theme-grid { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 20px; }
+    .theme-option {
+      padding: 16px;
       border: 1px solid var(--border-panel);
       border-radius: var(--radius-lg);
-      text-align: center;
+      cursor: pointer;
+      display: flex; flex-direction: column; gap: 8px;
+      transition: all var(--transition);
+      background: var(--bg-panel);
     }
-    .rc-result-val { font-family: var(--font-display); font-size: 2.5rem; font-weight: 900; line-height: 1; margin-bottom: 4px; }
-    .rc-result-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.1em; }
+    .theme-option:hover { border-color: var(--gold); background: rgba(255,255,255,0.02); }
+    .theme-option.active { border-color: var(--gold); border-width: 2px; }
     
-    .rc-breakdown { font-size: 0.75rem; color: var(--text-secondary); margin-top: 10px; font-style: italic; }
+    .theme-name { font-weight: 700; font-family: var(--font-display); font-size: 1rem; }
+    .theme-preview { display: flex; gap: 4px; }
+    .theme-color { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); }
     
-    .rc-checkbox-group { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-    .rc-checkbox-group input { width: 18px; height: 18px; cursor: pointer; }
+    /* LIGHT THEME OVERRIDES */
+    html[data-theme="light"] {
+      --bg-deep: #F2F2EB; --bg-panel: #FFFFFF; --bg-card: #FAF9F5; --bg-input: #FDFDFB;
+      --border-panel: #D1D5DB; --border-input: #E5E7EB; --border-focus: #C41E3A;
+      --text-primary: #1A1A1A; --text-secondary: #4B5563; --text-muted: #6B7280;
+      --red-blood: #8B0000; --red-accent: #C41E3A; --gold: #B8860B;
+    }
+    
+    /* NEON THEMES */
+    html[data-theme="neon-green"] {
+      --bg-deep: #050805; --bg-panel: #0A120A; --border-panel: #1A3A1A;
+      --red-accent: #39FF14; --gold: #CCFF00; --text-primary: #E0FFE0;
+      --red-blood: #00FF41; --gold-glow: rgba(57, 255, 20, 0.4);
+    }
+    html[data-theme="neon-yellow"] {
+      --bg-deep: #080802; --bg-panel: #121205; --border-panel: #3A3A1A;
+      --red-accent: #FFFF00; --gold: #FFD700; --text-primary: #FFFFE0;
+      --red-blood: #FFEA00; --gold-glow: rgba(255, 215, 0, 0.4);
+    }
+    html[data-theme="neon-red"] {
+      --bg-deep: #0A0202; --bg-panel: #1A0505; --border-panel: #4A1A1A;
+      --red-accent: #FF003C; --gold: #FF4D00; --text-primary: #FFE0E5;
+      --red-blood: #8B0000; --gold-glow: rgba(255, 0, 60, 0.4);
+    }
+
+    html[data-theme="light"] i, html[data-theme="light"] .icon { filter: brightness(0.2); }
+    html[data-theme="light"] .new-tab-nav__link:hover { background: rgba(0,0,0,0.03); }
+    html[data-theme="light"] .theme-drawer { box-shadow: -10px 0 30px rgba(0,0,0,0.1); }
   `;
+
+  /* Ranged Calc CSS removed from global header */
 
   // Define Links Mapping
   const pages = [
@@ -220,7 +237,7 @@
         </nav>
         <div class="new-header__tools">
           ${currentPage === 'index.html' ? `
-          <button class="btn btn-ghost" onclick="RangedCalc.toggleDrawer()" title="Calculadora de Distância" style="min-height:44px; padding:0 15px;">📏 Distância</button>
+          <button class="btn btn-ghost" onclick="ThemeManager.openDrawer()" title="Customizar Tema" style="min-height:44px; padding:0 15px;">🎨 Customizar</button>
           <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleDrawer('gm-notes-drawer')" title="Anotações" style="min-height:44px; padding:0 15px;">📝 Notas</button>
           <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleDrawer('clocks-drawer')" title="Ameaças" style="min-height:44px; padding:0 15px;">⏱ Ameaças</button>
           <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleModal('combat-mass-overlay')" title="Guerra" style="min-height:44px; padding:0 15px;">⚔ Guerra</button>
@@ -251,7 +268,7 @@
           <div class="mobile-drawer__section">Ferramentas de Mestre</div>
           <div class="mobile-drawer__links">
             ${currentPage === 'index.html' ? `
-            <button onclick="window.closeMobileNav(); RangedCalc.toggleDrawer()">📏 Calculadora de Distância</button>
+            <button onclick="window.closeMobileNav(); ThemeManager.openDrawer()">🎨 Customizar Cores</button>
             <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleDrawer('gm-notes-drawer')">📝 Anotações do Mestre</button>
             <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleDrawer('clocks-drawer')">⏱ Relógios de Facção</button>
             <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleModal('combat-mass-overlay')">⚔ Combate em Massa</button>
@@ -262,69 +279,65 @@
     `;
   }
 
-  function renderRangedCalcDrawer() {
+  function renderThemeDrawer() {
     return `
-      <div id="ranged-calc-drawer" class="ranged-calc-drawer">
+      <div id="theme-drawer" class="theme-drawer" style="overflow-y:auto; scrollbar-width:thin;">
         <div class="rc-header">
-          <h2 class="new-header__title">📏 Ataque à <span>Distância</span></h2>
-          <button class="mobile-drawer__close" onclick="RangedCalc.toggleDrawer()">✕</button>
+          <h2 class="new-header__title">🎨 Personalizar <span>Estética</span></h2>
+          <button class="mobile-drawer__close" onclick="ThemeManager.closeDrawer()">✕</button>
         </div>
-        <div class="rc-content">
-          <div class="rc-grid">
-            <div class="rc-field">
-              <label>Distância (m)</label>
-              <input type="number" id="rc-distance" class="rc-input" value="2" oninput="RangedCalc.update()">
-            </div>
-            <div class="rc-field">
-              <label>Tamanho (SM)</label>
-              <input type="number" id="rc-sm" class="rc-input" value="0" oninput="RangedCalc.update()">
-            </div>
+        
+        <div class="mobile-drawer__section">Paletas Clássicas</div>
+        <div class="theme-grid" style="grid-template-columns: 1fr 1fr; padding: 10px 20px;">
+          <div class="theme-option" onclick="ThemeManager.apply('dark')">
+            <div class="theme-name" style="font-size:0.8rem;">Sumi-e (Escuro)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#0A0A0A"></div><div class="theme-color" style="background:#C41E3A"></div></div>
           </div>
+          <div class="theme-option" onclick="ThemeManager.apply('light')">
+            <div class="theme-name" style="font-size:0.8rem;">Washi (Claro)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#F2F2EB"></div><div class="theme-color" style="background:#8B0000"></div></div>
+          </div>
+        </div>
 
-          <div class="rc-grid">
-            <div class="rc-field">
-              <label>Precisão (Acc)</label>
-              <input type="number" id="rc-acc" class="rc-input" value="0" oninput="RangedCalc.update()">
-            </div>
-            <div class="rc-field">
-              <label>Turnos de Mira</label>
-              <select id="rc-aim" class="rc-input" onchange="RangedCalc.update()">
-                <option value="0">Nenhum</option>
-                <option value="1">1 Turno (Acc)</option>
-                <option value="2">2 Turnos (Acc+1)</option>
-                <option value="3">3+ Turnos (Acc+2)</option>
-              </select>
-            </div>
+        <div class="mobile-drawer__section">Paletas Neon (Vibrantes)</div>
+        <div class="theme-grid" style="grid-template-columns: 1fr 1fr; padding: 10px 20px;">
+          <div class="theme-option" onclick="ThemeManager.apply('neon-green')">
+            <div class="theme-name" style="font-size:0.8rem;">Venenoso (Kegare)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#050805"></div><div class="theme-color" style="background:#39FF14"></div></div>
           </div>
+          <div class="theme-option" onclick="ThemeManager.apply('neon-yellow')">
+            <div class="theme-name" style="font-size:0.8rem;">Dourado (Tempo)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#080802"></div><div class="theme-color" style="background:#FFFF00"></div></div>
+          </div>
+          <div class="theme-option" onclick="ThemeManager.apply('neon-red')">
+            <div class="theme-name" style="font-size:0.8rem;">Sengoku (Escudo)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#0A0202"></div><div class="theme-color" style="background:#FF003C"></div></div>
+          </div>
+        </div>
 
-          <div class="rc-grid">
-            <div class="rc-field">
-              <label class="rc-checkbox-group">
-                <input type="checkbox" id="rc-braced" onchange="RangedCalc.update()"> Apoiado (+1)
-              </label>
+        <div class="mobile-drawer__section">Acessibilidade e Texto</div>
+        <div style="padding: 10px 20px; display:flex; flex-direction:column; gap:12px;">
+          <div class="field">
+            <label class="field__label" style="font-size:0.65rem;">Cor de Texto Primária</label>
+            <div style="display:flex; gap:8px;">
+               <div onclick="ThemeManager.setTextColor('#F5F0E8')" style="width:24px; height:24px; background:#F5F0E8; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
+               <div onclick="ThemeManager.setTextColor('#FFFFFF')" style="width:24px; height:24px; background:#FFFFFF; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
+               <div onclick="ThemeManager.setTextColor('#E0FFE0')" style="width:24px; height:24px; background:#E0FFE0; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
+               <div onclick="ThemeManager.setTextColor('#FFFFE0')" style="width:24px; height:24px; background:#FFFFE0; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
+               <div onclick="ThemeManager.setTextColor('')" style="width:24px; height:24px; background:#aaa; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; color:#000;">✕</div>
             </div>
-            <div class="rc-field">
-              <label class="rc-checkbox-group">
-                <input type="checkbox" id="rc-determined" onchange="RangedCalc.update()"> Determinada (+1)
-              </label>
+          </div>
+          <div class="field">
+            <label class="field__label" style="font-size:0.65rem;">Estilo de Fonte</label>
+            <div style="display:flex; gap:8px;">
+               <button class="btn btn-ghost" onclick="ThemeManager.setFontFamily('serif')" style="flex:1; font-size:0.65rem; padding:5px;">Com Serifa (JP)</button>
+               <button class="btn btn-ghost" onclick="ThemeManager.setFontFamily('sans')" style="flex:1; font-size:0.65rem; padding:5px;">Sem Serifa (Inter)</button>
             </div>
           </div>
+        </div>
 
-          <div class="rc-field">
-            <label>Mod. Customizado</label>
-            <input type="number" id="rc-custom" class="rc-input" value="0" oninput="RangedCalc.update()">
-          </div>
-
-          <div class="rc-result-box">
-            <div class="rc-result-val" id="rc-result">+0</div>
-            <div class="rc-result-label">Modificador Final</div>
-            <div class="rc-breakdown" id="rc-breakdown-range">Distância: +0</div>
-          </div>
-          
-          <p style="font-size: 0.7rem; color: var(--text-muted); line-height: 1.4;">
-            * Mira (Aim) garante a Acc da arma. Turnos extras de mira adicionam bônus. 
-            Apoio (Braced) só soma se estiver mirando.
-          </p>
+        <div style="padding:20px; font-size:0.7rem; color:var(--text-muted); text-align:center; border-top:1px solid var(--border-panel); margin-top:auto;">
+          A estética selecionada será aplicada em todas as páginas e lembrada na sua próxima sessão.
         </div>
       </div>
     `;
@@ -332,10 +345,14 @@
 
   // Inject CSS
   const style = document.createElement('style');
-  style.innerHTML = css + calcCss;
+  style.innerHTML = css;
   document.head.appendChild(style);
 
-  // Inject Script for Ranged Calc logic
+  // Inject Scripts
+  const themeScript = document.createElement('script');
+  themeScript.src = 'js/theme-manager.js';
+  document.head.appendChild(themeScript);
+
   const calcScript = document.createElement('script');
   calcScript.src = 'js/ranged-calc.js';
   document.head.appendChild(calcScript);
@@ -347,7 +364,7 @@
       <button class="mobile-menu-btn" id="mobile-menu-open">☰</button>
     </header>
     ${renderMobileDrawer()}
-    ${renderRangedCalcDrawer()}
+    ${renderThemeDrawer()}
   `;
 
   document.write('<div id="daimyo-header-mount"></div>');
