@@ -1,150 +1,172 @@
-const libraryData = [
-    // --- VANTAGENS (ADVANTAGES) ---
-    { nome: "Reflexos em Combate", cat: "Vantagem", cust: "15 pts", desc: "+1 em todas as Defesas Ativas; +2 em testes de Pânico; nunca fica paralisado por surpresa." },
-    { nome: "Hipoalgia", cat: "Vantagem", cust: "10 pts", desc: "Ignora penalidades de choque por dano e recebe +3 em testes para resistir à dor." },
-    { nome: "Ver o Invisível", cat: "Vantagem", cust: "15 pts", desc: "Permite enxergar seres que residem no plano espiritual ou que usam o 'Véu'." },
-    { nome: "Fé Verdadeira", cat: "Vantagem", cust: "15 pts", desc: "Sua fé pura age como um escudo. Yokais não podem se aproximar enquanto você orar." },
-    { nome: "Investidura Clerical", cat: "Vantagem", cust: "5 pts", desc: "Membro oficial de um templo. Garante respeito social e acesso a rituais sagrados." },
-    { nome: "Equilíbrio Perfeito", cat: "Vantagem", cust: "15 pts", desc: "+1 em Acrobacia e Escalada. Ignora penalidades de terreno instável." },
-    { nome: "Silêncio", cat: "Vantagem", cust: "5 pts/n", desc: "Cada nível garante +2 em testes de Furtividade quando em movimento." },
-    { nome: "Noção do Perigo", cat: "Vantagem", cust: "15 pts", desc: "Mestre faz teste secreto de Percepção para você antes de emboscadas." },
-    { nome: "Empatia com Espíritos", cat: "Vantagem", cust: "10 pts", desc: "Sente as emoções e intenções de Yokais e Yureis." },
-    { nome: "Toque da Memória", cat: "Vantagem", cust: "10 pts", desc: "Vê flashes do passado emocional de um objeto. Custa 2 PF por uso." },
-    { nome: "Linhagem Imperial", cat: "Vantagem", cust: "5 pts", desc: "Descendente das Doze Linhagens Reais. Reivindicação de Status." },
-    { nome: "Voz Melodiosa", cat: "Vantagem", cust: "10 pts", desc: "+2 em perícias baseadas em voz (Lábia, Canto, Diplomacia)." },
-    { nome: "Memória Eidética", cat: "Vantagem", cust: "5 pts", desc: "Lembra-se de tudo. Bônus em perícias de conhecimento." },
-    { nome: "Indomável", cat: "Vantagem", cust: "15 pts", desc: "Imune a perícias de Influência mundanas." },
-    { nome: "Senso de Direção", cat: "Vantagem", cust: "5 pts", desc: "Nunca se perde. +3 em Orientação e Navegação." },
-    { nome: "Discriminação Olfativa", cat: "Vantagem", cust: "15 pts", desc: "Faro de animal. Pode rastrear pelo cheiro." },
-    { nome: "Imunidade Diplomática", cat: "Vantagem", cust: "5-20 pts", desc: "Emissário sagrado ou do Imperador. Ferir você é declarar guerra." },
-    { nome: "Favor", cat: "Vantagem", cust: "Variável", desc: "Um NPC poderoso lhe deve um favor vital único." },
-    { nome: "Recuperação de Espanto", cat: "Vantagem", cust: "10 pts", desc: "Recupera-se de atordoamento muito mais rápido." },
-    { nome: "Visão Periférica", cat: "Vantagem", cust: "15 pts", desc: "Não pode ser flanqueado. Enxerga quase 360 graus." },
-    { nome: "Metabolismo Controlado", cat: "Vantagem", cust: "5-10 pts", desc: "[Chi] Pode entrar em transe para fingir morte ou poupar ar/comida." },
-    { nome: "Resistência a Doenças", cat: "Vantagem", cust: "3-5 pts", desc: "Bônus em testes de HT para resistir a pestes e infecções." },
+/**
+ * 📚 DIRETÓRIO TÉCNICO & BIBLIOTECA — Escudo do Daimyo
+ * Gerencia persistência local, categorias customizadas e tags.
+ */
 
-    // --- DESVANTAGENS (DISADVANTAGES) ---
-    { nome: "Código de Honra (Bushido)", cat: "Desvantagem", cust: "-15 pts", desc: "Lealdade, coragem e cortesia absoluta. Desonra exige reparação." },
-    { nome: "Dever (Daimyo)", cat: "Desvantagem", cust: "-10 ou -15 pts", desc: "Obrigação de obedecer ordens, muitas vezes perigosas." },
-    { nome: "Segredo (Shinobi)", cat: "Desvantagem", cust: "-20 pts", desc: "Identidade como espião deve ser mantida oculta sob pena de morte." },
-    { nome: "Assombrado (Kegare)", cat: "Desvantagem", cust: "-10 pts", desc: "Pesadelos constantes. Não recupera o último PF ao dormir." },
-    { nome: "Sanguinolência", cat: "Desvantagem", cust: "-10 pts", desc: "Prazer na luta. Teste de Vontade para não executar inimigos." },
-    { nome: "Cobiça", cat: "Desvantagem", cust: "-15 pts", desc: "Ouro e poder são seus motores. Teste de Vontade para não se arriscar." },
-    { nome: "Zarolho", cat: "Desvantagem", cust: "-15 pts", desc: "-1 em Defesas Ativas e -3 em ataques à distância." },
-    { nome: "Inimigo", cat: "Desvantagem", cust: "Variável", desc: "Alguém caçando você ou sabotando sua honra." },
-    { nome: "Maneta", cat: "Desvantagem", cust: "-15 pts", desc: "Preço de um duelo perdido. Sem uso de um braço." },
-    { nome: "Sono Leve", cat: "Desvantagem", cust: "-5 pts", desc: "Acorda com qualquer barulho. Ruim para descanso em viagens." },
-    { nome: "Avareza", cat: "Desvantagem", cust: "-10 pts", desc: "Dificuldade em gastar dinheiro; risco em negociações comerciais." },
-    { nome: "Gula", cat: "Desvantagem", cust: "-5 pts", desc: "Gasta excessivamente com comida e saquê caro." },
-    { nome: "Insone", cat: "Desvantagem", cust: "-10 pts", desc: "Dorme mal. Recupera PF 50% mais devagar." },
-    { nome: "Timidez", cat: "Desvantagem", cust: "-5 pts", desc: "Penalidade em situações sociais e falar com estranhos." },
+const LibraryManager = (function() {
+    const STORAGE_KEY = 'daimyo_library_data';
+    const CAT_STORAGE_KEY = 'daimyo_library_categories';
 
-    // --- QUALIDADES (PERKS) ---
-    { nome: "Barbeiro", cat: "Qualidade", cust: "1 pt", desc: "Sabe fazer o corte Chonmage ou raspar Monges. Útil para disfarces." },
-    { nome: "Bebedor Social", cat: "Qualidade", cust: "1 pt", desc: "Nunca faz papelão quando bêbado, mantendo a dignidade." },
-    { nome: "Sotaque Local", cat: "Qualidade", cust: "1 pt", desc: "Imita perfeitamente sotaques de outras regiões." },
-    { nome: "Sacar Sentado", cat: "Qualidade", cust: "1 pt", desc: "Pode sacar e atacar estando sentado (seiza) sem penalidade." },
-    { nome: "Grito de Batalha", cat: "Qualidade", cust: "1 pt", desc: "+1 em Intimidação se gritar antes do ataque." },
-    { nome: "Escudo de Carne", cat: "Qualidade", cust: "1 pt", desc: "+1 para agarrar alguém e usá-lo como cobertura." },
-    { nome: "Olhar do Anatomista", cat: "Qualidade", cust: "1 pt", desc: "Revela RD e Fraqueza de um Yokai após 1 turno de estudo." },
-    { nome: "Acendedor de Fogo", cat: "Qualidade", cust: "1 pt", desc: "Acende chamas minúsculas com os dedos (Truque de Ki)." },
-    { nome: "Previsão do Tempo", cat: "Qualidade", cust: "1 pt", desc: "Sente mudanças climáticas nos ossos. Age como Meteorologia." },
-    { nome: "Calejado", cat: "Qualidade", cust: "1 pt", desc: "Ignora modificadores de medo para cadáveres e horrores mundanos." },
-    { nome: "Biblioteca Mental", cat: "Qualidade", cust: "5 pts", desc: "Lembra fatos sobre Yokais sem precisar rolar dados." },
+    const defaultCategories = [
+        { id: 'cat_van', name: 'Vantagem', icon: '🌟', tags: ['Poder', 'Social', 'Mental', 'Combate'], order: 0 },
+        { id: 'cat_des', name: 'Desvantagem', icon: '⛓️', tags: ['Física', 'Social', 'Mental', 'Defeito'], order: 1 },
+        { id: 'cat_qua', name: 'Qualidade', icon: '🎭', tags: ['Estilo', 'Efeito', 'Social'], order: 2 },
+        { id: 'cat_pec', name: 'Peculiaridade', icon: '🔹', tags: ['Hábito', 'Crença', 'Visual'], order: 3 },
+        { id: 'cat_per', name: 'Perícia', icon: '🥋', tags: ['DX', 'IQ', 'HT', 'Vont', 'Per'], order: 4 },
+        { id: 'cat_bud', name: 'Budo', icon: '⚔️', tags: ['Kenjutsu', 'Arquearia', 'Desarmado'], order: 5 },
+        { id: 'cat_arq', name: 'Arquétipo', icon: '👥', tags: ['Nobre', 'Ronin', 'Místico', 'Ninja'], order: 6 },
+        { id: 'cat_yok', name: 'Yokai', icon: '👻', tags: ['Espírito', 'Fisíco', 'Terror', 'Calamidade'], order: 7 },
+        { id: 'cat_alq', name: 'Alquimia', icon: '🧪', tags: ['Veneno', 'Poção', 'Explosivo'], order: 8 },
+        { id: 'cat_atl', name: 'Atlas', icon: '🗺️', tags: ['Província', 'Cidade', 'Santuário'], order: 9 },
+        { id: 'cat_reg', name: 'Regra', icon: '📜', tags: ['Mecânica', 'Cultura', 'Lore'], order: 10 }
+    ];
 
-    // --- PECULIARIDADES (QUIRKS) ---
-    { nome: "Nunca Ataca Mulheres", cat: "Peculiaridade", cust: "-1 pt", desc: "Código pessoal de cavalheirismo extremo." },
-    { nome: "Recusa Chuva", cat: "Peculiaridade", cust: "-1 pt", desc: "Recusa lutar na chuva para não estragar a armadura." },
-    { nome: "Moeda no Olho", cat: "Peculiaridade", cust: "-1 pt", desc: "Sempre deixa uma moeda sobre os olhos dos mortos." },
-    { nome: "Cético", cat: "Peculiaridade", cust: "-1 pt", desc: "Não acredita em Yokai até ver um comendo sua perna." },
-    { nome: "Supersticioso", cat: "Peculiaridade", cust: "-1 pt", desc: "Evita gatos pretos, cemitérios e o número 4." },
-    { nome: "Vaidoso", cat: "Peculiaridade", cust: "-1 pt", desc: "Gasta tempo demais polindo o aço ou o cabelo." },
+    const initialData = [
+        // --- VANTAGENS ---
+        { id: 'lib_v1', nome: "Reflexos em Combate", cat: "Vantagem", cust: "15 pts", desc: "+1 em todas as Defesas Ativas; +2 em testes de Pânico; nunca fica paralisado por surpresa.", tags: ["Combate"] },
+        { id: 'lib_v2', nome: "Hipoalgia", cat: "Vantagem", cust: "10 pts", desc: "Ignora penalidades de choque por dano e recebe +3 em testes para resistir à dor ou tortura.", tags: ["Física", "Combate"] },
+        { id: 'lib_v3', nome: "Sorte", cat: "Vantagem", cust: "15 pts", desc: "Role novamente um teste a cada 1 hora de jogo real. Fica com o melhor resultado.", tags: ["Mental"] },
+        { id: 'lib_v4', nome: "Ambidestria", cat: "Vantagem", cust: "5 pts", desc: "Elimina a penalidade de -4 por usar a mão inábil em combate.", tags: ["Combate"] },
+        { id: 'lib_v5', nome: "Boa Forma (Fit)", cat: "Vantagem", cust: "5 pts", desc: "Recupera Fadiga (PF) duas vezes mais rápido. +1 em testes de HT.", tags: ["Física"] },
+        { id: 'lib_v6', nome: "Carisma 1", cat: "Vantagem", cust: "5 pts", desc: "+1 em testes de Reação e em perícias como Liderança ou Oratória.", tags: ["Social"] },
+        { id: 'lib_v7', nome: "Noção do Perigo", cat: "Vantagem", cust: "15 pts", desc: "O mestre rola em segredo se você estiver prestes a ser emboscado.", tags: ["Mental"] },
+        { id: 'lib_v8', nome: "Equilíbrio Perfeito", cat: "Vantagem", cust: "15 pts", desc: "+1 em Acrobacia e Escalada. Pode lutar em superfícies estreitas sem testes.", tags: ["Física"] },
+        { id: 'lib_v9', nome: "Duro de Matar 2", cat: "Vantagem", cust: "4 pts", desc: "+2 em testes de HT para não morrer quando abaixo de 0 PV.", tags: ["Física"] },
+        { id: 'lib_v10', nome: "Empatia 1", cat: "Vantagem", cust: "5 pts", desc: "Sente as emoções de NPCs. Bônus em Primeiros Socorros e Diplomacia.", tags: ["Mental"] },
 
-    // --- PERÍCIAS (SKILLS) ---
-    { nome: "Exorcismo", cat: "Perícia", cust: "Vont/D", desc: "Expulsar espíritos e purificar a mácula de locais." },
-    { nome: "Saber Oculto (Yokai)", cat: "Perícia", cust: "IQ/M", desc: "Conhecimento de fraquezas e comportamento de monstros." },
-    { nome: "Meditação", cat: "Perícia", cust: "Vont/D", desc: "Recuperar PF e manter calma sob pressão extrema." },
-    { nome: "Tanatologia", cat: "Perícia", cust: "IQ/D", desc: "Estudo da morte e rituais fúnebres." },
-    { nome: "Venenos", cat: "Perícia", cust: "IQ/D", desc: "Criação e aplicação de toxinas em armas." },
-    { nome: "Hojojutsu (Amarras)", cat: "Perícia", cust: "DX/F", desc: "Arte de amarrar prisioneiros com segurança." },
-    { nome: "Punga", cat: "Perícia", cust: "DX/D", desc: "Roubar bolsas e objetos pequenos." },
-    { nome: "Manha (Streetwise)", cat: "Perícia", cust: "IQ/M", desc: "Sobreviver na cidade, achar mercado negro." },
-    { nome: "Rastreamento", cat: "Perícia", cust: "Per/M", desc: "Seguir pegadas na natureza ou cidade." },
-    { nome: "Navegação", cat: "Perícia", cust: "IQ/M", desc: "Orientar-se por estrelas ou mapas." },
-    { nome: "Controle da Respiração", cat: "Perícia", cust: "HT/D", desc: "Recuperar fadiga mais rápido. Meditação de Ki." },
-    { nome: "Hipnotismo", cat: "Perícia", cust: "IQ/D", desc: "Induzir transes e sugerir ações." },
-    { nome: "Heráldica (Mons)", cat: "Perícia", cust: "IQ/E", desc: "Identificar clãs pelos seus brasões." },
-    { nome: "História", cat: "Perícia", cust: "IQ/D", desc: "Conhecimento sobre clãs e batalhas passadas." },
-    { nome: "Teologia", cat: "Perícia", cust: "IQ/D", desc: "Estudo dos Budas e preitos Xintoístas." },
-    { nome: "Literatura", cat: "Perícia", cust: "IQ/D", desc: "Conhecimento de clássicos poéticos e administrativos." },
-    { nome: "Instrumento Musical", cat: "Perícia", cust: "IQ/D", desc: "Shamisen, Biwa ou Tambor Taiko." },
-    { nome: "Ferreiro", cat: "Perícia", cust: "IQ/M", desc: "Forjar ferramentas e reparar armas." },
-    { nome: "Culinária", cat: "Perícia", cust: "IQ/F", desc: "Preparar comida segura (até Fugu)." },
-    { nome: "Comércio", cat: "Perícia", cust: "IQ/M", desc: "Barganhar preços e avaliar espólios." },
-    { nome: "Natação", cat: "Perícia", cust: "HT/F", desc: "Capacidade de não afogar-se." },
-    { nome: "Meteorologia", cat: "Perícia", cust: "IQ/M", desc: "Prever tempestades e nevascas." },
-    { nome: "Alvenaria", cat: "Perícia", cust: "IQ/E", desc: "Construir muros de pedra e fortificações." },
-    { nome: "Tecelagem", cat: "Perícia", cust: "DX/E", desc: "Fazer tecidos e cordas de seda." },
+        // --- DESVANTAGENS ---
+        { id: 'lib_d1', nome: "Código de Honra (Bushido)", cat: "Desvantagem", cust: "-15 pts", desc: "Lealdade, coragem e cortesia absoluta. Desonra exige reparação (Seppuku).", tags: ["Social", "Mental"] },
+        { id: 'lib_d2', nome: "Excesso de Confiança", cat: "Desvantagem", cust: "-5 pts", desc: "Subestima oponentes e acredita que pode vencer qualquer desafio.", tags: ["Mental"] },
+        { id: 'lib_d3', nome: "Dever (Daimyo)", cat: "Desvantagem", cust: "-10 a -20 pts", desc: "Obrigação militar e política compulsória com seu senhor feudal.", tags: ["Social"] },
+        { id: 'lib_d4', nome: "Estigma Social (Ronin)", cat: "Desvantagem", cust: "-10 pts", desc: "Visto com desconfiança por não ter um mestre. -2 em reações de nobres.", tags: ["Social"] },
+        { id: 'lib_d5', nome: "Sanguinolência", cat: "Desvantagem", cust: "-10 pts", desc: "Desejo de matar inimigos em vez de apenas derrotá-los.", tags: ["Mental"] },
+        { id: 'lib_d6', nome: "Honestidade", cat: "Desvantagem", cust: "-10 pts", desc: "Obedece às leis fielmente. Tem dificuldade em mentir ou trapacear.", tags: ["Mental"] },
+        { id: 'lib_d7', nome: "Fúria (Bad Temper)", cat: "Desvantagem", cust: "-10 pts", desc: "Perde o controle com insultos. Teste de Vontade para não explodir.", tags: ["Mental"] },
 
-    // --- BUDO & ESTILOS ---
-    { nome: "Kenjutsu", cat: "Budo", cust: "Estilo", desc: "Cortes poderosos. Manobra: **Ataque no Pescoço**." },
-    { nome: "Iaijutsu", cat: "Budo", cust: "Estilo", desc: "Morte súbita. Manobra: **Ataque Surpresa**." },
-    { nome: "Kyujutsu", cat: "Budo", cust: "Estilo", desc: "Arquearia de precisão. Manobra: **Tiro Especializado**." },
-    { nome: "Taijutsu", cat: "Budo", cust: "Estilo", desc: "Combate desarmado. Manobra: **Judô**." },
-    { nome: "Sōkon", cat: "Budo", cust: "Estilo", desc: "Duas espadas. Exige **Ambidestria**." },
-    { nome: "Yabusame", cat: "Budo", cust: "Estilo", desc: "Arquearia montada em pleno galope." },
+        // --- PERÍCIAS ---
+        { id: 'lib_p1', nome: "Espada de Lâmina Larga", cat: "Perícia", cust: "DX/A", desc: "Uso de Katana ou Ninjato com uma mão.", tags: ["Combate", "Bushi"] },
+        { id: 'lib_p2', nome: "Espada de Duas Mãos", cat: "Perícia", cust: "DX/A", desc: "Uso de Katana ou Nodachi com as duas mãos.", tags: ["Combate", "Bushi"] },
+        { id: 'lib_p3', nome: "Arco (Yumi)", cat: "Perícia", cust: "DX/D", desc: "Uso do arco longo japonês. Exige força mínima (ST).", tags: ["Combate", "À Distância"] },
+        { id: 'lib_p4', nome: "Furtividade", cat: "Perícia", cust: "DX/A", desc: "Mover-se em silêncio e esconder-se nas sombras.", tags: ["Infiltração", "Ninja"] },
+        { id: 'lib_p5', nome: "Acrobacia", cat: "Perícia", cust: "DX/D", desc: "Pular, cair com segurança e esquivar-se acrobaticamente.", tags: ["Física", "Ninja"] },
+        { id: 'lib_p6', nome: "Venenos", cat: "Perícia", cust: "IQ/D", desc: "Preparação, aplicação e identificação de toxinas letais.", tags: ["Infiltração", "Alquimia"] },
+        { id: 'lib_p7', nome: "Primeiros Socorros", cat: "Perícia", cust: "IQ/F", desc: "Estancar hemorragias e tratar ferimentos leves no campo.", tags: ["Médico"] },
 
-    // --- YOKAI & MONSTROS ---
-    { nome: "Aka-Oni", cat: "Yokai", cust: "Elite", desc: "Berserker massivo. **RD 4**. Ignora dor. Ataca com Kanabo." },
-    { nome: "Ao-Oni", cat: "Yokai", cust: "Feiticeiro", desc: "Controla névoa e causa azar. Mais inteligente." },
-    { nome: "Kitsune", cat: "Yokai", cust: "Mestre", desc: "Ilusionista metamorfo. Medo de cães. Possui humanos." },
-    { nome: "Tanuki", cat: "Yokai", cust: "Trapaceiro", desc: "Transforma objetos (folha vira ouro). Mimetismo de som." },
-    { nome: "Bakeneko", cat: "Yokai", cust: "Elite", desc: "Gato monstro necromante. Anda em duas patas." },
-    { nome: "Mujina", cat: "Yokai", cust: "Terror", desc: "Sem-Rosto. Causa Fright Check com -4." },
-    { nome: "Ubume", cat: "Yokai", cust: "Fantasma", desc: "Entrega um 'bebê' que drena a vida (PF) de quem o segura." },
-    { nome: "Gashadokuro", cat: "Yokai", cust: "Calamidade", desc: "Titã esqueleto. Indestrutível por aço. Exige rituais." },
-    { nome: "Ushi-Oni", cat: "Yokai", cust: "Calamidade", desc: "Titã do litoral. Aranha colossal com cabeça de boi." },
-    { nome: "Kasa-Obake", cat: "Yokai", cust: "Objeto", desc: "Guarda-chuva vivo. Drena 1 PV e 1 PF por toque." },
-    { nome: "Tsukumogami", cat: "Yokai", cust: "Objeto", desc: "Objetos negligenciados por 100 anos que ganham vida." },
-    { nome: "Onryo", cat: "Yokai", cust: "Espírito", desc: "Fantasma vingativo. Intangível. Exige Âncora para banir." },
+        // --- ARQUÉTIPOS ---
+        { id: 'lib_a1', nome: "Samurai Nobre", cat: "Arquétipo", cust: "Elite", desc: "Focado em tática, comando e honra. Mestre da Katana e Diplomacia.", tags: ["Nobre", "Bushi"] },
+        { id: 'lib_a2', nome: "Duelista de Iaijutsu", cat: "Arquétipo", cust: "Elite", desc: "Mestre do saque rápido. O combate termina em um único movimento.", tags: ["Bushi", "Rápido"] },
+        { id: 'lib_a3', nome: "Ninja de Infiltração", cat: "Arquétipo", cust: "Sombra", desc: "Invisível e letal. Mestre em arrombamento e espionagem.", tags: ["Ninja", "Sombra"] },
+        { id: 'lib_a4', nome: "Monge Sohei", cat: "Arquétipo", cust: "Forte", desc: "Guerreiro santificado com fúria religiosa. Mestre da Naginata.", tags: ["Templo", "Budo"] },
 
-    // --- ATLAS (GEOGRAFIA) ---
-    { nome: "Kamamura", cat: "Atlas", cust: "Região Central", desc: "Província Fantasma. Vácuo de poder. Ponto de passagem vital." },
-    { nome: "Otsuko", cat: "Atlas", cust: "Capital Comercial", desc: "Copa de Ouro. Construída sobre o mar. Kegare 1." },
-    { nome: "Bizen", cat: "Atlas", cust: "Forja de Guerra", desc: "Produz as melhores espadas. Dominada pelo Clã Hagane. Kegare 2." },
-    { nome: "Iwami", cat: "Atlas", cust: "Minas de Prata", desc: "Terras de Cinza. Ar envenenado por vulcão. Kegare 4." },
-    { nome: "Aki & Kure", cat: "Atlas", cust: "Domínio Naval", desc: "Estaleiros gigantes ocultos atrás das montanhas." },
-    { nome: "Izumo", cat: "Atlas", cust: "Berço dos Deuses", desc: "Santuário sagrado. Onde os Kami caminham entre os homens." },
-    { nome: "Eryang", cat: "Atlas", cust: "Norte Esquecido", desc: "Dunas de areia e lendas de deuses trazidos pela maré." },
-    { nome: "Ilhas Oki", cat: "Atlas", cust: "Exílio", desc: "Prisão para nobres desonrados. Terra de vingança." },
-    { nome: "Settsu", cat: "Atlas", cust: "Muralha Leste", desc: "Checkpoint burocrático e militar. Barreira para Kyoto." },
-    { nome: "Kobe", cat: "Atlas", cust: "Porto Rival", desc: "Seda, saquê e intriga urbana. Rival de Otsuko." },
-    { nome: "Hitagi", cat: "Atlas", cust: "Estrada Sangue", desc: "Campos de arroz vermelhos por guerra e revolta social." },
-    { nome: "Iyo", cat: "Atlas", cust: "Covil Piratas", desc: "Costa caótica de Shikoku. Casa da Frota Fantasma." },
+        // --- REGRAS ---
+        { id: 'lib_r1', nome: "Relógio da Mácula", cat: "Regra", cust: "Mecânica", desc: "Mede a corrupção espiritual. Afeta Testes de Pânico e Reação.", tags: ["Sistema", "Mecânica"] },
+        { id: 'lib_r2', nome: "Sangramento em GURPS", cat: "Regra", cust: "Letal", desc: "Ferimentos graves exigem teste de HT a cada minuto para não perder PV.", tags: ["Sistema", "Combate"] },
+        { id: 'lib_r3', nome: "Exaustão (PF para PV)", cat: "Regra", cust: "Sobrevivência", desc: "Quando o PF chega a 0, cada ponto gasto consome 1 PV diretamente.", tags: ["Sistema", "Física"] }
+    ];
 
-    // --- ARQUÉTIPOS (TEMPLATES) ---
-    { nome: "Samurai Nobre", cat: "Arquétipo", cust: "150 pts", desc: "Líder e diplomata. Status 3, Linhagem Imperial. Katana Fina." },
-    { nome: "Duelista Iaijutsu", cat: "Arquétipo", cust: "150 pts", desc: "Matador relâmpago. Reflexos em Combate e Sacar Rápido." },
-    { nome: "Guerreiro Tanque", cat: "Arquétipo", cust: "150 pts", desc: "Baluarte. Hipoalgia, Pele de Ferro. Armadura O-Yoroi." },
-    { nome: "Ninja (Sombra)", cat: "Arquétipo", cust: "150 pts", desc: "Infiltrador. Silêncio e Furtividade. Arrombamento e Fugas." },
-    { nome: "Miko (Purificadora)", cat: "Arquétipo", cust: "150 pts", desc: "Sensitiva mística. Ver o Invisível. Exorcismo e Sal." },
-    { nome: "Ronin Yojimbo", cat: "Arquétipo", cust: "150 pts", desc: "Experiente. Manha e Observação. Duro de Matar." },
-    { nome: "Monge Sohei", cat: "Arquétipo", cust: "150 pts", desc: "Guerreiro Sagrado. Fé Verdadeira e Naginata." },
-    { nome: "Médico de Campo", cat: "Arquétipo", cust: "150 pts", desc: "Suporte vital. Cirurgia e Farmácia (Ervas)." },
-    { nome: "Ferreiro de Almas", cat: "Arquétipo", cust: "150 pts", desc: "Artesão. Armaria e Gadgeteer. Forja aço muramasa." },
-    { nome: "Magistrado", cat: "Arquétipo", cust: "150 pts", desc: "Investigador. Criminologia e Savoir-Faire (Polícia)." },
-    { nome: "Lutador de Sumô", cat: "Arquétipo", cust: "150 pts", desc: "Colosso SM+1. Grappler. Resistência física extrema." },
-    { nome: "Lâmina Gêmea", cat: "Arquétipo", cust: "150 pts", desc: "Sōkon. Portador de duas espadas. Vínculo de alma." },
+    let data = [];
+    let categories = [];
 
-    // --- REGRAS (SYSTEM) ---
-    { nome: "Kegare (Mácula)", cat: "Regra", cust: "Mecânica", desc: "Acúmulo de corrupção. Afeta sanidade e aparência (p. 29)." },
-    { nome: "O Véu (Kekkai)", cat: "Regra", cust: "Lore", desc: "Proteção mental que racionaliza o horror sobrenatural." },
-    { nome: "Ataque Deceptivo", cat: "Regra", cust: "Tática", desc: "-2 no acerto para aplicar -1 na defesa do alvo." },
-    { nome: "Riposta", cat: "Regra", cust: "Manobra", desc: "Penalidade no Aparar que se converte em penalidade na defesa inimiga." },
-    { nome: "Regra de Sangramento", cat: "Regra", cust: "Dano", desc: "Ferimentos graves exigem testes de HT a cada 30 segundos." },
-    { nome: "Posição Ajoelhado", cat: "Regra", cust: "Postura", desc: "-2 para atacar e defender. Bônus contra pernas alheias." },
-    { nome: "Âncora Espiritual", cat: "Regra", cust: "Exorcismo", desc: "Objeto físico que prende um Yurei. Deve ser purificado." }
-];
+    function init() {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        const savedCats = localStorage.getItem(CAT_STORAGE_KEY);
 
-window.libraryData = libraryData;
-console.log(`Biblioteca Completa: ${libraryData.length} registros técnicos ativos.`);
+        if (savedCats) {
+            categories = JSON.parse(savedCats);
+        } else {
+            categories = defaultCategories;
+            saveCategories();
+        }
+
+        if (savedData) {
+            data = JSON.parse(savedData);
+        } else {
+            // Se houver libraryData global (o antigo), migrar ele
+            if (window.libraryData && window.libraryData.length > 5) {
+                data = window.libraryData.map((item, idx) => ({
+                    ...item,
+                    id: 'lib_mig_' + idx,
+                    tags: item.tags || []
+                }));
+            } else {
+                data = initialData;
+            }
+            saveData();
+        }
+    }
+
+    function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    function saveCategories() { 
+        categories.sort((a,b) => a.order - b.order);
+        localStorage.setItem(CAT_STORAGE_KEY, JSON.stringify(categories)); 
+    }
+
+    // --- CRUD ITENS ---
+    function addItem(item) {
+        if (!item.id) item.id = 'lib_' + Date.now();
+        if (!item.tags) item.tags = [];
+        data.push(item);
+        saveData();
+        return item;
+    }
+
+    function editItem(id, updates) {
+        const idx = data.findIndex(i => i.id === id);
+        if (idx === -1) return false;
+        data[idx] = { ...data[idx], ...updates };
+        saveData();
+        return true;
+    }
+
+    function removeItem(id) {
+        data = data.filter(i => i.id !== id);
+        saveData();
+    }
+
+    // --- CRUD CATEGORIAS ---
+    function addCategory(cat) {
+        if (!cat.id) cat.id = 'cat_' + Date.now();
+        cat.order = categories.length;
+        categories.push(cat);
+        saveCategories();
+    }
+
+    function editCategory(id, updates) {
+        const idx = categories.findIndex(c => c.id === id);
+        if (idx === -1) return false;
+        categories[idx] = { ...categories[idx], ...updates };
+        saveCategories();
+        return true;
+    }
+
+    function removeCategory(id) {
+        categories = categories.filter(c => c.id !== id);
+        saveCategories();
+    }
+
+    function reorderCategory(id, direction) {
+        const idx = categories.findIndex(c => c.id === id);
+        if (idx === -1) return;
+        const newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= categories.length) return;
+
+        const temp = categories[idx].order;
+        categories[idx].order = categories[newIdx].order;
+        categories[newIdx].order = temp;
+        saveCategories();
+    }
+
+    init();
+
+    return {
+        getItems: () => data,
+        getCategories: () => categories,
+        addItem, editItem, removeItem,
+        addCategory, editCategory, removeCategory, reorderCategory
+    };
+})();
+
+// Exportar para uso global
+window.LibraryManager = LibraryManager;
+// Alias para compatibilidade com código antigo enquanto migra
+window.libraryData = LibraryManager.getItems();

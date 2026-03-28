@@ -168,12 +168,13 @@
     .anim-slide { animation: slide-in 300ms ease; }
 
     /* DRAWERS & MODALS (Narrative Tools) */
-    .drawer { position: fixed; top: 0; right: -360px; width: 360px; height: 100vh; background: var(--bg-panel); border-left: 1px solid var(--border-panel); box-shadow: -4px 0 15px rgba(0,0,0,0.8); transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; display: flex; flex-direction: column; padding: 20px; }
-    .drawer.open { transform: translateX(-360px); }
-    .drawer__header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-panel); padding-bottom: 12px; margin-bottom: 15px; flex-shrink: 0; }
-    .drawer__title { font-family: var(--font-display); font-size: 1rem; color: var(--gold); }
-    .drawer__close { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; outline: none; transition: color 200ms; }
-    .drawer__close:hover { color: var(--red-accent); }
+    .drawer { position: fixed; top: 0; right: 0; transform: translateX(100%); width: 420px; max-width: 95vw; height: 100vh; background: var(--bg-panel); border-left: 1px solid var(--border-panel); box-shadow: -4px 0 15px rgba(0,0,0,0.8); transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; display: flex; flex-direction: column; padding: 20px; overflow-x: hidden; }
+    .drawer.open { transform: translateX(0); }
+    .drawer__header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-panel); padding-bottom: 12px; margin-bottom: 15px; flex-shrink: 0; gap: 10px; }
+    .drawer__title { font-family: var(--font-display); font-size: 1rem; color: var(--gold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .drawer__close { background: var(--bg-deep); border: 1px solid var(--border-panel); color: var(--text-secondary); cursor: pointer; font-size: 1rem; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 200ms; flex-shrink: 0; }
+    .drawer__close:hover { color: var(--red-accent); border-color: var(--red-accent); background: rgba(196,30,58,0.1); }
+
     
     .gm-editor { flex: 1; width: 100%; background: var(--bg-input); border: 1px solid var(--border-input); border-radius: var(--radius); color: var(--text-primary); font-family: var(--font-body); padding: 10px; resize: none; outline: none; transition: border-color var(--transition); line-height: 1.5; }
     .gm-editor:focus { border-color: var(--border-focus); box-shadow: 0 0 0 1px var(--red-glow); }
@@ -248,9 +249,14 @@
           <button class="add-form__toggle" id="add-form-toggle">＋ Adicionar Combatente</button>
           <div style="display: flex; gap: 4px; flex: 1; justify-content: flex-end;">
             <select id="select-archetype" style="padding:4px; font-size:0.75rem; border-radius:3px; border:1px solid var(--border-panel); background:var(--bg-panel); color:var(--text-primary); max-width:130px;">
+               <option value="civil">Civil (Não-Combatente)</option>
+               <option value="recruta">Recruta (10 DX)</option>
                <option value="capanga">Capanga (10-11 DX)</option>
+               <option value="veterano">Veterano (11-12 DX)</option>
                <option value="elite">Elite (12-13 DX)</option>
-               <option value="mestre">Mestre (14+ DX)</option>
+               <option value="excepcional">Excepcional (13-14 DX)</option>
+               <option value="mestre">Mestre (14-15 DX)</option>
+
             </select>
             <button class="btn btn-gold btn-sm" id="btn-generate-enemy" title="Gerar Inimigo Procedural">🎲 Gerar</button>
             <button class="btn btn-ghost btn-sm" id="btn-quick-fill">⚡ Injetar</button>
@@ -420,23 +426,84 @@
   <div id="gm-notes-drawer" class="drawer">
     <div class="drawer__header">
       <h3 class="drawer__title">📝 Anotações do Mestre</h3>
-      <button class="drawer__close" onclick="NarrativeTools.toggleDrawer('gm-notes-drawer')">✕</button>
+      <div style="display:flex; gap:8px; align-items: center;">
+        <button class="btn btn-secondary btn-sm" id="btn-toggle-preview" onclick="NarrativeTools.toggleNotesPreview()" style="white-space:nowrap;">👁️ Preview</button>
+        <button class="drawer__close" onclick="NarrativeTools.toggleDrawer('gm-notes-drawer')" title="Fechar">✕</button>
+      </div>
     </div>
-    <textarea id="gm-notes-editor" class="gm-editor" placeholder="Escreva aqui ideias rápidas, nomes de NPCs ou segredos... São salvos automaticamente."></textarea>
+
+    
+    <div id="gm-notes-nav" style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap; padding-bottom:10px; border-bottom:1px solid var(--border-panel);">
+      <!-- Tabs rendered via JS -->
+    </div>
+
+    <div style="flex:1; position:relative; display:flex; flex-direction:column; overflow:hidden;">
+        <textarea id="gm-notes-editor" class="gm-editor" placeholder="Markdown suportado: # H1, ## H2, **negrito**, *itálico*, - lista..." oninput="NarrativeTools.updateActiveNoteContent(this.value)"></textarea>
+        <div id="gm-notes-preview" style="display:none; flex:1; background:var(--bg-card); border:1px solid var(--gold-dim); border-radius:var(--radius); padding:15px; overflow-y:auto; color:var(--text-primary); line-height:1.6;"></div>
+    </div>
+
     <div style="font-size:0.65rem; color:var(--text-muted); text-align:right; margin-top:5px;" id="gm-notes-status">Sincronizado ✓</div>
   </div>
+
+  <style>
+    .note-tab { font-size: 0.65rem; padding: 4px 10px; background: var(--bg-deep); border: 1px solid var(--border-panel); border-radius: 4px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 6px; transition: all 200ms; }
+    .note-tab:hover { border-color: var(--text-secondary); color: var(--text-secondary); }
+    .note-tab.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+    .note-tab button { background: none; border: none; color: inherit; padding: 0 2px; cursor: pointer; opacity: 0.5; }
+    .note-tab button:hover { opacity: 1; color: var(--red-accent); }
+    
+    #gm-notes-preview h1, #gm-notes-preview h2, #gm-notes-preview h3 { color: var(--gold); font-family: var(--font-display); margin-top: 10px; margin-bottom: 5px; }
+    #gm-notes-preview h1 { font-size: 1.2rem; border-bottom: 1px solid var(--gold-dim); }
+    #gm-notes-preview h2 { font-size: 1rem; }
+    #gm-notes-preview h3 { font-size: 0.9rem; }
+    #gm-notes-preview li { margin-left: 15px; }
+  </style>
+
 
   <div id="clocks-drawer" class="drawer">
     <div class="drawer__header">
       <h3 class="drawer__title">⏱ Frentes e Ameaças</h3>
-      <button class="drawer__close" onclick="NarrativeTools.toggleDrawer('clocks-drawer')">✕</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-gold btn-sm" onclick="NarrativeTools.rollAllClocks()">🎲 Rolar Todos</button>
+        <button class="drawer__close" onclick="NarrativeTools.toggleDrawer('clocks-drawer')">✕</button>
+      </div>
     </div>
-    <div style="display:flex; gap:6px; margin-bottom: 12px; flex-shrink:0;">
-      <input type="text" id="clock-new-name" class="field__input" placeholder="Nova Facção / Plano" style="font-size:0.75rem; padding:6px; text-align:left;">
-      <input type="number" id="clock-new-steps" class="field__input" value="4" min="2" max="10" style="width:50px; font-size:0.75rem; padding:6px;">
-      <button class="btn btn-secondary" onclick="NarrativeTools.addClock()">＋</button>
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom: 12px; flex-shrink:0;">
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="clock-new-name" class="field__input" placeholder="Nova Facção / Plano" style="font-size:0.75rem; padding:6px; text-align:left;">
+        <input type="number" id="clock-new-steps" class="field__input" value="4" min="2" max="10" 
+               onchange="NarrativeTools.renderStepInputs()"
+               onkeyup="NarrativeTools.renderStepInputs()"
+               style="width:50px; font-size:0.75rem; padding:6px;">
+        <button class="btn btn-secondary" onclick="NarrativeTools.addClock()">＋</button>
+      </div>
+      <div id="clock-steps-descriptions" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; border:1px dashed var(--border-panel);">
+        <!-- Gerado via JS -->
+      </div>
     </div>
+    
+    <style>
+        .clock-segment { cursor: pointer; transition: transform 200ms; }
+        .clock-segment:hover { transform: scaleY(1.2); }
+        .step-label { outline: none; transition: color 200ms; }
+        .step-label:focus { color: var(--gold) !important; }
+        .clock-item { position: relative; }
+        .clock-history { max-height: 60px; overflow-y: auto; scrollbar-width: none; }
+        .clock-history::-webkit-scrollbar { display: none; }
+    </style>
+
     <div id="clocks-list" style="overflow-y:auto; flex:1; padding-right:4px;"></div>
+
+    <!-- Unified History -->
+    <div style="border-top:2px solid var(--border-panel); margin-top:10px; padding-top:10px; flex-shrink:0; display:flex; flex-direction:column; max-height:200px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h4 style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">📜 Histórico de Frentes</h4>
+            <button class="btn-ghost btn-sm" onclick="NarrativeTools.clearClocksHistory()" style="font-size:0.6rem; opacity:0.6;">Limpar Log</button>
+        </div>
+        <div id="clocks-global-history" style="overflow-y:auto; flex:1; scrollbar-width:thin;">
+            <!-- Histórico unificado -->
+        </div>
+    </div>
   </div>
 
   <div id="combat-mass-overlay">
@@ -934,12 +1001,14 @@ document.getElementById('btn-generate-enemy').addEventListener('click', () => {
   document.getElementById('input-name').value = enemy.name;
   document.getElementById('input-hp').value = enemy.hp;
   document.getElementById('input-fp').value = enemy.pf;
-  document.getElementById('input-speed').value = enemy.velocidade;
+  document.getElementById('input-speed').value = enemy.velocidade.toFixed(2);
   document.getElementById('input-st').value = enemy.st;
   document.getElementById('input-dx').value = enemy.dx;
   document.getElementById('input-ht').value = enemy.ht;
-  document.getElementById('input-dr').value = 0; // Reset DR to be filled manually or by equipment notes
+  document.getElementById('input-will').value = enemy.vont;
+  document.getElementById('input-dr').value = 0;
   document.getElementById('input-tag').value = "Inimigo";
+
   
   // Custom Notes
   const noteBox = document.getElementById('input-tag');

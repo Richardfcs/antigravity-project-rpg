@@ -23,13 +23,10 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-body); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
     body { overflow-y: auto; }
-    #app { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
-
-    /* HEADER */
-    .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg-panel); border-bottom: 1px solid var(--border-panel); flex-wrap: wrap; gap: 10px; }
-    .header__title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text-primary); letter-spacing: 0.02em; }
-    .header__title span { color: var(--red-accent); }
-    .header__nav { display: flex; align-items: center; gap: 10px; }
+    #app { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; overflow: hidden; }
+    
+    /* HEADER CSS - Standard Integration */
+    #daimyo-header-mount { flex-shrink: 0; }
 
     /* KEGARE CLOCK */
     .kegare-clock { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--bg-deep); border: 1px solid var(--border-panel); border-radius: var(--radius-lg); }
@@ -44,7 +41,7 @@
     .kegare-clock__mod { font-size: 0.65rem; color: var(--text-muted); font-family: monospace; }
 
     /* MAIN LAYOUT */
-    .main { display: grid; grid-template-columns: 1fr 420px; gap: 1px; background: var(--border-panel); min-height: 0; }
+    .main { display: grid; grid-template-columns: 1fr 380px; gap: 1px; background: var(--border-panel); overflow: hidden; min-height: 0; }
 
     /* PANELS */
     .panel { background: var(--bg-panel); padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; min-height: 0; }
@@ -179,10 +176,27 @@
 <body>
 <div id="app">
 
-  <div id="daimyo-header"></div>
   <script src="js/header-loader.js"></script>
 
   <main class="main">
+    <!-- CENTER: GLOBAL STATS & KEGARE -->
+    <section class="panel" id="panel-kegare" style="grid-column: 1 / -1; padding: 12px 20px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div class="kegare-clock">
+          <span class="kegare-clock__label">Relógio da Mácula</span>
+          <div class="kegare-clock__segments" id="kegare-segments">
+            <!-- Gerado via JS -->
+          </div>
+          <span class="kegare-clock__status" id="kegare-status">Puro</span>
+          <span class="kegare-clock__mod" id="kegare-mod">Von +0</span>
+        </div>
+        
+        <div style="display:flex; gap:8px;">
+           <button class="btn btn-ghost btn-sm" id="btn-reset">Resetar</button>
+        </div>
+      </div>
+    </section>
+
     <!-- LEFT: COMBATANTS -->
     <section class="panel" id="panel-combatants">
       <div class="panel__header">

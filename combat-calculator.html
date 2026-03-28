@@ -774,7 +774,11 @@
   <section class="history" id="history-section">
     <div class="history__header">
       <h3 class="history__title">📜 Histórico de Combate</h3>
-      <button class="btn btn-ghost" id="btn-limpar-historico">Limpar</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-ghost" id="btn-sync-state">🔄 Sincronizar</button>
+        <button class="btn btn-ghost" id="btn-reset">Resetar</button>
+        <button class="btn btn-ghost" id="btn-limpar-historico">Limpar</button>
+      </div>
     </div>
     <div class="history__list" id="history-list">
       <p class="history__empty" id="history-empty">Nenhuma ação registrada. Role os dados para começar.</p>

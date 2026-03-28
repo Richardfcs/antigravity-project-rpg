@@ -96,6 +96,23 @@
 
     .empty-msg { text-align: center; color: var(--text-muted); padding: 40px; font-size: 1.1rem; }
 
+    @media (max-width: 600px) {
+      body { font-size: 13px; }
+      .header__title { font-size: 1rem; }
+      .library-main { margin: 10px auto; padding: 0 10px; gap: 10px; }
+      
+      .search-box { padding: 15px; }
+      .search-input { padding: 10px 15px; font-size: 0.95rem; }
+      
+      .lib-card__header { padding: 12px 15px; }
+      .lib-card__title { font-size: 0.95rem; gap: 6px; }
+      .lib-card__type { font-size: 0.65rem; padding: 2px 6px; }
+      .lib-card__cost { font-size: 0.75rem; gap: 3px; }
+      .lib-card__body { font-size: 0.85rem; padding: 0 15px 15px; }
+      
+      .tag-mini { display: none !important; }
+    }
+
     @media (max-width: 900px) {
       .header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 10px; }
       .header__meta { display: none; }
@@ -152,59 +169,125 @@
 
   </main>
 
+  <!-- MODAL: ADD ITEM -->
+  <div id="modal-add-item" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; justify-content:center; align-items:center;">
+    <div style="background:var(--bg-panel); padding:30px; border-radius:var(--radius-lg); width:95%; max-width:600px; border:1px solid var(--gold); box-shadow:0 0 30px rgba(212,168,70,0.2);">
+      <h2 style="font-family:var(--font-display); color:var(--gold); margin-bottom:20px; border-bottom:1px solid var(--gold-dim); padding-bottom:10px;">🆕 Adicionar Conteúdo</h2>
+      <div style="display:grid; gap:15px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+          <div>
+            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Nome</label>
+            <input type="text" id="lib-new-name" class="search-input" style="padding:10px; font-size:0.9rem;" placeholder="Ex: Grito de Batalha">
+          </div>
+          <div>
+            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Categoria</label>
+            <select id="lib-new-cat" class="search-input" style="padding:10px; font-size:0.9rem;">
+              <!-- Categorias dinâmicas -->
+            </select>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+          <div>
+            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Custo / Tipo</label>
+            <input type="text" id="lib-new-cust" class="search-input" style="padding:10px; font-size:0.9rem;" placeholder="Ex: 5 pts, Estilo, Elite">
+          </div>
+          <div>
+            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Tags (Separe por vírgula)</label>
+            <input type="text" id="lib-new-tags" class="search-input" style="padding:10px; font-size:0.9rem;" placeholder="Ex: Combate, Social">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Descrição / Efeito</label>
+          <textarea id="lib-new-desc" class="search-input" style="padding:10px; font-size:0.9rem; min-height:100px; resize:vertical;" placeholder="Descreva o conteúdo..."></textarea>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+          <button class="btn-ghost" onclick="toggleModal('modal-add-item', false)">Cancelar</button>
+          <button class="btn-ghost" style="background:var(--gold); color:#000; border-color:var(--gold);" onclick="saveNewItem()">Salvar Registro</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: MANAGE CATEGORIES -->
+  <div id="modal-manage-cats" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; justify-content:center; align-items:center;">
+    <div style="background:var(--bg-panel); padding:30px; border-radius:var(--radius-lg); width:95%; max-width:500px; border:1px solid var(--gold); box-shadow:0 0 30px rgba(0,0,0,0.5); display:flex; flex-direction:column; max-height:80vh;">
+      <h2 style="font-family:var(--font-display); color:var(--gold); margin-bottom:20px; border-bottom:1px solid var(--gold-dim); padding-bottom:10px;">⚙️ Gerenciar Categorias</h2>
+      <div id="cats-editor-list" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+        <!-- Lista de categorias editáveis -->
+      </div>
+      <div style="display:flex; gap:10px; border-top:1px solid var(--border-panel); padding-top:15px;">
+        <input type="text" id="cat-new-name" class="search-input" placeholder="Nova Categoria" style="padding:8px; font-size:0.8rem; flex:1;">
+        <button class="btn-ghost" style="background:var(--gold); color:#000; border-color:var(--gold); padding:8px 15px;" onclick="addNewCategory()">Adicionar</button>
+      </div>
+      <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+        <button class="btn-ghost" onclick="toggleModal('modal-manage-cats', false)">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="position:fixed; bottom:30px; right:30px; display:flex; flex-direction:column; gap:10px;">
+    <button class="btn-ghost" style="background:var(--gold); color:#000; border-color:var(--gold); font-size:1.2rem; width:50px; height:50px; border-radius:25px; box-shadow:0 4px 15px rgba(0,0,0,0.5);" title="Adicionar Novo Item" onclick="toggleModal('modal-add-item', true)">＋</button>
+    <button class="btn-ghost" style="background:var(--bg-panel); font-size:1.2rem; width:50px; height:50px; border-radius:25px; box-shadow:0 4px 15px rgba(0,0,0,0.5);" title="Gerenciar Categorias" onclick="openCatManager()">⚙️</button>
+  </div>
+
   <script src="js/library-data.js"></script>
   <script>
-    // INITIALIZATION
     const container = document.getElementById('results-area');
     const searchInput = document.getElementById('input-search');
     let currentCategory = 'all';
 
     function init() {
-      // Setup counts
-      if (typeof libraryData === 'undefined') {
-        container.innerHTML = `<div class="empty-msg">Erro: Não foi possível carregar o banco de dados. Verifique library-data.js.</div>`;
-        return;
-      }
-      
-      document.getElementById('count-all').textContent = libraryData.length;
-      document.getElementById('count-van').textContent = libraryData.filter(i => i.cat === 'Vantagem').length;
-      document.getElementById('count-des').textContent = libraryData.filter(i => i.cat === 'Desvantagem').length;
-      document.getElementById('count-qua').textContent = libraryData.filter(i => i.cat === 'Qualidade' || i.cat === 'Peculiaridade').length;
-      document.getElementById('count-per').textContent = libraryData.filter(i => i.cat === 'Perícia' || i.cat === 'Pericia').length;
-      document.getElementById('count-bud').textContent = libraryData.filter(i => i.cat === 'Budo').length;
-      document.getElementById('count-arq').textContent = libraryData.filter(i => i.cat === 'Arquétipo').length;
-      document.getElementById('count-yok').textContent = libraryData.filter(i => i.cat === 'Yokai').length;
-      document.getElementById('count-alq').textContent = libraryData.filter(i => i.cat === 'Alquimia').length;
-      document.getElementById('count-atl').textContent = libraryData.filter(i => i.cat === 'Atlas').length;
-      document.getElementById('count-reg').textContent = libraryData.filter(i => i.cat === 'Regra').length;
-
+      renderCategories();
       renderLibrary();
-
-      // Events
-      searchInput.addEventListener('input', renderLibrary);
       
-      document.querySelectorAll('.cat-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-          this.classList.add('active');
-          currentCategory = this.getAttribute('data-cat');
-          renderLibrary();
-        });
+      searchInput.addEventListener('input', renderLibrary);
+    }
+
+    function renderCategories() {
+      const sidebar = document.querySelector('.sidebar');
+      const cats = LibraryManager.getCategories();
+      const allItems = LibraryManager.getItems();
+
+      let html = `
+        <h2 class="sidebar__title">Categorias</h2>
+        <button class="cat-btn ${currentCategory === 'all' ? 'active' : ''}" data-cat="all" onclick="selectCat('all')">
+          📚 Ver Tudo <span class="cat-btn__count">${allItems.length}</span>
+        </button>
+      `;
+
+      cats.forEach(c => {
+        const count = allItems.filter(i => i.cat === c.name).length;
+        html += `
+          <button class="cat-btn ${currentCategory === c.name ? 'active' : ''}" onclick="selectCat('${c.name}')">
+            ${c.icon || '🔹'} ${c.name} <span class="cat-btn__count">${count}</span>
+          </button>
+        `;
       });
+
+      sidebar.innerHTML = html;
+
+      // Populate select in add item modal
+      const select = document.getElementById('lib-new-cat');
+      select.innerHTML = cats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+    }
+
+    function selectCat(cat) {
+      currentCategory = cat;
+      renderCategories();
+      renderLibrary();
     }
 
     function renderLibrary() {
       const term = searchInput.value.toLowerCase();
+      const allItems = LibraryManager.getItems();
       
-      const filtered = libraryData.filter(item => {
-          const matchCat = (currentCategory === 'all' || 
-                          item.cat === currentCategory || 
-                          (currentCategory === 'Pericia' && (item.cat === 'Perícia' || item.cat === 'Pericia')) ||
-                          (currentCategory === 'Qualidade' && (item.cat === 'Peculiaridade' || item.cat === 'Qualidade')));
+      const filtered = allItems.filter(item => {
+        const matchCat = (currentCategory === 'all' || item.cat === currentCategory);
         const matchSearch = item.nome.toLowerCase().includes(term) || 
                             item.desc.toLowerCase().includes(term) || 
                             item.cust.toLowerCase().includes(term) ||
-                            item.cat.toLowerCase().includes(term);
+                            item.cat.toLowerCase().includes(term) ||
+                            (item.tags && item.tags.some(t => t.toLowerCase().includes(term)));
         return matchCat && matchSearch;
       });
 
@@ -214,23 +297,14 @@
       }
 
       container.innerHTML = filtered.map(item => {
-        // Mapeamento dinâmico de classe CSS baseado na categoria
-        let tagClass = 'tag-regra';
         const catMap = {
-            'Vantagem': 'tag-vantagem',
-            'Desvantagem': 'tag-desvantagem',
-            'Perícia': 'tag-pericia',
-            'Pericia': 'tag-pericia',
-            'Budo': 'tag-budo',
-            'Yokai': 'tag-yokai',
-            'Arquétipo': 'tag-arquetipo',
-            'Atlas': 'tag-atlas',
-            'Alquimia': 'tag-item',
-            'Regra': 'tag-regra',
-            'Qualidade': 'tag-item',
-            'Peculiaridade': 'tag-item'
+            'Vantagem': 'tag-vantagem', 'Desvantagem': 'tag-desvantagem', 'Perícia': 'tag-pericia',
+            'Pericia': 'tag-pericia', 'Budo': 'tag-budo', 'Yokai': 'tag-yokai',
+            'Arquétipo': 'tag-arquetipo', 'Atlas': 'tag-atlas', 'Alquimia': 'tag-item',
+            'Regra': 'tag-regra', 'Qualidade': 'tag-item', 'Peculiaridade': 'tag-item'
         };
-        tagClass = catMap[item.cat] || 'tag-regra';
+        const tagClass = catMap[item.cat] || 'tag-regra';
+        const tagsHtml = (item.tags || []).map(t => `<span class="tag-mini" style="font-size:0.6rem; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:3px; color:var(--text-muted); border:1px solid var(--border-panel); margin-right:4px; white-space:nowrap;">${t}</span>`).join('');
 
         return `
         <div class="lib-card">
@@ -238,17 +312,95 @@
             <div class="lib-card__title">
               <span class="lib-card__type ${tagClass}">${item.cat}</span> 
               ${item.nome}
+              <div style="margin-left:5px; display:flex;">${tagsHtml}</div>
             </div>
-            <div class="lib-card__cost">${item.cust} <span style="font-size:1.2rem; margin-left:10px">+</span></div>
+            <div style="display:flex; align-items:center; gap:15px;">
+              <div class="lib-card__cost">${item.cust}</div>
+              <button class="btn-ghost btn-sm" onclick="event.stopPropagation(); deleteLibItem('${item.id}')" style="border:none; color:var(--text-muted);">🗑️</button>
+              <span style="font-size:1.2rem;">＋</span>
+            </div>
           </div>
-          <div class="lib-card__body">
-            ${item.desc}
-          </div>
+          <div class="lib-card__body">${item.desc}</div>
         </div>
       `;}).join('');
     }
 
+    // --- MODAL HELPERS ---
+    function toggleModal(id, show) {
+      document.getElementById(id).style.display = show ? 'flex' : 'none';
+    }
+
+    function saveNewItem() {
+      const name = document.getElementById('lib-new-name').value;
+      const cat = document.getElementById('lib-new-cat').value;
+      const cust = document.getElementById('lib-new-cust').value;
+      const tagsRaw = document.getElementById('lib-new-tags').value;
+      const desc = document.getElementById('lib-new-desc').value;
+
+      if (!name || !desc) return alert('Pelo menos Nome e Descrição são obrigatórios.');
+
+      const tags = tagsRaw.split(',').map(t => t.trim()).filter(t => t !== '');
+      
+      LibraryManager.addItem({ nome: name, cat: cat, cust: cust, desc: desc, tags: tags });
+      
+      // Reset & Close
+      document.getElementById('lib-new-name').value = '';
+      document.getElementById('lib-new-tags').value = '';
+      document.getElementById('lib-new-desc').value = '';
+      toggleModal('modal-add-item', false);
+      
+      renderCategories();
+      renderLibrary();
+    }
+
+    function deleteLibItem(id) {
+        if (!confirm('Deseja excluir este item permanentemente?')) return;
+        LibraryManager.removeItem(id);
+        renderCategories();
+        renderLibrary();
+    }
+
+    // --- CATEGORY MANAGER ---
+    function openCatManager() {
+        renderCatManagerList();
+        toggleModal('modal-manage-cats', true);
+    }
+
+    function renderCatManagerList() {
+        const list = document.getElementById('cats-editor-list');
+        const cats = LibraryManager.getCategories();
+        
+        list.innerHTML = cats.map((c, idx) => `
+            <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.03); border-radius:var(--radius); border:1px solid var(--border-panel);">
+              <span style="font-size:1rem; min-width:25px;">${c.icon || '🔹'}</span>
+              <span style="flex:1; font-weight:700; color:var(--gold);">${c.name}</span>
+              <div style="display:flex; gap:4px;">
+                <button class="btn-ghost btn-sm" onclick="LibraryManager.reorderCategory('${c.id}', -1); renderCatManagerList(); renderAll();">↑</button>
+                <button class="btn-ghost btn-sm" onclick="LibraryManager.reorderCategory('${c.id}', 1); renderCatManagerList(); renderAll();">↓</button>
+                <button class="btn-ghost btn-sm" onclick="if(confirm('Apagar categoria?')) { LibraryManager.removeCategory('${c.id}'); renderCatManagerList(); renderAll(); }" style="color:var(--red-accent);">✕</button>
+              </div>
+            </div>
+        `).join('');
+    }
+    
+    function addNewCategory() {
+        const name = document.getElementById('cat-new-name').value;
+        if (!name) return;
+        LibraryManager.addCategory({ name: name, icon: '🔹', tags: [] });
+        document.getElementById('cat-new-name').value = '';
+        renderCatManagerList();
+        renderAll();
+    }
+
+    function renderAll() {
+        renderCategories();
+        renderLibrary();
+    }
+
     document.addEventListener('DOMContentLoaded', init);
   </script>
+</body>
+</html>
+
 </body>
 </html>

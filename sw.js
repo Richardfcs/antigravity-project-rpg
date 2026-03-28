@@ -1,29 +1,37 @@
-const CACHE_NAME = 'daimyo-cache-v2';
+const CACHE_NAME = 'daimyo-cache-v3';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/library.html',
-  '/equipment-database.html',
-  '/time-management.html',
-  '/oracle-generators.html',
-  '/kegare-panico.html',
-  '/combat-calculator.html',
-  '/js/header-loader.js',
-  '/js/narrative-tools.js',
-  '/js/weapons-data.js',
-  '/js/library-data.js',
-  '/js/enemy-generator.js',
-  '/manifest.json'
+  './',
+  './index.html',
+  './library.html',
+  './equipment-database.html',
+  './time-management.html',
+  './oracle-generators.html',
+  './kegare-panico.html',
+  './combat-calculator.html',
+  './js/header-loader.js',
+  './js/narrative-tools.js',
+  './js/weapons-data.js',
+  './js/library-data.js',
+  './js/enemy-generator.js',
+  './js/ranged-calc.js',
+  './manifest.json',
+  './icons/app-icon-192.png',
+  './icons/app-icon-512.png'
 ];
 
+// INSTALL: Cache current assets
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS))
+      .then(cache => {
+        console.log('🛡️ Daimyo Shield: Pre-caching assets for offline use...');
+        return cache.addAll(ASSETS);
+      })
       .then(() => self.skipWaiting())
   );
 });
 
+// ACTIVATE: Clean old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -31,29 +39,35 @@ self.addEventListener('activate', event => {
         keys.filter(key => key !== CACHE_NAME)
           .map(key => caches.delete(key))
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
-// Stale-While-Revalidate Strategy
+// FETCH: Network-First with Cache Fallback for dynamic content (HTML/JS)
+// This ensures we get updates if online, but stay functional if offline.
 self.addEventListener('fetch', event => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
-  
+
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      const fetchPromise = fetch(event.request).then(networkResponse => {
-        if(networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+    fetch(event.request)
+      .then(networkResponse => {
+        // If success, update cache and return
+        if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
         }
         return networkResponse;
-      }).catch(() => {
-        // Ignora erro de rede se falhar de buscar, usa o fallback (cachedResponse)
-      });
-
-      // Retorna o cache IMEDIATAMENTE se existir. Em background, aguarda a rede (fetchPromise)
-      return cachedResponse || fetchPromise;
-    })
+      })
+      .catch(() => {
+        // If offline/error, return from cache
+        return caches.match(event.request).then(cachedResponse => {
+          if (cachedResponse) return cachedResponse;
+          
+          // Return index.html as fallback for navigation if offline
+          if (event.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+        });
+      })
   );
 });

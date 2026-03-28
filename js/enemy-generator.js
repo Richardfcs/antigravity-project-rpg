@@ -11,10 +11,15 @@ const EnemyGenerator = (function() {
 
     // --- CONFIGURAÇÃO DE ATRIBUTOS POR NÍVEL ---
     const THREAT_CONFIG = {
-        "capanga": { st: [9, 11], dx: [10, 11], iq: [9, 10], ht: [10, 11], hpMod: 0 },
-        "elite":   { st: [12, 14], dx: [12, 13], iq: [10, 11], ht: [11, 13], hpMod: 5 },
-        "mestre":  { st: [14, 18], dx: [14, 16], iq: [12, 14], ht: [13, 15], hpMod: 15 }
+        "civil":       { st: [8, 10],  dx: [9, 10],  iq: [9, 10],  ht: [9, 10],  hpMod: 0 },
+        "recruta":     { st: [10, 10], dx: [10, 10], iq: [10, 10], ht: [10, 10], hpMod: 0 },
+        "capanga":     { st: [10, 11], dx: [10, 11], iq: [9, 10],  ht: [10, 11], hpMod: 0 },
+        "veterano":    { st: [11, 12], dx: [11, 12], iq: [10, 11], ht: [11, 12], hpMod: 2 },
+        "elite":       { st: [12, 13], dx: [12, 13], iq: [10, 11], ht: [11, 13], hpMod: 5 },
+        "excepcional": { st: [13, 14], dx: [13, 13], iq: [11, 12], ht: [12, 13], hpMod: 8 },
+        "mestre":      { st: [14, 16], dx: [14, 15], iq: [12, 14], ht: [13, 15], hpMod: 12 }
     };
+
 
     // --- HELPER: Random range ---
     function rand(min, max) {
@@ -28,31 +33,47 @@ const EnemyGenerator = (function() {
 
     /**
      * Gera um inimigo completo baseado no nível de ameaça.
+     * Implementa realismo GURPS: Atributos muito altos em uma área tendem a reduzir outras.
      */
     function generate(threatKey = "capanga") {
         const config = THREAT_CONFIG[threatKey] || THREAT_CONFIG.capanga;
         
-        // 1. Atributos
-        const st = rand(config.st[0], config.st[1]);
-        const dx = rand(config.dx[0], config.dx[1]);
-        const iq = rand(config.iq[0], config.iq[1]);
-        const ht = rand(config.ht[0], config.ht[1]);
+        // 1. Atributos Base
+        let st = rand(config.st[0], config.st[1]);
+        let dx = rand(config.dx[0], config.dx[1]);
+        let iq = rand(config.iq[0], config.iq[1]);
+        let ht = rand(config.ht[0], config.ht[1]);
+
+        // --- REALISMO GURPS: EQUILÍBRIO DE PONTOS ---
+        // Se ST e DX forem ambos altos, reduzimos IQ ou HT (Especialista em Combate Físico)
+        if (st >= 13 && dx >= 13) {
+            if (Math.random() > 0.4) iq = rand(8, 10); 
+            if (Math.random() > 0.6) ht = Math.max(10, ht - 1);
+        } 
+        // Se IQ for alto (Místico/Estrategista), ST tende a ser menor
+        else if (iq >= 13) {
+            if (Math.random() > 0.5) st = rand(8, 10);
+        }
+        // Se ST for massivo (Bruto), DX tende a ser menor
+        else if (st >= 15) {
+            if (Math.random() > 0.5) dx = rand(9, 11);
+        }
+
         const hp = st + (config.hpMod || 0);
 
         // 2. Identidade
         const name = `${pick(SURNAMES)} ${pick(NAMES)}`;
         
-        // 3. Arquétipo (Apenas para base visual/descritiva)
+        // 3. Arquétipo
         let archetype = "Combatente";
-        if (typeof libraryData !== 'undefined') {
-            const archetypes = libraryData.filter(d => d.cat === "Arquétipo");
+        if (typeof window.LibraryManager !== 'undefined') {
+            const archetypes = window.LibraryManager.getItems().filter(d => d.cat === "Arquétipo");
             if (archetypes.length > 0) archetype = pick(archetypes).nome;
         }
 
         // 4. Equipamento Inteligente (Arsenal)
         let weapons = [];
         if (typeof weaponsDB !== 'undefined') {
-            // Sorteia 1-2 armas
             const pool = weaponsDB.filter(w => parseInt(w.forca) <= st + 2);
             if (pool.length > 0) {
                 weapons.push(pick(pool).nome);
@@ -62,11 +83,9 @@ const EnemyGenerator = (function() {
             weapons = ["Katana"];
         }
 
-        // 5. Oráculo (Personalidade e Motivação)
-        // Simulando tabelas do Oráculo se não houver objeto global
+        // 5. Oráculo
         const traits = ["Honrado", "Cruel", "Ambicioso", "Leal", "Místico", "Sobrevivente", "Fanático", "Mercenário"];
         const motivations = ["Pela glória do Clã", "Por vingança pessoal", "Por moedas de prata", "Protegendo segredo", "Sob influência de Yokai", "Seguindo o Bushido"];
-        
         const description = `[${archetype}] ${pick(traits)}. Motivo: ${pick(motivations)}.`;
 
         // 6. Iniciativa Base (GURPS: (DX + HT) / 4)
@@ -75,6 +94,7 @@ const EnemyGenerator = (function() {
         return {
             name: `${name} (${threatKey.toUpperCase()})`,
             st, dx, iq, ht,
+            vont: iq + (Math.random() > 0.8 ? 1 : 0), // Will baseada em IQ
             hp: hp,
             hpMax: hp,
             pf: ht,
@@ -88,10 +108,8 @@ const EnemyGenerator = (function() {
         };
     }
 
-    return {
-        generate
-    };
-
-
-    window.EnemyGenerator = EnemyGenerator;
+    const generatorInstance = { generate };
+    window.EnemyGenerator = generatorInstance;
+    return generatorInstance;
 })();
+

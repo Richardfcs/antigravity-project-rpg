@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Escudo do Daimyo — Arsenal de Equipamentos</title>
-  <meta name="description" content="Banco de dados de consulta rápida para Armas, Armaduras e Equipamentos do RPG GURPS 4e — A Era das Espadas Quebradas.">
+  <meta name="description"
+    content="Banco de dados de consulta rápida para Armas, Armaduras e Equipamentos do RPG GURPS 4e — A Era das Espadas Quebradas.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
   <style>
     /* ═══════════════════════════════════════════
        DESIGN TOKENS — Japão Feudal Dark Mode
@@ -53,9 +57,18 @@
     /* ═══════════════════════════════════════════
        RESET & BASE
        ═══════════════════════════════════════════ */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    html { height: 100%; }
+    html {
+      height: 100%;
+    }
+
     body {
       min-height: 100%;
       background: var(--bg-deep);
@@ -69,16 +82,19 @@
     /* ═══════════════════════════════════════════
        HEADER + TAB NAV
        ═══════════════════════════════════════════ */
-    .header {
+    #daimyo-header {
       position: sticky;
       top: 0;
-      z-index: 100;
+      z-index: 110;
+      background: var(--bg-panel);
+    }
+
+    .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 12px 24px;
-      background: var(--bg-panel);
-      border-bottom: 1px solid var(--border-panel);
+      /* background: var(--bg-panel); Removed to avoid redundancy with #daimyo-header */
     }
 
     .header__brand {
@@ -89,10 +105,19 @@
       letter-spacing: 0.02em;
       text-decoration: none;
     }
-    .header__brand span { color: var(--red-accent); }
-    .header__brand:hover { opacity: 0.9; }
 
-    .tab-nav { display: flex; gap: 4px; }
+    .header__brand span {
+      color: var(--red-accent);
+    }
+
+    .header__brand:hover {
+      opacity: 0.9;
+    }
+
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+    }
 
     .tab-nav__link {
       font-family: var(--font-body);
@@ -107,10 +132,12 @@
       border: 1px solid transparent;
       transition: all var(--transition);
     }
+
     .tab-nav__link:hover {
       color: var(--text-secondary);
-      background: rgba(255,255,255,0.03);
+      background: rgba(255, 255, 255, 0.03);
     }
+
     .tab-nav__link--active {
       color: var(--gold);
       border-bottom: 2px solid var(--gold);
@@ -133,6 +160,7 @@
       transition: all var(--transition);
       text-decoration: none;
     }
+
     .btn-ghost:hover {
       background: rgba(255, 255, 255, 0.05);
       color: var(--text-primary);
@@ -143,13 +171,15 @@
        SEARCH AREA
        ═══════════════════════════════════════════ */
     .search-area {
-      position: sticky;
-      top: 52px;
+      top: 64px;
+      /* Altura do new-header no desktop */
       z-index: 90;
       background: var(--bg-deep);
-      padding: 20px 24px 12px;
+      padding: 12px 24px 10px;
       border-bottom: 1px solid var(--border-panel);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
     }
+
 
     .search-bar {
       position: relative;
@@ -207,8 +237,15 @@
       transition: all var(--transition);
       display: none;
     }
-    .search-bar__clear:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
-    .search-bar__clear.visible { display: block; }
+
+    .search-bar__clear:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .search-bar__clear.visible {
+      display: block;
+    }
 
     .filter-row {
       display: flex;
@@ -232,7 +269,12 @@
       transition: all var(--transition);
       user-select: none;
     }
-    .filter-pill:hover { border-color: var(--text-secondary); color: var(--text-secondary); }
+
+    .filter-pill:hover {
+      border-color: var(--text-secondary);
+      color: var(--text-secondary);
+    }
+
     .filter-pill--active {
       color: var(--gold);
       border-color: var(--gold);
@@ -264,7 +306,11 @@
       border-bottom: 1px solid var(--border-panel);
       margin-bottom: 12px;
     }
-    .section-header__icon { font-size: 1.1rem; }
+
+    .section-header__icon {
+      font-size: 1.1rem;
+    }
+
     .section-header__title {
       font-family: var(--font-display);
       font-size: 0.85rem;
@@ -273,6 +319,7 @@
       letter-spacing: 0.1em;
       color: var(--text-secondary);
     }
+
     .section-header__count {
       font-size: 0.7rem;
       color: var(--text-muted);
@@ -300,12 +347,16 @@
       transition: all var(--transition);
       cursor: default;
     }
+
     .item-card:hover {
       background: var(--bg-card-hover);
       border-color: #3A3A3A;
       transform: translateY(-1px);
     }
-    .item-card--hidden { display: none; }
+
+    .item-card--hidden {
+      display: none;
+    }
 
     .item-card__top {
       display: flex;
@@ -325,16 +376,55 @@
     }
 
     /* Tag colors by weapon subtype */
-    .item-tag--lamina   { background: rgba(196,30,58,0.12); color: var(--red-accent); }
-    .item-tag--haste    { background: rgba(96,165,250,0.12); color: var(--blue-steel); }
-    .item-tag--esmag    { background: rgba(245,158,11,0.12); color: var(--orange-warn); }
-    .item-tag--arremesso{ background: rgba(45,212,191,0.12); color: var(--teal); }
-    .item-tag--especial { background: rgba(212,168,70,0.12); color: var(--gold); }
-    .item-tag--bruta    { background: rgba(245,158,11,0.12); color: var(--orange-warn); }
-    .item-tag--armadura { background: rgba(148,163,184,0.10); color: var(--silver); }
-    .item-tag--ninja    { background: rgba(34,197,94,0.10); color: var(--green-success); }
-    .item-tag--oculto   { background: rgba(16,185,129,0.15); color: var(--emerald); }
-    .item-tag--mundano  { background: rgba(148,163,184,0.08); color: var(--text-secondary); }
+    .item-tag--lamina {
+      background: rgba(196, 30, 58, 0.12);
+      color: var(--red-accent);
+    }
+
+    .item-tag--haste {
+      background: rgba(96, 165, 250, 0.12);
+      color: var(--blue-steel);
+    }
+
+    .item-tag--esmag {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--orange-warn);
+    }
+
+    .item-tag--arremesso {
+      background: rgba(45, 212, 191, 0.12);
+      color: var(--teal);
+    }
+
+    .item-tag--especial {
+      background: rgba(212, 168, 70, 0.12);
+      color: var(--gold);
+    }
+
+    .item-tag--bruta {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--orange-warn);
+    }
+
+    .item-tag--armadura {
+      background: rgba(148, 163, 184, 0.10);
+      color: var(--silver);
+    }
+
+    .item-tag--ninja {
+      background: rgba(34, 197, 94, 0.10);
+      color: var(--green-success);
+    }
+
+    .item-tag--oculto {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--emerald);
+    }
+
+    .item-tag--mundano {
+      background: rgba(148, 163, 184, 0.08);
+      color: var(--text-secondary);
+    }
 
     .item-card__name {
       font-family: var(--font-display);
@@ -364,6 +454,7 @@
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
+
     .stat-badge__label {
       font-size: 0.6rem;
       font-weight: 700;
@@ -373,23 +464,43 @@
       margin-right: 2px;
     }
 
-    .stat-badge--dano { border-color: rgba(196,30,58,0.3); }
-    .stat-badge--dano .stat-badge__value { color: var(--red-accent); }
-    .stat-badge--rd { border-color: rgba(148,163,184,0.3); }
-    .stat-badge--rd .stat-badge__value { color: var(--silver); font-size: 1rem; font-weight: 700; }
-    .stat-badge--peso { border-color: rgba(107,114,128,0.3); }
+    .stat-badge--dano {
+      border-color: rgba(196, 30, 58, 0.3);
+    }
+
+    .stat-badge--dano .stat-badge__value {
+      color: var(--red-accent);
+    }
+
+    .stat-badge--rd {
+      border-color: rgba(148, 163, 184, 0.3);
+    }
+
+    .stat-badge--rd .stat-badge__value {
+      color: var(--silver);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .stat-badge--peso {
+      border-color: rgba(107, 114, 128, 0.3);
+    }
+
     .stat-badge--efeito {
-      border-color: rgba(16,185,129,0.2);
+      border-color: rgba(16, 185, 129, 0.2);
       flex-basis: 100%;
       white-space: normal;
       font-size: 0.75rem;
       line-height: 1.4;
       color: var(--text-secondary);
     }
-    .stat-badge--efeito .stat-badge__value { color: var(--text-primary); }
+
+    .stat-badge--efeito .stat-badge__value {
+      color: var(--text-primary);
+    }
 
     .stat-badge--unbalanced {
-      border-color: rgba(245,158,11,0.4);
+      border-color: rgba(245, 158, 11, 0.4);
       color: var(--orange-warn);
     }
 
@@ -400,7 +511,10 @@
       color: var(--text-muted);
       font-weight: 500;
     }
-    .item-card__meta span { white-space: nowrap; }
+
+    .item-card__meta span {
+      white-space: nowrap;
+    }
 
     .item-card__notes {
       font-size: 0.7rem;
@@ -408,7 +522,7 @@
       font-style: italic;
       line-height: 1.35;
       padding-top: 4px;
-      border-top: 1px solid rgba(255,255,255,0.04);
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
     }
 
     /* ═══════════════════════════════════════════
@@ -423,12 +537,21 @@
       padding: 60px 20px;
       text-align: center;
     }
-    .empty-state.visible { display: flex; }
-    .empty-state__icon { font-size: 2.5rem; opacity: 0.25; }
+
+    .empty-state.visible {
+      display: flex;
+    }
+
+    .empty-state__icon {
+      font-size: 2.5rem;
+      opacity: 0.25;
+    }
+
     .empty-state__text {
       font-size: 0.9rem;
       color: var(--text-muted);
     }
+
     .empty-state__hint {
       font-size: 0.75rem;
       color: var(--text-muted);
@@ -439,46 +562,125 @@
        ANIMATIONS
        ═══════════════════════════════════════════ */
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-    .anim-fade { animation: fadeIn 250ms ease; }
+
+    .anim-fade {
+      animation: fadeIn 250ms ease;
+    }
 
     /* ═══════════════════════════════════════════
        RESPONSIVE
        ═══════════════════════════════════════════ */
     @media (max-width: 768px) {
-      .header { padding: 10px 16px; flex-wrap: wrap; gap: 8px; }
-      .header__brand { font-size: 0.95rem; width: 100%; text-align: center; }
-      .tab-nav { margin-right: 0; width: 100%; overflow-x: auto; white-space: nowrap; flex-wrap: nowrap; border-bottom: 1px solid rgba(212,175,55,0.1); padding-bottom: 2px; }
-      .tab-nav::-webkit-scrollbar { display: none; }
-      .tab-nav__link { font-size: 0.65rem; padding: 6px 10px; }
-      .search-area { padding: 14px 16px 10px; top: 80px; }
-      .search-bar__input { height: 48px; font-size: 1rem; }
-      .content { padding: 12px 16px 32px; }
-      .card-grid { grid-template-columns: 1fr; gap: 8px; }
-      .filter-pill { font-size: 0.65rem; padding: 5px 12px; }
+      .header {
+        padding: 10px 16px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .header__brand {
+        font-size: 0.95rem;
+        width: 100%;
+        text-align: center;
+      }
+
+      .tab-nav {
+        margin-right: 0;
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+        flex-wrap: nowrap;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+        padding-bottom: 2px;
+      }
+
+      .tab-nav::-webkit-scrollbar {
+        display: none;
+      }
+
+      .tab-nav__link {
+        font-size: 0.65rem;
+        padding: 6px 10px;
+      }
+
+      .search-area {
+        padding: 14px 16px 10px;
+        top: 80px;
+      }
+
+      .search-bar__input {
+        height: 48px;
+        font-size: 1rem;
+      }
+
+      .search-area {
+        top: 56px;
+        padding: 10px 16px;
+      }
+
+      .content {
+        padding: 12px 16px 32px;
+      }
+
+      .card-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .filter-pill {
+        font-size: 0.65rem;
+        padding: 5px 12px;
+      }
     }
 
     @media (max-width: 480px) {
-      .tab-nav__link { font-size: 0.6rem; padding: 5px 8px; letter-spacing: 0.03em; }
-      .item-card { padding: 12px 14px; }
+      .tab-nav__link {
+        font-size: 0.6rem;
+        padding: 5px 8px;
+        letter-spacing: 0.03em;
+      }
+
+      .item-card {
+        padding: 12px 14px;
+      }
     }
 
     /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg-deep); }
-    ::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-deep);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-panel);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
   </style>
 
-  
+
   <!-- PWA METATAGS -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0A0A0A">
   <link rel="apple-touch-icon" href="icons/app-icon-192.png">
   <link rel="icon" type="image/png" href="icons/app-icon-192.png">
 </head>
+
 <body>
 
   <!-- ════════ HEADER + TAB NAV ════════ -->
@@ -489,14 +691,8 @@
   <div class="search-area">
     <div class="search-bar">
       <span class="search-bar__icon">🔍</span>
-      <input
-        type="text"
-        class="search-bar__input"
-        id="search-input"
-        placeholder="Buscar Katana, Ofuda, O-Yoroi..."
-        autofocus
-        autocomplete="off"
-      >
+      <input type="text" class="search-bar__input" id="search-input" placeholder="Buscar Katana, Ofuda, O-Yoroi..."
+        autofocus autocomplete="off">
       <button class="search-bar__clear" id="search-clear" title="Limpar busca">✕</button>
     </div>
     <div class="filter-row">
@@ -548,50 +744,50 @@
   <script>
 
 
-/* ═══════════════════════════════════════════════════════
-   RENDER ENGINE
-   ═══════════════════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════════════════
+       RENDER ENGINE
+       ═══════════════════════════════════════════════════════ */
 
-const TIPO_TAG_MAP = {
-  'Lâmina':      { css: 'lamina',   label: '⚔ Lâmina' },
-  'Haste':       { css: 'haste',    label: '⚔ Haste' },
-  'Esmagamento': { css: 'esmag',    label: '⚔ Esmagamento' },
-  'Arremesso':   { css: 'arremesso',label: '🏹 Arremesso' },
-  'Arco':        { css: 'arremesso',label: '🏹 Arco' },
-  'Especialista':{ css: 'especial', label: '⚔ Especialista' },
-  'Força Bruta': { css: 'bruta',    label: '⚔ Força Bruta' }
-};
+    const TIPO_TAG_MAP = {
+      'Lâmina': { css: 'lamina', label: '⚔ Lâmina' },
+      'Haste': { css: 'haste', label: '⚔ Haste' },
+      'Esmagamento': { css: 'esmag', label: '⚔ Esmagamento' },
+      'Arremesso': { css: 'arremesso', label: '🏹 Arremesso' },
+      'Arco': { css: 'arremesso', label: '🏹 Arco' },
+      'Especialista': { css: 'especial', label: '⚔ Especialista' },
+      'Força Bruta': { css: 'bruta', label: '⚔ Força Bruta' }
+    };
 
-const GEAR_TAG_MAP = {
-  'ninja':   { css: 'ninja',   label: '🥷 Ninja' },
-  'oculto':  { css: 'oculto',  label: '✦ Ocultismo' },
-  'mundano': { css: 'mundano', label: '📦 Geral' }
-};
+    const GEAR_TAG_MAP = {
+      'ninja': { css: 'ninja', label: '🥷 Ninja' },
+      'oculto': { css: 'oculto', label: '✦ Ocultismo' },
+      'mundano': { css: 'mundano', label: '📦 Geral' }
+    };
 
-function normalize(str) {
-  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, ' ');
-}
+    function normalize(str) {
+      return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, ' ');
+    }
 
-function buildSearchText(obj, category) {
-  const parts = [obj.nome, obj.notas || ''];
-  if (category === 'arma') parts.push(obj.tipo, obj.dano);
-  if (category === 'armadura') parts.push(obj.local);
-  if (category === 'equipamento') parts.push(obj.efeito, obj.subtipo);
-  return normalize(parts.join(' '));
-}
+    function buildSearchText(obj, category) {
+      const parts = [obj.nome, obj.notas || ''];
+      if (category === 'arma') parts.push(obj.tipo, obj.dano);
+      if (category === 'armadura') parts.push(obj.local);
+      if (category === 'equipamento') parts.push(obj.efeito, obj.subtipo);
+      return normalize(parts.join(' '));
+    }
 
-function isUnbalanced(aparar) {
-  return aparar && aparar.includes('U');
-}
+    function isUnbalanced(aparar) {
+      return aparar && aparar.includes('U');
+    }
 
-function renderWeaponCard(w) {
-  const tag = TIPO_TAG_MAP[w.tipo] || { css: 'especial', label: w.tipo };
-  const unbalanced = isUnbalanced(w.aparar);
-  const apararDisplay = unbalanced
-    ? `<span class="stat-badge stat-badge--unbalanced"><span class="stat-badge__label">AP</span> <span class="stat-badge__value">${w.aparar} ⚠</span></span>`
-    : `<span class="stat-badge"><span class="stat-badge__label">AP</span> <span class="stat-badge__value">${w.aparar}</span></span>`;
+    function renderWeaponCard(w) {
+      const tag = TIPO_TAG_MAP[w.tipo] || { css: 'especial', label: w.tipo };
+      const unbalanced = isUnbalanced(w.aparar);
+      const apararDisplay = unbalanced
+        ? `<span class="stat-badge stat-badge--unbalanced"><span class="stat-badge__label">AP</span> <span class="stat-badge__value">${w.aparar} ⚠</span></span>`
+        : `<span class="stat-badge"><span class="stat-badge__label">AP</span> <span class="stat-badge__value">${w.aparar}</span></span>`;
 
-  return `<div class="item-card anim-fade" data-category="arma" data-search="${buildSearchText(w, 'arma')}">
+      return `<div class="item-card anim-fade" data-category="arma" data-search="${buildSearchText(w, 'arma')}">
     <div class="item-card__top">
       <span class="item-tag item-tag--${tag.css}">${tag.label}</span>
     </div>
@@ -606,10 +802,10 @@ function renderWeaponCard(w) {
     </div>
     ${w.notas ? `<div class="item-card__notes">▸ ${w.notas}</div>` : ''}
   </div>`;
-}
+    }
 
-function renderArmorCard(a) {
-  return `<div class="item-card anim-fade" data-category="armadura" data-search="${buildSearchText(a, 'armadura')}">
+    function renderArmorCard(a) {
+      return `<div class="item-card anim-fade" data-category="armadura" data-search="${buildSearchText(a, 'armadura')}">
     <div class="item-card__top">
       <span class="item-tag item-tag--armadura">🛡 Armadura</span>
     </div>
@@ -623,11 +819,11 @@ function renderArmorCard(a) {
     </div>
     ${a.notas ? `<div class="item-card__notes">▸ ${a.notas}</div>` : ''}
   </div>`;
-}
+    }
 
-function renderGearCard(g) {
-  const tag = GEAR_TAG_MAP[g.subtipo] || GEAR_TAG_MAP['mundano'];
-  return `<div class="item-card anim-fade" data-category="equipamento" data-search="${buildSearchText(g, 'equipamento')}">
+    function renderGearCard(g) {
+      const tag = GEAR_TAG_MAP[g.subtipo] || GEAR_TAG_MAP['mundano'];
+      return `<div class="item-card anim-fade" data-category="equipamento" data-search="${buildSearchText(g, 'equipamento')}">
     <div class="item-card__top">
       <span class="item-tag item-tag--${tag.css}">${tag.label}</span>
     </div>
@@ -640,126 +836,127 @@ function renderGearCard(g) {
     </div>
     ${g.notas ? `<div class="item-card__notes">▸ ${g.notas}</div>` : ''}
   </div>`;
-}
-
-function renderAll() {
-  document.getElementById('grid-armas').innerHTML = weaponsDB.map(renderWeaponCard).join('');
-  document.getElementById('grid-armaduras').innerHTML = armorDB.map(renderArmorCard).join('');
-  document.getElementById('grid-equipamentos').innerHTML = gearDB.map(renderGearCard).join('');
-  updateCounts();
-}
-
-
-/* ═══════════════════════════════════════════════════════
-   SEARCH ENGINE — Live Filter (no debounce needed)
-   ═══════════════════════════════════════════════════════ */
-
-let activeFilter = 'todos';
-
-function runFilter() {
-  const query = normalize(document.getElementById('search-input').value.trim());
-  const cards = document.querySelectorAll('.item-card');
-  let visibleArmas = 0, visibleArmaduras = 0, visibleEquip = 0;
-
-  cards.forEach(card => {
-    const category = card.dataset.category;
-    const searchText = card.dataset.search;
-
-    const matchesCategory = activeFilter === 'todos' || category === activeFilter;
-    const matchesQuery = !query || searchText.includes(query);
-    const visible = matchesCategory && matchesQuery;
-
-    card.classList.toggle('item-card--hidden', !visible);
-
-    if (visible) {
-      if (category === 'arma') visibleArmas++;
-      else if (category === 'armadura') visibleArmaduras++;
-      else if (category === 'equipamento') visibleEquip++;
     }
-  });
 
-  const total = visibleArmas + visibleArmaduras + visibleEquip;
-
-  // Section visibility
-  toggleSection('section-armas', 'grid-armas', visibleArmas);
-  toggleSection('section-armaduras', 'grid-armaduras', visibleArmaduras);
-  toggleSection('section-equipamentos', 'grid-equipamentos', visibleEquip);
-
-  // Counter
-  const counter = document.getElementById('filter-counter');
-  if (activeFilter === 'todos' && !query) {
-    counter.textContent = `${weaponsDB.length + armorDB.length + gearDB.length} itens`;
-  } else {
-    counter.textContent = `${total} resultado${total !== 1 ? 's' : ''}`;
-  }
-
-  // Empty state
-  document.getElementById('empty-state').classList.toggle('visible', total === 0);
-
-  // Clear button
-  document.getElementById('search-clear').classList.toggle('visible', query.length > 0);
-
-  // Update section counts
-  document.getElementById('count-armas').textContent = visibleArmas > 0 ? `(${visibleArmas})` : '';
-  document.getElementById('count-armaduras').textContent = visibleArmaduras > 0 ? `(${visibleArmaduras})` : '';
-  document.getElementById('count-equipamentos').textContent = visibleEquip > 0 ? `(${visibleEquip})` : '';
-}
-
-function toggleSection(headerId, gridId, count) {
-  const header = document.getElementById(headerId);
-  const grid = document.getElementById(gridId);
-  const hidden = count === 0;
-  header.style.display = hidden ? 'none' : '';
-  grid.style.display = hidden ? 'none' : '';
-}
-
-function updateCounts() {
-  document.getElementById('count-armas').textContent = `(${weaponsDB.length})`;
-  document.getElementById('count-armaduras').textContent = `(${armorDB.length})`;
-  document.getElementById('count-equipamentos').textContent = `(${gearDB.length})`;
-  document.getElementById('filter-counter').textContent = `${weaponsDB.length + armorDB.length + gearDB.length} itens`;
-}
+    function renderAll() {
+      document.getElementById('grid-armas').innerHTML = weaponsDB.map(renderWeaponCard).join('');
+      document.getElementById('grid-armaduras').innerHTML = armorDB.map(renderArmorCard).join('');
+      document.getElementById('grid-equipamentos').innerHTML = gearDB.map(renderGearCard).join('');
+      updateCounts();
+    }
 
 
-/* ═══════════════════════════════════════════════════════
-   EVENT LISTENERS
-   ═══════════════════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════════════════
+       SEARCH ENGINE — Live Filter (no debounce needed)
+       ═══════════════════════════════════════════════════════ */
 
-document.getElementById('search-input').addEventListener('input', runFilter);
+    let activeFilter = 'todos';
 
-document.getElementById('search-clear').addEventListener('click', () => {
-  document.getElementById('search-input').value = '';
-  document.getElementById('search-input').focus();
-  runFilter();
-});
+    function runFilter() {
+      const query = normalize(document.getElementById('search-input').value.trim());
+      const cards = document.querySelectorAll('.item-card');
+      let visibleArmas = 0, visibleArmaduras = 0, visibleEquip = 0;
 
-document.querySelectorAll('.filter-pill').forEach(pill => {
-  pill.addEventListener('click', () => {
-    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('filter-pill--active'));
-    pill.classList.add('filter-pill--active');
-    activeFilter = pill.dataset.filter;
-    runFilter();
-  });
-});
+      cards.forEach(card => {
+        const category = card.dataset.category;
+        const searchText = card.dataset.search;
 
-// Keyboard shortcut: Escape to clear search
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    const input = document.getElementById('search-input');
-    if (input.value) {
-      input.value = '';
+        const matchesCategory = activeFilter === 'todos' || category === activeFilter;
+        const matchesQuery = !query || searchText.includes(query);
+        const visible = matchesCategory && matchesQuery;
+
+        card.classList.toggle('item-card--hidden', !visible);
+
+        if (visible) {
+          if (category === 'arma') visibleArmas++;
+          else if (category === 'armadura') visibleArmaduras++;
+          else if (category === 'equipamento') visibleEquip++;
+        }
+      });
+
+      const total = visibleArmas + visibleArmaduras + visibleEquip;
+
+      // Section visibility
+      toggleSection('section-armas', 'grid-armas', visibleArmas);
+      toggleSection('section-armaduras', 'grid-armaduras', visibleArmaduras);
+      toggleSection('section-equipamentos', 'grid-equipamentos', visibleEquip);
+
+      // Counter
+      const counter = document.getElementById('filter-counter');
+      if (activeFilter === 'todos' && !query) {
+        counter.textContent = `${weaponsDB.length + armorDB.length + gearDB.length} itens`;
+      } else {
+        counter.textContent = `${total} resultado${total !== 1 ? 's' : ''}`;
+      }
+
+      // Empty state
+      document.getElementById('empty-state').classList.toggle('visible', total === 0);
+
+      // Clear button
+      document.getElementById('search-clear').classList.toggle('visible', query.length > 0);
+
+      // Update section counts
+      document.getElementById('count-armas').textContent = visibleArmas > 0 ? `(${visibleArmas})` : '';
+      document.getElementById('count-armaduras').textContent = visibleArmaduras > 0 ? `(${visibleArmaduras})` : '';
+      document.getElementById('count-equipamentos').textContent = visibleEquip > 0 ? `(${visibleEquip})` : '';
+    }
+
+    function toggleSection(headerId, gridId, count) {
+      const header = document.getElementById(headerId);
+      const grid = document.getElementById(gridId);
+      const hidden = count === 0;
+      header.style.display = hidden ? 'none' : '';
+      grid.style.display = hidden ? 'none' : '';
+    }
+
+    function updateCounts() {
+      document.getElementById('count-armas').textContent = `(${weaponsDB.length})`;
+      document.getElementById('count-armaduras').textContent = `(${armorDB.length})`;
+      document.getElementById('count-equipamentos').textContent = `(${gearDB.length})`;
+      document.getElementById('filter-counter').textContent = `${weaponsDB.length + armorDB.length + gearDB.length} itens`;
+    }
+
+
+    /* ═══════════════════════════════════════════════════════
+       EVENT LISTENERS
+       ═══════════════════════════════════════════════════════ */
+
+    document.getElementById('search-input').addEventListener('input', runFilter);
+
+    document.getElementById('search-clear').addEventListener('click', () => {
+      document.getElementById('search-input').value = '';
+      document.getElementById('search-input').focus();
       runFilter();
-    }
-    input.focus();
-  }
-});
+    });
+
+    document.querySelectorAll('.filter-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('filter-pill--active'));
+        pill.classList.add('filter-pill--active');
+        activeFilter = pill.dataset.filter;
+        runFilter();
+      });
+    });
+
+    // Keyboard shortcut: Escape to clear search
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        const input = document.getElementById('search-input');
+        if (input.value) {
+          input.value = '';
+          runFilter();
+        }
+        input.focus();
+      }
+    });
 
 
-/* ═══════════════════════════════════════════════════════
-   INIT
-   ═══════════════════════════════════════════════════════ */
-renderAll();
-</script>
+    /* ═══════════════════════════════════════════════════════
+       INIT
+       ═══════════════════════════════════════════════════════ */
+    renderAll();
+  </script>
 
 </body>
+
 </html>
