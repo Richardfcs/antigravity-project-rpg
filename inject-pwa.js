@@ -8,7 +8,8 @@ const targetFiles = [
   'time-management.html',
   'oracle-generators.html',
   'kegare-panico.html',
-  'combat-calculator.html'
+  'combat-calculator.html',
+  'characters-sheet.html'
 ];
 
 const pwaTags = `

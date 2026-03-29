@@ -1,4 +1,4 @@
-const CACHE_NAME = 'daimyo-cache-v6';
+const CACHE_NAME = 'daimyo-cache-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,9 @@ const ASSETS = [
   './oracle-generators.html',
   './kegare-panico.html',
   './combat-calculator.html',
+  './characters-sheet.html',
+  './css/characters.css',
+  './js/daimyo-db.js',
   './js/header-loader.js',
   './js/theme-manager.js',
   './js/narrative-tools.js',
@@ -15,11 +18,16 @@ const ASSETS = [
   './js/library-data.js',
   './js/enemy-generator.js',
   './js/ranged-calc.js',
+  './js/tactical-map.js',
+  './js/character-manager.js',
+  './js/character-ui.js',
+  './js/daimyo-seal.js',
+  './js/kegare-manager.js',
+  './js/log-manager.js',
+  './js/merchant-logic.js',
   './manifest.json',
   './icons/app-icon-192.png',
-  './icons/app-icon-512.png',
-  './screenshots/desktop.png',
-  './screenshots/mobile.png'
+  './icons/app-icon-512.png'
 ];
 
 // INSTALL: Cache current assets
@@ -65,7 +73,7 @@ self.addEventListener('fetch', event => {
         // If offline/error, return from cache
         return caches.match(event.request).then(cachedResponse => {
           if (cachedResponse) return cachedResponse;
-          
+
           // Return index.html as fallback for navigation if offline
           if (event.request.mode === 'navigate') {
             return caches.match('./index.html');

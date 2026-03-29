@@ -589,6 +589,105 @@
     /* ═══════════════════════════════════════════
        RESPONSIVE
        ═══════════════════════════════════════════ */
+    @media (max-width: 700px) {
+        .side-by-side {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+    }
+
+    /* ═══════════════════════════════════════════
+       TACTICAL MAP ENHANCEMENTS
+       ═══════════════════════════════════════════ */
+    .tactical-token {
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        user-select: none;
+    }
+    .tactical-token.dragging { 
+        transform: scale(1.1);
+        box-shadow: 0 0 20px rgba(255,255,255,0.4);
+        z-index: 1000;
+    }
+
+    /* Sizes (High Specificity to override base class) */
+    .tactical-token.token-sm { width: 20px; height: 20px; font-size: 0.6rem; }
+    .tactical-token.token-md { width: 32px; height: 32px; font-size: 0.8rem; }
+    .tactical-token.token-lg { width: 48px; height: 48px; font-size: 1.1rem; }
+
+    /* Colors */
+    .token-player  { border: 2px solid #3B82F6; background: rgba(59, 130, 246, 0.5) !important; }
+    .token-enemy   { border: 2px solid var(--red-accent); background: rgba(196, 30, 58, 0.5) !important; }
+    .token-neutral { border: 2px solid var(--text-muted); background: rgba(107, 114, 128, 0.5) !important; }
+    .token-gold    { border: 2px solid var(--gold); background: rgba(212, 168, 70, 0.5) !important; }
+    .token-purple  { border: 2px solid #8B5CF6; background: rgba(139, 92, 246, 0.5) !important; }
+    .token-green   { border: 2px solid #22C55E; background: rgba(34, 197, 94, 0.5) !important; }
+    .token-pink    { border: 2px solid #EC4899; background: rgba(236, 72, 153, 0.5) !important; }
+    .token-cyan    { border: 2px solid #06B6D4; background: rgba(6, 182, 212, 0.5) !important; }
+    .token-orange  { border: 2px solid #F97316; background: rgba(249, 115, 22, 0.5) !important; }
+
+    /* Shapes */
+    .token-shape-circle   { border-radius: 50% !important; clip-path: none !important; }
+    .token-shape-square   { border-radius: 0 !important; clip-path: none !important; }
+    .token-shape-triangle { border-radius: 0 !important; clip-path: polygon(50% 0%, 0% 100%, 100% 100%) !important; }
+    .token-shape-diamond  { border-radius: 0 !important; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important; }
+    .token-shape-star     { border-radius: 0 !important; clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%) !important; }
+
+    /* Context Menu */
+    #token-context-menu {
+        position: fixed;
+        z-index: 10000;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-panel);
+        border-radius: var(--radius);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        padding: 5px;
+        min-width: 140px;
+        display: none;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .context-menu__item {
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        color: var(--text-primary);
+        cursor: pointer;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.2s;
+    }
+    .context-menu__item:hover {
+        background: rgba(255,255,255,0.05);
+        color: var(--gold);
+    }
+    .context-menu__divider {
+        height: 1px;
+        background: var(--border-panel);
+        margin: 4px 0;
+    }
+    .context-menu__submenu {
+        display: flex;
+        gap: 4px;
+        padding: 4px;
+        flex-wrap: wrap;
+    }
+    .color-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    .size-box {
+        padding: 2px 6px;
+        background: var(--bg-input);
+        border: 1px solid var(--border-input);
+        border-radius: 3px;
+        font-size: 0.6rem;
+        cursor: pointer;
+    }
+
     @media (max-width: 1024px) {
       html, body { overflow: auto; }
       #app { grid-template-rows: auto 1fr auto; height: 100vh; }
@@ -604,6 +703,104 @@
       .panel { padding: 14px 16px; }
       .history__list { padding: 8px 16px; }
       .history__header { padding: 8px 16px; }
+    }
+
+    /* ═══════════════════════════════════════════
+       TACTICAL WAR MAP
+       ═══════════════════════════════════════════ */
+    #tactical-board {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      background: var(--bg-deep);
+      overflow: hidden;
+      position: relative;
+    }
+    .tactical-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 24px;
+      gap: 12px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-panel);
+      flex-shrink: 0;
+    }
+    .tactical-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .map-select-group {
+      display: flex;
+      gap: 4px;
+      background: rgba(0,0,0,0.2);
+      padding: 4px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-panel);
+      align-items: center;
+    }
+    .tactical-map-viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      touch-action: none;
+      background-color: #050505;
+      cursor: grab;
+      min-height: 60vh; /* Garante que nunca colapse em 0px no render de layout do Desktop */
+    }
+    .tactical-map-viewport:active { cursor: grabbing; }
+    
+    .tactical-map-content {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      transform-origin: center center;
+      /* Smooth transitons só pro zoom ser mais elegante, pan é instantaneo por JS ou animation frame */
+      transition: transform 0.05s ease-out;
+    }
+
+    .tactical-token {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      cursor: pointer; /* Change to pointer to prevent overlapping grab logic too awkwardly when zoomed */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.8), inset 0 0 0 2px rgba(255,255,255,0.2);
+      font-size: 0.8rem;
+      user-select: none;
+      z-index: 100;
+      transition: box-shadow 0.2s, background-color 0.2s;
+    }
+    .tactical-token:active, .tactical-token.dragging {
+      cursor: grabbing;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.9), inset 0 0 0 2px rgba(255,255,255,0.4);
+      z-index: 1000;
+    }
+    /* Redundant definitions removed to prevent conflict with reactive styling */
+    
+    .tactical-token .token-label {
+      position: absolute;
+      top: 100%;
+      margin-top: 4px;
+      background: rgba(0,0,0,0.7);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      white-space: nowrap;
+      color: var(--text-primary);
+      pointer-events: none;
+      text-transform: capitalize;
     }
 
     /* Scrollbar */
@@ -625,7 +822,7 @@
 <div id="app">
 
   <!-- ════════ HEADER ════════ -->
-  <div id="daimyo-header"></div>
+  <!-- daimyo-header-mount será injetado pelo script -->
   <script src="js/header-loader.js"></script>
 
   <!-- ════════ MAIN: 3 COLUMNS ════════ -->
@@ -775,6 +972,120 @@
       <p class="history__empty">Nenhuma ação registrada. Use os geradores para começar.</p>
     </div>
   </section>
+
+  <!-- ════════ TACTICAL MAP BOARD ════════ -->
+  <section id="tactical-board">
+    <div class="tactical-header">
+      <div class="tactical-controls">
+        
+        <!-- TREE CONTROLS -->
+        <div class="map-select-group">
+          <select id="sel-map-level" class="field__input" style="width:auto; padding:6px 10px; font-size:0.75rem;">
+             <option value="macro" selected>Visão Macro</option>
+             <option value="region">Regiões</option>
+             <option value="city">Cidades Locais</option>
+          </select>
+          <select id="sel-map-specific" class="field__input" style="width:auto; padding:6px 10px; font-size:0.75rem; display:none;">
+          </select>
+          <button class="btn btn-ghost" id="btn-register-map" style="color:var(--gold); padding:6px 12px; font-weight:700;" title="Registrar Mapa">[+] Registrar</button>
+        </div>
+
+        <!-- CAMERA CONTROLS -->
+        <div class="map-select-group" style="margin-left:8px;">
+           <button class="btn btn-ghost" id="btn-zoom-out" style="padding:6px 12px; font-size:0.9rem;" title="Afastar">-</button>
+           <button class="btn btn-ghost" id="btn-zoom-reset" style="padding:6px 12px; font-size:0.9rem;" title="Centralizar Visualização">🎯 Focar</button>
+           <button class="btn btn-ghost" id="btn-zoom-in" style="padding:6px 12px; font-size:0.9rem;" title="Aproximar">+</button>
+        </div>
+
+        <button class="btn btn-secondary" id="btn-add-player" style="padding: 6px 12px; border-color: #3B82F6; color: #3B82F6;">+ Grupo/Herói</button>
+        <button class="btn btn-secondary" id="btn-add-enemy" style="padding: 6px 12px; border-color: var(--red-failure); color: var(--red-failure);">+ Inimigo/Bando</button>
+      </div>
+      <button class="btn btn-ghost" id="btn-clear-map" style="color: var(--text-muted)">🧹 Limpar Pinos</button>
+    </div>
+    
+    <div id="tactical-map-viewport" class="tactical-map-viewport">
+       <div id="tactical-map-content" class="tactical-map-content">
+          <!-- Tokens renderizados dinamicamente pelo JS -->
+       </div>
+    </div>
+  </section>
+
+  <!-- MODAL: REGISTRAR MAPA LOCAL -->
+  <div id="modal-register-map" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:9000; align-items:center; justify-content:center;">
+    <div class="panel" style="width: 340px; max-width:90%; max-height:90vh; overflow-y:auto; position:relative;">
+       <h3 class="panel__title" style="color:var(--gold);">Registrar Novo Mapa</h3>
+       <p style="font-size:0.7rem; color:var(--text-muted); line-height:1.4;">
+         Coloque o arquivo PNG/JPG na pasta <strong>Maps/</strong> do projeto antes de preencher os dados. Ele ficará salvo na memória offline da sua campanha.
+       </p>
+       
+       <div class="field" style="margin-top:10px;">
+         <label class="field__label">Nível Hierárquico</label>
+         <select id="reg-map-level" class="field__input">
+            <option value="region">Nova Região Extensa</option>
+            <option value="city">Cidade / Castelo Local</option>
+         </select>
+       </div>
+       <div class="field" id="reg-map-parent-container" style="display:none; margin-top:10px;">
+         <label class="field__label">Pertence à Região:</label>
+         <select id="reg-map-parent" class="field__input">
+            <!-- Povoado por JS -->
+         </select>
+       </div>
+       <div class="field" style="margin-top:10px;">
+         <label class="field__label">Nome do Local (Ex: Castelo da Névoa)</label>
+         <input type="text" id="reg-map-name" class="field__input" placeholder="Obrigatório">
+       </div>
+       <div class="field" style="margin-top:10px;">
+         <label class="field__label">Arquivo exato na pasta Maps/</label>
+         <input type="text" id="reg-map-file" class="field__input" placeholder="ex: castelo_nevoa.png">
+       </div>
+       
+       <div style="display:flex; gap:10px; margin-top:20px;">
+         <button class="btn btn-secondary" id="btn-reg-cancel" style="flex:1;">Cancelar</button>
+         <button class="btn btn-primary" id="btn-reg-save" style="flex:1;">Salvar Mapa</button>
+       </div>
+    </div>
+  </div>
+
+  <!-- CONTEXT MENU: TOKEN ACTIONS -->
+  <div id="token-context-menu">
+     <div class="context-menu__item" id="ctx-delete-token" style="color:var(--red-accent);">🗑 Remover Pino</div>
+     <div class="context-menu__divider"></div>
+     
+     <div style="padding: 4px 12px; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Cor do Tema</div>
+     <div class="context-menu__submenu">
+        <div class="color-dot" data-color="player" style="background:#3B82F6;" title="Azul"></div>
+        <div class="color-dot" data-color="enemy" style="background:var(--red-accent);" title="Vermelho"></div>
+        <div class="color-dot" data-color="neutral" style="background:#6B7280;" title="Cinza"></div>
+        <div class="color-dot" data-color="gold" style="background:var(--gold);" title="Ouro"></div>
+        <div class="color-dot" data-color="purple" style="background:#8B5CF6;" title="Roxo"></div>
+        <div class="color-dot" data-color="green" style="background:#22C55E;" title="Verde"></div>
+        <div class="color-dot" data-color="pink" style="background:#EC4899;" title="Rosa"></div>
+        <div class="color-dot" data-color="cyan" style="background:#06B6D4;" title="Ciano"></div>
+        <div class="color-dot" data-color="orange" style="background:#F97316;" title="Laranja"></div>
+     </div>
+     
+     <div class="context-menu__divider"></div>
+     
+     <div style="padding: 4px 12px; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Forma</div>
+     <div class="context-menu__submenu" style="gap: 8px; justify-content: center; padding: 8px;">
+        <div class="size-box" data-shape="circle" title="Círculo" style="border-radius:50%; width:16px; height:16px; padding:0;"></div>
+        <div class="size-box" data-shape="square" title="Quadrado" style="border-radius:2px; width:16px; height:16px; padding:0;"></div>
+        <div class="size-box" data-shape="triangle" title="Triângulo" style="clip-path:polygon(50% 0%, 0% 100%, 100% 100%); width:16px; height:16px; padding:0;"></div>
+        <div class="size-box" data-shape="diamond" title="Losango" style="clip-path:polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); width:16px; height:16px; padding:0;"></div>
+        <div class="size-box" data-shape="star" title="Estrela" style="clip-path:polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); width:16px; height:16px; padding:0;"></div>
+     </div>
+
+     <div class="context-menu__divider"></div>
+     
+     <div style="padding: 4px 12px; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Tamanho</div>
+     <div class="context-menu__submenu" style="justify-content: space-around;">
+        <div class="size-box" data-size="sm">P</div>
+        <div class="size-box" data-size="md">M</div>
+        <div class="size-box" data-size="lg">G</div>
+     </div>
+  </div>
+
 
 </div>
 
@@ -1309,5 +1620,6 @@ document.getElementById('btn-limpar-historico').addEventListener('click', clearH
 // ── Init ──
 renderHistory();
 </script>
+<script src="js/tactical-map.js"></script>
 </body>
 </html>

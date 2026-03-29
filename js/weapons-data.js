@@ -4,45 +4,144 @@
  */
 
 const weaponsDB = [
-  { id: "w1", nome: "Katana (1 mão)", tipo: "Lâmina", dano: "GeB+1 cort / GdP+1 perf", alcance: "1", aparar: "0", forca: "10", notas: "Uso com uma mão. A espada padrão do samurai." },
-  { id: "w2", nome: "Katana (2 mãos)", tipo: "Lâmina", dano: "GeB+2 cort / GdP+1 perf", alcance: "1-2", aparar: "0", forca: "9†", notas: "Requer duas mãos. Maior dano e alcance." },
-  { id: "w3", nome: "Wakizashi", tipo: "Lâmina", dano: "GeB cort / GdP perf", alcance: "1", aparar: "0", forca: "8", notas: "Espada curta de acompanhamento. Funciona em combate próximo (C)." },
-  { id: "w4", nome: "Nodachi", tipo: "Lâmina", dano: "GeB+3 cort / GdP+2 perf", alcance: "1-2", aparar: "0U", forca: "12†", notas: "Grande espada. Desequilibrada — não apara se atacar." },
-  { id: "w5", nome: "Tanto", tipo: "Lâmina", dano: "GeB-2 cort / GdP perf", alcance: "C, 1", aparar: "-1", forca: "6", notas: "Faca de samurai. Funciona em agarramento." },
-  { id: "w6", nome: "Yari (1 mão)", tipo: "Haste", dano: "GdP+2 perf", alcance: "2", aparar: "0", forca: "9", notas: "Lança de uma mão. Rainha do campo de batalha." },
-  { id: "w7", nome: "Yari (2 mãos)", tipo: "Haste", dano: "GdP+3 perf", alcance: "2-3", aparar: "0", forca: "9†", notas: "Lança longa com duas mãos. Controle de distância." },
-  { id: "w8", nome: "Naginata", tipo: "Haste", dano: "GeB+2 cort / GdP+2 perf", alcance: "2-3", aparar: "0U", forca: "10†", notas: "Alabarda japonesa. Desequilibrada. Comum entre Sohei e mulheres samurais." },
-  { id: "w9", nome: "Bo (Bastão)", tipo: "Haste", dano: "GeB+2 esm / GdP+1 esm", alcance: "1-2", aparar: "2", forca: "7†", notas: "Bastão longo. Bom aparar (+2). Não letal, mas quebra ossos." },
-  { id: "w10", nome: "Tetsubo", tipo: "Esmagamento", dano: "GeB+4 esm", alcance: "1-2", aparar: "0U", forca: "13†", notas: "Maça de ferro brutal. Desequilibrada." },
-  { id: "w11", nome: "Kusarigama", tipo: "Especialista", dano: "GeB+2 esm / GeB cort", alcance: "1-4", aparar: "0U", forca: "8†", notas: "Foice com corrente (Ninja). Difícil de bloquear." },
-  { id: "w12", nome: "Jitte", tipo: "Especialista", dano: "GeB esm", alcance: "1", aparar: "0", forca: "6", notas: "Bastão de ferro policial. Usado para desarmar." },
-  { id: "w13", nome: "Kunai", tipo: "Especialista", dano: "GeB-1 cort / GdP-1 perf", alcance: "C, 1", aparar: "-1", forca: "6", notas: "Faca ninja multiuso. Pode ser arremessada." },
-  { id: "w14", nome: "Masakari", tipo: "Força Bruta", dano: "GeB+3 cort", alcance: "1", aparar: "0U", forca: "11", notas: "Machado de uma mão." },
-  { id: "w15", nome: "Ono", tipo: "Força Bruta", dano: "GeB+4 cort", alcance: "1-2", aparar: "0U", forca: "12†", notas: "Machado grande. Requer duas mãos." },
-  { id: "w16", nome: "Otsuchi", tipo: "Força Bruta", dano: "GeB+4 esm", alcance: "1-2", aparar: "0U", forca: "12†", notas: "Martelo de guerra. Requer duas mãos." },
-  { id: "w17", nome: "Yumi (Arco Longo)", tipo: "Arco", dano: "GdP+2 perf", alcance: "x15/x20", aparar: "—", forca: "11†", notas: "Arco longo japonês. Precisão 3." },
-  { id: "w18", nome: "Shuriken", tipo: "Arremesso", dano: "GdP-1 cort", alcance: "x0.5/x1.0", aparar: "—", forca: "4", notas: "Estrela de arremesso." },
-  { id: "w19", nome: "Bo-Shuriken", tipo: "Arremesso", dano: "GdP-1 perf", alcance: "x0.5/x1.0", aparar: "—", forca: "4", notas: "Dardo de arremesso." }
+  // Lâminas (Kenjutsu)
+  { id: "w1", nome: "Katana (1 mão)", tipo: "Lâmina", dano: "GeB+1 cort / GdP+1 perf", alcance: "1", aparar: "0", custo: "$600", peso: "1.5 kg", forca: "10", notas: "Uso com uma mão. A espada padrão do samurai." },
+  { id: "w2", nome: "Katana (2 mãos)", tipo: "Lâmina", dano: "GeB+2 cort / GdP+1 perf", alcance: "1 a 2", aparar: "0", custo: "-", peso: "-", forca: "9†", notas: "Requer duas mãos. Maior dano e alcance." },
+  { id: "w3", nome: "Wakizashi", tipo: "Lâmina", dano: "GeB cort / GdP perf", alcance: "1", aparar: "0", custo: "$400", peso: "1 kg", forca: "8", notas: "Espada curta de acompanhamento. Funciona em combate próximo (C)." },
+  { id: "w4", nome: "Nodachi (Grande)", tipo: "Lâmina", dano: "GeB+3 cort / GdP+2 perf", alcance: "1 a 2", aparar: "0U", custo: "$800", peso: "2.5 kg", forca: "12†", notas: "Grande espada. Desequilibrada — não apara se atacar." },
+  { id: "w5", nome: "Tanto (Faca)", tipo: "Lâmina", dano: "GeB-2 cort / GdP perf", alcance: "C, 1", aparar: "-1", custo: "$40", peso: "0.5 kg", forca: "6", notas: "Faca de samurai. Funciona em agarramento." },
+  
+  // Hastes e Esmagamento (Sojutsu/Kobujutsu)
+  { id: "w6", nome: "Yari (Lança 1 mão)", tipo: "Haste", dano: "GdP+2 perf", alcance: "2", aparar: "0", custo: "$60", peso: "2 kg", forca: "9", notas: "Lança de uma mão. Rainha do campo de batalha." },
+  { id: "w7", nome: "Yari (Lança 2 mãos)", tipo: "Haste", dano: "GdP+3 perf", alcance: "2 a 3", aparar: "0", custo: "-", peso: "-", forca: "9†", notas: "Lança longa com duas mãos. Controle de distância." },
+  { id: "w8", nome: "Naginata", tipo: "Haste", dano: "GeB+2 cort / GdP+2 perf", alcance: "2 a 3", aparar: "0U", custo: "$100", peso: "3 kg", forca: "10†", notas: "Alabarda japonesa. Desequilibrada. Comum entre Sohei e mulheres samurais." },
+  { id: "w9", nome: "Bo (Bastão)", tipo: "Haste", dano: "GeB+2 esm / GdP+1 esm", alcance: "1 a 2", aparar: "2", custo: "$10", peso: "2 kg", forca: "7†", notas: "Bastão longo. Bom aparar (+2). Não letal, mas quebra ossos." },
+  { id: "w10", nome: "Tetsubo (Maça)", tipo: "Esmagamento", dano: "GeB+4 esm", alcance: "1 a 2", aparar: "0U", custo: "$120", peso: "5 kg", forca: "13†", notas: "Maça de ferro brutal. Desequilibrada." },
+  
+  // Especialistas (Ninja/Polícia)
+  { id: "w11", nome: "Kusarigama (Foice)", tipo: "Especialista", dano: "GeB+2 esm / GeB cort", alcance: "1 a 4", aparar: "0U", custo: "$75", peso: "1.5 kg", forca: "8†", notas: "Foice com corrente (Ninja). Difícil de bloquear." },
+  { id: "w12", nome: "Jitte (Bastão Ferro)", tipo: "Especialista", dano: "GeB esm", alcance: "1", aparar: "0", custo: "$20", peso: "0.5 kg", forca: "6", notas: "Bastão de ferro policial. Usado para desarmar." },
+  { id: "w13", nome: "Kunai (Faca)", tipo: "Especialista", dano: "GeB-1 cort / GdP-1 perf", alcance: "C, 1", aparar: "-1", custo: "$15", peso: "0.5 kg", forca: "6", notas: "Faca ninja multiuso." },
+  
+  // ARMAS DE FORÇA BRUTA (ONO & OTSUCHI)
+  { id: "w14", nome: "Masakari (Machado)", tipo: "Força Bruta", dano: "GeB+2 cort", alcance: "1", aparar: "0U", custo: "$50", peso: "2 kg", forca: "11", notas: "Machado de uma mão." },
+  { id: "w15", nome: "Ono (Machado Grande)", tipo: "Força Bruta", dano: "GeB+3 cort", alcance: "1 a 2", aparar: "0U", custo: "$100", peso: "4 kg", forca: "12†", notas: "Machado grande. Requer duas mãos." },
+  { id: "w16", nome: "Otsuchi (Martelo)", tipo: "Força Bruta", dano: "GeB+4 esm", alcance: "1 a 2", aparar: "0U", custo: "$100", peso: "4 kg", forca: "12†", notas: "Martelo de guerra. Requer duas mãos." },
+  
+  // Armas de Ataque à Distância
+  { id: "w17", nome: "Yumi (Arco Longo)", tipo: "Arco", dano: "GdP+2 perf", alcance: "x15 / x20", aparar: "—", custo: "$200", peso: "1.5 kg", forca: "11†", notas: "Arco longo japonês. Precisão 3." },
+  { id: "w18", nome: "Fukiya (Zarabatana)", tipo: "Especialista", dano: "1d-3 pi-", alcance: "x4 / ??", aparar: "—", custo: "$30", peso: "0.5 kg", forca: "—", notas: "Zarabatana, Precisão 1. Entregam veneno no sangue." },
+
+  // Armas de Arremesso (Pequenas)
+  { id: "w19", nome: "Shuriken (Estrela)", tipo: "Arremesso", dano: "GdP-1 cort", alcance: "x0.5 / x1.0", aparar: "—", custo: "$3", peso: "0.05 kg", forca: "4", notas: "Estrela de arremesso. Precisão 1. Pode ser envenenada." },
+  { id: "w20", nome: "Bo-Shuriken (Dardo)", tipo: "Arremesso", dano: "GdP-1 perf", alcance: "x0.5 / x1.0", aparar: "—", custo: "$3", peso: "0.05 kg", forca: "4", notas: "Dardo. Penetra melhor roupas grossas." },
+  { id: "w21", nome: "Tsubute (Pedra Polida)", tipo: "Arremesso", dano: "GdP esm", alcance: "x1.0 / x2.0", aparar: "—", custo: "-", peso: "-", forca: "4", notas: "Pedras de rio usadas para atordoar." },
+  { id: "w22", nome: "Kunai (Arremesso)", tipo: "Arremesso", dano: "GdP-1 perf", alcance: "x0.8 / x1.5", aparar: "—", custo: "$15", peso: "0.5 kg", forca: "6", notas: "Pesada. Pode ser usada em combate corpo a corpo (Faca)." }
 ];
 
 const armorDB = [
-  { id: "a1", nome: "Kamiko (Papel Laqueado)", local: "Tronco + Braços", rd: "1", peso: "1.5 kg", notas: "Leve e barata." },
-  { id: "a2", nome: "Traje de Ninja", local: "Corpo Inteiro", rd: "1*", peso: "3 kg", notas: "+1 em Furtividade (noturno)." },
-  { id: "a3", nome: "Cota de Malha (Kusari)", local: "Tronco (Oculta)", rd: "3/1*", peso: "4 kg", notas: "Converte Corte em Esmagamento." },
-  { id: "a4", nome: "Jingasa (Chapéu de Ferro)", local: "Crânio", rd: "3", peso: "1 kg", notas: "Protege de cima." },
-  { id: "a5", nome: "Do (Peitoral Lamelar)", local: "Tronco", rd: "5", peso: "12 kg", notas: "Resistente. Placas de metal/couro." },
-  { id: "a6", nome: "O-Yoroi (Completa)", local: "Tronco/Membros", rd: "4-5", peso: "24 kg", notas: "Carga Média ou Pesada!" }
+  // Armaduras Leves e Comuns
+  { id: "a1", nome: "Roupas Comuns", local: "Corpo Inteiro", rd: "0", peso: "1 kg", custo: "Varia", notas: "Status define o preço." },
+  { id: "a2", nome: "Kamiko (Papel Laqueado)", local: "Tronco+Braços", rd: "1", peso: "1.5 kg", custo: "$50", notas: "Muito barata e leve." },
+  { id: "a3", nome: "Traje de Ninja (Tec. Reforçado)", local: "Corpo Inteiro", rd: "1*", peso: "3 kg", custo: "$150", notas: "+1 em Furtividade (Escuro)." },
+  { id: "a4", nome: "Cota de Malha (Kusari)", local: "Tronco (Oculta)", rd: "3/1*", peso: "4 kg", custo: "$260", notas: "Pode usar por baixo da roupa." },
+  
+  // Peças de Armadura (Couro e Placas)
+  { id: "a5", nome: "Jingasa (Chapéu de Ferro)", local: "Crânio", rd: "3", peso: "1 kg", custo: "$30", notas: "Protege de cima." },
+  { id: "a6", nome: "Do (Couraça de Couro)", local: "Tronco", rd: "2", peso: "4 kg", custo: "$100", notas: "Couro fervido/laqueado." },
+  { id: "a7", nome: "Tatami (Malha e Placas)", local: "Tronco", rd: "3", peso: "7 kg", custo: "$350", notas: "Dobrável e portátil." },
+  { id: "a8", nome: "Tate (Escudo de Chão)", local: "Cobertura", rd: "5", peso: "15 kg", custo: "$60", notas: "Fornece Cobertura Total se você se agachar atrás dele. PV 40." },
+  
+  // Armadura de Samurai (O-Yoroi)
+  { id: "a9", nome: "Kabuto (Elmo)", local: "Cabeça", rd: "5", peso: "3 kg", custo: "$150", notas: "Inclui máscara (Mempo)." },
+  { id: "a10", nome: "Do (Peitoral Lamelar)", local: "Tronco", rd: "5", peso: "12 kg", custo: "$700", notas: "Pesado e resistente." },
+  { id: "a11", nome: "Sode/Kote (Ombreiras/Braços)", local: "Braços", rd: "4", peso: "4 kg", custo: "$220", notas: "Protege ombros/braços." },
+  { id: "a12", nome: "Haidate (Coxotes)", local: "Pernas", rd: "4", peso: "5 kg", custo: "$250", notas: "Protege coxas e canelas." },
+  { id: "a13", nome: "O-Yoroi (Conjunto Completo)", local: "Tudo", rd: "4 a 5", peso: "24 kg", custo: "$1.320", notas: "Carga Média ou Pesada!" }
 ];
 
 const gearDB = [
-  { id: "g1", nome: "Bomba de Fumaça", efeito: "Nuvem 3m. -5 Visão. Furtividade +4.", subtipo: "ninja", notas: "Ninja. $20." },
-  { id: "g2", nome: "Sal Puro (Mori-Shio)", efeito: "Dano x2 (Queimadura) em Yurei/Oni/Kaii. Interrompe Regeneração por 1 min. Barreira contra fantasmas.", subtipo: "oculto", notas: "Purificação fundamental. Círculos de sal impedem passagem. Barato." },
-  { id: "g3", nome: "Espelho de Bronze (Kagami)", efeito: "Revela forma verdadeira de Henge/Yurei invisível. Luz solar refletida: 1d dano em Yurei.", subtipo: "oculto", notas: "Espelho polido de Onmyoji. Ação de Concentrar. $200." },
-  { id: "g4", nome: "Kit Primeiros Socorros", efeito: "+1 em Primeiros Socorros.", subtipo: "mundano", notas: "Essencial. $50." },
-  { id: "g5", nome: "Óleo de Glicínia", efeito: "Anula Regeneração de Oni por 1d min.", subtipo: "oculto", notas: "$150. Caro." },
-  { id: "g6", nome: "Ofuda (Selo Sagrado)", efeito: "+1 em Exorcismo ou Rituais. Pode ser colado no alvo (Ataque Toque).", subtipo: "oculto", notas: "$5/unidade." },
-  { id: "g7", nome: "Bomba de Cinzas", efeito: "Cega (DX-4) por 1 turno e revela Yokais Insubstanciais na área.", subtipo: "ninja", notas: "Arremesso (DX). $30." },
-  { id: "g8", nome: "Pílula de Vitalidade", efeito: "Recupera 1d de Pontos de Fadiga (PF) instantaneamente. Causa 'Crash' de -2 HT após 1 hora.", subtipo: "alquimia", notas: "Rara. $100." }
+  // 🥷 Ferramentas de Invasão (Ninja) / Táticos
+  { id: "g1", nome: "Bomba de Fumaça (Kemuridama)", efeito: "Nuvem 3m. -5 Visão. Furtividade +4.", subtipo: "ninja", peso: "-", custo: "$20", alcance: "Arremesso", notas: "Usada para fugas." },
+  { id: "g2", nome: "Pó Cegante (Metsubishi)", efeito: "Cegueira temporária se o alvo falhar em HT.", subtipo: "ninja", peso: "Uso único", custo: "$10", alcance: "Alcance 1 (DX-4)", notas: "Jogue nos olhos." },
+  { id: "g3", nome: "Kaginawa (Gancho e Corda)", efeito: "+2 em Escalada.", subtipo: "ninja", peso: "2.5 kg", custo: "$20", alcance: "-", notas: "" },
+  { id: "g4", nome: "Shuko/Ashiko (Garras de Mão/Pé)", efeito: "+1 em Escalada, Dano +1 corte em Briga.", subtipo: "ninja", peso: "0.5 kg", custo: "$50", alcance: "C", notas: "" },
+  { id: "g5", nome: "Kit de Arrombamento (Gazuas)", efeito: "Necessário para abrir trancas.", subtipo: "ninja", peso: "0.2 kg", custo: "$50", alcance: "-", notas: "" },
+  { id: "g6", nome: "Tetsubishi (Estrepes)", efeito: "Quem pisar sofre 1 de dano e para de andar.", subtipo: "ninja", peso: "0.5 kg", custo: "$20", alcance: "-", notas: "" },
+  
+  // 🎒 Sobrevivência e Viagem
+  { id: "g7", nome: "Waraji (Sandálias de Palha)", efeito: "+1 Furtividade", subtipo: "viagem", peso: "-", custo: "$25", alcance: "-", notas: "Silenciosas, mas gastam rápido." },
+  { id: "g8", nome: "Geta (Sandálias de Madeira)", efeito: "-1 Furtividade (em piso duro).", subtipo: "viagem", peso: "-", custo: "$20", alcance: "-", notas: "Mantêm os pés secos na lama." },
+  { id: "g9", nome: "Kasa (Chapéu de Palha)", efeito: "Protege da chuva/sol. Pode esconder o rosto (Disfarce).", subtipo: "viagem", peso: "-", custo: "$10", alcance: "-", notas: "" },
+  { id: "g10", nome: "Ração de Viagem (Bento Seco)", efeito: "Arroz seco, peixe, ameixa. Dura 1 semana.", subtipo: "viagem", peso: "0.25 kg", custo: "$2", alcance: "-", notas: "" },
+  { id: "g11", nome: "Cantil (Cabaça/Bambu)", efeito: "Capacidade 1 Litro.", subtipo: "viagem", peso: "0.5 kg cheio", custo: "$10", alcance: "-", notas: "" },
+  { id: "g12", nome: "Mochila Pequena", efeito: "Transporte de itens leves.", subtipo: "viagem", peso: "1.5 kg", custo: "$60", alcance: "-", notas: "" },
+  { id: "g13", nome: "Saco de Dormir (Futon de palha)", efeito: "Descanso adequado ao ar livre.", subtipo: "viagem", peso: "2 kg", custo: "$25", alcance: "-", notas: "" },
+  { id: "g14", nome: "Lanterna de Papel (Chochin)", efeito: "Ilumina 2m por 2 horas.", subtipo: "viagem", peso: "0.5 kg", custo: "$20", alcance: "-", notas: "Protege a vela do vento." },
+  { id: "g15", nome: "Tocha", efeito: "Ilumina 2m por 1 hora.", subtipo: "viagem", peso: "0.5 kg", custo: "$3", alcance: "-", notas: "Fumaça revela posição." },
+  { id: "g16", nome: "Pederneira (Fogo)", efeito: "Acende fogo em 5 segundos.", subtipo: "viagem", peso: "-", custo: "$5", alcance: "-", notas: "" },
+  { id: "g17", nome: "Corda de Seda (10m)", efeito: "Suspende pesos maiores, silenciosa.", subtipo: "viagem", peso: "1.5 kg", custo: "$20", alcance: "-", notas: "Mais forte, leve e silenciosa que cânhamo." },
+  
+  // 💊 Medicinas e Venenos
+  { id: "g18", nome: "Kit de Primeiros Socorros", efeito: "+1 em Primeiros Socorros.", subtipo: "medicina", peso: "1 kg", custo: "$50", alcance: "-", notas: "Bandagens e ervas." },
+  { id: "g19", nome: "Kit Cirúrgico (Primitivo)", efeito: "Necessário para Cirurgia.", subtipo: "medicina", peso: "2.5 kg", custo: "$300", alcance: "-", notas: "Amputações, extrair flechas." },
+  { id: "g20", nome: "Veneno Digestivo (Acônito)", efeito: "Dano 2d tóxico após 1 hora.", subtipo: "medicina", peso: "1 dose", custo: "$100", alcance: "Ingerido", notas: "" },
+  { id: "g21", nome: "Veneno de Lâmina (Víbora)", efeito: "Dano 1d fadiga + Dor.", subtipo: "medicina", peso: "1 dose", custo: "$50", alcance: "Sangue", notas: "" },
+  { id: "g22", nome: "Flechas / Munição (10 un)", efeito: "Perfuram armaduras leves.", subtipo: "medicina", peso: "0.5 kg", custo: "$25", alcance: "-", notas: "$2 cada." },
+  { id: "g23", nome: "Flecha Watakushi (Corte/10 un)", efeito: "Dano vira corte. Ruim vs armadura (RDx2), terror vs carne limpa (x1.5).", subtipo: "medicina", peso: "0.5 kg", custo: "$50?", alcance: "-", notas: "" },
+
+  // 🎭 Cultura e Diversão
+  { id: "g24", nome: "Kit de Caligrafia", efeito: "Pincéis, sumi e papel.", subtipo: "cultura", peso: "1 kg", custo: "$50", alcance: "-", notas: "" },
+  { id: "g25", nome: "Leque de Guerra (Tessen)", efeito: "+1 em Liderança visual. Pode ser usado para aparar.", subtipo: "cultura", peso: "0.5 kg", custo: "$40", alcance: "-", notas: "" },
+  { id: "g26", nome: "Símbolo Sagrado (Omamori)", efeito: "Amuleto de proteção.", subtipo: "cultura", peso: "-", custo: "$5", alcance: "-", notas: "" },
+  
+  // 🐎 Montarias
+  { id: "g27", nome: "Cavalo de Guerra", efeito: "Treinado para não fugir em combate.", subtipo: "montaria", peso: "ST 22", custo: "$2.000+", alcance: "-", notas: "" },
+  { id: "g28", nome: "Cavalo de Carga (Pônei)", efeito: "Teimoso em combate.", subtipo: "montaria", peso: "-", custo: "$1.000", alcance: "-", notas: "" },
+  { id: "g29", nome: "Sela de Combate", efeito: "Dá estabilidade para usar arco e espada montado.", subtipo: "montaria", peso: "7 kg", custo: "$150", alcance: "-", notas: "" },
+
+  // 🧪 Alquimia e Ocultismo (Arsênico, Magia, Caçador)
+  { id: "g30", nome: "Sinos de Purificação (Suzu)", efeito: "Toca som dissonante se cruzado por Yokai (mesmo invisível).", subtipo: "oculto", peso: "-", custo: "$50", alcance: "Perímetro", notas: "Alarme." },
+  { id: "g31", nome: "Pílula de Vitalidade (Hyou-Gan)", efeito: "Recupera 1d-2 PF. Causa 'Crash' ou dano.", subtipo: "alquimia", peso: "1 un", custo: "$50~100", alcance: "Ingerido", notas: "Teste HT-2: falha = Náusea." },
+  { id: "g32", nome: "Cinzas de Cremação", efeito: "Yokai falha em HT-2 = Cegos/Dor por 1d6s. Humanos tossem.", subtipo: "oculto", peso: "1 uso", custo: "Coleta Roleplay", alcance: "Alc 1-2", notas: "Jogue nos olhos." },
+  { id: "g33", nome: "Sal Puro (Mori-Shio)", efeito: "Dano x2 (Queimadura) em Yurei/Oni. Trava Regeneração 1min.", subtipo: "oculto", peso: "-", custo: "-", alcance: "-", notas: "Impede fantasmas de cruzar." },
+  { id: "g34", nome: "Óleo de Glicínia (Fuji-Abura)", efeito: "Se ferir Oni/Henge, HT-3 ou perde Regeneração/Metamorfose 1d min.", subtipo: "alquimia", peso: "1 uso", custo: "$150", alcance: "-", notas: "Aplica em Arma (1 min)." },
+  { id: "g35", nome: "Ofuda (Selo Sagrado) / Pergaminho", efeito: "+1 em Rituais/Proteção.", subtipo: "oculto", peso: "-", custo: "$5", alcance: "-", notas: "" },
+  { id: "g36", nome: "Bomba de Cinzas (Hai-Dama)", efeito: "Yokai na área sofrem Cegueira/Tosse (DX/IQ -4).", subtipo: "alquimia", peso: "1 uso", custo: "$30", alcance: "Área 2m", notas: "" },
+  { id: "g37", nome: "Água Sagrada (Saquê Puro)", efeito: "Ignora até -4 penalidade fadiga/dor. Permite cuspir p/ acertar Insubstancial.", subtipo: "alquimia", peso: "1 Garrafa", custo: "$50", alcance: "Consumível", notas: "Crash: Náusea e perda dupla de PF." },
+  { id: "g38", nome: "Espelho de Bronze (Kagami)", efeito: "Revela Henge/Yurei invisível. Luz refletida: 1d dano Yurei.", subtipo: "oculto", peso: "-", custo: "$200", alcance: "Visão/Reflexo", notas: "Concentração exigida." },
+  { id: "g39", nome: "Madeira de Pessegueiro", efeito: "A única madeira que fere espíritos intangíveis a 100%.", subtipo: "oculto", peso: "Varia", custo: "Raro", alcance: "Arma Base", notas: "Dano base baixo, utilidade total." },
+  { id: "g40", nome: "Fogo Sagrado", efeito: "Dano x1.5 e causa Pânico em bestas.", subtipo: "oculto", peso: "-", custo: "Rituais", alcance: "-", notas: "Aceso com preces de templos." }
+];
+
+const qualityWeaponDB = [
+  { nome: "Barata", custo: "x0.4 (40%)", efeito: "+2 na chance de quebrar ao aparar.", notas: "Ferramentas agrícolas ou espadas enferrujadas." },
+  { nome: "Boa", custo: "x1 (100%)", efeito: "Padrão.", notas: "Maioria das armas militares." },
+  { nome: "Fina", custo: "x4 (400%)", efeito: "+1 Dano (Corte/Perf). -1 na chance de quebrar.", notas: "Lâminas de samurais ricos." },
+  { nome: "Muito Fina", custo: "x20 (2000%)", efeito: "+2 Dano (Corte/Perf). -2 na chance de quebrar.", notas: "Tesouros de clã. O fio nunca perde afiação." }
+];
+
+const qualityArmorDB = [
+  { nome: "Barata", custo: "x0.6 (60%)", efeito: "RD -1 (Mín. 1) OU Peso +50% (Desajeitada).", notas: "" },
+  { nome: "Boa", custo: "x1 (100%)", efeito: "Padrão das tabelas.", notas: "" },
+  { nome: "Fina", custo: "x4 (400%)", efeito: "Peso -10% ou RD +1 (Aço superior).", notas: "Ajuste perfeito." },
+  { nome: "Obra-Prima", custo: "x20 (2000%)", efeito: "RD +2 e Peso -20%.", notas: "Quase indestrutível." }
+];
+
+const materialDB = [
+  { nome: "Aço Frio", afeta: "Humanos, Henge, Oni", efeito: "Dano normal. Monstros com Regeneração curam rapidamente." },
+  { nome: "Sal Puro", afeta: "Yurei, Oni, Kaii", efeito: "Dano x2 (Fogo). Interrompe Regeneração 1 min. Bloqueia linha de fantasmas." },
+  { nome: "Glicínia (Fuji)", afeta: "Oni, Henge", efeito: "Veneno. Causa paralisia muscular ou anula transformação." },
+  { nome: "Pessegueiro", afeta: "Yurei, Possessões", efeito: "Fere espíritos intangíveis. Dano base baixo, acerta sempre." },
+  { nome: "Fogo Sagrado", afeta: "Todos (menos Dragões)", efeito: "Dano x1.5. Causa Pânico em bestas brutas." }
+];
+
+const slotRuleDB = [
+  { nivel: "Nenhuma (0)", limites: "Até 1x ST", movimento: "100%", esquiva: "Normal" },
+  { nivel: "Leve (1)", limites: "Até 2x ST", movimento: "80%", esquiva: "-1" },
+  { nivel: "Média (2)", limites: "Até 3x ST", movimento: "60%", esquiva: "-2" },
+  { nivel: "Pesada (3)", limites: "Até 6x ST", movimento: "40%", esquiva: "-3" },
+  { nivel: "Muito Pesada (4)", limites: "Até 10x ST", movimento: "20%", esquiva: "-4" }
 ];
 
 // Helper to get weapon stats by name or ID
@@ -50,8 +149,11 @@ function findWeapon(query) {
   return weaponsDB.find(w => w.id === query || w.nome === query);
 }
 
-
 window.weaponsDB = weaponsDB;
 window.armorDB = armorDB;
 window.gearDB = gearDB;
+window.qualityWeaponDB = qualityWeaponDB;
+window.qualityArmorDB = qualityArmorDB;
+window.materialDB = materialDB;
+window.slotRuleDB = slotRuleDB;
 window.findWeapon = findWeapon;

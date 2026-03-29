@@ -1,0 +1,193 @@
+/* PREMIUM DARK/GLASSMOPHISM THEME FOR CHARACTERS */
+
+:root {
+    --glass-bg: rgba(17, 17, 17, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.05);
+}
+
+.premium-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 10px 0;
+}
+
+.sheet-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-panel);
+    border-radius: var(--radius-lg);
+    padding: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.sheet-section__title {
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 5px;
+}
+
+/* Attributes Grid */
+.attr-premium-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.attr-node {
+    background: var(--bg-deep);
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius);
+    padding: 8px;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.attr-node:hover {
+    border-color: var(--gold-glow);
+    background: rgba(212,168,70,0.05);
+}
+
+.attr-node__label {
+    display: block;
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.attr-node__value {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    width: 100%;
+    background: transparent;
+    border: none;
+    text-align: center;
+    outline: none;
+}
+
+/* Maneuver Slots */
+.maneuver-slots {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+}
+
+.m-slot {
+    height: 50px;
+    border: 1px dashed var(--border-panel);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-align: center;
+    padding: 5px;
+    background: rgba(0,0,0,0.2);
+}
+
+.m-slot.active {
+    border-style: solid;
+    border-color: var(--gold);
+    background: rgba(212,168,70,0.1);
+    color: var(--gold);
+    font-weight: 700;
+}
+
+.m-slot.equipped {
+    border-style: solid;
+    border-color: var(--red-accent);
+    color: var(--text-primary);
+    background: rgba(139,0,0,0.1);
+}
+
+/* Master Eye Cards */
+.admin-card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.m-eye-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-panel);
+    border-radius: var(--radius-lg);
+    padding: 15px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+}
+
+.m-eye-card:hover {
+    border-color: var(--gold);
+}
+
+.m-eye-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 3px; height: 100%;
+    background: var(--red-blood);
+}
+
+.m-eye-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.m-eye-card__name {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.m-eye-card__stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.m-eye-stat {
+    background: var(--bg-deep);
+    padding: 4px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.m-eye-stat__label {
+    display: block;
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.m-eye-stat__value {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--gold);
+}
+
+/* Points Badge */
+.points-summary-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-deep);
+    padding: 10px 15px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-panel);
+    margin-bottom: 15px;
+}
+
+.points-text { font-family: var(--font-display); font-size: 1.1rem; }
+.points-text span { color: var(--red-accent); font-weight: 900; }

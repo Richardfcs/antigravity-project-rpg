@@ -11,7 +11,8 @@ window.ThemeManager = (function() {
   let currentSettings = {
     theme: 'dark',
     textColor: '',
-    fontFamily: 'serif' // 'serif' ou 'sans'
+    fontFamily: 'serif', // 'serif' ou 'sans'
+    fontSize: 100 // Porcentagem (100 = 16px padrão)
   };
 
   function init() {
@@ -21,7 +22,8 @@ window.ThemeManager = (function() {
     currentSettings = {
       theme: savedTheme,
       textColor: savedSettings.textColor || '',
-      fontFamily: savedSettings.fontFamily || 'serif'
+      fontFamily: savedSettings.fontFamily || 'serif',
+      fontSize: savedSettings.fontSize || 100
     };
 
     apply(currentSettings.theme);
@@ -56,6 +58,13 @@ window.ThemeManager = (function() {
       root.style.removeProperty('--font-display');
     }
 
+    // Aplicar tamanho de fonte
+    root.style.fontSize = currentSettings.fontSize + '%';
+    
+    // Atualizar mostrador na interface se existir
+    const fsDisplay = document.getElementById('font-size-display');
+    if (fsDisplay) fsDisplay.textContent = currentSettings.fontSize + '%';
+
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(currentSettings));
   }
 
@@ -67,6 +76,21 @@ window.ThemeManager = (function() {
   function setFontFamily(type) {
     currentSettings.fontFamily = type;
     applyUISettings();
+  }
+
+  function setFontSize(percent) {
+    console.log('✨ ThemeManager: Mudando fonte para:', percent);
+    // Limites razoáveis: 70% a 160%
+    const newSize = Math.max(70, Math.min(160, percent));
+    currentSettings.fontSize = newSize;
+    applyUISettings();
+    // Dispatch event for UI updates if needed
+    window.dispatchEvent(new CustomEvent('daimyo-fontsize-changed', { detail: { fontSize: newSize } }));
+  }
+
+  function adjustFontSize(delta) {
+    const current = currentSettings.fontSize || 100;
+    setFontSize(current + delta);
   }
 
   function openDrawer() {
@@ -90,6 +114,8 @@ window.ThemeManager = (function() {
     apply,
     setTextColor,
     setFontFamily,
+    setFontSize,
+    adjustFontSize,
     openDrawer,
     closeDrawer,
     getSettings: () => currentSettings

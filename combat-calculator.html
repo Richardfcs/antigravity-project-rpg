@@ -53,7 +53,7 @@
       background: var(--bg-deep);
       color: var(--text-primary);
       font-family: var(--font-body);
-      font-size: 16px;
+      font-size: 1rem;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
@@ -873,6 +873,140 @@ const RESULT_KANJI = Object.freeze({
   FALHA_CRITICA: '失敗'
 });
 
+/* ═══════════════════════════════════════════════════════
+   HISTORY MANAGER — IndexedDB (Cofre Infinito)
+   ═══════════════════════════════════════════════════════ */
+const HISTORY_STORE = 'vault';
+const HISTORY_KEY = 'calc_history';
+
+async function loadHistory() {
+  if (window.DaimyoDB) {
+    const saved = await window.DaimyoDB.get(HISTORY_STORE, HISTORY_KEY);
+    return saved || [];
+  }
+  return [];
+}
+
+async function saveHistory(entries) {
+  if (window.DaimyoDB) {
+    await window.DaimyoDB.put(HISTORY_STORE, HISTORY_KEY, entries);
+  }
+}
+
+async function addHistoryEntry(entry) {
+  const entries = await loadHistory();
+  const timestamp = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  entries.unshift({ ...entry, time: timestamp });
+  if (entries.length > 100) entries.pop(); // Still reasonable limit for UI, but saved in IDB
+  await saveHistory(entries);
+  renderHistory();
+}
+
+async function clearHistory(e) {
+  const btn = typeof e === 'object' ? e.target : document.getElementById('btn-limpar-historico');
+  if (btn.dataset.confirming === 'true') {
+    if (window.DaimyoDB) await window.DaimyoDB.put(HISTORY_STORE, HISTORY_KEY, []);
+    renderHistory();
+    btn.dataset.confirming = 'false';
+    btn.textContent = 'Limpar';
+    btn.style.color = '';
+  } else {
+    btn.dataset.confirming = 'true';
+    btn.textContent = 'Confirmar?';
+    btn.style.color = 'var(--red-accent)';
+    setTimeout(() => {
+        btn.dataset.confirming = 'false';
+        btn.textContent = 'Limpar';
+        btn.style.color = '';
+    }, 3000);
+  }
+}
+
+// --- CHARACTER INTEGRATION ---
+async function populateCombatants() {
+  const select = document.getElementById('select-attacker-calc');
+  if (!select || !window.DaimyoDB) return;
+
+  try {
+    const characters = await window.DaimyoDB.getAll('characters');
+    const combatState = await window.DaimyoDB.get('vault', 'combat_state');
+    
+    let options = '<option value="">— Selecionar Combatente —</option>';
+    
+    // Add from Library
+    if (characters && characters.length > 0) {
+      options += '<optgroup label="Santuário de Heróis">';
+      characters.forEach(c => {
+        options += `<option value="char_${c.id}">${c.name} (ST ${c.st || 10})</option>`;
+      });
+      options += '</optgroup>';
+    }
+
+    // Add from Active Combat
+    if (combatState && combatState.combatants) {
+      options += '<optgroup label="Arena Atual">';
+      combatState.combatants.forEach(c => {
+        options += `<option value="combat_${c.id}">${c.name} (RD ${c.rd || 0})</option>`;
+      });
+      options += '</optgroup>';
+    }
+
+    select.innerHTML = options;
+  } catch (e) {
+    console.error("Erro ao carregar combatentes para calculadora", e);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   UI RENDERING & SYNC
+   ═══════════════════════════════════════════════════════ */
+async function renderHistory() {
+  const list = document.getElementById('history-list');
+  const empty = document.getElementById('history-empty');
+  const entries = await loadHistory();
+
+  if (!entries || entries.length === 0) {
+    empty.style.display = 'block';
+    list.innerHTML = '';
+    return;
+  }
+
+  empty.style.display = 'none';
+  list.innerHTML = entries.map(e => `
+    <div class="history__entry history__entry--${e.status?.toLowerCase() || 'default'}">
+      <span class="history__time">${e.time}</span>
+      <span class="history__action">${e.type || 'Ação'}</span>
+      <span class="history__dice">${e.diceText || ''}</span>
+      <span class="history__result-text">${e.resultText || ''}</span>
+      ${e.damage ? `<span class="history__damage">Dano: ${e.damage}</span>` : ''}
+    </div>
+  `).join('');
+}
+
+// Initial Boot
+async function init() {
+  await renderHistory();
+  await populateCombatants();
+  console.log("🛡️ Calculadora: Alinhada com o Cofre Infinito.");
+}
+
+window.addEventListener('load', () => {
+  if (window.DaimyoDB) init();
+  else setTimeout(init, 300);
+});
+
+// Sync from other tabs
+if (window.DaimyoDB) {
+  window.DaimyoDB.onSync((change) => {
+    if (change.store === 'characters' || (change.store === 'vault' && change.key === 'combat_state')) {
+      populateCombatants();
+    }
+    if (change.store === 'vault' && change.key === HISTORY_KEY) {
+      renderHistory();
+    }
+  });
+}
+
 function roll3d6() {
   const dice = [
     Math.floor(Math.random() * 6) + 1,
@@ -919,330 +1053,196 @@ function resolveContest(nh1, nh2) {
 }
 
 /* ═══════════════════════════════════════════════════════
-   HISTORY MANAGER — localStorage persistence
-   ═══════════════════════════════════════════════════════ */
-const HISTORY_KEY = 'espadas_quebradas_history';
-const MAX_HISTORY = 50;
-
-function loadHistory() {
-  try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-  } catch { return []; }
-}
-
-function saveHistory(entries) {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(0, MAX_HISTORY)));
-}
-
-function addHistoryEntry(entry) {
-  const entries = loadHistory();
-  entries.unshift({ ...entry, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) });
-  saveHistory(entries);
-  renderHistory();
-}
-
-let _clearTimeout;
-function clearHistory(e) {
-  const btn = e.target;
-  if (btn.dataset.confirming === 'true') {
-    localStorage.removeItem(HISTORY_KEY);
-    renderHistory();
-    btn.dataset.confirming = 'false';
-    btn.textContent = 'Limpar';
-    btn.style.borderColor = '';
-    btn.style.color = '';
-    clearTimeout(_clearTimeout);
-  } else {
-    btn.dataset.confirming = 'true';
-    btn.textContent = 'Confirma?';
-    btn.style.borderColor = 'var(--red-accent)';
-    btn.style.color = 'var(--red-accent)';
-    _clearTimeout = setTimeout(() => {
-      btn.dataset.confirming = 'false';
-      btn.textContent = 'Limpar';
-      btn.style.borderColor = '';
-      btn.style.color = '';
-    }, 3000);
-  }
-}
-
-function getResultCssClass(resultType) {
-  switch (resultType) {
-    case ResultType.SUCESSO_CRITICO: return 'critico';
-    case ResultType.SUCESSO: return 'sucesso';
-    case ResultType.FALHA: return 'falha';
-    case ResultType.FALHA_CRITICA: return 'falha-critica';
-    default: return 'falha';
-  }
-}
-
-function renderHistory() {
-  const list = document.getElementById('history-list');
-  const entries = loadHistory();
-
-  if (entries.length === 0) {
-    list.innerHTML = '<p class="history__empty">Nenhuma ação registrada. Role os dados para começar.</p>';
-    return;
-  }
-
-  list.innerHTML = entries.map(e => {
-    const cls = e.resultClass || 'falha';
-    const dmgText = e.damage !== undefined && e.damage !== null ? `<span class="history__damage">${e.damage} dano</span>` : '';
-    return `<div class="history__entry history__entry--${cls}">
-      <span class="history__time">${e.time}</span>
-      <span class="history__action">${e.action}</span>
-      <span class="history__dice">${e.diceText}</span>
-      <span class="history__result-text" style="color:${e.color}">${e.resultText}</span>
-      ${dmgText}
-    </div>`;
-  }).join('');
-}
-
-/* ═══════════════════════════════════════════════════════
-   UI HELPERS
+   UI RENDERING & DOM EVENTS
    ═══════════════════════════════════════════════════════ */
 
-function getResultColor(resultType) {
-  switch (resultType) {
-    case ResultType.SUCESSO_CRITICO: return '#D4A846';
-    case ResultType.SUCESSO: return '#22C55E';
-    case ResultType.FALHA: return '#9CA3AF';
-    case ResultType.FALHA_CRITICA: return '#DC2626';
-    default: return '#9CA3AF';
-  }
-}
-
-function animateDice(container, callback) {
-  container.classList.add('anim-rolling');
-  const diceEl = container.querySelector('[id^="dice-"]') || container.querySelector('.result-box__dice');
-
-  let count = 0;
-  const interval = setInterval(() => {
-    const fake = [
-      Math.floor(Math.random() * 6) + 1,
-      Math.floor(Math.random() * 6) + 1,
-      Math.floor(Math.random() * 6) + 1
-    ];
-    if (diceEl) diceEl.textContent = `[ ${fake[0]} + ${fake[1]} + ${fake[2]} = ${fake[0]+fake[1]+fake[2]} ]`;
-    count++;
-    if (count >= 8) {
-      clearInterval(interval);
-      container.classList.remove('anim-rolling');
-      callback();
-    }
-  }, 70);
-}
-
-/* ═══════════════════════════════════════════════════════
-   EVENT HANDLERS
-   ═══════════════════════════════════════════════════════ */
-
-// ── Teste de Sucesso ──
-document.getElementById('btn-rolar-sucesso').addEventListener('click', function() {
-  const nhInput = document.getElementById('nh-sucesso');
-  const nh = parseInt(nhInput.value);
-  if (isNaN(nh) || nh < 1) { nhInput.focus(); return; }
-
+// Event Listeners
+document.getElementById('btn-rolar-sucesso')?.addEventListener('click', () => {
+  const nh = parseInt(document.getElementById('nh-sucesso').value);
+  if (isNaN(nh)) return;
+  
+  const roll = roll3d6();
+  const result = classifyResult(roll.total, nh);
+  
+  // UI Update
   const box = document.getElementById('result-sucesso');
-  const diceEl = document.getElementById('dice-sucesso');
-  const typeEl = document.getElementById('type-sucesso');
-  const kanjiEl = document.getElementById('kanji-sucesso');
-
+  const dice = document.getElementById('dice-sucesso');
+  const type = document.getElementById('type-sucesso');
+  const kanji = document.getElementById('kanji-sucesso');
+  
   box.className = 'result-box';
-
-  animateDice(box, () => {
-    const { dice, total } = roll3d6();
-    const result = classifyResult(total, nh);
-
-    diceEl.textContent = `[ ${dice[0]} + ${dice[1]} + ${dice[2]} = ${total} ]`;
-    typeEl.textContent = RESULT_LABELS[result];
-    kanjiEl.textContent = RESULT_KANJI[result];
-
-    const cssClass = getResultCssClass(result);
-    box.className = `result-box result--${cssClass}`;
-
-    if (result === ResultType.SUCESSO_CRITICO) box.classList.add('anim-glow');
-    if (result === ResultType.FALHA_CRITICA) box.classList.add('anim-shake');
-
-    addHistoryEntry({
-      action: 'Sucesso',
-      diceText: `3d6 = [${dice.join(', ')}] = ${total}`,
-      resultText: RESULT_LABELS[result],
-      resultClass: cssClass,
-      color: getResultColor(result)
-    });
-  });
-});
-
-// ── Disputa Rápida ──
-document.getElementById('btn-disputa').addEventListener('click', function() {
-  const nh1Input = document.getElementById('nh-atacante');
-  const nh2Input = document.getElementById('nh-defensor');
-  const nh1 = parseInt(nh1Input.value);
-  const nh2 = parseInt(nh2Input.value);
-  if (isNaN(nh1) || nh1 < 1) { nh1Input.focus(); return; }
-  if (isNaN(nh2) || nh2 < 1) { nh2Input.focus(); return; }
-
-  const resultBox = document.getElementById('result-disputa-box');
-  const winnerBox = document.getElementById('contest-winner');
-  resultBox.style.display = 'grid';
-  winnerBox.style.display = 'block';
-
-  const contest = resolveContest(nh1, nh2);
-  const { attacker: atk, defender: def } = contest;
-
-  const atkSide = document.getElementById('contest-atk');
-  document.getElementById('dice-atk').textContent = `[${atk.roll.dice.join('+')}] = ${atk.roll.total}`;
-  document.getElementById('result-atk').textContent = `${RESULT_LABELS[atk.result]} (${atk.margin >= 0 ? '+' : ''}${atk.margin})`;
-  document.getElementById('result-atk').style.color = getResultColor(atk.result);
-
-  const defSide = document.getElementById('contest-def');
-  document.getElementById('dice-def').textContent = `[${def.roll.dice.join('+')}] = ${def.roll.total}`;
-  document.getElementById('result-def').textContent = `${RESULT_LABELS[def.result]} (${def.margin >= 0 ? '+' : ''}${def.margin})`;
-  document.getElementById('result-def').style.color = getResultColor(def.result);
-
-  atkSide.className = 'contest-side';
-  defSide.className = 'contest-side';
-
-  if (contest.winner === 'ATACANTE') {
-    atkSide.classList.add('side--winner');
-    defSide.classList.add('side--loser');
-    winnerBox.textContent = '⚔ Atacante vence!';
-    winnerBox.style.color = '#D4A846';
-  } else if (contest.winner === 'DEFENSOR') {
-    defSide.classList.add('side--winner');
-    atkSide.classList.add('side--loser');
-    winnerBox.textContent = '🛡 Defensor vence!';
-    winnerBox.style.color = '#D4A846';
-  } else {
-    winnerBox.textContent = '⚖ Empate!';
-    winnerBox.style.color = '#9CA3AF';
-  }
+  box.classList.add(`result--${result.toLowerCase().replace('_', '-')}`);
+  dice.textContent = `[ ${roll.dice.join(' + ')} = ${roll.total} ]`;
+  type.textContent = RESULT_LABELS[result];
+  kanji.textContent = RESULT_KANJI[result];
+  
+  if (result === 'SUCESSO_CRITICO') box.classList.add('anim-glow');
+  if (result === 'FALHA_CRITICA') box.classList.add('anim-shake');
 
   addHistoryEntry({
-    action: 'Disputa',
-    diceText: `Atk [${atk.roll.dice.join('+')}]=${atk.roll.total} vs Def [${def.roll.dice.join('+')}]=${def.roll.total}`,
-    resultText: contest.winner === 'EMPATE' ? 'Empate' : `${contest.winner === 'ATACANTE' ? 'Atacante' : 'Defensor'} vence`,
-    resultClass: contest.winner === 'EMPATE' ? 'falha' : 'sucesso',
-    color: contest.winner === 'EMPATE' ? '#9CA3AF' : '#D4A846'
+    type: 'Teste',
+    status: result,
+    diceText: roll.dice.join('+'),
+    resultText: `${roll.total} vs NH ${nh} (${RESULT_LABELS[result]})`
   });
 });
 
-// ── Calculadora de Dano ──
-document.getElementById('btn-calcular-dano').addEventListener('click', function() {
-  const danoInput = document.getElementById('input-dano');
-  const rdInput = document.getElementById('input-rd');
-  const rawDamage = parseInt(danoInput.value);
-  const drBase = parseInt(rdInput.value) || 0;
-  if (isNaN(rawDamage) || rawDamage < 0) { danoInput.focus(); return; }
-  
-  const damageType = document.querySelector('input[name="tipo-dano"]:checked').value;
-  const hitLoc = document.getElementById('select-hit-loc').value;
-  
-  let drEff = drBase;
-  if (hitLoc === 'skull') drEff = drBase + 2;
-
-  let penetrating = Math.max(rawDamage - drEff, 0);
-  const multiplierOptions = { 'cr': 1, 'cut': 1.5, 'imp': 2, 'pi-': 0.5 };
-  let multEff = multiplierOptions[damageType] || 1;
-  let finalDamage = 0;
-  let formulaStr = '';
-
-  if (penetrating > 0) {
-    if (hitLoc === 'skull') {
-      let afterType = Math.floor(penetrating * multEff);
-      finalDamage = afterType * 4;
-      formulaStr = `floor((${rawDamage}-${drEff}) × ${multEff}) × 4 = floor(${penetrating} × ${multEff}) × 4 = ${finalDamage}`;
-    } else {
-      if (hitLoc === 'face') {
-        if (damageType === 'cut') multEff = 2;
-        if (damageType === 'imp' || damageType === 'pi-') multEff = 1.5;
-      } else if (hitLoc === 'vitals' && damageType === 'imp') {
-        multEff = 3;
-      }
-      
-      finalDamage = Math.floor(penetrating * multEff);
-      formulaStr = `floor((${rawDamage}-${drEff}) × ${multEff}) = floor(${penetrating} × ${multEff}) = ${finalDamage}`;
-      if (hitLoc === 'limbs') formulaStr += " (Sem Limite Teto)";
-    }
-  } else {
-    formulaStr = `(${rawDamage} - ${drEff}) = 0`;
-  }
-
-  const box = document.getElementById('result-dano');
-  box.style.display = 'flex';
-  document.getElementById('formula-dano').textContent = formulaStr;
-  document.getElementById('damage-value').textContent = finalDamage;
-
-  addHistoryEntry({
-    action: 'Dano',
-    diceText: `${rawDamage} - ${drBase} RD × ${multEff} (${hitLoc === 'skull' ? 'Crânio' : 'Tronco'})`,
-    resultText: `${finalDamage} pts dano`,
-    resultClass: finalDamage > 0 ? 'sucesso' : 'falha',
-    color: finalDamage > 0 ? '#C41E3A' : '#9CA3AF',
-    damage: finalDamage
-  });
-});
-
-// ── Reset ──
-document.getElementById('btn-reset').addEventListener('click', function() {
-  document.querySelectorAll('.field__input').forEach(input => { input.value = ''; });
-  document.getElementById('tipo-cr').checked = true;
-
-  const successBox = document.getElementById('result-sucesso');
-  successBox.className = 'result-box';
-  document.getElementById('dice-sucesso').textContent = '—';
-  document.getElementById('type-sucesso').textContent = 'Aguardando...';
-  document.getElementById('kanji-sucesso').textContent = '';
-
-  document.getElementById('result-disputa-box').style.display = 'none';
-  document.getElementById('contest-winner').style.display = 'none';
-  document.getElementById('result-dano').style.display = 'none';
-});
-
-// ── Clear History ──
-document.getElementById('btn-limpar-historico').addEventListener('click', clearHistory);
-
-// ── State Sync ──
-const STATE_KEY = 'daimyoShieldState';
-let appState = { combatants: [] };
-
-function loadAppState() {
-    try {
-        const saved = localStorage.getItem(STATE_KEY);
-        if (saved) appState = JSON.parse(saved);
-        updateAttackerSelect();
-    } catch (e) { console.error("Sync error", e); }
-}
-
-function updateAttackerSelect() {
-    const sel = document.getElementById('select-attacker-calc');
-    const current = sel.value;
-    sel.innerHTML = '<option value="">— Selecionar Combatente —</option>' + 
-        appState.combatants.map(c => `<option value="${c.id}">${c.name} (ST ${c.st})</option>`).join('');
-    if (current) sel.value = current;
-}
-
-document.getElementById('btn-sync-state').addEventListener('click', loadAppState);
-
-document.getElementById('select-attacker-calc').addEventListener('change', function() {
-    const combatant = appState.combatants.find(c => c.id === this.value);
-    if (!combatant) return;
+document.getElementById('btn-disputa')?.addEventListener('click', () => {
+    const nhAtk = parseInt(document.getElementById('nh-atacante').value);
+    const nhDef = parseInt(document.getElementById('nh-defensor').value);
+    if (isNaN(nhAtk) || isNaN(nhDef)) return;
     
-    // Auto-fill RD if we can find weapon stats? No, RD is for target.
-    // We fill the "Attacker" stats if we had a more complex calculator, 
-    // but for now let's just show a hint.
-    if (combatant.equippedWeapon) {
-        const wp = findWeapon(combatant.equippedWeapon);
-        if (wp) {
-            alert(`Atacante equipado com: ${wp.nome}\nDano: ${wp.dano}\nUse como base para o Dano Bruto.`);
+    const res = resolveContest(nhAtk, nhDef);
+    
+    // UI Update
+    document.getElementById('result-disputa-box').style.display = 'grid';
+    const winBox = document.getElementById('contest-winner');
+    winBox.style.display = 'block';
+    
+    const atkSide = document.getElementById('contest-atk');
+    const defSide = document.getElementById('contest-def');
+    
+    atkSide.className = 'contest-side' + (res.winner === 'ATACANTE' ? ' side--winner' : ' side--loser');
+    defSide.className = 'contest-side' + (res.winner === 'DEFENSOR' ? ' side--winner' : ' side--loser');
+    
+    document.getElementById('dice-atk').textContent = `[ ${res.attacker.roll.dice.join('+')} = ${res.attacker.roll.total} ]`;
+    document.getElementById('dice-def').textContent = `[ ${res.defender.roll.dice.join('+')} = ${res.defender.roll.total} ]`;
+    
+    document.getElementById('result-atk').textContent = `${RESULT_LABELS[res.attacker.result]} (${res.attacker.margin >= 0 ? '+' : ''}${res.attacker.margin})`;
+    document.getElementById('result-def').textContent = `${RESULT_LABELS[res.defender.result]} (${res.defender.margin >= 0 ? '+' : ''}${res.defender.margin})`;
+    
+    winBox.textContent = res.winner === 'EMPATE' ? '⚖ EMPATE!' : `⚔ VITÓRIA DO ${res.winner}!`;
+    winBox.style.color = res.winner === 'EMPATE' ? '#9CA3AF' : '#D4A846';
+    
+    addHistoryEntry({
+      type: 'Disputa',
+      status: res.winner === 'ATACANTE' ? 'SUCESSO' : 'FALHA',
+      diceText: `A:${res.attacker.roll.total} vs D:${res.defender.roll.total}`,
+      resultText: `Vencedor: ${res.winner}`
+    });
+});
+
+document.getElementById('btn-calcular-dano')?.addEventListener('click', () => {
+    const raw = parseInt(document.getElementById('input-dano').value);
+    const rd = parseInt(document.getElementById('input-rd').value) || 0;
+    const type = document.querySelector('input[name="tipo-dano"]:checked').value;
+    const loc = document.getElementById('select-hit-loc').value;
+    
+    if (isNaN(raw)) return;
+
+    let finalRD = rd;
+    let mult = MULTIPLIERS[type] || 1;
+    
+    // Location Modifiers
+    if (loc === 'skull') { finalRD += 2; mult = 4; }
+    if (loc === 'face') { mult = (type === 'cut' ? 2 : 1.5); }
+    if (loc === 'vitals') { mult = (type === 'imp' ? 3 : mult); }
+    
+    const penetration = Math.max(0, raw - finalRD);
+    const damage = Math.floor(penetration * mult);
+    
+    const resBox = document.getElementById('result-dano');
+    resBox.style.display = 'flex';
+    document.getElementById('damage-value').textContent = damage;
+    document.getElementById('formula-dano').textContent = `(${raw} - ${finalRD}) × ${mult}`;
+    
+    addHistoryEntry({
+      type: 'Dano',
+      status: 'DANO',
+      diceText: `${raw} [${TYPE_LABELS[type]}] vs RD ${finalRD}`,
+      resultText: `${damage} Final`,
+      damage: damage
+    });
+});
+
+document.getElementById('btn-sync-state')?.addEventListener('click', populateCombatants);
+document.getElementById('btn-limpar-historico')?.addEventListener('click', clearHistory);
+document.getElementById('btn-reset')?.addEventListener('click', () => {
+    document.querySelectorAll('.field__input').forEach(i => i.value = '');
+    document.getElementById('result-disputa-box').style.display = 'none';
+    document.getElementById('contest-winner').style.display = 'none';
+    document.getElementById('result-dano').style.display = 'none';
+    const successBox = document.getElementById('result-sucesso');
+    successBox.className = 'result-box';
+    document.getElementById('dice-sucesso').textContent = '—';
+    document.getElementById('type-sucesso').textContent = 'Aguardando...';
+    document.getElementById('kanji-sucesso').textContent = '';
+});
+
+const RangedCalc = {
+    update() {
+        const dist = parseFloat(document.getElementById('rc-distance').value) || 2;
+        const sm = parseInt(document.getElementById('rc-sm').value) || 0;
+        const acc = parseInt(document.getElementById('rc-acc').value) || 0;
+        const aim = parseInt(document.getElementById('rc-aim').value) || 0;
+        const braced = document.getElementById('rc-braced').checked ? 1 : 0;
+        const determined = document.getElementById('rc-determined').checked ? 1 : 0;
+        const custom = parseInt(document.getElementById('rc-custom').value) || 0;
+        
+        let distMod = 0;
+        if (dist <= 2) distMod = 0;
+        else if (dist <= 3) distMod = -1;
+        else if (dist <= 5) distMod = -2;
+        else if (dist <= 7) distMod = -3;
+        else if (dist <= 10) distMod = -4;
+        else if (dist <= 15) distMod = -5;
+        else if (dist <= 20) distMod = -6;
+        else if (dist <= 30) distMod = -7;
+        else if (dist <= 50) distMod = -8;
+        else if (dist <= 70) distMod = -9;
+        else if (dist <= 100) distMod = -10;
+        else distMod = -12;
+        
+        let aimMod = 0;
+        if (aim === 1) aimMod = acc;
+        else if (aim === 2) aimMod = acc + 1;
+        else if (aim === 3) aimMod = acc + 2;
+        
+        const final = distMod + sm + aimMod + braced + determined + custom;
+        
+        const resEl = document.getElementById('rc-result');
+        if (resEl) {
+            resEl.textContent = (final >= 0 ? '+' : '') + final;
+            document.getElementById('rc-breakdown-range').textContent = `Distância (${dist}m): ${distMod} | Mira: +${aimMod}`;
         }
     }
-});
+};
 
-// ── Init ──
-loadAppState();
-renderHistory();
+window.RangedCalc = RangedCalc;
 </script>
+  <script src="js/character-manager.js"></script>
+  <script src="js/character-ui.js"></script>
+  
+  <div id="character-drawer" class="theme-drawer" style="overflow-y:auto; scrollbar-width:thin;">
+    <div class="rc-header" style="display:flex; justify-content:space-between; align-items:center; padding:15px; border-bottom:1px solid var(--border-panel);">
+        <h2 class="new-header__title">📜 Registro de <span>Bushido</span></h2>
+        <button class="mobile-drawer__close" onclick="window.toggleCharacterDrawer()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">✕</button>
+    </div>
+    
+    <div id="character-drawer-content" style="padding: 20px;">
+        <!-- Injetado via character-ui.js -->
+    </div>
+  </div>
+
+  <style>
+    #character-drawer.open { transform: translateX(-360px); }
+    .char-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-panel);
+        border-radius: var(--radius);
+        padding: 15px;
+        margin-bottom: 12px;
+        transition: all 0.2s;
+    }
+    .char-card:hover { border-color: var(--gold); transform: translateY(-2px); }
+    .char-card__name { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--gold); }
+    .char-card__stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; font-size: 0.75rem; text-align: center; }
+    .char-card__actions { display: flex; gap: 8px; margin-top: 15px; }
+    
+    .ancestor-card { opacity: 0.6; filter: grayscale(0.5); border-style: dashed; }
+    .ancestor-card:hover { filter: none; opacity: 1; }
+    .tag-dead { background: var(--red-blood); color: #fff; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-weight: 900; margin-left: 8px; }
+  </style>
+
 </body>
 </html>

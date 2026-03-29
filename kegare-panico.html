@@ -8,6 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- CORE SCRIPTS -->
+  <script src="js/kegare-manager.js"></script>
+  <script src="js/log-manager.js"></script>
+  <script src="js/header-loader.js"></script>
   <style>
     :root {
       --bg-deep: #0A0A0A; --bg-panel: #111; --bg-card: #181818; --bg-input: #0F0F0F;
@@ -21,7 +26,7 @@
       --radius: 6px; --radius-lg: 10px; --transition: 200ms ease;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-body); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    html, body { height: 100%; background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-body); font-size: 1rem; line-height: 1.5; -webkit-font-smoothing: antialiased; }
     body { overflow-y: auto; }
     #app { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; overflow: hidden; }
     
@@ -127,15 +132,25 @@
     /* SECTION DIVIDER */
     .section-divider { border: none; border-top: 1px solid var(--border-panel); margin: 4px 0; }
 
-    /* LOG */
-    .log-list { display: flex; flex-direction: column; gap: 3px; flex: 1; overflow-y: auto; min-height: 60px; max-height: 200px; }
+    /* HISTORY (REGISTRO) */
+    .history { background: var(--bg-panel); border-top: 1px solid var(--border-panel); display: flex; flex-direction: column; max-height: 25vh; min-height: 100px; z-index: 10; }
+    .history__header { display: flex; align-items: center; justify-content: space-between; padding: 6px 20px; border-bottom: 1px solid var(--border-panel); flex-shrink: 0; }
+    .history__title { font-family: var(--font-display); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+    .history__list { overflow-y: auto; padding: 8px 20px; display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; }
+    .history__empty { color: var(--text-muted); font-size: 0.75rem; text-align: center; padding: 12px; font-style: italic; }
+
+    /* LOG ENTRIES (inside history__list) */
     .log-entry { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: var(--radius); background: var(--bg-deep); font-size: 0.72rem; border-left: 3px solid var(--border-panel); }
     .log-entry--panic { border-left-color: #C084FC; }
     .log-entry--exhaust { border-left-color: var(--blue-info); }
     .log-entry--kegare { border-left-color: var(--kegare-tainted); }
     .log-time { color: var(--text-muted); min-width: 40px; }
     .log-text { color: var(--text-secondary); }
-    .log-empty { color: var(--text-muted); font-size: 0.75rem; text-align: center; padding: 12px; font-style: italic; }
+
+    /* KEGARE DOTS/SEGS */
+    .kegare-seg.active-pure { background: #22c55e !important; box-shadow: 0 0 8px rgba(34,197,94,0.4); border-color: #22c55e !important; color: white !important; }
+    .kegare-seg.active-tainted { background: #eab308 !important; box-shadow: 0 0 8px rgba(234,179,8,0.4); border-color: #eab308 !important; color: black !important; }
+    .kegare-seg.active-doomed { background: #c41e3a !important; box-shadow: 0 0 8px rgba(196,30,58,0.4); border-color: #c41e3a !important; color: white !important; }
 
     /* EMPTY STATE */
     .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; color: var(--text-muted); text-align: center; flex: 1; }
@@ -152,9 +167,14 @@
 
     /* RESPONSIVE */
     @media (max-width: 900px) {
-      body { overflow: auto; }
-      #app { height: auto; min-height: 100vh; grid-template-rows: auto 1fr; }
-      .main { grid-template-columns: 1fr; overflow-y: visible; height: auto; padding: 10px; }
+      body { overflow: auto; height: auto; }
+      #app { height: auto; min-height: 100vh; grid-template-rows: auto auto auto; overflow: visible; display: flex; flex-direction: column; }
+      .main { grid-template-columns: 1fr; overflow: visible; height: auto; padding: 10px; display: flex; flex-direction: column; }
+      .panel { height: auto; overflow: visible; min-height: fit-content; }
+      .combatant-list { height: auto; overflow: visible; flex: none; }
+      .history { max-height: none; min-height: 150px; overflow: visible; flex: none; }
+      .history__list { height: auto; overflow: visible; }
+      
       .kegare-clock { flex-wrap: wrap; justify-content: center; width: 100%; order: 3; margin-top: 10px; }
       .header { gap: 10px; }
       .header__nav { width: 100%; justify-content: space-between; border-top: 1px solid var(--border-panel); padding-top: 10px; order: 4; }
@@ -248,10 +268,6 @@
       <div class="combatant-list" id="combatant-list">
         <div class="empty-state"><span class="empty-state__icon">🧠</span><p class="empty-state__text">Adicione combatentes para rodar Testes de Pânico e gerenciar Ki.</p></div>
       </div>
-
-      <hr class="section-divider">
-      <div class="panel__header"><h3 class="panel__title">📜 Registro</h3><button class="btn btn-ghost btn-sm" id="btn-clear-log">Limpar</button></div>
-      <div class="log-list" id="log-list"><p class="log-empty">Nenhuma ação registrada.</p></div>
     </section>
 
     <!-- RIGHT: FRIGHT CHECK + EXHAUSTION -->
@@ -309,6 +325,16 @@
 
     </section>
   </main>
+
+  <section class="history" id="history-section">
+    <div class="history__header">
+      <h3 class="history__title">📜 Registro de Sangue</h3>
+      <button class="btn btn-ghost btn-sm" id="btn-clear-log">Limpar Registro</button>
+    </div>
+    <div class="history__list" id="log-list">
+      <p class="history__empty">Nenhuma ação registrada.</p>
+    </div>
+  </section>
 
 </div>
 
@@ -392,64 +418,56 @@ function migrateOldData() {
 
 let state = loadState();
 
-const KEGARE_TIERS = Object.freeze([
-  { min: 1, max: 2, label: 'Puro',      mod: +2, color: 'pure' },
-  { min: 3, max: 4, label: 'Maculado',  mod: 0,  color: 'tainted' },
-  { min: 5, max: 6, label: 'Condenado', mod: -2, color: 'doomed' },
-]);
-
-function getKegareLevel() { return state.kegare.level; }
+function getKegareLevel() { return KegareManager.getLevel(); }
 
 function setKegareLevel(level) {
-  state.kegare.level = Math.max(1, Math.min(6, level));
-  saveState(state);
-  renderKegare();
-  return state.kegare.level;
+  const newLevel = KegareManager.setLevel(level);
+  // No need to call renderKegare because of the custom event listener
+  return newLevel;
 }
 
 function getKegareTier(level) {
-  return KEGARE_TIERS.find(t => level >= t.min && level <= t.max) || KEGARE_TIERS[0];
+  return KegareManager.getTierInfo(typeof level === 'object' ? undefined : level);
 }
 
 function getKegareModifier(level) {
-  return getKegareTier(level || getKegareLevel()).mod;
+  return KegareManager.getModifier(typeof level === 'object' ? undefined : level);
 }
 
 function renderKegare() {
   const level = getKegareLevel();
   const tier = getKegareTier(level);
   const container = document.getElementById('kegare-segments');
+  if (!container) return;
   container.innerHTML = '';
   for (let i = 1; i <= 6; i++) {
     const seg = document.createElement('div');
     seg.className = 'kegare-seg';
     seg.textContent = i;
     if (i <= level) {
-      const segTier = getKegareTier(i);
-      seg.classList.add('active-' + segTier.color);
+      let colorClass = 'active-pure';
+      if (i >= 3) colorClass = 'active-tainted';
+      if (i >= 5) colorClass = 'active-doomed';
+      seg.classList.add(colorClass); 
     }
     seg.addEventListener('click', () => {
       const newLevel = setKegareLevel(i === level ? Math.max(1, i - 1) : i);
-      addLog('kegare', `Relógio da Mácula ajustado para ${newLevel} (${getKegareTier(newLevel).label})`);
+      // Log will be added on next sync update or manually
     });
     container.appendChild(seg);
   }
   const statusEl = document.getElementById('kegare-status');
-  statusEl.textContent = tier.label;
-  statusEl.style.color = `var(--kegare-${tier.color})`;
   const modEl = document.getElementById('kegare-mod');
-  const modSign = tier.mod >= 0 ? '+' : '';
-  modEl.textContent = `Von ${modSign}${tier.mod}`;
+  if (statusEl && modEl) {
+    statusEl.textContent = tier.label;
+    statusEl.style.color = tier.color; 
+    const modSign = tier.mod >= 0 ? '+' : '';
+    modEl.textContent = `Von ${modSign}${tier.mod}`;
+  }
 }
 
 /* ═══════ FRIGHT CHECK TABLE ═══════ */
-const FRIGHT_TABLE = Object.freeze([
-  { min: 4,  max: 9,  label: 'Atordoado',      desc: 'Congela por 1 segundo. Larga o que estava na mão.' },
-  { min: 10, max: 12, label: 'Pânico',          desc: 'Foge o mais rápido possível por 1d minutos.' },
-  { min: 13, max: 15, label: 'Vômito/Desmaio',  desc: 'Vomita ou desmaia por 1d minutos.' },
-  { min: 16, max: 18, label: 'Trauma Leve',     desc: 'Adquire uma Peculiaridade (ex: "Medo de escuro", "Cabelo branco").' },
-  { min: 19, max: 99, label: 'Trauma Grave',    desc: 'Desvantagem Mental permanente (Fobia/Pesadelos/Covardia) ou Ataque Cardíaco (teste HT).' },
-]);
+const FRIGHT_TABLE = KegareManager.FRIGHT_TABLE;
 
 function lookupFrightResult(roll) {
   return FRIGHT_TABLE.find(r => roll >= r.min && roll <= r.max) || FRIGHT_TABLE[FRIGHT_TABLE.length - 1];
@@ -465,31 +483,7 @@ function roll3d6() {
 
 /* ═══════ FRIGHT CHECK ENGINE ═══════ */
 function frightCheck(combatant, monsterMod) {
-  const kMod = getKegareModifier();
-  const targetNumber = combatant.will + monsterMod + kMod;
-  const willRoll = roll3d6();
-
-  const result = {
-    combatant,
-    targetNumber,
-    willRoll,
-    kMod,
-    monsterMod,
-    success: willRoll.total <= targetNumber,
-    mof: 0,
-    tableRoll: null,
-    tableResult: null,
-  };
-
-  if (!result.success) {
-    result.mof = willRoll.total - targetNumber;
-    const tableRoll = roll3d6();
-    const tableTotal = tableRoll.total + result.mof;
-    result.tableRoll = { dice: tableRoll.dice, total: tableRoll.total, withMoF: tableTotal };
-    result.tableResult = lookupFrightResult(tableTotal);
-  }
-
-  return result;
+  return KegareManager.runFrightCheck(combatant.will, monsterMod);
 }
 
 function generateId() {
@@ -571,19 +565,32 @@ function recoverFP(combatantId, amount) {
 
 /* ═══════ LOG ═══════ */
 function addLog(type, text) {
-  state.kegareLog.unshift({ type, text, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) });
-  if (state.kegareLog.length > 50) state.kegareLog = state.kegareLog.slice(0, 50);
-  saveState(state);
+  LogManager.add(type, text);
   renderLog();
 }
 
 function renderLog() {
   const list = document.getElementById('log-list');
-  const entries = state.kegareLog;
-  if (!entries || entries.length === 0) { list.innerHTML = '<p class="log-empty">Nenhuma ação registrada.</p>'; return; }
-  list.innerHTML = entries.map(e =>
-    `<div class="log-entry log-entry--${e.type} anim-slide"><span class="log-time">${e.time}</span><span class="log-text">${e.text}</span></div>`
-  ).join('');
+  const entries = LogManager.get();
+  
+  if (!entries || entries.length === 0) { 
+    list.innerHTML = '<p class="history__empty">Nenhuma ação registrada no pergaminho.</p>'; 
+    return; 
+  }
+  
+  list.innerHTML = entries.map(e => {
+    const roundInfo = e.round ? `<span class="log-round">[T${e.round}]</span>` : '';
+    return `
+      <div class="log-entry log-entry--${e.type} anim-slide">
+        <span class="log-time">${e.time}</span>
+        ${roundInfo}
+        <span class="log-text">${e.text}</span>
+      </div>
+    `;
+  }).join('');
+  
+  // Auto-scroll para o final (comportamento de console)
+  list.scrollTop = list.scrollHeight;
 }
 
 /* ═══════ RENDER ═══════ */
@@ -603,11 +610,12 @@ function renderCombatants() {
   container.innerHTML = state.combatants.map((c, i) => {
     const hpPct = Math.max(0, Math.min(100, (c.hpCur / c.hpMax) * 100));
     const fpPct = Math.max(0, Math.min(100, (c.fpCur / c.fpMax) * 100));
+    const conditionList = c.conditions || [];
     let tags = '';
-    if (c.conditions.includes('Exausto')) tags += `<span class="tag tag--exhausted">Exausto <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Exausto')" title="Curar cond.">✕</button></span>`;
-    if (c.conditions.includes('Risco de Morte')) tags += '<span class="tag tag--death">Risco de Morte</span>';
-    if (c.conditions.includes('Pânico')) tags += `<span class="tag tag--panic">Pânico <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Pânico')" title="Curar cond.">✕</button></span>`;
-    if (c.conditions.includes('Atordoado')) tags += `<span class="tag tag--shock">Atordoado <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Atordoado')" title="Curar cond.">✕</button></span>`;
+    if (conditionList.includes('Exausto')) tags += `<span class="tag tag--exhausted">Exausto <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Exausto')" title="Curar cond.">✕</button></span>`;
+    if (conditionList.includes('Risco de Morte')) tags += '<span class="tag tag--death">Risco de Morte</span>';
+    if (conditionList.includes('Pânico')) tags += `<span class="tag tag--panic">Pânico <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Pânico')" title="Curar cond.">✕</button></span>`;
+    if (conditionList.includes('Atordoado')) tags += `<span class="tag tag--shock">Atordoado <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Atordoado')" title="Curar cond.">✕</button></span>`;
     if (c.isBleeding) tags += `<span class="tag tag--bleeding">🩸 Sangrando <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Bleeding')" title="Estancar">✕</button></span>`;
 
     return `<div class="combatant-card anim-slide" data-id="${c.id}">
@@ -713,12 +721,18 @@ document.getElementById('btn-fright-check').addEventListener('click', () => {
 
   // Dice display
   const diceEl = document.getElementById('fright-dice');
-  diceEl.innerHTML = result.willRoll.dice.map(d => `<div class="die rolling">${d}</div>`).join('') +
-    `<span style="font-size:0.8rem;color:var(--text-muted)">=</span><span style="font-size:1.2rem;font-weight:900">${result.willRoll.total}</span>`;
+  diceEl.innerHTML = result.roll1.dice.map(d => `<div class="die rolling">${d}</div>`).join('') +
+    `<span style="font-size:0.8rem;color:var(--text-muted)">=</span><span style="font-size:1.2rem;font-weight:900">${result.roll1.total}</span>`;
 
   // Total info
-  document.getElementById('fright-total').textContent =
-    `Alvo: ${result.combatant.will} (Von) ${result.monsterMod >= 0 ? '+' : ''}${result.monsterMod} (Monstro) ${result.kMod >= 0 ? '+' : ''}${result.kMod} (Mácula) = ${result.targetNumber}`;
+  const totalEl = document.getElementById('fright-total');
+  if (totalEl) {
+    const kModVal = (result.kegareMod !== undefined) ? result.kegareMod : (result.kMod || 0);
+    const targetVal = (result.target !== undefined) ? result.target : (result.targetNumber || 0);
+    const willVal = (result.will !== undefined) ? result.will : (result.combatant ? result.combatant.will : 0);
+    
+    totalEl.textContent = `Alvo: ${willVal} (Von) ${result.monsterMod >= 0 ? '+' : ''}${result.monsterMod} (Monstro) ${kModVal >= 0 ? '+' : ''}${kModVal} (Mácula) = ${targetVal}`;
+  }
 
   // Verdict
   const verdictEl = document.getElementById('fright-verdict');
@@ -730,13 +744,13 @@ document.getElementById('btn-fright-check').addEventListener('click', () => {
     verdictEl.textContent = '✅ Sucesso. Mente intacta.';
     tableRollEl.style.display = 'none';
     effectEl.style.display = 'none';
-    addLog('panic', `${c.name}: Teste de Pânico SUCESSO (${result.willRoll.total} ≤ ${result.targetNumber})`);
+    addLog('panic', `${c.name}: Teste de Pânico SUCESSO (${result.roll1.total} ≤ ${result.target})`);
   } else {
     verdictEl.className = 'fright-result__verdict failure';
     verdictEl.textContent = `❌ Falha! Margem: ${result.mof}`;
 
     tableRollEl.style.display = 'block';
-    tableRollEl.textContent = `Tabela: 3d6 [${result.tableRoll.dice.join(',')}] = ${result.tableRoll.total} + MoF ${result.mof} = ${result.tableRoll.withMoF}`;
+    tableRollEl.textContent = `Tabela: 3d6 [${result.roll2.dice.join(',')}] = ${result.roll2.total} + MoF ${result.mof} + Mácula ${result.kegareLevel} = ${result.finalScore}`;
 
     effectEl.style.display = 'block';
     effectEl.innerHTML = `<strong>${result.tableResult.label}</strong> — ${result.tableResult.desc}`;
@@ -746,7 +760,7 @@ document.getElementById('btn-fright-check').addEventListener('click', () => {
     if (result.tableResult.label === 'Atordoado' && !c.conditions.includes('Atordoado')) c.conditions.push('Atordoado');
     saveState(state);
 
-    addLog('panic', `${c.name}: Pânico FALHA (${result.willRoll.total} > ${result.targetNumber}, MoF ${result.mof}) → ${result.tableResult.label}`);
+    addLog('panic', `${c.name}: Pânico FALHA (${result.roll1.total} > ${result.target}, MoF ${result.mof}) → ${result.tableResult.label}`);
   }
 
   renderCombatants();
@@ -796,17 +810,21 @@ document.getElementById('btn-recover-fp').addEventListener('click', () => {
 let _clrTimeout;
 document.getElementById('btn-clear-log').addEventListener('click', function() {
   if (this.dataset.confirming === 'true') {
-    state.kegareLog = [];
-    saveState(state);
+    LogManager.clear();
     renderLog();
     this.dataset.confirming = 'false';
-    this.textContent = 'Limpar';
+    this.textContent = 'Limpar Registro';
+    this.style.color = '';
     clearTimeout(_clrTimeout);
   } else {
     this.dataset.confirming = 'true';
     this.textContent = 'Confirma?';
     this.style.color = 'var(--red-accent)';
-    _clrTimeout = setTimeout(() => { this.dataset.confirming = 'false'; this.textContent = 'Limpar'; this.style.color = ''; }, 3000);
+    _clrTimeout = setTimeout(() => { 
+      this.dataset.confirming = 'false'; 
+      this.textContent = 'Limpar Registro'; 
+      this.style.color = '';
+    }, 3000);
   }
 });
 
@@ -876,6 +894,17 @@ window.addEventListener('storage', (e) => {
     state = loadState();
     renderAll();
   }
+});
+
+// Sync from Header (custom event)
+window.addEventListener('daimyoStateUpdated', () => {
+    state = loadState(); 
+    renderAll();
+});
+
+// Listener para o novo sistema de Log
+window.addEventListener('daimyoLogUpdated', () => {
+  renderLog();
 });
 </script>
 </body>

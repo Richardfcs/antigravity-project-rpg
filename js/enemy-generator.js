@@ -6,8 +6,16 @@
 const EnemyGenerator = (function() {
 
     // --- TABELAS DE NOMES (Surnames + Names) ---
-    const SURNAMES = ["Sato", "Suzuki", "Takahashi", "Tanaka", "Watanabe", "Ito", "Yamamoto", "Nakamura", "Kobayashi", "Kato", "Miyamoto", "Shimazu", "Takeda", "Oda", "Hattori", "Uesugi"];
-    const NAMES = ["Kenji", "Hiroshi", "Takashi", "Akira", "Yuki", "Hideo", "Tadashi", "Shinji", "Katsu", "Aoi", "Sakura", "Ren", "Sora", "Hayato", "Kazuki", "Daisuke"];
+    const SURNAMES = [
+        "Sato", "Suzuki", "Takahashi", "Tanaka", "Watanabe", "Ito", "Yamamoto", "Nakamura", "Kobayashi", "Kato", 
+        "Miyamoto", "Shimazu", "Takeda", "Oda", "Hattori", "Uesugi", "Shimada", "Kusunoki", "Mori", "Asakura", 
+        "Honda", "Imagawa", "Ishida", "Kuroda", "Maeda", "Nabeshima", "Okubo", "Sanada", "Shibata", "Toyotomi"
+    ];
+    const NAMES = [
+        "Kenji", "Hiroshi", "Takashi", "Akira", "Yuki", "Hideo", "Tadashi", "Shinji", "Katsu", "Aoi", 
+        "Sakura", "Ren", "Sora", "Hayato", "Kazuki", "Daisuke", "Nobuo", "Masao", "Tetsuya", "Ryota", 
+        "Sho", "Yumi", "Kaori", "Emi", "Keiko", "Nanami", "Mei", "Koharu", "Hinata", "Mitsurugi"
+    ];
 
     // --- CONFIGURAÇÃO DE ATRIBUTOS POR NÍVEL ---
     const THREAT_CONFIG = {
@@ -91,6 +99,24 @@ const EnemyGenerator = (function() {
         // 6. Iniciativa Base (GURPS: (DX + HT) / 4)
         const initBase = (dx + ht) / 4;
 
+        // 7. Defesas Ativas (Refinado)
+        // Esquiva: floor(Velocidade Básica) + 3
+        const esquiva = Math.floor(initBase) + 3;
+        
+        // Aparar: (Skill/2) + 3. Usamos DX base + bônus de ameaça
+        let skillBase = dx;
+        if (threatKey === "veterano") skillBase += 1;
+        if (threatKey === "elite") skillBase += 2;
+        if (threatKey === "mestre") skillBase += 4;
+        const aparar = Math.floor(skillBase / 2) + 3;
+
+        // Bloqueio: Ocorre se tiver "Escudo" nas notas ou se for Ashigaru/Samurai
+        let bloqueio = 0;
+        const hasShield = (Math.random() > 0.8) || (threatKey === "elite") || (threatKey === "mestre");
+        if (hasShield) {
+            bloqueio = Math.floor(skillBase / 2) + 3;
+        }
+
         return {
             name: `${name} (${threatKey.toUpperCase()})`,
             st, dx, iq, ht,
@@ -101,9 +127,12 @@ const EnemyGenerator = (function() {
             pfMax: ht,
             iniciativa: initBase,
             velocidade: initBase,
-            defesa: Math.floor(initBase) + 3, // Esquiva base
+            defesa: esquiva, // Mantido para compatibilidade legado (se usado)
+            esquiva: esquiva,
+            aparar: aparar,
+            bloqueio: bloqueio,
             armas: weapons.join(", "),
-            notas: description,
+            notas: description + (hasShield ? " [Equipado com Escudo]" : ""),
             isNPC: true
         };
     }

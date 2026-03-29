@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📜 Registro de Bushido — Escudo do Daimyo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════════
+           DESIGN TOKENS — Consolidado (Interno)
+           ═══════════════════════════════════════════ */
+        :root {
+            --bg-deep: #0A0A0A;
+            --bg-panel: #141414;
+            --bg-card: #1C1C1C;
+            --bg-input: #0F0F0F;
+            --border-panel: #2A2A2A;
+            --border-input: #333;
+            --border-focus: #8B0000;
+            --red-blood: #8B0000;
+            --red-accent: #C41E3A;
+            --red-glow: rgba(196, 30, 58, 0.4);
+            --gold: #D4A846;
+            --gold-glow: rgba(212, 168, 70, 0.5);
+            --text-primary: #F5F0E8;
+            --text-secondary: #9CA3AF;
+            --text-muted: #6B7280;
+            --font-display: 'Noto Serif JP', serif;
+            --font-body: 'Inter', system-ui, sans-serif;
+            --radius: 6px;
+            --radius-lg: 10px;
+            --transition: 200ms ease;
+        }
+
+        /* ═══════════════════════════════════════════
+           BASE RESET
+           ═══════════════════════════════════════════ */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 1rem;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            padding: 20px;
+        }
+
+        /* ═══════════════════════════════════════════
+           PREMIUM FORM LAYOUT
+           ═══════════════════════════════════════════ */
+        .sheet-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-panel);
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 20px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-panel);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ═══════════════════════════════════════════
+           INPUTS & FIELDS
+           ═══════════════════════════════════════════ */
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 15px;
+        }
+
+        .field__label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+        }
+
+        .field__input,
+        .field__select,
+        .field__textarea {
+            background: var(--bg-input);
+            border: 1px solid var(--border-input);
+            border-radius: var(--radius);
+            padding: 12px;
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            transition: all var(--transition);
+            outline: none;
+        }
+
+        .field__input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 2px var(--gold-glow);
+        }
+
+        .attr-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .attr-box {
+            background: var(--bg-input);
+            border: 1px solid var(--border-input);
+            border-radius: var(--radius);
+            padding: 10px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .attr-box:hover {
+            transform: translateY(-2px);
+            border-color: var(--gold);
+        }
+
+        .attr-box__label {
+            display: block;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            font-weight: 900;
+            margin-bottom: 5px;
+        }
+
+        .attr-box__value {
+            width: 100%;
+            background: transparent;
+            border: none;
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--text-primary);
+            outline: none;
+            margin-bottom: 2px;
+        }
+
+        .attr-box__cost {
+            display: block;
+            font-size: 0.55rem;
+            color: var(--gold);
+            opacity: 0.7;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* ═══════════════════════════════════════════
+           BUTTONS (Standard App Style)
+           ═══════════════════════════════════════════ */
+        .btn {
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-family: var(--font-body);
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 12px 20px;
+            transition: all var(--transition);
+            letter-spacing: 0.05em;
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #8B6914, var(--gold));
+            color: #000;
+        }
+
+        .btn-gold:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px var(--gold-glow);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--red-blood), var(--red-accent));
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 4px 15px var(--red-glow);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border-panel);
+            color: var(--text-muted);
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        /* ═══════════════════════════════════════════
+           DRAWER WRAPPER (When loaded in Drawer)
+           ═══════════════════════════════════════════ */
+        .drawer-mode body {
+            padding: 0;
+            background: transparent;
+        }
+
+        .drawer-mode .sheet-container {
+            border: none;
+            background: transparent;
+            box-shadow: none;
+            padding: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .attr-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .side-by-side {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 700px) {
+            .side-by-side {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <script src="js/weapons-data.js"></script>
+    <script src="js/character-manager.js"></script>
+    <script src="js/kegare-manager.js"></script>
+    <script src="js/header-loader.js"></script>
+
+    <div class="sheet-container">
+        <!-- HEADER SECTION -->
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px; flex-wrap: wrap; gap: 15px;">
+            <div style="flex:1; min-width: 200px;">
+                <h1 class="field__label" style="font-size:1.1rem; color:var(--gold); margin-bottom: 2px;">Registro de Bushido Premium</h1>
+                <p style="font-size:0.75rem; color:var(--text-muted); font-weight: 500;">FORJA DE LEGENDAS — A ERA DAS ESPADAS QUEBRADAS</p>
+            </div>
+            <div id="char-points" style="text-align:right; min-width: 130px; display: flex; flex-direction: column; align-items: center;">
+                <label class="field__label" for="pts-count" style="display: block; text-align: center; margin-bottom: 2px;">Custo Total</label>
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <input type="number" id="pts-count" value="150" 
+                        style="width: 110px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-panel); color: var(--red-accent); font-family: var(--font-display); font-size: 1.8rem; font-weight: 900; text-align: center; outline: none; border-radius: var(--radius); padding: 5px 8px; box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); -moz-appearance: textfield; appearance: textfield;">
+                    <span style="font-family: var(--font-display); font-size: 1rem; color: var(--text-muted); opacity: 0.6; font-weight: 700;">PTS</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- IDENTITY -->
+        <section>
+            <h3 class="section-title">📋 Identidade do Guerreiro</h3>
+            <div class="field">
+                <label class="field__label">Nome do Personagem</label>
+                <input type="text" id="char-name" class="field__input" placeholder="Ex: Musashi Miyamoto">
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
+                <div class="field">
+                    <label class="field__label">Conceito / Papel</label>
+                    <input type="text" id="char-concept" class="field__input" placeholder="Ronin Errante">
+                </div>
+                <div class="field">
+                    <label class="field__label">Clã / Afiliação</label>
+                    <input type="text" id="char-clan" class="field__input" placeholder="Nenhum">
+                </div>
+            </div>
+        </section>
+
+        <!-- ATTRIBUTES -->
+        <section style="margin-top:30px;">
+            <h3 class="section-title">🥋 Atributos Primários</h3>
+            <div class="attr-grid" style="grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));">
+                <div class="attr-box">
+                    <label class="attr-box__label">ST</label>
+                    <input type="number" id="attr-st" class="attr-box__value" value="10">
+                    <span class="attr-box__cost">10 pts / +1</span>
+                </div>
+                <div class="attr-box">
+                    <label class="attr-box__label">DX</label>
+                    <input type="number" id="attr-dx" class="attr-box__value" value="10">
+                    <span class="attr-box__cost">20 pts / +1</span>
+                </div>
+                <div class="attr-box">
+                    <label class="attr-box__label">IQ</label>
+                    <input type="number" id="attr-iq" class="attr-box__value" value="10">
+                    <span class="attr-box__cost">20 pts / +1</span>
+                </div>
+                <div class="attr-box">
+                    <label class="attr-box__label">HT</label>
+                    <input type="number" id="attr-ht" class="attr-box__value" value="10">
+                    <span class="attr-box__cost">10 pts / +1</span>
+                </div>
+                <div class="attr-box" style="border-color: var(--gold);">
+                    <label class="attr-box__label">Vel. Básica</label>
+                    <input type="number" id="attr-speed" class="attr-box__value" value="5.00" step="0.25">
+                    <span class="attr-box__cost" id="speed-math">(DX+HT)/4</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- VITALS & DEFENSES (GRID ROW) -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:30px; margin-top:30px;">
+            <section>
+                <h3 class="section-title">🩸 Estatísticas Vitais</h3>
+                <div class="attr-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    <div class="attr-box">
+                        <span class="attr-box__label">PV Máx [ST]</span>
+                        <input type="number" id="attr-hp" class="attr-box__value" value="12" style="font-size:1.2rem">
+                        <span class="attr-box__cost">2 pts / +1</span>
+                    </div>
+                    <div class="attr-box">
+                        <span class="attr-box__label">PF Máx [HT]</span>
+                        <input type="number" id="attr-fp" class="attr-box__value" value="10" style="font-size:1.2rem">
+                        <span class="attr-box__cost">3 pts / +1</span>
+                    </div>
+                    <div class="attr-box">
+                        <span class="attr-box__label">VON [IQ]</span>
+                        <input type="number" id="attr-will" class="attr-box__value" value="10" style="font-size:1.2rem">
+                        <span class="attr-box__cost">5 pts / +1</span>
+                    </div>
+                    <div class="attr-box">
+                        <span class="attr-box__label">PER [IQ]</span>
+                        <input type="number" id="attr-per" class="attr-box__value" value="10" style="font-size:1.2rem">
+                        <span class="attr-box__cost">5 pts / +1</span>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h3 class="section-title">🛡️ Defesas Ativas</h3>
+                <div class="attr-grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div class="attr-box" style="border-color: var(--red-accent);">
+                        <span class="attr-box__label">Esquiva</span>
+                        <input type="number" id="attr-dodge" class="attr-box__value" value="8" style="font-size:1.2rem">
+                    </div>
+                    <div class="attr-box">
+                        <span class="attr-box__label">Aparar</span>
+                        <input type="number" id="attr-parry" class="attr-box__value" value="8" style="font-size:1.2rem">
+                    </div>
+                    <div class="attr-box">
+                        <span class="attr-box__label">Bloqueio</span>
+                        <input type="number" id="attr-block" class="attr-box__value" value="0" style="font-size:1.2rem">
+                    </div>
+                </div>
+                <p style="font-size: 0.65rem; color: var(--text-muted); margin-top: 10px; font-style: italic; line-height: 1.3;">
+                    * Esquiva = (Vel. Básica + 3) | Aparar = (Perícia/2 + 3) | Bloqueio = (Escudo/2 + 3).
+                </p>
+            </section>
+        </div>
+
+        <!-- CARGA E MANOBRAS (SIDE BY SIDE ON DESKTOP) -->
+        <div class="side-by-side">
+            <!-- CARGA E SLOTS -->
+            <section>
+                <h3 class="section-title">📦 Capacidade de Carga e Slots</h3>
+                <p style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 15px;">
+                    Sua capacidade de Slots é igual a sua **ST**. Cada 1kg = 1 Slot (Arredondado para cima).
+                </p>
+                <div style="display:grid; grid-template-columns: 1fr 2fr; gap:20px; align-items: start;">
+                     <div class="attr-box" style="border-color: var(--gold);">
+                        <span class="attr-box__label">Slots Ocupados</span>
+                        <input type="number" id="slots-used" class="attr-box__value" value="0">
+                        <span class="attr-box__cost" id="slots-max-label">Limite: 10 x ST</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border-panel);">
+                        <table style="width:100%; font-size: 0.65rem; border-collapse: collapse;">
+                            <thead>
+                                <tr style="color: var(--gold); border-bottom: 1px solid var(--border-panel); text-align: left;">
+                                    <th style="padding: 4px;">Nível</th>
+                                    <th style="padding: 4px;">Limite</th>
+                                    <th style="padding: 4px;">Mov</th>
+                                    <th style="padding: 4px;">Esq</th>
+                                </tr>
+                            </thead>
+                            <tbody id="load-table-body">
+                                <!-- Preenchido dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MEMÓRIA MUSCULAR -->
+            <section>
+                <h3 class="section-title">🧠 Memória Muscular (Posturas)</h3>
+                <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap: 20px;">
+                    <div>
+                        <h4 style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase;">Básicas (ON)</h4>
+                        <div style="display:flex; flex-wrap: wrap; gap: 4px;">
+                            <span style="background: var(--bg-deep); padding: 3px 6px; border-radius: 4px; font-size: 0.6rem; border: 1px solid var(--border-panel);">Ataque</span>
+                            <span style="background: var(--bg-deep); padding: 3px 6px; border-radius: 4px; font-size: 0.6rem; border: 1px solid var(--border-panel);">Total</span>
+                            <span style="background: var(--bg-deep); padding: 3px 6px; border-radius: 4px; font-size: 0.6rem; border: 1px solid var(--border-panel);">Defesa</span>
+                            <span style="background: var(--bg-deep); padding: 3px 6px; border-radius: 4px; font-size: 0.6rem; border: 1px solid var(--border-panel);">Mover</span>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 0.7rem; color: var(--gold); margin-bottom: 10px; text-transform: uppercase;">Postura (Mäo de 3)</h4>
+                        <div style="display:flex; flex-direction: column; gap: 6px;">
+                            <input type="text" id="maneuver-1" class="field__input" placeholder="Manobra 1" style="font-size: 0.75rem; padding: 5px 8px;">
+                            <input type="text" id="maneuver-2" class="field__input" placeholder="Manobra 2" style="font-size: 0.75rem; padding: 5px 8px;">
+                            <input type="text" id="maneuver-3" class="field__input" placeholder="Manobra 3" style="font-size: 0.75rem; padding: 5px 8px;">
+                        </div>
+                    </div>
+                </div>
+                <p style="font-size: 0.6rem; color: var(--text-muted); margin-top: 10px; font-style: italic;">
+                    * Nível 2 (12+) | Nível 3 (14+ & Estilo).
+                </p>
+            </section>
+        </div>
+
+        <!-- EQUIPMENT & ARSENAL -->
+        <section style="margin-top:40px;">
+            <h3 class="section-title">⚔ Arsenal e Equipamento</h3>
+            <div class="field-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                <div class="field">
+                    <label class="field__label">Arma Equipada (Consultar Arsenal)</label>
+                    <select id="char-weapon" class="field__select">
+                        <option value="">-- Selecionar do weaponsDB --</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="field__label">RD (Resistência a Dano)</label>
+                    <input type="number" id="char-dr" class="field__input" value="0" placeholder="Ex: 3">
+                </div>
+            </div>
+            <div class="field" style="margin-top: 15px;">
+                <label class="field__label">Inventário e Suprimentos</label>
+                <textarea id="char-equipment" class="field__textarea"
+                    placeholder="Ex: Armadura de Bambu (RD 2), Rações de Viagem, Kit de Primeiros Socorros..." style="height:100px; resize: vertical;"></textarea>
+            </div>
+        </section>
+
+        <!-- NARRATIVE & SPECIALS -->
+        <section style="margin-top:40px;">
+            <h3 class="section-title">📜 Crônicas e Traços</h3>
+            <div class="field">
+                <label class="field__label">Vantagens, Desvantagens e Técnicas</label>
+                <textarea id="char-advantages" class="field__textarea"
+                    placeholder="Ex: Reflexos em Combate [15], Senso de Dever [-10], Perícia: Katana-14..." style="height:120px; resize: vertical;"></textarea>
+            </div>
+            <div class="field">
+                <label class="field__label">História e Anotações do Mestre</label>
+                <textarea id="char-history" class="field__textarea"
+                    placeholder="Descreva o passado, motivações e segredos do seu samurai..." style="height:150px; resize: vertical;"></textarea>
+            </div>
+        </section>
+
+        <!-- ACTIONS -->
+        <div style="margin-top:50px; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:15px; padding-bottom: 20px;">
+            <button class="btn btn-gold" id="btn-save" style="border: 1px solid var(--gold);">💾 Selar Registro</button>
+            <button class="btn btn-primary" id="btn-export">⚔ Portar p/ Arena</button>
+            <button class="btn btn-ghost" id="btn-cancel">⬅ Voltar p/ Arena</button>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URL(window.location.href).searchParams;
+        const editingId = urlParams.get('id');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadWeaponSelector();
+            if (editingId) loadCharacter(editingId);
+        });
+
+        function loadWeaponSelector() {
+            const sel = document.getElementById('char-weapon');
+            if (typeof weaponsDB !== 'undefined') {
+                weaponsDB.forEach(w => {
+                    const opt = document.createElement('option');
+                    opt.value = w.id;
+                    opt.textContent = `${w.nome} (Dano: ${w.dano})`;
+                    sel.appendChild(opt);
+                });
+            }
+        }
+
+        function loadCharacter(id) {
+            const char = (CharacterManager.loadAll() || []).find(c => c.id === id);
+            if (!char) return;
+
+            document.getElementById('pts-count').value = char.totalPoints || 150;
+            document.getElementById('char-name').value = char.name;
+            document.getElementById('char-concept').value = char.concept || '';
+            document.getElementById('char-clan').value = char.clan || '';
+            
+            document.getElementById('attr-st').value = char.attributes.st;
+            document.getElementById('attr-dx').value = char.attributes.dx;
+            document.getElementById('attr-iq').value = char.attributes.iq || 10;
+            document.getElementById('attr-ht').value = char.attributes.ht || 10;
+            
+            document.getElementById('attr-hp').value = char.attributes.hp;
+            document.getElementById('attr-fp').value = char.attributes.fp;
+            document.getElementById('attr-will').value = char.attributes.will || 10;
+            document.getElementById('attr-per').value = char.attributes.per || 10;
+            
+            document.getElementById('attr-speed').value = (char.basicSpeed || ((char.attributes.dx + char.attributes.ht) / 4)).toFixed(2);
+            document.getElementById('slots-used').value = char.slotsUsed || 0;
+            
+            if (char.equippedManeuvers) {
+                document.getElementById('maneuver-1').value = char.equippedManeuvers[0] || '';
+                document.getElementById('maneuver-2').value = char.equippedManeuvers[1] || '';
+                document.getElementById('maneuver-3').value = char.equippedManeuvers[2] || '';
+            }
+
+            document.getElementById('attr-dodge').value = char.defenses?.dodge || 8;
+            document.getElementById('attr-parry').value = char.defenses?.parry || 8;
+            document.getElementById('attr-block').value = char.defenses?.block || 0;
+            document.getElementById('char-dr').value = char.dr || 0;
+            document.getElementById('char-equipment').value = char.equipmentText || '';
+            document.getElementById('char-history').value = char.history || '';
+            
+            document.getElementById('char-advantages').value = char.advantages ? char.advantages.map(a => a.name).join(', ') : '';
+            document.getElementById('char-weapon').value = char.equippedWeapon || '';
+            
+            updateCalculations();
+        }
+
+        function updateCalculations() {
+            const st = parseInt(document.getElementById('attr-st').value) || 10;
+            const dx = parseInt(document.getElementById('attr-dx').value) || 10;
+            const ht = parseInt(document.getElementById('attr-ht').value) || 10;
+            const slotsUsed = parseInt(document.getElementById('slots-used').value) || 0;
+
+            const speed = (dx + ht) / 4;
+            document.getElementById('attr-speed').value = speed.toFixed(2);
+
+            const body = document.getElementById('load-table-body');
+            const thresholds = [
+                { label: 'Nenhuma', mult: 1, mov: '100%', esq: '0', color: 'var(--text-secondary)' },
+                { label: 'Leve', mult: 2, mov: '80%', esq: '-1', color: 'var(--gold)' },
+                { label: 'Média', mult: 3, mov: '60%', esq: '-2', color: '#f59e0b' },
+                { label: 'Pesada', mult: 6, mov: '40%', esq: '-3', color: '#d97706' },
+                { label: 'Muito P.', mult: 10, mov: '20%', esq: '-4', color: 'var(--red-accent)' }
+            ];
+
+            let currentLevel = 'Nenhuma';
+            body.innerHTML = thresholds.map(t => {
+                const limit = t.mult * st;
+                const active = (slotsUsed <= limit && slotsUsed > (thresholds[thresholds.indexOf(t)-1]?.mult * st || -1));
+                if (active) currentLevel = t.label;
+                
+                return `
+                    <tr style="${active ? 'background: rgba(212,168,70,0.1); font-weight: bold; color: '+t.color+';' : 'opacity: 0.5;'}">
+                        <td style="padding: 4px;">${t.label}</td>
+                        <td style="padding: 4px;">Até ${limit}</td>
+                        <td style="padding: 4px;">${t.mov}</td>
+                        <td style="padding: 4px;">${t.esq}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('slots-max-label').textContent = `Limite Max: ${st * 10}`;
+        }
+
+            ['attr-st', 'attr-dx', 'attr-ht', 'slots-used'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', updateCalculations);
+            });
+
+        function getFormState() {
+            return {
+                totalPoints: parseInt(document.getElementById('pts-count').value) || 150,
+                name: document.getElementById('char-name').value,
+                concept: document.getElementById('char-concept').value,
+                clan: document.getElementById('char-clan').value,
+                attributes: {
+                    st: parseInt(document.getElementById('attr-st').value) || 10,
+                    dx: parseInt(document.getElementById('attr-dx').value) || 10,
+                    iq: parseInt(document.getElementById('attr-iq').value) || 10,
+                    ht: parseInt(document.getElementById('attr-ht').value) || 10,
+                    hp: parseInt(document.getElementById('attr-hp').value) || 12,
+                    fp: parseInt(document.getElementById('attr-fp').value) || 10,
+                    will: parseInt(document.getElementById('attr-will').value) || 10,
+                    per: parseInt(document.getElementById('attr-per').value) || 10
+                },
+                basicSpeed: parseFloat(document.getElementById('attr-speed').value) || 5.0,
+                slotsUsed: parseInt(document.getElementById('slots-used').value) || 0,
+                equippedManeuvers: [
+                    document.getElementById('maneuver-1').value,
+                    document.getElementById('maneuver-2').value,
+                    document.getElementById('maneuver-3').value
+                ],
+                defenses: {
+                    dodge: parseInt(document.getElementById('attr-dodge').value) || 8,
+                    parry: parseInt(document.getElementById('attr-parry').value) || 8,
+                    block: parseInt(document.getElementById('attr-block').value) || 0
+                },
+                dr: parseInt(document.getElementById('char-dr').value) || 0,
+                equippedWeapon: document.getElementById('char-weapon').value,
+                equipmentText: document.getElementById('char-equipment').value,
+                history: document.getElementById('char-history').value,
+                advantages: document.getElementById('char-advantages').value.split(',').map(n => ({ name: n.trim() })).filter(a => a.name)
+            };
+        }
+
+        document.getElementById('btn-save').addEventListener('click', () => {
+            const state = getFormState();
+            if (!state.name) return alert("O samurai precisa de um nome.");
+
+            const all = CharacterManager.loadAll() || [];
+            let char;
+            
+            if (editingId) {
+                char = all.find(c => c.id === editingId);
+            } else {
+                char = CharacterManager.createNewCharacter();
+                all.push(char);
+            }
+
+            Object.assign(char, state);
+            CharacterManager.saveAll(all);
+            alert("Registro selado com sucesso!");
+        });
+
+        document.getElementById('btn-export').addEventListener('click', () => {
+            const name = document.getElementById('char-name').value;
+            if (!name) return alert("O samurai precisa de um nome.");
+            
+            const state = getFormState();
+            const all = CharacterManager.loadAll() || [];
+            let char;
+            if (editingId) {
+                char = all.find(c => c.id === editingId);
+            } else {
+                char = CharacterManager.createNewCharacter();
+                all.push(char);
+            }
+            Object.assign(char, state);
+            CharacterManager.saveAll(all);
+            
+            if (CharacterManager.portToCombat(char.id)) {
+                alert("Samurai portado! Redirecionando para Arena...");
+                window.location.href = 'combat-calculator.html';
+            }
+        });
+
+        document.getElementById('btn-cancel').addEventListener('click', () => {
+            window.location.href = 'combat-calculator.html';
+        });
+    </script>
+</body>
+</html>

@@ -205,9 +205,37 @@
       --red-blood: #8B0000; --gold-glow: rgba(255, 0, 60, 0.4);
     }
 
-    html[data-theme="light"] i, html[data-theme="light"] .icon { filter: brightness(0.2); }
-    html[data-theme="light"] .new-tab-nav__link:hover { background: rgba(0,0,0,0.03); }
-    html[data-theme="light"] .theme-drawer { box-shadow: -10px 0 30px rgba(0,0,0,0.1); }
+    /* === KEGARE CLOCK HEADER === */
+    .kegare-mini-clock {
+      display: flex; gap: 4px; margin-left: 12px; align-items: center;
+    }
+    .kegare-dot {
+      width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); 
+      cursor: pointer; background: rgba(255,255,255,0.05); transition: all 0.2s;
+    }
+    .kegare-dot.active-pure { background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.4); border-color: #22c55e; }
+    .kegare-dot.active-tainted { background: #eab308; box-shadow: 0 0 8px rgba(234,179,8,0.4); border-color: #eab308; }
+    .kegare-dot.active-doomed { background: #c41e3a; box-shadow: 0 0 8px rgba(196,30,58,0.4); border-color: #c41e3a; }
+    
+    /* === FRIGHT DRAWER === */
+    .fright-drawer {
+      position: fixed; top: 0; right: -360px; width: 340px; height: 100vh;
+      background: var(--bg-deep); border-left: 1px solid var(--border-panel);
+      z-index: 3000; transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+      overflow-y: auto; overflow-x: hidden;
+    }
+    .fright-drawer.open { transform: translateX(-360px); }
+    .fright-result-box {
+      margin: 20px; padding: 15px; border-radius: var(--radius-lg);
+      background: rgba(0,0,0,0.2); border: 1px solid var(--border-panel);
+      display: none; flex-direction: column; gap: 10px;
+    }
+    .fright-result-box.visible { display: flex; animation: slide-up 0.3s ease; }
+    .dice-display { display: flex; gap: 8px; justify-content: center; }
+    .dice-icon { width: 32px; height: 32px; background: var(--bg-card); border: 1px solid var(--border-input); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; }
+    
+    @keyframes slide-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   `;
 
   /* Ranged Calc CSS removed from global header */
@@ -236,11 +264,23 @@
           ${tabs}
         </nav>
         <div class="new-header__tools">
+          ${currentPage === 'combat-calculator.html' ? `
+          <div style="display:flex; gap:8px;">
+            <a href="characters-sheet.html" class="btn btn-ghost" title="Gerenciamento de Fichas" style="min-height:44px; padding:0 15px; color: var(--gold); border: 1px solid rgba(212, 168, 70, 0.3); display: flex; align-items: center; gap: 6px; text-decoration: none;">📜 Fichas</a>
+            <button class="btn btn-ghost" onclick="window.toggleCharacterDrawer && window.toggleCharacterDrawer()" title="Lista de Personagens" style="min-height:44px; padding:0 15px; color: var(--text-primary); border: 1px solid var(--border-panel); display: flex; align-items: center; gap: 6px;">👥 Lista</button>
+          </div>
+          ` : ''}
           ${currentPage === 'index.html' ? `
           <button class="btn btn-ghost" onclick="ThemeManager.openDrawer()" title="Customizar Tema" style="min-height:44px; padding:0 15px;">🎨 Customizar</button>
           <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleDrawer('gm-notes-drawer')" title="Anotações" style="min-height:44px; padding:0 15px;">📝 Notas</button>
           <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleDrawer('clocks-drawer')" title="Ameaças" style="min-height:44px; padding:0 15px;">⏱ Ameaças</button>
           <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleModal('combat-mass-overlay')" title="Guerra" style="min-height:44px; padding:0 15px;">⚔ Guerra</button>
+          ` : ''}
+          ${currentPage === 'kegare-panico.html' ? `
+          <button class="btn btn-ghost" onclick="window.toggleFrightDrawer()" title="Teste de Pânico" style="min-height:44px; padding:0 15px;">🎲 Pânico</button>
+          ` : ''}
+          ${currentPage === 'oracle-generators.html' ? `
+          <button class="btn btn-ghost" onclick="window.toggleTacticalMap && window.toggleTacticalMap()" title="Mesa Tática" style="min-height:44px; padding:0 15px; color: var(--gold); border: 1px solid rgba(212, 168, 70, 0.3);">🗺 Mapa de Guerra</button>
           ` : ''}
         </div>
       </div>
@@ -273,6 +313,30 @@
             <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleDrawer('clocks-drawer')">⏱ Relógios de Facção</button>
             <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleModal('combat-mass-overlay')">⚔ Combate em Massa</button>
             ` : ''}
+            ${currentPage === 'combat-calculator.html' ? `
+            <a href="characters-sheet.html" onclick="window.closeMobileNav()">📜 Fichas de Personagem</a>
+            <button onclick="window.closeMobileNav(); window.toggleCharacterDrawer && window.toggleCharacterDrawer()">👥 Lista de Personagens</button>
+            ` : ''}
+            ${currentPage === 'oracle-generators.html' ? `
+            <button onclick="window.closeMobileNav(); window.toggleTacticalMap && window.toggleTacticalMap()" style="color: var(--gold);">🗺 Mesa Tática de Guerra</button>
+            ` : ''}
+          </div>
+          <div class="mobile-drawer__section">Sistema ⚔️</div>
+        <div style="padding: 10px 20px;">
+          <div id="db-status-card" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-panel); padding: 12px; border-radius: 8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+              <span style="font-size: 0.75rem; color: var(--gold); font-weight: 700; text-transform: uppercase;">Cofre Infinito</span>
+              <span id="db-status-badge" style="background: var(--green-success); color: #000; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; font-weight: 900;">ATIVO</span>
+            </div>
+            <p style="font-size: 0.65rem; color: var(--text-muted); line-height: 1.4;">
+              Seu clã agora utiliza <strong>IndexedDB</strong>. 
+              Capacidade: <span style="color:var(--text-primary)">~1GB (Giga)</span>.
+              <br>Síncrono com a Arena e Registros.
+            </p>
+          </div>
+        </div>
+
+        <div style="height: 40px;"></div>
           </div>
         </div>
       </div>
@@ -334,6 +398,26 @@
                <button class="btn btn-ghost" onclick="ThemeManager.setFontFamily('sans')" style="flex:1; font-size:0.65rem; padding:5px;">Sem Serifa (Inter)</button>
             </div>
           </div>
+          <div class="field">
+            <label class="field__label" style="font-size:0.65rem;">Tamanho do Texto</label>
+            <div style="display:flex; align-items:center; gap:12px; background:var(--bg-panel); border:1px solid var(--border-panel); padding:8px; border-radius:var(--radius);">
+               <button id="btn-font-dec" class="btn btn-ghost" style="width:44px; height:44px; font-size:1.2rem;">-</button>
+               <div id="font-size-display" style="flex:1; text-align:center; font-weight:700; font-family:monospace; font-size:1rem; min-width:60px;">100%</div>
+               <button id="btn-font-inc" class="btn btn-ghost" style="width:44px; height:44px; font-size:1.2rem;">+</button>
+               <button id="btn-font-reset" class="btn btn-sm btn-ghost" style="padding:4px 8px; font-size:0.6rem;">Reset</button>
+            </div>
+          </div>
+        </div>
+        <div class="mobile-drawer__section">📜 O Selo do Daimyo</div>
+        <div style="padding: 10px 20px; display:flex; flex-direction:column; gap:8px;">
+          <p style="font-size:0.65rem; color:var(--text-muted); margin-bottom:4px;">Backup e Sincronização da Campanha (JSON)</p>
+          <button class="btn btn-gold" onclick="DaimyoSeal.exportCampaign()" style="font-size:0.75rem; padding:12px;">📤 Exportar Campanha</button>
+          
+          <div style="position:relative;">
+            <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()" style="width:100%; font-size:0.75rem; padding:12px;">📥 Importar Backup</button>
+            <input type="file" id="import-file-input" style="display:none;" accept=".json" onchange="DaimyoSeal.importCampaign(this.files[0])">
+          </div>
+          <p style="font-size:0.6rem; color:var(--red-accent); font-style:italic; text-align:center;">Aviso: A importação sobrescreve todos os dados atuais.</p>
         </div>
 
         <div style="padding:20px; font-size:0.7rem; color:var(--text-muted); text-align:center; border-top:1px solid var(--border-panel); margin-top:auto;">
@@ -343,28 +427,94 @@
     `;
   }
 
+  function renderFrightDrawer() {
+    return `
+      <div id="fright-drawer" class="fright-drawer">
+        <div class="rc-header">
+          <h2 class="new-header__title">🎲 Teste de <span>Pânico</span></h2>
+          <button class="mobile-drawer__close" onclick="window.toggleFrightDrawer()">✕</button>
+        </div>
+        
+        <div class="mobile-drawer__section">Parâmetros do Samurai</div>
+        <div style="padding: 15px 20px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-panel);">
+          <div id="fright-drawer-kegare-status" style="font-size: 0.8rem; font-weight: 700; color: var(--gold); display: flex; justify-content: space-between;">
+            <span>Mácula: <span id="fd-kegare-label">Puro</span></span>
+            <span id="fd-kegare-mod">Von +2</span>
+          </div>
+        </div>
+        <div style="padding: 20px; display:flex; flex-direction:column; gap:15px;">
+          <div class="field">
+            <label class="field__label">Vontade (Von)</label>
+            <input type="number" id="fright-will" class="field__input" value="10">
+          </div>
+          <div class="field">
+            <label class="field__label">Mod. Medo/Monstro</label>
+            <input type="number" id="fright-mod" class="field__input" value="0">
+          </div>
+          <button class="btn btn-primary" onclick="window.executeFrightCheck()" style="margin-top:10px;">Rolar 3d6 Pânico</button>
+        </div>
+
+        <div id="fright-result-container" class="fright-result-box">
+          <div id="fright-roll-1" class="dice-display"></div>
+          <div id="fright-verdict-text" style="text-align:center; font-weight:700; font-size:1.1rem; padding:5px 0;"></div>
+          <div id="fright-mof-info" style="font-size:0.75rem; color:var(--text-muted); text-align:center;"></div>
+          
+          <div id="fright-table-section" style="display:none; border-top:1px solid var(--border-panel); padding-top:10px; margin-top:5px;">
+            <div id="fright-roll-2" class="dice-display" style="margin-bottom:10px;"></div>
+            <div id="fright-table-effect" style="background:var(--bg-card); border-left:3px solid var(--red-accent); padding:10px; font-size:0.85rem;"></div>
+          </div>
+        </div>
+
+        <div style="padding:20px; font-size:0.7rem; color:var(--text-muted); text-align:center; border-top:1px solid var(--border-panel); margin-top:auto;">
+          O teste considera automaticamente o Modificador de Mácula do Relógio Global.
+        </div>
+      </div>
+    `;
+  }
+
+  function renderKegareMini() {
+    let dots = '';
+    for(let i=1; i<=6; i++) {
+        dots += `<div class="kegare-dot" data-lv="${i}" onclick="window.setGlobalKegare(${i})" title="Nível ${i}"></div>`;
+    }
+    return `<div class="kegare-mini-clock" id="kegare-header-clock">${dots}</div>`;
+  }
+
   // Inject CSS
   const style = document.createElement('style');
   style.innerHTML = css;
   document.head.appendChild(style);
 
   // Inject Scripts
+  const dbScript = document.createElement('script');
+  dbScript.src = 'js/daimyo-db.js';
+  dbScript.onload = () => {
+    window.DaimyoDB.init().then(() => {
+      window.DaimyoDB.migrateFromLocalStorage();
+    });
+  };
+  document.head.appendChild(dbScript);
+
   const themeScript = document.createElement('script');
   themeScript.src = 'js/theme-manager.js';
   document.head.appendChild(themeScript);
 
-  const calcScript = document.createElement('script');
-  calcScript.src = 'js/ranged-calc.js';
-  document.head.appendChild(calcScript);
+  const sealScript = document.createElement('script');
+  sealScript.src = 'js/daimyo-seal.js';
+  document.head.appendChild(sealScript);
 
   const headerHtml = `
     <header class="new-header">
-      <a href="index.html" class="new-header__title">⚔ Escudo do <span>Daimyo</span></a>
+      <div style="display:flex; align-items:center;">
+        <a href="index.html" class="new-header__title">⚔ Escudo do <span>Daimyo</span></a>
+        ${currentPage === 'kegare-panico.html' ? renderKegareMini() : ''}
+      </div>
       ${renderDesktopNav()}
       <button class="mobile-menu-btn" id="mobile-menu-open">☰</button>
     </header>
     ${renderMobileDrawer()}
     ${renderThemeDrawer()}
+    ${renderFrightDrawer()}
   `;
 
   document.write('<div id="daimyo-header-mount"></div>');
@@ -389,6 +539,105 @@
       if(btnOpen) btnOpen.addEventListener('click', () => { overlay.classList.add('open'); document.body.classList.add('nav-open'); });
       if(btnClose) btnClose.addEventListener('click', window.closeMobileNav);
       if(overlay) overlay.addEventListener('click', (e) => { if(e.target === overlay) window.closeMobileNav(); });
+
+      // LISTENERS PARA CONTROLE DE FONTE
+      const btnDec = document.getElementById('btn-font-dec');
+      const btnInc = document.getElementById('btn-font-inc');
+      const btnRes = document.getElementById('btn-font-reset');
+      
+      if(btnDec) btnDec.addEventListener('click', () => ThemeManager.adjustFontSize(-10));
+      if(btnInc) btnInc.addEventListener('click', () => ThemeManager.adjustFontSize(10));
+      if(btnRes) btnRes.addEventListener('click', () => ThemeManager.setFontSize(100));
+
+      // KEGARE & FRIGHT LOGIC
+      window.setGlobalKegare = function(lv) {
+        if (!window.KegareManager) return;
+        const newLv = KegareManager.setLevel(lv);
+        window.updateKegareUI();
+      };
+
+      window.updateKegareUI = function() {
+        if (!window.KegareManager) return;
+        const lv = KegareManager.getLevel();
+        const tier = KegareManager.getTierInfo();
+        const dots = document.querySelectorAll('.kegare-dot');
+        dots.forEach((dot, idx) => {
+          const i = idx + 1;
+          dot.className = 'kegare-dot';
+          if (i <= lv) {
+            let colorClass = 'active-pure';
+            if (i >= 3) colorClass = 'active-tainted';
+            if (i >= 5) colorClass = 'active-doomed';
+            dot.classList.add(colorClass);
+          }
+        });
+
+        // Update Drawer Status if exists
+        const label = document.getElementById('fd-kegare-label');
+        const mod = document.getElementById('fd-kegare-mod');
+        if (label && mod) {
+          label.textContent = tier.label;
+          label.parentElement.parentElement.style.color = tier.color;
+          mod.textContent = `Von ${tier.mod >= 0 ? '+' : ''}${tier.mod}`;
+        }
+      };
+
+      window.toggleFrightDrawer = function() {
+        const drawer = document.getElementById('fright-drawer');
+        drawer.classList.toggle('open');
+      };
+
+      window.executeFrightCheck = function() {
+        const will = parseInt(document.getElementById('fright-will').value) || 10;
+        const mod = parseInt(document.getElementById('fright-mod').value) || 0;
+        
+        const result = KegareManager.runFrightCheck(will, mod);
+        const box = document.getElementById('fright-result-container');
+        box.classList.add('visible');
+        
+        // Roll 1
+        const roll1El = document.getElementById('fright-roll-1');
+        roll1El.innerHTML = result.roll1.dice.map(d => `<div class="dice-icon">${d}</div>`).join('') + 
+          `<span style="margin-left:10px; font-weight:900;">= ${result.roll1.total}</span>`;
+        
+        const verdictEl = document.getElementById('fright-verdict-text');
+        const mofEl = document.getElementById('fright-mof-info');
+        const tableSection = document.getElementById('fright-table-section');
+        
+        if (result.success) {
+            verdictEl.textContent = '✅ SUCESSO';
+            verdictEl.style.color = '#22c55e';
+            mofEl.textContent = `Vontade ${result.will} + Mod ${result.monsterMod} + Mácula ${result.kegareMod >= 0 ? '+' : ''}${result.kegareMod} = Alvo ${result.target}`;
+            tableSection.style.display = 'none';
+        } else {
+            verdictEl.textContent = '❌ FALHA';
+            verdictEl.style.color = '#c41e3a';
+            mofEl.textContent = `Alvo ${result.target} | Margem de Falha: ${result.mof}`;
+            tableSection.style.display = 'block';
+            
+            // Roll 2
+            const roll2El = document.getElementById('fright-roll-2');
+            roll2El.innerHTML = `<span style="font-size:0.7rem; color:var(--text-muted); margin-right:5px;">3d6 + MoF + Mácula:</span>` +
+              result.roll2.dice.map(d => `<div class="dice-icon" style="width:24px; height:24px; font-size:0.8rem;">${d}</div>`).join('') +
+              `<span style="margin-left:5px; font-weight:900;">+ ${result.mof} + ${result.kegareLevel} = ${result.finalScore}</span>`;
+            
+            const effectEl = document.getElementById('fright-table-effect');
+            effectEl.innerHTML = `<strong>${result.tableResult.label}</strong>: ${result.tableResult.desc}`;
+        }
+      };
+
+      // Initial Sync
+      setTimeout(() => {
+        window.updateKegareUI();
+      }, 500);
+
+      window.addEventListener('daimyoStateUpdated', () => {
+        window.updateKegareUI();
+      });
+      
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'daimyoShieldState') window.updateKegareUI();
+      });
     }
   });
 

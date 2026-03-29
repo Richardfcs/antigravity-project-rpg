@@ -15,7 +15,6 @@
       --text-secondary: #94a3b8;
       --text-muted: #64748b;
       --red-accent: #C41E3A;
-      --red-failure: #7a1224;
       --blue-info: #3B82F6;
       --radius-lg: 12px;
       --radius: 6px;
@@ -40,13 +39,11 @@
     .tab-nav__link:hover { color: var(--text-secondary); background: rgba(255,255,255,0.03); }
     .tab-nav__link--active { color: var(--gold); border-bottom: 2px solid var(--gold); }
 
-    .btn-ghost { background: transparent; border: 1px solid var(--border-panel); color: var(--text-secondary); text-decoration: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; transition: all var(--transition); border-radius: var(--radius); }
+    .btn-ghost { background: transparent; border: 1px solid var(--border-panel); color: var(--text-secondary); text-decoration: none; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; transition: all var(--transition); border-radius: var(--radius); cursor: pointer; }
     .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
 
-    /* LAYOUT BIBLIOTECA */
     .library-main { max-width: 1400px; margin: 20px auto; display: grid; grid-template-columns: 280px 1fr; gap: 20px; padding: 0 20px; height: calc(100vh - 120px); overflow: hidden; }
 
-    /* MENU LATERAL CATEGORIAS */
     .sidebar { background: var(--bg-panel); border: 1px solid var(--border-panel); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
     .sidebar::-webkit-scrollbar { width: 4px; }
     .sidebar::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 10px; }
@@ -58,7 +55,6 @@
     .cat-btn.active { background: var(--gold-dim); color: var(--gold); border-color: rgba(212, 175, 70, 0.4); }
     .cat-btn__count { font-size: 0.75rem; background: var(--border-panel); padding: 2px 6px; border-radius: 10px; color: var(--text-muted); }
 
-    /* AREA CENTRAL DE CONTEÚDO */
     .content-area { background: var(--bg-panel); border: 1px solid var(--border-panel); border-radius: var(--radius-lg); display: flex; flex-direction: column; overflow: hidden; }
     
     .search-box { padding: 20px; border-bottom: 1px solid var(--border-panel); background: rgba(0,0,0,0.2); }
@@ -66,16 +62,24 @@
     .search-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(212,175,70,0.1); }
     .search-input::placeholder { color: var(--text-muted); }
 
-    /* CARDS DA BIBLIOTECA */
+    /* SUBCATEGORY CHIPS */
+    .sub-chips { display: none; padding: 12px 20px; border-bottom: 1px solid var(--border-panel); background: rgba(0,0,0,0.1); overflow-x: auto; gap: 8px; flex-wrap: wrap; align-items: center; flex-shrink: 0; min-height: 56px; }
+    .sub-chips.visible { display: flex; }
+    .sub-chip { background: rgba(255,255,255,0.05); border: 1px solid var(--border-panel); color: var(--text-muted); padding: 6px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all var(--transition); flex-shrink: 0; line-height: 1.4; }
+    .sub-chip:hover { border-color: var(--gold-dim); color: var(--text-secondary); }
+    .sub-chip.active { background: var(--gold-dim); border-color: rgba(212,175,70,0.4); color: var(--gold); }
+    .sub-chips::-webkit-scrollbar { height: 3px; }
+    .sub-chips::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 10px; }
+
     .results-area { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
     
-    .lib-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border-panel); border-radius: var(--radius); overflow: hidden; flex-shrink: 0; }
+    .lib-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border-panel); border-radius: var(--radius); overflow: hidden; flex-shrink: 0; transition: border-color 0.15s; }
+    .lib-card:hover { border-color: rgba(255,255,255,0.1); }
     .lib-card__header { padding: 15px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all var(--transition); }
     .lib-card__header:hover { background: rgba(255,255,255,0.05); }
-    .lib-card__title { font-family: var(--font-display); font-size: 1.1rem; color: var(--gold); font-weight: 700; display:flex; gap:10px; align-items: center;}
-    .lib-card__type { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; font-family: var(--font-body); font-weight: 700; text-transform: uppercase; background: var(--bg-deep); border: 1px solid var(--border-panel); color: #FFF; }
+    .lib-card__title { font-family: var(--font-display); font-size: 1.1rem; color: var(--gold); font-weight: 700; display:flex; gap:10px; align-items: center; flex-wrap: wrap; }
+    .lib-card__type { font-size: 0.7rem; padding: 3px 8px; border-radius: 4px; font-family: var(--font-body); font-weight: 700; text-transform: uppercase; background: var(--bg-deep); border: 1px solid var(--border-panel); color: #FFF; flex-shrink: 0; }
     
-    /* Cores das Tags */
     .tag-vantagem { color: #10b981; border-color: rgba(16,185,129,0.3); }
     .tag-desvantagem { color: var(--red-accent); border-color: rgba(196,30,58,0.3); }
     .tag-pericia { color: var(--blue-info); border-color: rgba(59,130,246,0.3); }
@@ -86,13 +90,37 @@
     .tag-arquetipo { color: #ec4899; border-color: rgba(236,72,153,0.3); }
     .tag-atlas { color: #06b6d4; border-color: rgba(6,182,212,0.3); }
     .tag-yokai { color: #ef4444; border-color: rgba(239,68,68,0.3); }
+    .tag-peculiaridade { color: #a78bfa; border-color: rgba(167,139,250,0.3); }
 
-    .lib-card__cost { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 5px; }
+    .lib-card__cost { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .lib-card__fonte { font-size: 0.65rem; padding: 2px 6px; border-radius: 3px; background: rgba(59,130,246,0.1); color: rgba(59,130,246,0.7); border: 1px solid rgba(59,130,246,0.2); font-weight: 700; white-space: nowrap; }
 
-    .lib-card__body { padding: 0 20px 20px 20px; color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; display: none; border-top: 1px dashed rgba(255,255,255,0.1); margin-top: 10px; padding-top: 15px; white-space: pre-line; }
+    .lib-card__body { padding: 0 20px 20px 20px; color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; display: none; border-top: 1px dashed rgba(255,255,255,0.1); margin-top: 10px; padding-top: 15px; }
     .lib-card__body b { color: var(--gold); }
     .lib-card.expanded .lib-card__body { display: block; }
     .lib-card.expanded .lib-card__header { background: rgba(0,0,0,0.2); }
+
+    /* MD TABLE */
+    .md-table-wrap { width: 100%; overflow-x: auto; margin: 8px 0; -webkit-overflow-scrolling: touch; }
+    .md-table { width: 100%; border-collapse: collapse; min-width: 400px; font-size: 0.85rem; }
+    .md-table th { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border-panel); color: var(--gold); background: rgba(0,0,0,0.2); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+    .md-table td { padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text-secondary); }
+    .md-table tr:hover td { background: rgba(255,255,255,0.03); }
+
+    /* BUDÔ CARD SPECIAL */
+    .budo-section { margin-top: 4px; }
+    .budo-section__title { font-size: 0.7rem; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .budo-pericias { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+    .budo-pericia-badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; background: rgba(59,130,246,0.1); color: rgba(59,130,246,0.8); border: 1px solid rgba(59,130,246,0.2); font-weight: 600; }
+    .budo-table-wrap { width: 100%; overflow-x: auto; margin-bottom: 6px; -webkit-overflow-scrolling: touch; }
+    .budo-tecnicas { width: 100%; border-collapse: collapse; min-width: 420px; }
+    .budo-tecnicas th { text-align: left; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; padding: 4px 8px; border-bottom: 1px solid var(--border-panel); white-space: nowrap; }
+    .budo-tecnicas td { font-size: 0.82rem; padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-secondary); vertical-align: top; }
+    .budo-tecnicas td:first-child { color: var(--text-primary); font-weight: 600; white-space: normal; min-width: 100px; line-height: 1.3; }
+    .budo-tecnicas tr:hover td { background: rgba(255,255,255,0.02); }
+    .budo-qual { font-size: 0.85rem; padding: 2px 0; }
+    .budo-qual__name { color: var(--gold); font-weight: 600; }
+    .budo-qual__desc { color: var(--text-muted); margin-left: 4px; }
 
     .empty-msg { text-align: center; color: var(--text-muted); padding: 40px; font-size: 1.1rem; }
 
@@ -100,24 +128,33 @@
       body { font-size: 13px; }
       .header__title { font-size: 1rem; }
       .library-main { margin: 10px auto; padding: 0 10px; gap: 10px; }
-      
       .search-box { padding: 15px; }
       .search-input { padding: 10px 15px; font-size: 0.95rem; }
-      
-      .lib-card__header { padding: 12px 15px; }
+      .lib-card__header { padding: 12px 15px; flex-wrap: wrap; gap: 8px; }
       .lib-card__title { font-size: 0.95rem; gap: 6px; }
       .lib-card__type { font-size: 0.65rem; padding: 2px 6px; }
       .lib-card__cost { font-size: 0.75rem; gap: 3px; }
       .lib-card__body { font-size: 0.85rem; padding: 0 15px 15px; }
-      
       .tag-mini { display: none !important; }
+      .sub-chips { padding: 8px 12px; gap: 6px; flex-wrap: nowrap; overflow-x: auto; }
+      .sub-chip { padding: 5px 12px; font-size: 0.72rem; }
+
+      /* Budô mobile: tabela como cards empilhados */
+      .budo-tecnicas { min-width: unset; }
+      .budo-tecnicas thead { display: none; }
+      .budo-tecnicas tr { display: flex; flex-direction: column; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06); gap: 2px; }
+      .budo-tecnicas td { padding: 1px 0; font-size: 0.8rem; border: none; }
+      .budo-tecnicas td:first-child { font-size: 0.85rem; color: var(--text-primary); }
+      .budo-tecnicas td:nth-child(2)::before { content: 'Dif: '; color: var(--text-muted); font-size: 0.7rem; }
+      .budo-tecnicas td:nth-child(3)::before { content: 'Base: '; color: var(--text-muted); font-size: 0.7rem; }
+      .budo-tecnicas td:last-child { color: var(--text-muted); font-size: 0.75rem; }
+      .budo-table-wrap { overflow-x: visible; }
     }
 
     @media (max-width: 900px) {
       .header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 10px; }
       .header__meta { display: none; }
       .tab-nav { margin: 0; width: 100%; flex-wrap: wrap; justify-content: center; }
-
       .library-main { grid-template-columns: 1fr; height: auto; display: flex; flex-direction: column; overflow-y: visible; }
       .sidebar { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; height: auto; padding: 10px; border-radius: 0; margin-bottom: 10px; border-left: none; border-right: none; }
       .sidebar__title { display: none; }
@@ -128,9 +165,6 @@
     }
   </style>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-
-  
-  <!-- PWA METATAGS -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0A0A0A">
   <link rel="apple-touch-icon" href="icons/app-icon-192.png">
@@ -143,28 +177,16 @@
 
   <main class="library-main">
     
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar-cats">
       <h2 class="sidebar__title">Categorias</h2>
-      <button class="cat-btn active" data-cat="all">📚 Ver Tudo <span class="cat-btn__count" id="count-all">0</span></button>
-      <button class="cat-btn" data-cat="Vantagem">🌟 Vantagens <span class="cat-btn__count" id="count-van">0</span></button>
-      <button class="cat-btn" data-cat="Desvantagem">⛓️ Desvantagens <span class="cat-btn__count" id="count-des">0</span></button>
-      <button class="cat-btn" data-cat="Qualidade">🎭 Quali/Peculiaridade <span class="cat-btn__count" id="count-qua">0</span></button>
-      <button class="cat-btn" data-cat="Pericia">🥋 Perícias <span class="cat-btn__count" id="count-per">0</span></button>
-      <button class="cat-btn" data-cat="Budo">⚔️ Estilos (Budô) <span class="cat-btn__count" id="count-bud">0</span></button>
-      <button class="cat-btn" data-cat="Arquétipo">👥 Arquétipos <span class="cat-btn__count" id="count-arq">0</span></button>
-      <button class="cat-btn" data-cat="Yokai">👻 Bestiário (Yokai) <span class="cat-btn__count" id="count-yok">0</span></button>
-      <button class="cat-btn" data-cat="Alquimia">🧪 Alquimia / Itens <span class="cat-btn__count" id="count-alq">0</span></button>
-      <button class="cat-btn" data-cat="Atlas">🗺️ Atlas (Geografia) <span class="cat-btn__count" id="count-atl">0</span></button>
-      <button class="cat-btn" data-cat="Regra">📜 Regras & Cultura <span class="cat-btn__count" id="count-reg">0</span></button>
     </aside>
 
     <section class="content-area">
       <div class="search-box">
-        <input type="text" id="input-search" class="search-input" placeholder="Buscar por Nome, Efeito, ou Custo... (Ex: Iaijutsu, Reflexos, -15)">
+        <input type="text" id="input-search" class="search-input" placeholder="Buscar por Nome, Efeito, Técnica ou Custo... (Ex: Kenjutsu, Contra-Ataque, -15)">
       </div>
-      <div class="results-area" id="results-area">
-        <!-- Rendered purely via JS -->
-      </div>
+      <div class="sub-chips" id="sub-chips"></div>
+      <div class="results-area" id="results-area"></div>
     </section>
 
   </main>
@@ -181,9 +203,7 @@
           </div>
           <div>
             <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Categoria</label>
-            <select id="lib-new-cat" class="search-input" style="padding:10px; font-size:0.9rem;">
-              <!-- Categorias dinâmicas -->
-            </select>
+            <select id="lib-new-cat" class="search-input" style="padding:10px; font-size:0.9rem;"></select>
           </div>
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
@@ -212,9 +232,7 @@
   <div id="modal-manage-cats" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; justify-content:center; align-items:center;">
     <div style="background:var(--bg-panel); padding:30px; border-radius:var(--radius-lg); width:95%; max-width:500px; border:1px solid var(--gold); box-shadow:0 0 30px rgba(0,0,0,0.5); display:flex; flex-direction:column; max-height:80vh;">
       <h2 style="font-family:var(--font-display); color:var(--gold); margin-bottom:20px; border-bottom:1px solid var(--gold-dim); padding-bottom:10px;">⚙️ Gerenciar Categorias</h2>
-      <div id="cats-editor-list" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
-        <!-- Lista de categorias editáveis -->
-      </div>
+      <div id="cats-editor-list" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
       <div style="display:flex; gap:10px; border-top:1px solid var(--border-panel); padding-top:15px;">
         <input type="text" id="cat-new-name" class="search-input" placeholder="Nova Categoria" style="padding:8px; font-size:0.8rem; flex:1;">
         <button class="btn-ghost" style="background:var(--gold); color:#000; border-color:var(--gold); padding:8px 15px;" onclick="addNewCategory()">Adicionar</button>
@@ -234,47 +252,129 @@
   <script>
     const container = document.getElementById('results-area');
     const searchInput = document.getElementById('input-search');
+    const subChipsBar = document.getElementById('sub-chips');
     let currentCategory = 'all';
+    let currentSub = 'all';
+
+    const catMap = {
+      'Vantagem': 'tag-vantagem', 'Desvantagem': 'tag-desvantagem', 'Perícia': 'tag-pericia',
+      'Pericia': 'tag-pericia', 'Budo': 'tag-budo', 'Yokai': 'tag-yokai',
+      'Arquétipo': 'tag-arquetipo', 'Atlas': 'tag-atlas', 'Alquimia': 'tag-item',
+      'Regra': 'tag-regra', 'Qualidade': 'tag-item', 'Peculiaridade': 'tag-peculiaridade'
+    };
+
+    function renderAll() {
+        renderCategories();
+        renderSubChips();
+        renderLibrary();
+    }
 
     function init() {
-      renderCategories();
-      renderLibrary();
+      console.log("📚 Library UI: Inicializando...");
+      renderAll();
+      
+      // If manager is already ready (e.g. static load), render again just in case
+      if (LibraryManager.isReady()) {
+          console.log("📚 Library UI: Manager já pronto.");
+          renderAll();
+      }
       
       searchInput.addEventListener('input', renderLibrary);
     }
 
+    // Reactive listeners for Infinite Vault
+    window.addEventListener('daimyoLibraryReady', () => {
+        console.log("📚 Library UI: Vault pronto, re-renderizando...");
+        renderAll();
+    });
+    
+    window.addEventListener('daimyoStateUpdated', () => {
+        console.log("📚 Library UI: Estado atualizado, sincronizando...");
+        renderAll();
+    });
+
+    document.addEventListener('DOMContentLoaded', init);
+
     function renderCategories() {
-      const sidebar = document.querySelector('.sidebar');
+      const sidebar = document.getElementById('sidebar-cats');
       const cats = LibraryManager.getCategories();
       const allItems = LibraryManager.getItems();
 
-      let html = `
-        <h2 class="sidebar__title">Categorias</h2>
-        <button class="cat-btn ${currentCategory === 'all' ? 'active' : ''}" data-cat="all" onclick="selectCat('all')">
+      let html = `<h2 class="sidebar__title">Categorias</h2>
+        <button class="cat-btn ${currentCategory === 'all' ? 'active' : ''}" onclick="selectCat('all')">
           📚 Ver Tudo <span class="cat-btn__count">${allItems.length}</span>
-        </button>
-      `;
+        </button>`;
 
       cats.forEach(c => {
         const count = allItems.filter(i => i.cat === c.name).length;
-        html += `
-          <button class="cat-btn ${currentCategory === c.name ? 'active' : ''}" onclick="selectCat('${c.name}')">
+        if (count === 0) return;
+        html += `<button class="cat-btn ${currentCategory === c.name ? 'active' : ''}" onclick="selectCat('${c.name}')">
             ${c.icon || '🔹'} ${c.name} <span class="cat-btn__count">${count}</span>
-          </button>
-        `;
+          </button>`;
       });
-
       sidebar.innerHTML = html;
 
-      // Populate select in add item modal
       const select = document.getElementById('lib-new-cat');
       select.innerHTML = cats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
     }
 
+    function renderSubChips() {
+      if (currentCategory === 'all') {
+        subChipsBar.className = 'sub-chips';
+        subChipsBar.innerHTML = '';
+        return;
+      }
+      const allItems = LibraryManager.getItems();
+      const subs = [...new Set(allItems.filter(i => i.cat === currentCategory && i.sub).map(i => i.sub))];
+      
+      if (subs.length <= 1) {
+        subChipsBar.className = 'sub-chips';
+        subChipsBar.innerHTML = '';
+        return;
+      }
+
+      const counts = {};
+      subs.forEach(s => { counts[s] = allItems.filter(i => i.cat === currentCategory && i.sub === s).length; });
+      const totalCat = allItems.filter(i => i.cat === currentCategory).length;
+
+      let html = `<button class="sub-chip ${currentSub === 'all' ? 'active' : ''}" onclick="selectSub('all')">Tudo (${totalCat})</button>`;
+      subs.forEach(s => {
+        html += `<button class="sub-chip ${currentSub === s ? 'active' : ''}" onclick="selectSub('${s}')">${s} (${counts[s]})</button>`;
+      });
+      subChipsBar.innerHTML = html;
+      subChipsBar.className = 'sub-chips visible';
+    }
+
     function selectCat(cat) {
       currentCategory = cat;
+      currentSub = 'all';
       renderCategories();
+      renderSubChips();
       renderLibrary();
+    }
+
+    function selectSub(sub) {
+      currentSub = sub;
+      renderSubChips();
+      renderLibrary();
+    }
+
+    function matchesSearch(item, term) {
+      if (!term) return true;
+      const fields = [item.nome, item.desc, item.cust, item.cat, item.sub || '', item.conceito || ''];
+      if (item.tags) fields.push(...item.tags);
+      if (item.fonte) fields.push(item.fonte);
+      // Connected search: search inside Budô técnicas and qualidades
+      if (item.tecnicas) {
+        item.tecnicas.forEach(t => { fields.push(t.nome, t.desc, t.dificuldade); });
+      }
+      if (item.qualidades_estilo) {
+        item.qualidades_estilo.forEach(q => { fields.push(q.nome, q.desc); });
+      }
+      if (item.pericias_realistas) {
+        fields.push(...item.pericias_realistas);
+      }
+      return fields.some(f => f && f.toLowerCase().includes(term));
     }
 
     function renderLibrary() {
@@ -283,46 +383,148 @@
       
       const filtered = allItems.filter(item => {
         const matchCat = (currentCategory === 'all' || item.cat === currentCategory);
-        const matchSearch = item.nome.toLowerCase().includes(term) || 
-                            item.desc.toLowerCase().includes(term) || 
-                            item.cust.toLowerCase().includes(term) ||
-                            item.cat.toLowerCase().includes(term) ||
-                            (item.tags && item.tags.some(t => t.toLowerCase().includes(term)));
-        return matchCat && matchSearch;
+        const matchSubCat = (currentSub === 'all' || item.sub === currentSub);
+        return matchCat && matchSubCat && matchesSearch(item, term);
       });
 
       if (filtered.length === 0) {
-        container.innerHTML = `<div class="empty-msg">Nenhum registro encontrado associado a "${term}".</div>`;
+        container.innerHTML = `<div class="empty-msg">Nenhum registro encontrado para "${searchInput.value || 'esta categoria'}".</div>`;
         return;
       }
 
       container.innerHTML = filtered.map(item => {
-        const catMap = {
-            'Vantagem': 'tag-vantagem', 'Desvantagem': 'tag-desvantagem', 'Perícia': 'tag-pericia',
-            'Pericia': 'tag-pericia', 'Budo': 'tag-budo', 'Yokai': 'tag-yokai',
-            'Arquétipo': 'tag-arquetipo', 'Atlas': 'tag-atlas', 'Alquimia': 'tag-item',
-            'Regra': 'tag-regra', 'Qualidade': 'tag-item', 'Peculiaridade': 'tag-item'
-        };
-        const tagClass = catMap[item.cat] || 'tag-regra';
-        const tagsHtml = (item.tags || []).map(t => `<span class="tag-mini" style="font-size:0.6rem; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:3px; color:var(--text-muted); border:1px solid var(--border-panel); margin-right:4px; white-space:nowrap;">${t}</span>`).join('');
+        if (item.cat === 'Budo' && item.tecnicas) return renderBudoCard(item);
+        return renderStandardCard(item);
+      }).join('');
+    }
 
-        return `
-        <div class="lib-card">
-          <div class="lib-card__header" onclick="this.parentElement.classList.toggle('expanded')">
-            <div class="lib-card__title">
-              <span class="lib-card__type ${tagClass}">${item.cat}</span> 
-              ${item.nome}
-              <div style="margin-left:5px; display:flex;">${tagsHtml}</div>
-            </div>
-            <div style="display:flex; align-items:center; gap:15px;">
-              <div class="lib-card__cost">${item.cust}</div>
-              <button class="btn-ghost btn-sm" onclick="event.stopPropagation(); deleteLibItem('${item.id}')" style="border:none; color:var(--text-muted);">🗑️</button>
-              <span style="font-size:1.2rem;">＋</span>
-            </div>
+    function parseMarkdownTable(text) {
+      if (!text) return '';
+      const lines = text.replace(/<br\s*\/?>/gi, '\n').split('\n');
+      let html = '';
+      let inTable = false;
+      
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        let isSeparator = line.includes('-') && /^\|?[\s\-:]+\|?([\s\-:]+\|?)*$/.test(line);
+        let isRow = line.includes('|') && line.split('|').length > 1;
+
+        if (isSeparator) continue; // Skip --- dividers entirely
+
+        if (!inTable && isRow) {
+          inTable = true;
+          if (html.endsWith('<br>')) html = html.slice(0, -4);
+          html += '<div class="md-table-wrap"><table class="md-table"><thead>';
+          
+          let cells = line.split('|');
+          if (cells[0].trim() === '') cells.shift();
+          if (cells.length > 0 && cells[cells.length-1].trim() === '') cells.pop();
+          
+          html += '<tr>' + cells.map(c => `<th>${c.trim()}</th>`).join('') + '</tr></thead><tbody>';
+          continue;
+        }
+
+        if (inTable && isRow) {
+          let cells = line.split('|');
+          if (cells[0].trim() === '') cells.shift();
+          if (cells.length > 0 && cells[cells.length-1].trim() === '') cells.pop();
+          
+          html += '<tr>' + cells.map(c => {
+            let ct = c.trim().replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            return `<td>${ct}</td>`;
+          }).join('') + '</tr>';
+        } else if (inTable && !isRow) {
+          html += '</tbody></table></div>';
+          inTable = false;
+          html += line + (line ? '<br>' : '');
+        } else {
+          html += line + (line ? '<br>' : '');
+        }
+      }
+      if (inTable) html += '</tbody></table></div>';
+      while (html.endsWith('<br>')) html = html.slice(0, -4);
+      return html;
+    }
+
+    function renderStandardCard(item) {
+      const tagClass = catMap[item.cat] || 'tag-regra';
+      const tagsHtml = (item.tags || []).map(t => `<span class="tag-mini" style="font-size:0.6rem; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:3px; color:var(--text-muted); border:1px solid var(--border-panel); margin-right:4px; white-space:nowrap;">${t}</span>`).join('');
+      const fonteHtml = item.fonte ? `<span class="lib-card__fonte">${item.fonte}</span>` : '';
+      const subHtml = item.sub ? `<span style="font-size:0.65rem; color:var(--text-muted); font-weight:400;">${item.sub}</span>` : '';
+      const descParsed = parseMarkdownTable(item.desc);
+
+      return `
+      <div class="lib-card">
+        <div class="lib-card__header" onclick="this.parentElement.classList.toggle('expanded')">
+          <div class="lib-card__title">
+            <span class="lib-card__type ${tagClass}">${item.cat}</span> 
+            ${item.nome}
+            ${subHtml}
+            <div style="margin-left:5px; display:flex;">${tagsHtml}</div>
           </div>
-          <div class="lib-card__body">${item.desc}</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            ${fonteHtml}
+            <div class="lib-card__cost">${item.cust}</div>
+            <button class="btn-ghost btn-sm" onclick="event.stopPropagation(); deleteLibItem('${item.id}')" style="border:none; color:var(--text-muted); padding:4px;">🗑️</button>
+            <span style="font-size:1.2rem; transition:transform 0.2s;">＋</span>
+          </div>
         </div>
-      `;}).join('');
+        <div class="lib-card__body">${descParsed}</div>
+      </div>`;
+    }
+
+    function renderBudoCard(item) {
+      const fonteHtml = item.fonte ? `<span class="lib-card__fonte">${item.fonte}</span>` : '';
+      const emoji = item.emoji || '⚔️';
+
+      const periciasHtml = (item.pericias_realistas || []).map(p => `<span class="budo-pericia-badge">${p}</span>`).join('');
+
+      let tecnicasHtml = '';
+      if (item.tecnicas && item.tecnicas.length) {
+        tecnicasHtml = `<div class="budo-table-wrap"><table class="budo-tecnicas">
+          <thead><tr><th>Técnica</th><th>Dif.</th><th>Base</th><th>Efeito</th></tr></thead>
+          <tbody>${item.tecnicas.map(t => `<tr><td>${t.nome}</td><td>${t.dificuldade}</td><td>${t.base}</td><td>${t.desc}</td></tr>`).join('')}</tbody>
+        </table></div>`;
+      }
+
+      let qualsHtml = '';
+      if (item.qualidades_estilo && item.qualidades_estilo.length) {
+        qualsHtml = item.qualidades_estilo.map(q => `<div class="budo-qual"><span class="budo-qual__name">• ${q.nome}:</span><span class="budo-qual__desc"> ${q.desc}</span></div>`).join('');
+      }
+
+      return `
+      <div class="lib-card">
+        <div class="lib-card__header" onclick="this.parentElement.classList.toggle('expanded')">
+          <div class="lib-card__title">
+            <span class="lib-card__type tag-budo">BUDÔ</span>
+            <span style="font-size:1.3rem;">${emoji}</span>
+            ${item.nome}
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            ${fonteHtml}
+            <div class="lib-card__cost">${item.cust}</div>
+            <span style="font-size:1.2rem; transition:transform 0.2s;">＋</span>
+          </div>
+        </div>
+        <div class="lib-card__body">
+          <div style="margin-bottom:8px; color:var(--text-primary); font-style:italic; font-size:0.9rem;">${(item.conceito || item.desc || '').replace(/\n/g, '<br>')}</div>
+          
+          <div class="budo-section">
+            <div class="budo-section__title">🥋 Perícias Realistas</div>
+            <div class="budo-pericias">${periciasHtml}</div>
+          </div>
+
+          <div class="budo-section">
+            <div class="budo-section__title">⚔️ Técnicas</div>
+            ${tecnicasHtml}
+          </div>
+
+          <div class="budo-section">
+            <div class="budo-section__title">🎭 Qualidades do Estilo (1 pt cada)</div>
+            ${qualsHtml}
+          </div>
+        </div>
+      </div>`;
     }
 
     // --- MODAL HELPERS ---
@@ -336,71 +538,59 @@
       const cust = document.getElementById('lib-new-cust').value;
       const tagsRaw = document.getElementById('lib-new-tags').value;
       const desc = document.getElementById('lib-new-desc').value;
-
       if (!name || !desc) return alert('Pelo menos Nome e Descrição são obrigatórios.');
-
       const tags = tagsRaw.split(',').map(t => t.trim()).filter(t => t !== '');
-      
       LibraryManager.addItem({ nome: name, cat: cat, cust: cust, desc: desc, tags: tags });
-      
-      // Reset & Close
       document.getElementById('lib-new-name').value = '';
       document.getElementById('lib-new-tags').value = '';
       document.getElementById('lib-new-desc').value = '';
       toggleModal('modal-add-item', false);
-      
-      renderCategories();
-      renderLibrary();
+      renderAll();
     }
 
     function deleteLibItem(id) {
-        if (!confirm('Deseja excluir este item permanentemente?')) return;
-        LibraryManager.removeItem(id);
-        renderCategories();
-        renderLibrary();
+      if (!confirm('Deseja excluir este item permanentemente?')) return;
+      LibraryManager.removeItem(id);
+      renderAll();
     }
 
-    // --- CATEGORY MANAGER ---
     function openCatManager() {
-        renderCatManagerList();
-        toggleModal('modal-manage-cats', true);
+      renderCatManagerList();
+      toggleModal('modal-manage-cats', true);
     }
 
     function renderCatManagerList() {
-        const list = document.getElementById('cats-editor-list');
-        const cats = LibraryManager.getCategories();
-        
-        list.innerHTML = cats.map((c, idx) => `
-            <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.03); border-radius:var(--radius); border:1px solid var(--border-panel);">
-              <span style="font-size:1rem; min-width:25px;">${c.icon || '🔹'}</span>
-              <span style="flex:1; font-weight:700; color:var(--gold);">${c.name}</span>
-              <div style="display:flex; gap:4px;">
-                <button class="btn-ghost btn-sm" onclick="LibraryManager.reorderCategory('${c.id}', -1); renderCatManagerList(); renderAll();">↑</button>
-                <button class="btn-ghost btn-sm" onclick="LibraryManager.reorderCategory('${c.id}', 1); renderCatManagerList(); renderAll();">↓</button>
-                <button class="btn-ghost btn-sm" onclick="if(confirm('Apagar categoria?')) { LibraryManager.removeCategory('${c.id}'); renderCatManagerList(); renderAll(); }" style="color:var(--red-accent);">✕</button>
-              </div>
-            </div>
-        `).join('');
+      const list = document.getElementById('cats-editor-list');
+      const cats = LibraryManager.getCategories();
+      list.innerHTML = cats.map(c => `
+        <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.03); border-radius:var(--radius); border:1px solid var(--border-panel);">
+          <span style="font-size:1rem; min-width:25px;">${c.icon || '🔹'}</span>
+          <span style="flex:1; font-weight:700; color:var(--gold);">${c.name}</span>
+          <div style="display:flex; gap:4px;">
+            <button class="btn-ghost btn-sm" onclick="LibraryManager.reorderCategory('${c.id}', -1); renderCatManagerList(); renderAll();">↑</button>
+            <button class="btn-ghost btn-sm" onclick="LibraryManager.reorderCategory('${c.id}', 1); renderCatManagerList(); renderAll();">↓</button>
+            <button class="btn-ghost btn-sm" onclick="if(confirm('Apagar categoria?')) { LibraryManager.removeCategory('${c.id}'); renderCatManagerList(); renderAll(); }" style="color:var(--red-accent);">✕</button>
+          </div>
+        </div>
+      `).join('');
     }
     
     function addNewCategory() {
-        const name = document.getElementById('cat-new-name').value;
-        if (!name) return;
-        LibraryManager.addCategory({ name: name, icon: '🔹', tags: [] });
-        document.getElementById('cat-new-name').value = '';
-        renderCatManagerList();
-        renderAll();
+      const name = document.getElementById('cat-new-name').value;
+      if (!name) return;
+      LibraryManager.addCategory({ name: name, icon: '🔹', tags: [] });
+      document.getElementById('cat-new-name').value = '';
+      renderCatManagerList();
+      renderAll();
     }
 
     function renderAll() {
-        renderCategories();
-        renderLibrary();
+      renderCategories();
+      renderSubChips();
+      renderLibrary();
     }
 
     document.addEventListener('DOMContentLoaded', init);
   </script>
-</body>
-</html>
-
 </body>
 </html>

@@ -158,25 +158,50 @@ const NarrativeTools = (function () {
     }
   }
 
+  // --- COFRE INFINITO / PERSISTENCE ---
+  const init = async () => {
+    if (!window.DaimyoDB) return;
+    try {
+      // Load Notes
+      const savedNotes = await window.DaimyoDB.get(window.DaimyoDB.STORES.VAULT, 'gm_notes');
+      if (savedNotes) {
+        gmNotes = Array.isArray(savedNotes) ? savedNotes : [{ id: 'default', title: 'Principal', content: savedNotes }];
+      } else {
+        gmNotes = [{ id: 'default', title: 'Principal', content: '' }];
+      }
+      if (!activePageId && gmNotes.length > 0) activePageId = gmNotes[0].id;
+      renderNotesUI();
+
+      // Load Clocks
+      const savedClocks = await window.DaimyoDB.get(window.DaimyoDB.STORES.VAULT, 'clocks');
+      const savedClocksHist = await window.DaimyoDB.get(window.DaimyoDB.STORES.VAULT, 'clocks_history');
+      if (savedClocks) clocks = savedClocks;
+      if (savedClocksHist) clocksHistory = savedClocksHist;
+      renderClocks();
+      renderGlobalHistory();
+
+      console.log("📜 NarrativeTools: Alinhado com o Cofre Infinito.");
+    } catch (e) {
+      console.error("Erro ao sincronizar NarrativeTools com o Cofre:", e);
+    }
+  };
+
+  // Auto-init connection attempt
+  window.addEventListener('load', () => {
+    if (window.DaimyoDB) init();
+    else setTimeout(init, 150);
+  });
 
   // --- CLOCKS (AMEAÇAS) ---
   function loadClocks() {
-    const saved = localStorage.getItem(CLOCKS_KEY);
-    const savedHist = localStorage.getItem(CLOCKS_HIST_KEY);
-    
-    if (saved) {
-      try { clocks = JSON.parse(saved); } catch (e) { clocks = []; }
-    }
-    if (savedHist) {
-      try { clocksHistory = JSON.parse(savedHist); } catch (e) { clocksHistory = []; }
-    }
-    renderClocks();
-    renderGlobalHistory();
+    // Initialized via async init()
   }
 
-  function saveClocks() {
-    localStorage.setItem(CLOCKS_KEY, JSON.stringify(clocks));
-    localStorage.setItem(CLOCKS_HIST_KEY, JSON.stringify(clocksHistory));
+  async function saveClocks() {
+    if (window.DaimyoDB) {
+      await window.DaimyoDB.put(window.DaimyoDB.STORES.VAULT, 'clocks', clocks);
+      await window.DaimyoDB.put(window.DaimyoDB.STORES.VAULT, 'clocks_history', clocksHistory);
+    }
     renderClocks();
     renderGlobalHistory();
   }

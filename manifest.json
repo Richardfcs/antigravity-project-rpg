@@ -2,7 +2,7 @@
   "name": "Escudo do Daimyo",
   "short_name": "Daimyo",
   "description": "Ferramenta de Mestre para A Era das Espadas Quebradas GURPS 4e",
-  "start_url": "./index.html",
+  "start_url": "/antigravity-project-rpg/index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0A0A0A",
@@ -10,6 +10,7 @@
   "lang": "pt-BR",
   "dir": "ltr",
   "orientation": "any",
+  "version": "1.0.0",
   "categories": [
     "productivity",
     "games",
@@ -49,22 +50,13 @@
       "description": "Gere NPCs e eventos instantaneamente",
       "url": "./oracle-generators.html",
       "icons": [{ "src": "icons/app-icon-192.png", "sizes": "192x192" }]
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "screenshots/desktop.png",
-      "sizes": "1440x900",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Painel de Combate no Desktop"
     },
     {
-      "src": "screenshots/mobile.png",
-      "sizes": "360x800",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Interface Mobile do Mestre"
+      "name": "Ficha de Personagem",
+      "short_name": "Ficha",
+      "description": "Gerencie seus personagens Daimyo",
+      "url": "./characters-sheet.html",
+      "icons": [{ "src": "icons/app-icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

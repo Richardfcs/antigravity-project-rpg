@@ -425,6 +425,64 @@
       background: rgba(148, 163, 184, 0.08);
       color: var(--text-secondary);
     }
+    .item-tag--viagem {
+      background: rgba(161, 98, 7, 0.15);
+      color: #EAB308;
+    }
+    .item-tag--medicina {
+      background: rgba(225, 29, 72, 0.12);
+      color: #FB7185;
+    }
+    .item-tag--cultura {
+      background: rgba(168, 85, 247, 0.15);
+      color: #C084FC;
+    }
+    .item-tag--montaria {
+      background: rgba(120, 113, 108, 0.15);
+      color: #A8A29E;
+    }
+    .item-tag--alquimia {
+      background: rgba(14, 165, 233, 0.15);
+      color: #38BDF8;
+    }
+
+    /* REFERENCE TABLES CSS */
+    .reference-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      margin-bottom: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-panel);
+      border-radius: var(--radius-lg);
+    }
+    .reference-table {
+      width: 100%;
+      min-width: 600px;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .reference-table th {
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 700;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border-panel);
+      background: rgba(0,0,0,0.3);
+    }
+    .reference-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      color: var(--text-secondary);
+    }
+    .reference-table td:first-child {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .reference-table tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
 
     .item-card__name {
       font-family: var(--font-display);
@@ -700,6 +758,7 @@
       <button class="filter-pill" data-filter="arma" id="filter-arma">⚔ Armas</button>
       <button class="filter-pill" data-filter="armadura" id="filter-armadura">🛡 Armaduras</button>
       <button class="filter-pill" data-filter="equipamento" id="filter-equipamento">📦 Equipamentos</button>
+      <button class="filter-pill" data-filter="regra" id="filter-regra">📚 Regras & Tabelas</button>
       <span class="filter-counter" id="filter-counter">55 itens</span>
     </div>
   </div>
@@ -731,6 +790,15 @@
     </div>
     <div class="card-grid" id="grid-equipamentos"></div>
 
+    <!-- REGRAS SECTION -->
+    <div class="section-header" id="section-regras" data-section="regra">
+      <span class="section-header__icon">📚</span>
+      <h2 class="section-header__title">Regras Opcionais & Referências</h2>
+    </div>
+    <div id="grid-regras" data-section="regra">
+      <!-- Tabelas vão ser geradas aqui -->
+    </div>
+
     <!-- EMPTY STATE -->
     <div class="empty-state" id="empty-state">
       <span class="empty-state__icon">刀</span>
@@ -761,6 +829,11 @@
     const GEAR_TAG_MAP = {
       'ninja': { css: 'ninja', label: '🥷 Ninja' },
       'oculto': { css: 'oculto', label: '✦ Ocultismo' },
+      'viagem': { css: 'viagem', label: '🎒 Viagem' },
+      'medicina': { css: 'medicina', label: '💊 Medicina' },
+      'cultura': { css: 'cultura', label: '🎭 Cultura' },
+      'montaria': { css: 'montaria', label: '🐎 Montaria' },
+      'alquimia': { css: 'alquimia', label: '🧪 Alquimia' },
       'mundano': { css: 'mundano', label: '📦 Geral' }
     };
 
@@ -799,6 +872,8 @@
     <div class="item-card__meta">
       <span>Alc: ${w.alcance}</span>
       <span>ST: ${w.forca}</span>
+      <span>${w.peso}</span>
+      <span style="color:var(--gold)">${w.custo}</span>
     </div>
     ${w.notas ? `<div class="item-card__notes">▸ ${w.notas}</div>` : ''}
   </div>`;
@@ -816,6 +891,7 @@
     </div>
     <div class="item-card__meta">
       <span>Local: ${a.local}</span>
+      <span style="color:var(--gold)">${a.custo}</span>
     </div>
     ${a.notas ? `<div class="item-card__notes">▸ ${a.notas}</div>` : ''}
   </div>`;
@@ -832,16 +908,54 @@
       <span class="stat-badge stat-badge--efeito"><span class="stat-badge__value">${g.efeito}</span></span>
     </div>
     <div class="item-card__meta">
-      <span>Alcance: ${g.alcance}</span>
+      <span>Alcance: ${g.alcance || '-'}</span>
+      <span>${g.peso || '-'}</span>
+      <span style="color:var(--gold)">${g.custo || '-'}</span>
     </div>
     ${g.notas ? `<div class="item-card__notes">▸ ${g.notas}</div>` : ''}
   </div>`;
+    }
+
+    function renderRules() {
+      let html = '';
+
+      // Tabela de Qualidade de Armas
+      html += `<div class="budo-section"><div class="budo-section__title">⚔️ Qualidade das Armas</div>
+      <div class="reference-table-wrap"><table class="reference-table">
+        <thead><tr><th>Qualidade</th><th>Custo</th><th>Efeito no Combate</th><th>Notas</th></tr></thead>
+        <tbody>${qualityWeaponDB.map(r => `<tr><td>${r.nome}</td><td>${r.custo}</td><td>${r.efeito}</td><td>${r.notas}</td></tr>`).join('')}</tbody>
+      </table></div></div>`;
+
+      // Tabela de Qualidade de Armaduras
+      html += `<div class="budo-section"><div class="budo-section__title">🛡 Qualidade das Armaduras</div>
+      <div class="reference-table-wrap"><table class="reference-table">
+        <thead><tr><th>Qualidade</th><th>Custo</th><th>Efeito na Proteção</th><th>Notas</th></tr></thead>
+        <tbody>${qualityArmorDB.map(r => `<tr><td>${r.nome}</td><td>${r.custo}</td><td>${r.efeito}</td><td>${r.notas}</td></tr>`).join('')}</tbody>
+      </table></div></div>`;
+
+      // Tabela de Materiais Especiais
+      html += `<div class="budo-section"><div class="budo-section__title">💎 Materiais Especiais</div>
+      <div class="reference-table-wrap"><table class="reference-table">
+        <thead><tr><th>Material</th><th>Afeta Quem?</th><th>Efeito Mecânico (GURPS)</th></tr></thead>
+        <tbody>${materialDB.map(r => `<tr><td>${r.nome}</td><td>${r.afeta}</td><td>${r.efeito}</td></tr>`).join('')}</tbody>
+      </table></div></div>`;
+
+      // Regra Opcional de Slots
+      html += `<div class="budo-section"><div class="budo-section__title">⚖️ Regra Opcional: Carga por Slots</div>
+      <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">Capacidade = ST. 1 kg = 1 Slot. Itens agrupáveis ocupam espaço reduzido.</div>
+      <div class="reference-table-wrap"><table class="reference-table">
+        <thead><tr><th>Nível de Carga</th><th>Limite de Slots</th><th>Movimento</th><th>Esquiva</th></tr></thead>
+        <tbody>${slotRuleDB.map(r => `<tr><td>${r.nivel}</td><td>${r.limites}</td><td>${r.movimento}</td><td><span class="stat-badge" style="border-color:rgba(239, 68, 68, 0.4);"><span class="stat-badge__value" style="color:var(--red-failure);">${r.esquiva}</span></span></td></tr>`).join('')}</tbody>
+      </table></div></div>`;
+
+      document.getElementById('grid-regras').innerHTML = html;
     }
 
     function renderAll() {
       document.getElementById('grid-armas').innerHTML = weaponsDB.map(renderWeaponCard).join('');
       document.getElementById('grid-armaduras').innerHTML = armorDB.map(renderArmorCard).join('');
       document.getElementById('grid-equipamentos').innerHTML = gearDB.map(renderGearCard).join('');
+      renderRules();
       updateCounts();
     }
 
@@ -875,22 +989,30 @@
       });
 
       const total = visibleArmas + visibleArmaduras + visibleEquip;
+      const showsRegras = (activeFilter === 'todos' || activeFilter === 'regra') && !query;
 
       // Section visibility
       toggleSection('section-armas', 'grid-armas', visibleArmas);
       toggleSection('section-armaduras', 'grid-armaduras', visibleArmaduras);
       toggleSection('section-equipamentos', 'grid-equipamentos', visibleEquip);
+      
+      const secRegras = document.getElementById('section-regras');
+      const gridRegras = document.getElementById('grid-regras');
+      secRegras.style.display = showsRegras ? '' : 'none';
+      gridRegras.style.display = showsRegras ? '' : 'none';
 
       // Counter
       const counter = document.getElementById('filter-counter');
       if (activeFilter === 'todos' && !query) {
         counter.textContent = `${weaponsDB.length + armorDB.length + gearDB.length} itens`;
+      } else if (activeFilter === 'regra') {
+        counter.textContent = `4 tabelas de regras`;
       } else {
         counter.textContent = `${total} resultado${total !== 1 ? 's' : ''}`;
       }
 
       // Empty state
-      document.getElementById('empty-state').classList.toggle('visible', total === 0);
+      document.getElementById('empty-state').classList.toggle('visible', total === 0 && !showsRegras);
 
       // Clear button
       document.getElementById('search-clear').classList.toggle('visible', query.length > 0);
@@ -957,6 +1079,7 @@
     renderAll();
   </script>
 
+  <script src="js/merchant-logic.js"></script>
 </body>
 
 </html>
