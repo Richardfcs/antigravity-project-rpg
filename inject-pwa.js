@@ -20,6 +20,18 @@ const pwaTags = `
   <link rel="icon" type="image/png" href="icons/app-icon-192.png">
 `;
 
+const pwaScript = `
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('🛡️ PWA: Service Worker registrado com sucesso!'))
+          .catch(err => console.error('❌ PWA: Erro ao registrar Service Worker:', err));
+      });
+    }
+  </script>
+`;
+
 targetFiles.forEach(file => {
   const filePath = path.join(__dirname, file);
   if (!fs.existsSync(filePath)) {
@@ -54,6 +66,16 @@ targetFiles.forEach(file => {
     console.log(`✔ PWA Tags injetadas em ${file}`);
   } else {
     console.warn(`Tag </head> não encontrada em ${file}`);
+  }
+
+  // Se não tem o script de registro, insere antes de </body>
+  if (!content.includes('navigator.serviceWorker.register')) {
+    const bodyClosingIndex = content.lastIndexOf('</body>');
+    if (bodyClosingIndex !== -1) {
+      content = content.slice(0, bodyClosingIndex) + pwaScript + content.slice(bodyClosingIndex);
+      fs.writeFileSync(filePath, content, 'utf8');
+      console.log(`✔ SW Script injetado em ${file}`);
+    }
   }
 });
 

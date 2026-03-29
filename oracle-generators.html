@@ -816,6 +816,11 @@
   <meta name="theme-color" content="#0A0A0A">
   <link rel="apple-touch-icon" href="icons/app-icon-192.png">
   <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+  <!-- PWA METATAGS -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0A0A0A">
+  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
+  <link rel="icon" type="image/png" href="icons/app-icon-192.png">
 </head>
 <body>
 
@@ -1621,5 +1626,14 @@ document.getElementById('btn-limpar-historico').addEventListener('click', clearH
 renderHistory();
 </script>
 <script src="js/tactical-map.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('🛡️ PWA: Service Worker registrado com sucesso!'))
+          .catch(err => console.error('❌ PWA: Erro ao registrar Service Worker:', err));
+      });
+    }
+  </script>
 </body>
 </html>

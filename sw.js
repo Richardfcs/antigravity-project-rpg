@@ -27,7 +27,10 @@ const ASSETS = [
   './js/merchant-logic.js',
   './manifest.json',
   './icons/app-icon-192.png',
-  './icons/app-icon-512.png'
+  './icons/app-icon-512.png',
+  './Maps/Kamamura.png',
+  './Maps/Mapa Macro.png',
+  './Maps/Região Chugoku.png'
 ];
 
 // INSTALL: Cache current assets
@@ -35,8 +38,11 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('🛡️ Daimyo Shield: Pre-caching assets for offline use...');
-        return cache.addAll(ASSETS);
+        console.log('🛡️ Daimyo Shield: Pre-caching core assets for offline use...');
+        // Using map to return all promises and ensure we cache what we can
+        return Promise.allSettled(
+          ASSETS.map(url => cache.add(url).catch(err => console.warn(`Failed to cache: ${url}`, err)))
+        );
       })
       .then(() => self.skipWaiting())
   );
