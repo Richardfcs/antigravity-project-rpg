@@ -3,12 +3,10 @@
   "short_name": "Daimyo",
   "description": "Ferramenta de Mestre para A Era das Espadas Quebradas GURPS 4e",
   "start_url": "/antigravity-project-rpg/index.html",
-  "scope": "./",
   "display": "standalone",
   "background_color": "#0A0A0A",
   "theme_color": "#0A0A0A",
   "lang": "pt-BR",
-  "dir": "ltr",
   "orientation": "any",
   "version": "1.0.0",
   "categories": [
@@ -35,28 +33,48 @@
       "short_name": "Combate",
       "description": "Abra o calculador de combate diretamente",
       "url": "./combat-calculator.html",
-      "icons": [{ "src": "icons/app-icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "icons/app-icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Biblioteca de Regras",
       "short_name": "Biblioteca",
       "description": "Acesso rápido à biblioteca GURPS",
       "url": "./library.html",
-      "icons": [{ "src": "icons/app-icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "icons/app-icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Geradores & Oráculos",
       "short_name": "Oráculo",
       "description": "Gere NPCs e eventos instantaneamente",
       "url": "./oracle-generators.html",
-      "icons": [{ "src": "icons/app-icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "icons/app-icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Ficha de Personagem",
       "short_name": "Ficha",
       "description": "Gerencie seus personagens Daimyo",
       "url": "./characters-sheet.html",
-      "icons": [{ "src": "icons/app-icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "icons/app-icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
