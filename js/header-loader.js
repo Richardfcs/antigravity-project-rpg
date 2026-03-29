@@ -7,6 +7,18 @@
       border-bottom: 1px solid var(--border-panel);
       z-index: 1000;
     }
+
+    /* === A DANÇA DAS LÂMINAS (View Transitions) === */
+    @view-transition { navigation: auto; }
+
+    ::view-transition-old(root) {
+      animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
+    }
+    ::view-transition-new(root) {
+      animation: 400ms cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
+    }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(5px); } }
+    @keyframes fade-out { to { opacity: 0; transform: translateY(-5px); } }
     
     .new-header {
       display: flex;
@@ -150,6 +162,13 @@
       border-left: 3px solid var(--gold);
     }
     
+    /* === GLOBAL SCROLLBAR === */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 20px; border: 3px solid var(--bg-deep); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+    * { scrollbar-width: thin; scrollbar-color: var(--gold) var(--bg-deep); }
+    
     /* === THEME DRAWER === */
     .theme-drawer {
       position: fixed;
@@ -180,12 +199,31 @@
     .theme-preview { display: flex; gap: 4px; }
     .theme-color { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); }
     
-    /* LIGHT THEME OVERRIDES */
+    /* LIGHT THEME OVERRIDES (Washi) */
     html[data-theme="light"] {
-      --bg-deep: #F2F2EB; --bg-panel: #FFFFFF; --bg-card: #FAF9F5; --bg-input: #FDFDFB;
-      --border-panel: #D1D5DB; --border-input: #E5E7EB; --border-focus: #C41E3A;
-      --text-primary: #1A1A1A; --text-secondary: #4B5563; --text-muted: #6B7280;
-      --red-blood: #8B0000; --red-accent: #C41E3A; --gold: #B8860B;
+      --bg-deep: #F8F9FA; --bg-panel: #FFFFFF; --bg-card: #FFFFFF; --bg-input: #F8F9FA;
+      --border-panel: #E2E8F0; --border-input: #CBD5E1; --border-focus: #C41E3A;
+      --text-primary: #1E293B; --text-secondary: #475569; --text-muted: #64748B;
+      --red-blood: #991B1B; --red-accent: #B91C1C; --gold: #A16207;
+      --red-glow: rgba(185, 28, 28, 0.15);
+    }
+    
+    /* SAKURA THEME (Pastel Suave) */
+    html[data-theme="sakura"] {
+      --bg-deep: #FFF7F9; --bg-panel: #FDF2F4; --bg-card: #FFFFFF; --bg-input: #FFFFFF;
+      --border-panel: #FADADD; --border-input: #FFD1DC; --border-focus: #E91E63;
+      --text-primary: #5D4037; --text-secondary: #8D6E63; --text-muted: #BCAAA4;
+      --red-blood: #C2185B; --red-accent: #E91E63; --gold: #FFB7C5;
+      --red-glow: rgba(233, 30, 99, 0.2);
+    }
+
+    /* STONE THEME (Cinza Azulado) */
+    html[data-theme="stone"] {
+      --bg-deep: #0F172A; --bg-panel: #1E293B; --bg-card: #334155; --bg-input: #0F172A;
+      --border-panel: #475569; --border-input: #64748B; --border-focus: #38BDF8;
+      --text-primary: #F8FAFC; --text-secondary: #94A3B8; --text-muted: #64748B;
+      --red-blood: #0EA5E9; --red-accent: #38BDF8; --gold: #94A3B8;
+      --red-glow: rgba(56, 189, 248, 0.2);
     }
     
     /* NEON THEMES */
@@ -243,12 +281,12 @@
   // Define Links Mapping
   const pages = [
     { url: 'index.html', icon: '⚔', label: 'Combate' },
-    { url: 'time-management.html', icon: '⏱', label: 'Tempo' },
-    { url: 'oracle-generators.html', icon: '🔮', label: 'Oráculo' },
+    { url: 'kegare-panico.html', icon: '🧠', label: 'Sanidade' },
+    { url: 'combat-calculator.html', icon: '🎲', label: 'Dano' },
     { url: 'equipment-database.html', icon: '📦', label: 'Arsenal' },
     { url: 'library.html', icon: '📚', label: 'Biblioteca' },
-    { url: 'combat-calculator.html', icon: '🎲', label: 'Dano Extra' },
-    { url: 'kegare-panico.html', icon: '🧠', label: 'Sanidade' }
+    { url: 'time-management.html', icon: '⏱', label: 'Tempo' },
+    { url: 'oracle-generators.html', icon: '🔮', label: 'Oráculo' }
   ];
 
   const currentPage = window.location.pathname.split('/').pop() || 'index.html';
@@ -281,6 +319,9 @@
           ` : ''}
           ${currentPage === 'oracle-generators.html' ? `
           <button class="btn btn-ghost" onclick="window.toggleTacticalMap && window.toggleTacticalMap()" title="Mesa Tática" style="min-height:44px; padding:0 15px; color: var(--gold); border: 1px solid rgba(212, 168, 70, 0.3);">🗺 Mapa de Guerra</button>
+          ` : ''}
+          ${currentPage === 'time-management.html' ? `
+          <button class="btn btn-ghost" onclick="window.DataManager && window.DataManager.open()" title="Gerenciamento de Dados" style="min-height:44px; padding:0 15px; color: var(--gold); border: 1px solid rgba(212, 168, 70, 0.3);">⚙️ Dados</button>
           ` : ''}
         </div>
       </div>
@@ -317,8 +358,14 @@
             <a href="characters-sheet.html" onclick="window.closeMobileNav()">📜 Fichas de Personagem</a>
             <button onclick="window.closeMobileNav(); window.toggleCharacterDrawer && window.toggleCharacterDrawer()">👥 Lista de Personagens</button>
             ` : ''}
+            ${currentPage === 'kegare-panico.html' ? `
+            <button onclick="window.closeMobileNav(); toggleFrightDrawer()">🎲 Teste de Pânico</button>
+            ` : ''}
             ${currentPage === 'oracle-generators.html' ? `
             <button onclick="window.closeMobileNav(); window.toggleTacticalMap && window.toggleTacticalMap()" style="color: var(--gold);">🗺 Mesa Tática de Guerra</button>
+            ` : ''}
+            ${currentPage === 'time-management.html' ? `
+            <button onclick="window.closeMobileNav(); window.DataManager && window.DataManager.open()" style="color: var(--gold);">⚙️ Gerenciamento de Dados</button>
             ` : ''}
           </div>
           <div class="mobile-drawer__section">Sistema ⚔️</div>
@@ -360,6 +407,14 @@
           <div class="theme-option" onclick="ThemeManager.apply('light')">
             <div class="theme-name" style="font-size:0.8rem;">Washi (Claro)</div>
             <div class="theme-preview"><div class="theme-color" style="background:#F2F2EB"></div><div class="theme-color" style="background:#8B0000"></div></div>
+          </div>
+          <div class="theme-option" onclick="ThemeManager.apply('sakura')">
+            <div class="theme-name" style="font-size:0.8rem;">Sakura (Pastel)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#FADADD"></div><div class="theme-color" style="background:#D81B60"></div></div>
+          </div>
+          <div class="theme-option" onclick="ThemeManager.apply('stone')">
+            <div class="theme-name" style="font-size:0.8rem;">Stone (Azulado)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#1E293B"></div><div class="theme-color" style="background:#38BDF8"></div></div>
           </div>
         </div>
 
@@ -485,23 +540,7 @@
   style.innerHTML = css;
   document.head.appendChild(style);
 
-  // Inject Scripts
-  const dbScript = document.createElement('script');
-  dbScript.src = 'js/daimyo-db.js';
-  dbScript.onload = () => {
-    window.DaimyoDB.init().then(() => {
-      window.DaimyoDB.migrateFromLocalStorage();
-    });
-  };
-  document.head.appendChild(dbScript);
-
-  const themeScript = document.createElement('script');
-  themeScript.src = 'js/theme-manager.js';
-  document.head.appendChild(themeScript);
-
-  const sealScript = document.createElement('script');
-  sealScript.src = 'js/daimyo-seal.js';
-  document.head.appendChild(sealScript);
+  // Script injection logic removed. Moved to explicit declaraction in HTML for better reliability.
 
   const headerHtml = `
     <header class="new-header">
@@ -517,7 +556,18 @@
     ${renderFrightDrawer()}
   `;
 
-  document.write('<div id="daimyo-header-mount"></div>');
+  function injectMount() {
+    if (document.getElementById('daimyo-header-mount')) return;
+    const mount = document.createElement('div');
+    mount.id = 'daimyo-header-mount';
+    document.body.prepend(mount);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectMount);
+  } else {
+    injectMount();
+  }
   
   document.addEventListener('DOMContentLoaded', () => {
     const mount = document.getElementById('daimyo-header-mount');
@@ -550,9 +600,9 @@
       if(btnRes) btnRes.addEventListener('click', () => ThemeManager.setFontSize(100));
 
       // KEGARE & FRIGHT LOGIC
-      window.setGlobalKegare = function(lv) {
+      window.setGlobalKegare = async function(lv) {
         if (!window.KegareManager) return;
-        const newLv = KegareManager.setLevel(lv);
+        const newLv = await KegareManager.setLevel(lv);
         window.updateKegareUI();
       };
 
@@ -584,7 +634,7 @@
 
       window.toggleFrightDrawer = function() {
         const drawer = document.getElementById('fright-drawer');
-        drawer.classList.toggle('open');
+        if (drawer) drawer.classList.toggle('open');
       };
 
       window.executeFrightCheck = function() {
@@ -597,32 +647,40 @@
         
         // Roll 1
         const roll1El = document.getElementById('fright-roll-1');
-        roll1El.innerHTML = result.roll1.dice.map(d => `<div class="dice-icon">${d}</div>`).join('') + 
-          `<span style="margin-left:10px; font-weight:900;">= ${result.roll1.total}</span>`;
+        if (roll1El) {
+          roll1El.innerHTML = result.roll1.dice.map(d => `<div class="dice-icon">${d}</div>`).join('') + 
+            `<span style="margin-left:10px; font-weight:900;">= ${result.roll1.total}</span>`;
+        }
         
         const verdictEl = document.getElementById('fright-verdict-text');
         const mofEl = document.getElementById('fright-mof-info');
         const tableSection = document.getElementById('fright-table-section');
         
         if (result.success) {
-            verdictEl.textContent = '✅ SUCESSO';
-            verdictEl.style.color = '#22c55e';
-            mofEl.textContent = `Vontade ${result.will} + Mod ${result.monsterMod} + Mácula ${result.kegareMod >= 0 ? '+' : ''}${result.kegareMod} = Alvo ${result.target}`;
-            tableSection.style.display = 'none';
+            if (verdictEl) {
+                verdictEl.textContent = '✅ SUCESSO';
+                verdictEl.style.color = '#22c55e';
+            }
+            if (mofEl) mofEl.textContent = `Vontade ${result.will} + Mod ${result.monsterMod} + Mácula ${result.kegareMod >= 0 ? '+' : ''}${result.kegareMod} = Alvo ${result.target}`;
+            if (tableSection) tableSection.style.display = 'none';
         } else {
-            verdictEl.textContent = '❌ FALHA';
-            verdictEl.style.color = '#c41e3a';
-            mofEl.textContent = `Alvo ${result.target} | Margem de Falha: ${result.mof}`;
-            tableSection.style.display = 'block';
+            if (verdictEl) {
+                verdictEl.textContent = '❌ FALHA';
+                verdictEl.style.color = '#c41e3a';
+            }
+            if (mofEl) mofEl.textContent = `Alvo ${result.target} | Margem de Falha: ${result.mof}`;
+            if (tableSection) tableSection.style.display = 'block';
             
             // Roll 2
             const roll2El = document.getElementById('fright-roll-2');
-            roll2El.innerHTML = `<span style="font-size:0.7rem; color:var(--text-muted); margin-right:5px;">3d6 + MoF + Mácula:</span>` +
-              result.roll2.dice.map(d => `<div class="dice-icon" style="width:24px; height:24px; font-size:0.8rem;">${d}</div>`).join('') +
-              `<span style="margin-left:5px; font-weight:900;">+ ${result.mof} + ${result.kegareLevel} = ${result.finalScore}</span>`;
+            if (roll2El) {
+                roll2El.innerHTML = `<span style="font-size:0.7rem; color:var(--text-muted); margin-right:5px;">3d6 + MoF + Mácula:</span>` +
+                  result.roll2.dice.map(d => `<div class="dice-icon" style="width:24px; height:24px; font-size:0.8rem;">${d}</div>`).join('') +
+                  `<span style="margin-left:5px; font-weight:900;">+ ${result.mof} + ${result.kegareLevel} = ${result.finalScore}</span>`;
+            }
             
             const effectEl = document.getElementById('fright-table-effect');
-            effectEl.innerHTML = `<strong>${result.tableResult.label}</strong>: ${result.tableResult.desc}`;
+            if (effectEl) effectEl.innerHTML = `<strong>${result.tableResult.label}</strong>: ${result.tableResult.desc}`;
         }
       };
 
@@ -648,5 +706,92 @@
         .catch(err => console.warn('PWA Error:', err));
     });
   }
+
+  /* === WAKE LOCK MANAGER (A TOCHA INEXTINGUÍVEL) === */
+  window.WakeLockManager = (function() {
+    let wakeLock = null;
+    const STORAGE_KEY = 'daimyo-wake-lock-active';
+
+    const isSupported = () => 'wakeLock' in navigator;
+
+    const updateUI = () => {
+      const active = localStorage.getItem(STORAGE_KEY) === 'true';
+      
+      // Notificação para outros componentes (como o DataManager)
+      window.dispatchEvent(new CustomEvent('wakeLockStateChanged', { detail: { active } }));
+    };
+
+    const request = async (silent = false) => {
+      if (!isSupported()) return false;
+      try {
+        if (wakeLock) await wakeLock.release();
+        wakeLock = await navigator.wakeLock.request('screen');
+        if (!silent) console.log('⛩️ Tocha Inextinguível: Acesa.');
+        updateUI();
+        return true;
+      } catch (err) {
+        console.error('⛩️ Tocha: Erro ao solicitar lock:', err);
+        return false;
+      }
+    };
+
+    const release = async () => {
+      if (wakeLock) {
+        await wakeLock.release();
+        wakeLock = null;
+      }
+      console.log('⛩️ Tocha Inextinguível: Apagada.');
+      updateUI();
+    };
+
+    const toggle = async () => {
+      const active = localStorage.getItem(STORAGE_KEY) === 'true';
+      const newState = !active;
+      localStorage.setItem(STORAGE_KEY, newState);
+      
+      if (newState) {
+        await request();
+      } else {
+        await release();
+      }
+      return newState;
+    };
+
+    const init = async () => {
+      if (!isSupported()) return;
+      
+      // Auto-ativa se estava ligado na sessão anterior
+      if (localStorage.getItem(STORAGE_KEY) === 'true') {
+        await request(true);
+      }
+      
+      // Re-ativa ao voltar para a aba
+      document.addEventListener('visibilitychange', async () => {
+        if (localStorage.getItem(STORAGE_KEY) === 'true' && document.visibilityState === 'visible') {
+          await request(true);
+        }
+      });
+
+      updateUI();
+    };
+
+    return { init, toggle, isActive: () => localStorage.getItem(STORAGE_KEY) === 'true' };
+  })();
+
+  // Inicialização Automática
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => window.WakeLockManager.init());
+  } else {
+    window.WakeLockManager.init();
+  }
+
+  // --- SILENCIADOR DE ERROS (View Transitions) ---
+  // Captura o AbortError disparado pelo navegador quando uma transição MPA é interrompida.
+  window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason && event.reason.name === 'AbortError' && (event.reason.message.includes('Transition') || event.reason.message.includes('skipped'))) {
+      event.preventDefault(); // Silencia o erro no console
+      console.warn('✨ Transição suavizada: O navegador decidiu pular a animação (comum em navegações rápidas).');
+    }
+  });
 
 })();

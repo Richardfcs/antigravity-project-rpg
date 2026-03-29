@@ -671,8 +671,8 @@
       }
 
       .search-area {
-        padding: 14px 16px 10px;
-        top: 80px;
+        top: 56px;
+        padding: 10px 16px;
       }
 
       .search-bar__input {
@@ -680,10 +680,6 @@
         font-size: 1rem;
       }
 
-      .search-area {
-        top: 56px;
-        padding: 10px 16px;
-      }
 
       .content {
         padding: 12px 16px 32px;
@@ -732,25 +728,35 @@
   </style>
 
 
-  <!-- PWA METATAGS -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0A0A0A">
-  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
   <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+  
+  <!-- CORE INFRASTRUCTURE (Explicit Loading) -->
+  <script src="js/daimyo-db.js"></script>
+  <script src="js/theme-manager.js"></script>
+  <script src="js/log-manager.js"></script>
+  <script src="js/daimyo-seal.js"></script>
+  <script src="js/header-loader.js"></script>
+  <script>
+    if (window.DaimyoDB) {
+      window.DaimyoDB.init().then(() => {
+        window.DaimyoDB.migrateFromLocalStorage();
+        console.log("⛩️ Porta do Daimyo: Banco de dados e migrações ativos.");
+      }).catch(err => console.error("Falha na inicialização do Cofre:", err));
+    }
+  </script>
 </head>
 
 <body>
 
   <!-- ════════ HEADER + TAB NAV ════════ -->
   <div id="daimyo-header"></div>
-  <script src="js/header-loader.js"></script>
 
   <!-- ════════ SEARCH + FILTERS ════════ -->
   <div class="search-area">
     <div class="search-bar">
       <span class="search-bar__icon">🔍</span>
       <input type="text" class="search-bar__input" id="search-input" placeholder="Buscar Katana, Ofuda, O-Yoroi..."
-        autofocus autocomplete="off">
+        aria-label="Buscar equipamentos e armas" autofocus autocomplete="off">
       <button class="search-bar__clear" id="search-clear" title="Limpar busca">✕</button>
     </div>
     <div class="filter-row">
@@ -923,21 +929,21 @@
       html += `<div class="budo-section"><div class="budo-section__title">⚔️ Qualidade das Armas</div>
       <div class="reference-table-wrap"><table class="reference-table">
         <thead><tr><th>Qualidade</th><th>Custo</th><th>Efeito no Combate</th><th>Notas</th></tr></thead>
-        <tbody>${qualityWeaponDB.map(r => `<tr><td>${r.nome}</td><td>${r.custo}</td><td>${r.efeito}</td><td>${r.notas}</td></tr>`).join('')}</tbody>
+        <tbody>${(window.qualityWeaponDB || []).map(r => `<tr><td>${r.nome}</td><td>${r.custo}</td><td>${r.efeito}</td><td>${r.notas}</td></tr>`).join('')}</tbody>
       </table></div></div>`;
 
       // Tabela de Qualidade de Armaduras
       html += `<div class="budo-section"><div class="budo-section__title">🛡 Qualidade das Armaduras</div>
       <div class="reference-table-wrap"><table class="reference-table">
         <thead><tr><th>Qualidade</th><th>Custo</th><th>Efeito na Proteção</th><th>Notas</th></tr></thead>
-        <tbody>${qualityArmorDB.map(r => `<tr><td>${r.nome}</td><td>${r.custo}</td><td>${r.efeito}</td><td>${r.notas}</td></tr>`).join('')}</tbody>
+        <tbody>${(window.qualityArmorDB || []).map(r => `<tr><td>${r.nome}</td><td>${r.custo}</td><td>${r.efeito}</td><td>${r.notas}</td></tr>`).join('')}</tbody>
       </table></div></div>`;
 
       // Tabela de Materiais Especiais
       html += `<div class="budo-section"><div class="budo-section__title">💎 Materiais Especiais</div>
       <div class="reference-table-wrap"><table class="reference-table">
         <thead><tr><th>Material</th><th>Afeta Quem?</th><th>Efeito Mecânico (GURPS)</th></tr></thead>
-        <tbody>${materialDB.map(r => `<tr><td>${r.nome}</td><td>${r.afeta}</td><td>${r.efeito}</td></tr>`).join('')}</tbody>
+        <tbody>${(window.materialDB || []).map(r => `<tr><td>${r.nome}</td><td>${r.afeta}</td><td>${r.efeito}</td></tr>`).join('')}</tbody>
       </table></div></div>`;
 
       // Regra Opcional de Slots
@@ -945,7 +951,7 @@
       <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">Capacidade = ST. 1 kg = 1 Slot. Itens agrupáveis ocupam espaço reduzido.</div>
       <div class="reference-table-wrap"><table class="reference-table">
         <thead><tr><th>Nível de Carga</th><th>Limite de Slots</th><th>Movimento</th><th>Esquiva</th></tr></thead>
-        <tbody>${slotRuleDB.map(r => `<tr><td>${r.nivel}</td><td>${r.limites}</td><td>${r.movimento}</td><td><span class="stat-badge" style="border-color:rgba(239, 68, 68, 0.4);"><span class="stat-badge__value" style="color:var(--red-failure);">${r.esquiva}</span></span></td></tr>`).join('')}</tbody>
+        <tbody>${(window.slotRuleDB || []).map(r => `<tr><td>${r.nivel}</td><td>${r.limites}</td><td>${r.movimento}</td><td><span class="stat-badge" style="border-color:rgba(239, 68, 68, 0.4);"><span class="stat-badge__value" style="color:var(--red-failure);">${r.esquiva}</span></span></td></tr>`).join('')}</tbody>
       </table></div></div>`;
 
       document.getElementById('grid-regras').innerHTML = html;

@@ -20,7 +20,7 @@ const CharacterManager = (function() {
     };
 
     const loadAll = () => {
-        return cache;
+        return JSON.parse(JSON.stringify(cache));
     };
 
     const saveAll = (chars) => {
@@ -88,7 +88,19 @@ const CharacterManager = (function() {
                 posture: 'standing'
             };
 
-            combatState.combatants.push(newCombatant);
+            // Check if already in combat to avoid duplication
+            const exists = combatState.combatants.find(c => c.name === char.name);
+            if (exists) {
+                console.log(`🛡️ CharacterManager: ${char.name} já está na Arena. Atualizando dados existentes.`);
+                // Update basic stats of existing combatant
+                exists.hpCur = char.attributes.hp; 
+                exists.hpMax = char.attributes.hp;
+                exists.st = char.attributes.st;
+                exists.dx = char.attributes.dx;
+            } else {
+                combatState.combatants.push(newCombatant);
+            }
+            
             await window.DaimyoDB.put(window.DaimyoDB.STORES.VAULT, 'combat_state', combatState);
             
             window.dispatchEvent(new CustomEvent('daimyoStateUpdated'));

@@ -1,30 +1,31 @@
 /**
  * ════════════════════════════════════════════════════════════════
- * MESA TÁTICA DE GUERRA V2 (TACTICAL WAR MAP)
- * Drag & Drop, Zoom/Pan, Árvore Semântica, e Registro de Mapa Offline
+ * MESA TÁTICA DE GUERRA V3 (TACTICAL WAR MAP)
+ * Upload de Arquivo, Hierarquia Visual, Grid de Batalha, Mobile-First
  * ════════════════════════════════════════════════════════════════
  */
 
-(function() {
+(function () {
   const STORAGE_TOKENS = 'daimyo_war_map_tokens';
   const STORAGE_TREE = 'daimyo_map_hierarchy';
-  const MAPS_FOLDER = 'Maps/';
+  const MEDIA_PREFIX = 'map_img_';
 
   // DEFAULT MAP TREE
   let defaultTree = {
-    macro: { id: "Mapa Macro.png", name: "Japão Macro" },
+    macro: { id: "mapa-macro.png", name: "Japão Macro", source: "bundled" },
     regions: [
-      { id: "Região Chugoku.png", name: "Região de Chugoku" }
+      { id: "regiao-chugoku.png", name: "Região de Chugoku", source: "bundled" }
     ],
     cities: [
-      { id: "Kamamura.png", name: "Kamamura", parentId: "Região Chugoku.png" }
-    ]
+      { id: "kamamura.png", name: "Kamamura", parentId: "regiao-chugoku.png", source: "bundled" }
+    ],
+    battles: []
   };
 
   let mapTree = null;
   let tokensState = {};
-  
   let currentMapId = "";
+  let currentMapType = "";
   let isMapOpen = false;
 
   // CAMERA STATE
@@ -34,43 +35,66 @@
   const MIN_SCALE = 0.2;
   const MAX_SCALE = 5;
 
+  // GRID STATE
+  let gridEnabled = false;
+  let gridSize = 48;
+
   // CONTEXT MENU STATE
   let contextTargetId = null;
-  const contextMenu = document.getElementById('token-context-menu');
+
+  // UPLOAD STATE
+  let uploadedFileData = null;
+  let selectedMapType = null;
 
   // DOM Elements
   const tacticalBoard = document.getElementById('tactical-board');
   const mainView = document.querySelector('.main');
   const historyView = document.getElementById('history-section');
-  
   const viewport = document.getElementById('tactical-map-viewport');
   const content = document.getElementById('tactical-map-content');
+  const emptyState = document.getElementById('map-empty-state');
+  const breadcrumb = document.getElementById('map-breadcrumb');
+  const battleGridEl = document.getElementById('battle-grid');
+  const contextMenu = document.getElementById('token-context-menu');
 
   // Controls UI
   const selLevel = document.getElementById('sel-map-level');
   const selSpecific = document.getElementById('sel-map-specific');
   const btnRegister = document.getElementById('btn-register-map');
-  
   const btnZoomIn = document.getElementById('btn-zoom-in');
   const btnZoomOut = document.getElementById('btn-zoom-out');
   const btnZoomReset = document.getElementById('btn-zoom-reset');
-
   const btnAddPlayer = document.getElementById('btn-add-player');
   const btnAddEnemy = document.getElementById('btn-add-enemy');
   const btnClearMap = document.getElementById('btn-clear-map');
+  const btnToggleGrid = document.getElementById('btn-toggle-grid');
+  const selGridSize = document.getElementById('sel-grid-size');
 
   // Modal UI
   const modalRegister = document.getElementById('modal-register-map');
-  const regLevel = document.getElementById('reg-map-level');
+  const regName = document.getElementById('reg-map-name');
+  const regFileInput = document.getElementById('reg-map-file-input');
   const regParentCont = document.getElementById('reg-map-parent-container');
   const regParent = document.getElementById('reg-map-parent');
-  const regName = document.getElementById('reg-map-name');
-  const regFile = document.getElementById('reg-map-file');
   const btnRegCancel = document.getElementById('btn-reg-cancel');
+  const btnRegCancelBottom = document.getElementById('btn-reg-cancel-bottom');
   const btnRegSave = document.getElementById('btn-reg-save');
+  const uploadZone = document.getElementById('upload-zone');
+  const uploadZoneContent = document.getElementById('upload-zone-content');
+  const uploadZonePreview = document.getElementById('upload-zone-preview');
+  const uploadPreviewImg = document.getElementById('upload-preview-img');
+  const uploadFilename = document.getElementById('upload-filename');
+  const btnRemoveUpload = document.getElementById('btn-remove-upload');
+  const mapTypeCards = document.getElementById('map-type-cards');
+  const battleGridOptions = document.getElementById('battle-grid-options');
+  const regHasGrid = document.getElementById('reg-has-grid');
+  const regGridSize = document.getElementById('reg-grid-size');
+  const gridSizeRow = document.getElementById('grid-size-row');
+  const labelNameStep = document.getElementById('label-name-step');
+  const labelFileStep = document.getElementById('label-file-step');
 
   // DRAG STATE
-  let dragMode = null; // 'token' or 'camera'
+  let dragMode = null;
   let activeToken = null;
   let startClientX = 0, startClientY = 0;
   let startCamX = 0, startCamY = 0;
@@ -83,24 +107,26 @@
     setupCameraEvents();
     setupContextMenu();
     setupModal();
+    setupUploadZone();
     updateSelectors();
 
-    // Fechar menu de contexto ao clicar fora
+    document.removeEventListener('click', hideContextMenu);
+    viewport.removeEventListener('wheel', hideContextMenu);
     document.addEventListener('click', hideContextMenu);
     viewport.addEventListener('wheel', hideContextMenu);
   }
 
-  // ── COFRE INFINITO / DATA MANAGER ──
+  // ── DATA MANAGER ──
   async function loadData() {
-    // Wait for Vault
     while (!window.DaimyoDB) {
       await new Promise(r => setTimeout(r, 100));
     }
 
     try {
       const savedTree = await window.DaimyoDB.get(window.DaimyoDB.STORES.MAP_STATE, 'hierarchy');
-      mapTree = savedTree ? savedTree : JSON.parse(JSON.stringify(defaultTree));
-      if(!mapTree || !mapTree.macro) mapTree = JSON.parse(JSON.stringify(defaultTree));
+      mapTree = savedTree ? JSON.parse(JSON.stringify(savedTree)) : JSON.parse(JSON.stringify(defaultTree));
+      if (!mapTree.battles) mapTree.battles = [];
+      if (!mapTree || !mapTree.macro) mapTree = JSON.parse(JSON.stringify(defaultTree));
     } catch { mapTree = JSON.parse(JSON.stringify(defaultTree)); }
 
     try {
@@ -115,6 +141,21 @@
     await window.DaimyoDB.put(window.DaimyoDB.STORES.MAP_STATE, 'tokens', tokensState);
   }
 
+  async function saveMapImage(mapId, dataUrl) {
+    if (!window.DaimyoDB) return;
+    await window.DaimyoDB.put(window.DaimyoDB.STORES.MEDIA, MEDIA_PREFIX + mapId, dataUrl);
+  }
+
+  async function getMapImage(mapId) {
+    if (!window.DaimyoDB) return null;
+    return await window.DaimyoDB.get(window.DaimyoDB.STORES.MEDIA, MEDIA_PREFIX + mapId);
+  }
+
+  async function removeMapImage(mapId) {
+    if (!window.DaimyoDB) return;
+    await window.DaimyoDB.remove(window.DaimyoDB.STORES.MEDIA, MEDIA_PREFIX + mapId);
+  }
+
   // ── UI / TREE SELECTORS ──
   function setupControls() {
     selLevel.addEventListener('change', updateSelectors);
@@ -124,51 +165,82 @@
     });
 
     btnAddPlayer.addEventListener('click', () => {
-      const name = prompt('Nome do Grupo/Aliado (Opcional):', 'Grupo');
+      if (!currentMapId) return;
+      const name = prompt('Nome do Grupo/Aliado:', 'Grupo');
       if (name !== null) addToken('player', name);
     });
 
     btnAddEnemy.addEventListener('click', () => {
-      const name = prompt('Nome do Inimigo/Bando (Opcional):', 'Inimigo');
+      if (!currentMapId) return;
+      const name = prompt('Nome do Inimigo/Bando:', 'Inimigo');
       if (name !== null) addToken('enemy', name);
     });
 
     btnClearMap.addEventListener('click', () => {
       if (!currentMapId) return;
-      if (confirm(`Tem certeza que deseja limpar TODOS os pinos do mapa aberto?`)) {
+      if (confirm('Limpar TODOS os pinos deste mapa?')) {
         tokensState[currentMapId] = [];
         saveData();
         renderTokens();
       }
     });
+
+    // GRID
+    btnToggleGrid.addEventListener('click', () => {
+      gridEnabled = !gridEnabled;
+      selGridSize.style.display = gridEnabled ? '' : 'none';
+      btnToggleGrid.style.color = gridEnabled ? 'var(--gold)' : '';
+      renderGrid();
+    });
+
+    selGridSize.addEventListener('change', () => {
+      gridSize = parseInt(selGridSize.value);
+      renderGrid();
+    });
   }
 
   function updateSelectors() {
     const level = selLevel.value;
-    selSpecific.style.display = level === 'macro' ? 'none' : 'block';
+    selSpecific.style.display = level === 'macro' ? 'none' : '';
     selSpecific.innerHTML = '';
-    
+
     if (level === 'macro') {
       currentMapId = mapTree.macro.id;
+      currentMapType = 'macro';
       loadCurrentMap();
       return;
     }
 
-    let arr = level === 'region' ? mapTree.regions : mapTree.cities;
-    if (arr.length === 0) {
-      selSpecific.innerHTML = '<option value="">(Nenhum Cadastrado)</option>';
+    let arr;
+    if (level === 'region') {
+      arr = mapTree.regions;
+      currentMapType = 'region';
+    } else if (level === 'city') {
+      arr = mapTree.cities;
+      currentMapType = 'city';
+    } else {
+      arr = mapTree.battles;
+      currentMapType = 'battle';
+    }
+
+    if (!arr || arr.length === 0) {
+      selSpecific.innerHTML = '<option value="">(Nenhum)</option>';
       currentMapId = "";
       loadCurrentMap();
       return;
     }
 
     arr.forEach(item => {
-      let opt = document.createElement('option');
+      const opt = document.createElement('option');
       opt.value = item.id;
       let prefix = "";
       if (level === 'city' && item.parentId) {
         const parent = mapTree.regions.find(r => r.id === item.parentId);
         if (parent) prefix = `[${parent.name}] `;
+      }
+      if (level === 'battle' && item.parentId) {
+        const parentCity = mapTree.cities.find(c => c.id === item.parentId);
+        if (parentCity) prefix = `[${parentCity.name}] `;
       }
       opt.textContent = prefix + item.name;
       selSpecific.appendChild(opt);
@@ -178,31 +250,151 @@
     loadCurrentMap();
   }
 
-  function loadCurrentMap() {
+  function findMapById(id) {
+    if (mapTree.macro.id === id) return { ...mapTree.macro, type: 'macro' };
+    const region = mapTree.regions.find(r => r.id === id);
+    if (region) return { ...region, type: 'region' };
+    const city = mapTree.cities.find(c => c.id === id);
+    if (city) return { ...city, type: 'city' };
+    const battle = mapTree.battles.find(b => b.id === id);
+    if (battle) return { ...battle, type: 'battle' };
+    return null;
+  }
+
+  function getParentChain(id) {
+    const chain = [];
+    const map = findMapById(id);
+    if (!map) return chain;
+
+    chain.unshift({ name: map.name, type: map.type, id: map.id });
+
+    if (map.type === 'city' && map.parentId) {
+      const region = mapTree.regions.find(r => r.id === map.parentId);
+      if (region) chain.unshift({ name: region.name, type: 'region', id: region.id });
+    }
+
+    if (map.type === 'battle' && map.parentId) {
+      const city = mapTree.cities.find(c => c.id === map.parentId);
+      if (city) {
+        chain.unshift({ name: city.name, type: 'city', id: city.id });
+        if (city.parentId) {
+          const region = mapTree.regions.find(r => r.id === city.parentId);
+          if (region) chain.unshift({ name: region.name, type: 'region', id: region.id });
+        }
+      }
+    }
+
+    chain.unshift({ name: mapTree.macro.name, type: 'macro', id: mapTree.macro.id });
+    return chain;
+  }
+
+  function renderBreadcrumb() {
+    if (!currentMapId) {
+      breadcrumb.style.display = 'none';
+      return;
+    }
+
+    const chain = getParentChain(currentMapId);
+    if (chain.length <= 1) {
+      breadcrumb.style.display = 'none';
+      return;
+    }
+
+    breadcrumb.style.display = 'flex';
+    breadcrumb.innerHTML = '';
+
+    chain.forEach((item, i) => {
+      if (i > 0) {
+        const sep = document.createElement('span');
+        sep.className = 'map-breadcrumb__sep';
+        sep.textContent = '›';
+        breadcrumb.appendChild(sep);
+      }
+
+      const el = document.createElement('span');
+      const isLast = i === chain.length - 1;
+      el.className = 'map-breadcrumb__item' + (isLast ? ' map-breadcrumb__item--active' : '');
+      el.textContent = item.name;
+
+      if (!isLast) {
+        el.addEventListener('click', () => {
+          currentMapId = item.id;
+          const levelMap = { macro: 'macro', region: 'region', city: 'city', battle: 'battle' };
+          selLevel.value = levelMap[item.type] || 'macro';
+          updateSelectors();
+        });
+      }
+
+      breadcrumb.appendChild(el);
+    });
+  }
+
+  async function loadCurrentMap() {
     if (!currentMapId) {
       content.style.backgroundImage = 'none';
       content.innerHTML = '';
-      imgWidth = 0; imgHeight = 0;
+      emptyState.style.display = 'flex';
+      renderBreadcrumb();
+      renderGrid();
       return;
     }
-    
-    const safeUrl = (MAPS_FOLDER + currentMapId).replace(/'/g, "\\'");
-    content.style.backgroundImage = 'url("' + safeUrl + '")';
-    
-    // Reseta câmera ao trocar o mapa (Centraliza inicialmente sem travas)
-    camScale = 1;
-    // O viewport costuma ser o container pai, vamos tentar centralizar o (0,0) do content
-    // Mas sem saber o tamanho da imagem (que removemos), o melhor é deixar (0,0)
-    // ou usar o tamanho do container se ele for fixo.
-    // Como voltamos ao padrão, deixamos conforme solicitado:
-    camX = 0; camY = 0;
-    applyCamera(false);
 
+    emptyState.style.display = 'none';
+    const mapInfo = findMapById(currentMapId);
+    let imageUrl;
+
+    // Check if it's a bundled map or uploaded
+    if (mapInfo && mapInfo.source === 'uploaded') {
+      imageUrl = await getMapImage(currentMapId);
+    }
+
+    if (!imageUrl) {
+      // Fallback to bundled maps folder
+      const fullPath = 'maps/' + currentMapId;
+      imageUrl = encodeURI(fullPath).replace(/'/g, "\\'");
+      content.style.backgroundImage = 'url("' + imageUrl + '")';
+    } else {
+      content.style.backgroundImage = 'url("' + imageUrl + '")';
+    }
+
+    camScale = 1;
+    camX = 0;
+    camY = 0;
+    applyCamera(false);
     renderTokens();
+    renderBreadcrumb();
+
+    // Auto-enable grid for battle maps
+    if (mapInfo && mapInfo.type === 'battle' && mapInfo.hasGrid) {
+      gridEnabled = true;
+      gridSize = mapInfo.gridSize || 48;
+      selGridSize.value = gridSize;
+      selGridSize.style.display = '';
+      btnToggleGrid.style.color = 'var(--gold)';
+    }
+    renderGrid();
+  }
+
+  function renderGrid() {
+    if (!battleGridEl) return;
+    if (!gridEnabled || !currentMapId) {
+      battleGridEl.style.display = 'none';
+      return;
+    }
+
+    battleGridEl.style.display = 'block';
+    battleGridEl.style.backgroundImage =
+      `linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),` +
+      `linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)`;
+    battleGridEl.style.backgroundSize = `${gridSize}px ${gridSize}px`;
   }
 
   function renderTokens() {
-    content.innerHTML = ''; // Limpa pinos anteriores
+    // Preserve grid element
+    const gridEl = document.getElementById('battle-grid');
+    content.innerHTML = '';
+    if (gridEl) content.appendChild(gridEl);
+
     if (!currentMapId) return;
 
     const tokens = tokensState[currentMapId] || [];
@@ -215,93 +407,289 @@
       const shapeClass = `token-shape-${token.shape || 'circle'}`;
 
       el.className = `tactical-token ${sizeClass} ${colorClass} ${shapeClass}`;
-      el.dataset.id = token.id; // GARANTE O ID PARA O CONTEXT MENU
+      el.dataset.id = token.id;
       el.style.left = `${px}%`;
       el.style.top = `${py}%`;
 
       const init = (token.name || token.type).charAt(0).toUpperCase();
       el.textContent = init;
 
-      if(token.name) {
+      if (token.name) {
         const label = document.createElement('div');
         label.className = 'token-label';
         label.textContent = token.name;
         el.appendChild(label);
       }
 
-      // Evento de tocar no Pino (Drag)
       el.addEventListener('pointerdown', (e) => {
-        if (e.button === 2) return; 
+        if (e.button === 2) return;
         e.stopPropagation();
         hideContextMenu();
         startTokenDrag(e, el, token);
       });
 
-      // Context Menu (Right Click)
       el.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
         showContextMenu(e.clientX, e.clientY, token.id);
-      });
-      
-      el.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        // Skip alert, just delete or open context menu
       });
 
       content.appendChild(el);
     });
   }
 
-  // ── MODAL REGISTER ──
-  function setupModal() {
-    btnRegister.addEventListener('click', () => {
-      modalRegister.style.display = 'flex';
-      regName.value = '';
-      regFile.value = '';
-      updateModalFields();
+  // ── UPLOAD ZONE ──
+  function setupUploadZone() {
+    // Click to open file
+    uploadZone.addEventListener('click', (e) => {
+      if (e.target === btnRemoveUpload || e.target.closest('.upload-zone__remove')) return;
+      regFileInput.click();
     });
 
-    btnRegCancel.addEventListener('click', () => {  modalRegister.style.display = 'none'; });
-    
-    regLevel.addEventListener('change', updateModalFields);
+    // Keyboard
+    uploadZone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        regFileInput.click();
+      }
+    });
 
-    btnRegSave.addEventListener('click', () => {
-       const lvl = regLevel.value;
-       const name = regName.value.trim();
-       const file = regFile.value.trim();
-       const parentRow = regParent.value;
+    // File input change
+    regFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleFileUpload(e.target.files[0]);
+      }
+    });
 
-       if(!name || !file) return alert('Por favor, preencha o Nome e o Arquivo exato.');
+    // Drag & Drop
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('drag-over');
+    });
 
-       if (lvl === 'region') {
-         mapTree.regions.push({ id: file, name: name });
-       } else {
-         mapTree.cities.push({ id: file, name: name, parentId: parentRow });
-       }
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.classList.remove('drag-over');
+    });
 
-       saveData();
-       modalRegister.style.display = 'none';
-       updateSelectors();
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('drag-over');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFileUpload(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Remove upload
+    btnRemoveUpload.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearUpload();
     });
   }
 
+  function handleFileUpload(file) {
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione uma imagem (PNG, JPG, WebP).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Imagem muito grande. Limite de 10MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      uploadedFileData = e.target.result;
+      uploadPreviewImg.src = uploadedFileData;
+      uploadFilename.textContent = file.name;
+      uploadZoneContent.style.display = 'none';
+      uploadZonePreview.style.display = 'flex';
+      uploadZone.classList.add('has-file');
+      regFileInput.value = '';
+      validateForm();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearUpload() {
+    uploadedFileData = null;
+    uploadZoneContent.style.display = '';
+    uploadZonePreview.style.display = 'none';
+    uploadZone.classList.remove('has-file');
+    regFileInput.value = '';
+    validateForm();
+  }
+
+  // ── MODAL ──
+  function setupModal() {
+    btnRegister.addEventListener('click', openModal);
+    btnRegCancel.addEventListener('click', closeModal);
+    btnRegCancelBottom.addEventListener('click', closeModal);
+
+    // Close on overlay click
+    modalRegister.addEventListener('click', (e) => {
+      if (e.target === modalRegister) closeModal();
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modalRegister.style.display !== 'none') {
+        closeModal();
+      }
+    });
+
+    // Map type cards
+    mapTypeCards.querySelectorAll('.map-type-card').forEach(card => {
+      card.addEventListener('click', () => {
+        mapTypeCards.querySelectorAll('.map-type-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        selectedMapType = card.dataset.level;
+        updateModalFields();
+        validateForm();
+      });
+    });
+
+    // Grid checkbox
+    regHasGrid.addEventListener('change', () => {
+      gridSizeRow.style.display = regHasGrid.checked ? 'flex' : 'none';
+    });
+
+    // Parent change
+    regParent.addEventListener('change', validateForm);
+
+    // Name change
+    regName.addEventListener('input', validateForm);
+
+    // Save
+    btnRegSave.addEventListener('click', saveNewMap);
+  }
+
+  function openModal() {
+    // Reset state
+    selectedMapType = null;
+    clearUpload();
+    regName.value = '';
+    regHasGrid.checked = false;
+    gridSizeRow.style.display = 'none';
+
+    mapTypeCards.querySelectorAll('.map-type-card').forEach(c => c.classList.remove('active'));
+
+    // Hide battle option if no cities exist
+    const battleCard = mapTypeCards.querySelector('[data-level="battle"]');
+    if (battleCard) {
+      battleCard.style.display = mapTree.cities.length > 0 ? '' : 'none';
+    }
+
+    modalRegister.style.display = 'flex';
+    updateModalFields();
+    validateForm();
+  }
+
+  function closeModal() {
+    modalRegister.style.display = 'none';
+    selectedMapType = null;
+    clearUpload();
+  }
+
   function updateModalFields() {
-    if (regLevel.value === 'city') {
-      regParentCont.style.display = 'block';
+    const type = selectedMapType;
+
+    // Parent selector
+    if (type === 'city') {
+      regParentCont.style.display = '';
       regParent.innerHTML = '';
-      
-      if(mapTree.regions.length === 0) {
-        regParent.innerHTML = '<option value="">Nenhuma Região (Mundo Aberto)</option>';
+      if (mapTree.regions.length === 0) {
+        regParent.innerHTML = '<option value="">(Sem região — mundo aberto)</option>';
       } else {
         mapTree.regions.forEach(r => {
-          let o = document.createElement('option');
-          o.value = r.id; o.textContent = r.name;
+          const o = document.createElement('option');
+          o.value = r.id;
+          o.textContent = r.name;
+          regParent.appendChild(o);
+        });
+      }
+    } else if (type === 'battle') {
+      regParentCont.style.display = '';
+      regParent.innerHTML = '';
+      if (mapTree.cities.length === 0) {
+        regParent.innerHTML = '<option value="">(Nenhuma cidade cadastrada)</option>';
+      } else {
+        mapTree.cities.forEach(c => {
+          const o = document.createElement('option');
+          o.value = c.id;
+          let prefix = '';
+          if (c.parentId) {
+            const region = mapTree.regions.find(r => r.id === c.parentId);
+            if (region) prefix = `[${region.name}] `;
+          }
+          o.textContent = prefix + c.name;
           regParent.appendChild(o);
         });
       }
     } else {
       regParentCont.style.display = 'none';
+    }
+
+    // Battle grid options
+    battleGridOptions.style.display = type === 'battle' ? '' : 'none';
+
+    // Step labels
+    const hasParent = (type === 'city' && mapTree.regions.length > 0) ||
+                      (type === 'battle' && mapTree.cities.length > 0);
+    const nameStep = hasParent ? '3' : '2';
+    const fileStep = hasParent ? '4' : '3';
+    if (labelNameStep) labelNameStep.textContent = nameStep;
+    if (labelFileStep) labelFileStep.textContent = fileStep;
+  }
+
+  function validateForm() {
+    const hasName = regName.value.trim().length > 0;
+    const hasFile = !!uploadedFileData;
+    const hasType = !!selectedMapType;
+    btnRegSave.disabled = !(hasName && hasFile && hasType);
+  }
+
+  async function saveNewMap() {
+    const name = regName.value.trim();
+    const type = selectedMapType;
+
+    if (!name || !uploadedFileData || !type) return;
+
+    const mapId = 'map_' + Date.now() + '_' + name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    const entry = {
+      id: mapId,
+      name: name,
+      source: 'uploaded'
+    };
+
+    if (type === 'city') {
+      entry.parentId = regParent.value || null;
+      mapTree.cities.push(entry);
+    } else if (type === 'region') {
+      mapTree.regions.push(entry);
+    } else if (type === 'battle') {
+      entry.parentId = regParent.value || null;
+      entry.hasGrid = regHasGrid.checked;
+      entry.gridSize = parseInt(regGridSize.value) || 48;
+      mapTree.battles.push(entry);
+    }
+
+    // Save image to IndexedDB
+    await saveMapImage(mapId, uploadedFileData);
+    await saveData();
+
+    closeModal();
+
+    // Switch to the new map
+    const levelMap = { region: 'region', city: 'city', battle: 'battle' };
+    selLevel.value = levelMap[type] || 'macro';
+    updateSelectors();
+
+    // Select the newly added map
+    if (type !== 'macro') {
+      selSpecific.value = mapId;
+      currentMapId = mapId;
+      loadCurrentMap();
     }
   }
 
@@ -309,29 +697,24 @@
   function setupCameraEvents() {
     viewport.addEventListener('wheel', (e) => {
       e.preventDefault();
-      // Zoom
       const delta = e.deltaY * -0.001;
       camScale += delta;
       camScale = Math.min(Math.max(MIN_SCALE, camScale), MAX_SCALE);
       applyCamera(false);
     }, { passive: false });
 
-    // Buttons
     btnZoomIn.addEventListener('click', () => { camScale = Math.min(MAX_SCALE, camScale + 0.2); applyCamera(); });
     btnZoomOut.addEventListener('click', () => { camScale = Math.max(MIN_SCALE, camScale - 0.2); applyCamera(); });
     btnZoomReset.addEventListener('click', () => { camScale = 1; camX = 0; camY = 0; applyCamera(); });
 
-    // Pan do Viewport
     viewport.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.tactical-token')) return; // Pino lida com isso
+      if (e.target.closest('.tactical-token')) return;
       dragMode = 'camera';
       viewport.setPointerCapture(e.pointerId);
-      
       startClientX = e.clientX;
       startClientY = e.clientY;
       startCamX = camX;
       startCamY = camY;
-
       viewport.addEventListener('pointermove', onCameraMove);
       viewport.addEventListener('pointerup', onCameraEnd);
       viewport.addEventListener('pointercancel', onCameraEnd);
@@ -358,7 +741,7 @@
     content.style.transform = `translate(${camX}px, ${camY}px) scale(${camScale})`;
   }
 
-  // ── CONTEXT MENU LOGIC ──
+  // ── CONTEXT MENU ──
   function setupContextMenu() {
     if (!contextMenu) return;
 
@@ -391,17 +774,12 @@
     if (!contextMenu) return;
     contextTargetId = tokenId;
     contextMenu.style.display = 'flex';
-    
-    // Ajuste de posição para não sair da tela
     const menuW = contextMenu.offsetWidth || 150;
     const menuH = contextMenu.offsetHeight || 200;
-    
     let posX = x;
     let posY = y;
-    
     if (x + menuW > window.innerWidth) posX -= menuW;
     if (y + menuH > window.innerHeight) posY -= menuH;
-    
     contextMenu.style.left = `${posX}px`;
     contextMenu.style.top = `${posY}px`;
   }
@@ -429,12 +807,10 @@
     activeToken = tokenEl;
     activeToken.classList.add('dragging');
     activeToken.setPointerCapture(e.pointerId);
-
     startClientX = e.clientX;
     startClientY = e.clientY;
     startTokenLeft = parseFloat(tokenEl.style.left) || 50;
     startTokenTop = parseFloat(tokenEl.style.top) || 50;
-
     activeToken.addEventListener('pointermove', onTokenMove);
     activeToken.addEventListener('pointerup', onTokenEnd);
     activeToken.addEventListener('pointercancel', onTokenEnd);
@@ -442,25 +818,14 @@
 
   function onTokenMove(e) {
     if (dragMode !== 'token' || !activeToken) return;
-    
-    // Calcula o delta considerando o scale da câmera!!
     const deltaX = (e.clientX - startClientX) / camScale;
     const deltaY = (e.clientY - startClientY) / camScale;
-
-    // Viewport pode ser usado como a base 100% já que content é 100% w/h dele
     const w = content.offsetWidth || viewport.clientWidth;
     const h = content.offsetHeight || viewport.clientHeight;
-
     const deltaPercentX = (deltaX / w) * 100;
     const deltaPercentY = (deltaY / h) * 100;
-
-    let newLeft = startTokenLeft + deltaPercentX;
-    let newTop = startTokenTop + deltaPercentY;
-
-    // Clamp 0 to 100
-    newLeft = Math.max(0, Math.min(100, newLeft));
-    newTop = Math.max(0, Math.min(100, newTop));
-
+    let newLeft = Math.max(0, Math.min(100, startTokenLeft + deltaPercentX));
+    let newTop = Math.max(0, Math.min(100, startTokenTop + deltaPercentY));
     activeToken.style.left = `${newLeft}%`;
     activeToken.style.top = `${newTop}%`;
   }
@@ -469,23 +834,18 @@
     if (!activeToken) return;
     activeToken.classList.remove('dragging');
     activeToken.releasePointerCapture(e.pointerId);
-
     activeToken.removeEventListener('pointermove', onTokenMove);
     activeToken.removeEventListener('pointerup', onTokenEnd);
     activeToken.removeEventListener('pointercancel', onTokenEnd);
-
-    // Save
     const id = activeToken.dataset.id;
     const finalLeft = parseFloat(activeToken.style.left);
     const finalTop = parseFloat(activeToken.style.top);
-
     const match = (tokensState[currentMapId] || []).find(t => t.id === id);
     if (match) {
       match.x = finalLeft;
       match.y = finalTop;
       saveData();
     }
-
     dragMode = null;
     activeToken = null;
   }
@@ -500,8 +860,8 @@
       size: 'md',
       color: type,
       shape: 'circle',
-      x: 50, 
-      y: 50  
+      x: 50,
+      y: 50
     });
     saveData();
     renderTokens();
@@ -514,8 +874,144 @@
     renderTokens();
   }
 
-  // ── TOGGLE MAIN VIEW ──
-  window.toggleTacticalMap = function() {
+  // ── DELETE MAP ──
+  window.deleteMapEntry = async function (mapId) {
+    const mapInfo = findMapById(mapId);
+    if (!mapInfo) return;
+    if (!confirm(`Excluir "${mapInfo.name}"? Esta ação não pode ser desfeita.`)) return;
+
+    // Remove from tree
+    if (mapInfo.type === 'region') {
+      mapTree.regions = mapTree.regions.filter(r => r.id !== mapId);
+      // Remove orphan cities
+      mapTree.cities = mapTree.cities.filter(c => c.parentId !== mapId);
+    } else if (mapInfo.type === 'city') {
+      mapTree.cities = mapTree.cities.filter(c => c.id !== mapId);
+      // Remove orphan battles
+      mapTree.battles = mapTree.battles.filter(b => b.parentId !== mapId);
+    } else if (mapInfo.type === 'battle') {
+      mapTree.battles = mapTree.battles.filter(b => b.id !== mapId);
+    }
+
+    // Remove tokens
+    delete tokensState[mapId];
+
+    // Remove image
+    if (mapInfo.source === 'uploaded') {
+      await removeMapImage(mapId);
+    }
+
+    await saveData();
+
+    if (currentMapId === mapId) {
+      currentMapId = '';
+      selLevel.value = 'macro';
+    }
+
+    updateSelectors();
+    renderManageTree();
+  };
+
+  // ── MANAGE MAPS TREE ──
+  (function setupManageModal() {
+    const manageModal = document.getElementById('modal-manage-maps');
+    const manageClose = document.getElementById('btn-manage-close');
+
+    if (manageClose) {
+      manageClose.addEventListener('click', () => {
+        if (manageModal) manageModal.style.display = 'none';
+      });
+    }
+
+    if (manageModal) {
+      manageModal.addEventListener('click', (e) => {
+        if (e.target === manageModal) manageModal.style.display = 'none';
+      });
+    }
+  })();
+
+  window.openManageMaps = function () {
+    const modal = document.getElementById('modal-manage-maps');
+    if (modal) {
+      modal.style.display = 'flex';
+      renderManageTree();
+    }
+  };
+
+  function renderManageTree() {
+    const treeView = document.getElementById('map-tree-view');
+    if (!treeView) return;
+    treeView.innerHTML = '';
+
+    // Macro
+    const macroNode = createTreeNode(mapTree.macro.name, '🗾', 'macro', mapTree.macro.id, true);
+    treeView.appendChild(macroNode);
+
+    // Regions + their cities
+    const renderedCities = new Set();
+    mapTree.regions.forEach(region => {
+      treeView.appendChild(createTreeNode(region.name, '🏔', 'region', region.id));
+
+      mapTree.cities.filter(c => c.parentId === region.id).forEach(city => {
+        treeView.appendChild(createTreeNode(city.name, '🏘', 'city', city.id));
+        renderedCities.add(city.id);
+      });
+    });
+
+    // Cities without region parent
+    mapTree.cities.filter(c => !renderedCities.has(c.id)).forEach(city => {
+      treeView.appendChild(createTreeNode(city.name, '🏘', 'city', city.id));
+    });
+
+    // Battles
+    mapTree.battles.forEach(battle => {
+      treeView.appendChild(createTreeNode(battle.name, '⚔️', 'battle', battle.id));
+    });
+
+    if (mapTree.regions.length === 0 && mapTree.cities.length === 0 && mapTree.battles.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'map-tree__empty';
+      empty.textContent = 'Nenhum mapa cadastrado ainda.';
+      treeView.appendChild(empty);
+    }
+  }
+
+  function createTreeNode(name, icon, type, id, isProtected) {
+    const node = document.createElement('div');
+    node.className = `map-tree__node map-tree__node--${type}`;
+
+    const iconEl = document.createElement('span');
+    iconEl.className = 'map-tree__icon';
+    iconEl.textContent = icon;
+    node.appendChild(iconEl);
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'map-tree__name';
+    nameEl.textContent = name;
+    node.appendChild(nameEl);
+
+    const badge = document.createElement('span');
+    badge.className = 'map-tree__badge';
+    badge.textContent = type === 'macro' ? 'Base' : type === 'region' ? 'Região' : type === 'city' ? 'Cidade' : 'Batalha';
+    node.appendChild(badge);
+
+    if (!isProtected) {
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-ghost map-tree__delete';
+      delBtn.textContent = '✕';
+      delBtn.title = 'Excluir';
+      delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.deleteMapEntry(id);
+      });
+      node.appendChild(delBtn);
+    }
+
+    return node;
+  }
+
+  // ── TOGGLE VIEW ──
+  window.toggleTacticalMap = function () {
     isMapOpen = !isMapOpen;
     if (isMapOpen) {
       mainView.style.display = 'none';
@@ -523,13 +1019,13 @@
       tacticalBoard.style.display = 'flex';
       setTimeout(() => { applyCamera(true); }, 50);
     } else {
-      mainView.style.display = ''; 
+      mainView.style.display = '';
       if (historyView) historyView.style.display = '';
       tacticalBoard.style.display = 'none';
     }
   };
 
-  // Start app
+  // Start
   init();
 
 })();

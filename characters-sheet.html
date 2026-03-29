@@ -4,17 +4,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📜 Registro de Bushido — Escudo do Daimyo</title>
+      <title>📜 Registro de Bushido — Escudo do Daimyo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <!-- PWA METATAGS -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0A0A0A">
-    <link rel="apple-touch-icon" href="icons/app-icon-192.png">
     <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+    <meta name="description" content="Gerenciador de fichas de personagens para GURPS 4e. Crie, edite e acompanhe o Santuário de Heróis na Era das Espadas Quebradas.">
+    
+    <!-- CORE INFRASTRUCTURE (Explicit Loading) -->
+    <script src="js/daimyo-db.js"></script>
+    <script src="js/theme-manager.js"></script>
+    <script src="js/log-manager.js"></script>
+    <script src="js/daimyo-seal.js"></script>
+    <script src="js/header-loader.js"></script>
+    <script>
+      if (window.DaimyoDB) {
+        window.DaimyoDB.init().then(() => {
+          window.DaimyoDB.migrateFromLocalStorage();
+          console.log("⛩️ Porta do Daimyo: Banco de dados e migrações ativos.");
+        }).catch(err => console.error("Falha na inicialização do Cofre:", err));
+      }
+    </script>
     <style>
         /* ═══════════════════════════════════════════
            DESIGN TOKENS — Consolidado (Interno)
@@ -261,16 +273,16 @@
 </head>
 
 <body>
+    <div id="daimyo-header"></div>
     <script src="js/weapons-data.js"></script>
     <script src="js/character-manager.js"></script>
     <script src="js/kegare-manager.js"></script>
-    <script src="js/header-loader.js"></script>
 
     <div class="sheet-container">
         <!-- HEADER SECTION -->
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px; flex-wrap: wrap; gap: 15px;">
             <div style="flex:1; min-width: 200px;">
-                <h1 class="field__label" style="font-size:1.1rem; color:var(--gold); margin-bottom: 2px;">Registro de Bushido Premium</h1>
+                <h1 style="font-family: var(--font-display); font-size:1.1rem; color:var(--gold); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.05em;">Registro de Bushido Premium</h1>
                 <p style="font-size:0.75rem; color:var(--text-muted); font-weight: 500;">FORJA DE LEGENDAS — A ERA DAS ESPADAS QUEBRADAS</p>
             </div>
             <div id="char-points" style="text-align:right; min-width: 130px; display: flex; flex-direction: column; align-items: center;">
@@ -430,7 +442,7 @@
                         </div>
                     </div>
                     <div>
-                        <h4 style="font-size: 0.7rem; color: var(--gold); margin-bottom: 10px; text-transform: uppercase;">Postura (Mäo de 3)</h4>
+                        <h4 style="font-size: 0.7rem; color: var(--gold); margin-bottom: 10px; text-transform: uppercase;">Postura (Mão de 3)</h4>
                         <div style="display:flex; flex-direction: column; gap: 6px;">
                             <input type="text" id="maneuver-1" class="field__input" placeholder="Manobra 1" style="font-size: 0.75rem; padding: 5px 8px;">
                             <input type="text" id="maneuver-2" class="field__input" placeholder="Manobra 2" style="font-size: 0.75rem; padding: 5px 8px;">
@@ -645,7 +657,16 @@
 
             Object.assign(char, state);
             CharacterManager.saveAll(all);
-            alert("Registro selado com sucesso!");
+            
+            // Fix: Update editingId to prevent multiple entries if clicked again
+            if (!editingId) {
+                window.history.replaceState(null, "", "?id=" + char.id);
+                // We can't easily update a 'const' from URL, it's safer to just set a local var or redirect
+                alert("Registro selado com sucesso! Agora você está editando este personagem.");
+                window.location.href = "characters-sheet.html?id=" + char.id;
+            } else {
+                alert("Registro selado com sucesso!");
+            }
         });
 
         document.getElementById('btn-export').addEventListener('click', () => {

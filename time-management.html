@@ -1,17 +1,42 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Escudo do Daimyo — Controle de Tempo</title>
+  <meta name="description" content="Controlador de Tempo, Ciclos e Calendário para campanhas de RPG inspiradas no Japão Feudal de A Era das Espadas Quebradas.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+JP:wght@700;900&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+JP:wght@700;900&display=swap"
+    rel="stylesheet">
+    
+  <!-- PWA METATAGS -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0A0A0A">
+  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
+  <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+
+  <!-- CORE INFRASTRUCTURE (Explicit Loading) -->
+  <script src="js/daimyo-db.js"></script>
+  <script src="js/theme-manager.js"></script>
+  <script src="js/log-manager.js"></script>
+  <script src="js/daimyo-seal.js"></script>
+  <script src="js/header-loader.js"></script>
+  <script>
+    if (window.DaimyoDB) {
+      window.DaimyoDB.init().then(() => {
+        window.DaimyoDB.migrateFromLocalStorage();
+        console.log("⛩️ Porta do Daimyo: Banco de dados e migrações ativos.");
+      }).catch(err => console.error("Falha na inicialização do Cofre:", err));
+    }
+  </script>
   <style>
     :root {
       --bg-deep: #0a0a0c;
       --bg-panel: #16161a;
-      --border-panel: rgba(212,175,55,0.15);
+      --border-panel: rgba(212, 175, 55, 0.15);
       --gold: #D4AF37;
       --gold-dim: #997a1d;
       --red-accent: #C41E3A;
@@ -23,412 +48,1324 @@
       --radius: 6px;
       --radius-lg: 12px;
       --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --green-success: #22c55e;
+      --kegare-tainted: #c084fc;
       --font-display: 'Noto Serif JP', serif;
       --font-body: 'Inter', sans-serif;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background-color: var(--bg-deep); color: var(--text-primary); font-family: var(--font-body); line-height: 1.5; overflow-x: hidden; }
-    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; appearance: none; }
-    input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-    #app { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+    body {
+      background-color: var(--bg-deep);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input[type=number] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+
+    #app {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      height: 100vh;
+    }
 
     /* HEADER */
-    .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg-panel); border-bottom: 1px solid var(--border-panel); flex-wrap: wrap; gap: 8px; }
-    .header__title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text-primary); letter-spacing: 0.02em; text-decoration: none; }
-    .header__title span { color: var(--red-accent); }
-    
-    /* TAB NAV */
-    .tab-nav { display: flex; gap: 4px; border-bottom: 2px solid rgba(212,175,55,0.1); margin-right: 20px; }
-    .tab-nav__link { font-family: var(--font-body); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); text-decoration: none; padding: 8px 16px; border-radius: var(--radius) var(--radius) 0 0; transition: all var(--transition); border: 1px solid transparent; border-bottom: none; margin-bottom: -2px; }
-    .tab-nav__link:hover { color: var(--text-secondary); background: rgba(255,255,255,0.03); }
-    .tab-nav__link--active { color: var(--gold); border-color: var(--border-panel); background: var(--bg-panel); border-bottom: 2px solid var(--gold); }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-panel);
+      flex-wrap: wrap;
+      gap: 8px;
+    }
 
-    .header__nav { display: flex; gap: 12px; }
-    .btn-ghost { background: transparent; border: 1px solid var(--border-panel); color: var(--text-muted); font-size: 0.7rem; padding: 5px 10px; border-radius: var(--radius); text-decoration: none; transition: var(--transition); }
-    .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+    .header__title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.02em;
+      text-decoration: none;
+    }
+
+    .header__title span {
+      color: var(--red-accent);
+    }
+
+    /* TAB NAV */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      border-bottom: 2px solid rgba(212, 175, 55, 0.1);
+      margin-right: 20px;
+    }
+
+    .tab-nav__link {
+      font-family: var(--font-body);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      transition: all var(--transition);
+      border: 1px solid transparent;
+      border-bottom: none;
+      margin-bottom: -2px;
+    }
+
+    .tab-nav__link:hover {
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tab-nav__link--active {
+      color: var(--gold);
+      border-color: var(--border-panel);
+      background: var(--bg-panel);
+      border-bottom: 2px solid var(--gold);
+    }
+
+    .header__nav {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border-panel);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      padding: 5px 10px;
+      border-radius: var(--radius);
+      text-decoration: none;
+      transition: var(--transition);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
 
     /* MAIN LAYOUT */
-    .main { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; width: 100%; height: 100%; overflow: hidden; }
+    .main {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 20px;
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
 
-    .panel { background: var(--bg-panel); border: 1px solid var(--border-panel); border-radius: var(--radius-lg); display: flex; flex-direction: column; overflow-y: auto; }
-    .panel__header { padding: 16px 20px; border-bottom: 1px solid var(--border-panel); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); }
-    .panel__title { font-family: var(--font-display); font-size: 1rem; color: var(--gold); display: flex; align-items: center; gap: 10px; }
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-panel);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .panel__header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-panel);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .panel__title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
     /* COMBATANTS LIST */
-    .combatant-list { padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; }
-    .combatant-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: var(--radius); display: flex; align-items: center; gap: 15px; position: relative; }
-    .card__info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-    .card__name { font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; }
-    .card__stats { display: flex; gap: 10px; font-size: 0.7rem; color: var(--text-secondary); }
-    .card__bars { display: flex; gap: 8px; align-items: center; }
-    .bar { height: 6px; border-radius: 3px; background: var(--bg-deep); flex: 1; min-width: 60px; overflow: hidden; position: relative; }
-    .bar__fill { height: 100%; transition: width 400ms ease; }
-    .bar--hp .bar__fill { background: linear-gradient(90deg, var(--red-failure), var(--red-accent)); }
-    .bar--fp .bar__fill { background: linear-gradient(90deg, #1D4ED8, var(--blue-info)); }
-    .bar__label { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); min-width: 40px; }
-    
-    .card__tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-    .tag { font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; }
-    .tag--bleeding { background: rgba(196,30,58,0.2); color: var(--red-accent); border: 1px solid rgba(196,30,58,0.4); animation: pulse 1.5s infinite; }
-    .tag--exhausted { background: rgba(59,130,246,0.15); color: var(--blue-info); border: 1px solid rgba(59,130,246,0.3); }
+    .combatant-list {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
 
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    .combatant-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 12px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      position: relative;
+    }
+
+    .card__info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .card__name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .card__stats {
+      display: flex;
+      gap: 10px;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    .card__bars {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--bg-deep);
+      flex: 1;
+      min-width: 60px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar__fill {
+      height: 100%;
+      transition: width 400ms ease;
+    }
+
+    .bar--hp .bar__fill {
+      background: linear-gradient(90deg, var(--red-failure), var(--red-accent));
+    }
+
+    .bar--fp .bar__fill {
+      background: linear-gradient(90deg, #1D4ED8, var(--blue-info));
+    }
+
+    .bar__label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      min-width: 40px;
+    }
+
+    .card__tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .tag {
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .tag--bleeding {
+      background: rgba(196, 30, 58, 0.2);
+      color: var(--red-accent);
+      border: 1px solid rgba(196, 30, 58, 0.4);
+      animation: pulse 1.5s infinite;
+    }
+
+    .tag--exhausted {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--blue-info);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.6;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
 
     /* CONTROLS */
-    .controls { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-    .btn { font-family: var(--font-body); font-weight: 700; font-size: 0.8rem; padding: 12px 20px; border-radius: var(--radius); border: none; cursor: pointer; transition: all var(--transition); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .btn-primary { background: var(--gold); color: #000; }
-    .btn-primary:hover { background: #eac04d; transform: translateY(-1px); }
-    .btn-secondary { background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-panel); }
-    .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+    .controls {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
 
-    .control-card { background: rgba(0,0,0,0.2); border: 1px solid var(--border-panel); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-    .control-card__title { font-size: 0.85rem; font-weight: 700; color: var(--gold); }
-    .control-card__desc { font-size: 0.75rem; color: var(--text-muted); }
+    .btn {
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      transition: all var(--transition);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
 
-    /* LOG */
-    .log-panel { flex: 1; display: flex; flex-direction: column; background: rgba(0,0,0,0.1); border-top: 1px solid var(--border-panel); min-height: 250px; }
-    .log-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; font-family: monospace; overflow-x: hidden; }
-    .log-entry { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border-left: 2px solid transparent; background: rgba(255,255,255,0.02); word-break: break-word; white-space: pre-wrap; line-height: 1.4; }
-    .log-entry--time { border-left-color: var(--gold); }
-    .log-entry--rest { border-left-color: var(--blue-info); }
-    .log-entry--fail { border-left-color: var(--red-failure); }
-    .log-entry--success { border-left-color: #10b981; }
-    .log-time { color: var(--text-muted); margin-right: 8px; flex-shrink: 0; }
-    .log-empty { text-align: center; color: var(--text-muted); padding: 20px; font-size: 0.8rem; }
+    .btn-primary {
+      background: var(--gold);
+      color: #000;
+    }
 
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: var(--bg-deep); }
-    ::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
+    .btn-primary:hover {
+      background: #eac04d;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      border: 1px solid var(--border-panel);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .control-card {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-panel);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .control-card__title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    .control-card__desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* ═══════════════════════════════════════════
+       PADRÃO UNIFICADO — REGISTRO DE HISTÓRICO
+       ═══════════════════════════════════════════ */
+    .history {
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border-panel);
+      display: flex;
+      flex-direction: column;
+      height: 320px;
+      max-height: 40vh;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .history__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border-panel);
+      flex-shrink: 0;
+    }
+
+    .history__title {
+      font-family: var(--font-display);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gold);
+    }
+
+    .history__list {
+      overflow-y: auto;
+      padding: 10px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-panel) transparent;
+    }
+
+    .history__list::-webkit-scrollbar { width: 5px; }
+    .history__list::-webkit-scrollbar-track { background: transparent; }
+    .history__list::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
+    .history__list::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+    .history__empty {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-align: center;
+      padding: 20px 12px;
+      font-style: italic;
+    }
+
+    .history__entry {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      background: var(--bg-deep);
+      font-size: 0.78rem;
+      font-variant-numeric: tabular-nums;
+      border-left: 3px solid var(--border-panel);
+      transition: background var(--transition);
+      flex-wrap: wrap;
+    }
+
+    .history__entry:hover { background: rgba(255, 255, 255, 0.02); }
+
+    .history__time {
+      color: var(--text-muted);
+      min-width: 48px;
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      font-family: monospace;
+    }
+
+    .history__badge {
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      background: rgba(212, 168, 70, 0.1);
+      padding: 2px 6px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .history__text {
+      color: var(--text-secondary);
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ── Variantes de cor por tipo ── */
+    .history__entry--dano,
+    .history__entry--sucesso { border-left-color: var(--green-success); }
+    .history__entry--dano .history__text { color: #e5e7eb; }
+    .history__entry--turno,
+    .history__entry--oraculo,
+    .history__entry--time { border-left-color: var(--gold); }
+    .history__entry--turno .history__badge,
+    .history__entry--oraculo .history__badge { color: var(--gold); background: rgba(212, 168, 70, 0.12); }
+    .history__entry--critico { border-left-color: var(--gold); }
+    .history__entry--critico .history__badge { color: var(--gold); background: rgba(212, 168, 70, 0.15); }
+    .history__entry--falha { border-left-color: var(--text-muted); }
+    .history__entry--falha-critica,
+    .history__entry--death { border-left-color: var(--red-failure); }
+    .history__entry--death .history__text { color: #ef4444; font-weight: 700; }
+    .history__entry--panic { border-left-color: #C084FC; }
+    .history__entry--panic .history__text { color: #fbbf24; }
+    .history__entry--reacao { border-left-color: var(--blue-info); }
+    .history__entry--rest { border-left-color: var(--blue-info); }
+    .history__entry--exhaust { border-left-color: var(--blue-info); }
+    .history__entry--npc { border-left-color: var(--green-success); }
+    .history__entry--kegare { border-left-color: var(--kegare-tainted); }
+    .history__entry--fail { border-left-color: var(--red-failure); }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-deep);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-panel);
+      border-radius: 3px;
+    }
 
     @media (max-width: 900px) {
-      body, html { overflow: auto; min-height: 100vh; }
-      #app { height: auto; min-height: 100vh; grid-template-rows: auto 1fr; display: block; }
-      .main { grid-template-columns: 1fr; overflow-y: visible; height: auto; padding: 10px; display: flex; flex-direction: column; }
-      .header { flex-wrap: wrap; gap: 10px; }
-      .header__nav { width: 100%; justify-content: space-between; border-top: 1px solid var(--border-panel); padding-top: 10px; order: 4; }
-      .tab-nav { margin-right: 0; width: 100%; overflow-x: auto; white-space: nowrap; flex-wrap: nowrap; border-bottom: 1px solid rgba(212,175,55,0.1); padding-bottom: 2px; order: 2; }
-      .tab-nav::-webkit-scrollbar { display: none; }
+
+      body,
+      html {
+        overflow: auto;
+        min-height: 100vh;
+      }
+
+      #app {
+        height: auto;
+        min-height: 100vh;
+        grid-template-rows: auto 1fr;
+        display: block;
+      }
+
+      .main {
+        grid-template-columns: 1fr;
+        overflow-y: visible;
+        height: auto;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .header {
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .header__nav {
+        width: 100%;
+        justify-content: space-between;
+        border-top: 1px solid var(--border-panel);
+        padding-top: 10px;
+        order: 4;
+      }
+
+      .tab-nav {
+        margin-right: 0;
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+        flex-wrap: nowrap;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+        padding-bottom: 2px;
+        order: 2;
+      }
+
+      .tab-nav::-webkit-scrollbar {
+        display: none;
+      }
+
+      .history {
+        max-height: none;
+        height: auto;
+        min-height: 150px;
+      }
+
+      .history__header {
+        padding: 8px 12px;
+      }
+
+      .history__list {
+        padding: 8px 12px 30px;
+      }
+
+      .dm-drawer {
+        width: 100%;
+        right: -100%;
+      }
+
+      .dm-drawer.open {
+        transform: translateX(-100%);
+      }
+    }
+
+    /* ═══ DATA MANAGER DRAWER ═══ */
+    .dm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 4000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 300ms ease;
+    }
+
+    .dm-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .dm-drawer {
+      position: fixed;
+      top: 0;
+      right: -520px;
+      width: 500px;
+      max-width: 100vw;
+      height: 100vh;
+      background: var(--bg-deep);
+      border-left: 1px solid var(--border-panel);
+      z-index: 4001;
+      transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .dm-drawer.open {
+      transform: translateX(-520px);
+    }
+
+    @media (max-width: 540px) {
+      .dm-drawer {
+        width: 100%;
+        right: -100vw;
+      }
+
+      .dm-drawer.open {
+        transform: translateX(-100vw);
+      }
+    }
+
+    .dm-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-panel);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-panel);
+      flex-shrink: 0;
+    }
+
+    .dm-header__title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    .dm-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: var(--radius);
+      transition: var(--transition);
+    }
+
+    .dm-close:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .dm-toolbar {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border-panel);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .dm-toolbar .btn-sm {
+      font-family: var(--font-body);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-panel);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .dm-toolbar .btn-sm:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .dm-toolbar .btn-sm--danger {
+      border-color: rgba(196, 30, 58, 0.3);
+      color: var(--red-accent);
+    }
+
+    .dm-toolbar .btn-sm--danger:hover {
+      border-color: var(--red-accent);
+      background: rgba(196, 30, 58, 0.1);
+    }
+
+    .dm-toolbar .btn-sm--wake {
+      border-color: rgba(212, 175, 55, 0.2);
+      color: var(--text-muted);
+    }
+
+    .dm-toolbar .btn-sm--wake.active {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(212, 175, 55, 0.15);
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+      text-shadow: 0 0 5px rgba(212, 175, 55, 0.5);
+    }
+
+    .dm-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .dm-category {
+      border-bottom: 1px solid var(--border-panel);
+      transition: background var(--transition);
+    }
+
+    .dm-category:hover {
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .dm-cat-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      cursor: pointer;
+      user-select: none;
+      transition: background var(--transition);
+    }
+
+    .dm-cat-header:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .dm-cat-icon {
+      font-size: 1.2rem;
+      flex-shrink: 0;
+      width: 28px;
+      text-align: center;
+    }
+
+    .dm-cat-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .dm-cat-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .dm-cat-meta {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .dm-cat-count {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 12px;
+      background: rgba(212, 175, 55, 0.1);
+      color: var(--gold);
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dm-cat-count--empty {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+    }
+
+    .dm-cat-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .dm-cat-btn {
+      background: none;
+      border: 1px solid var(--border-panel);
+      color: var(--text-muted);
+      font-size: 0.65rem;
+      padding: 5px 10px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: var(--font-body);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .dm-cat-btn:hover {
+      border-color: var(--text-secondary);
+      color: var(--text-secondary);
+    }
+
+    .dm-cat-btn--reset {
+      border-color: rgba(212, 175, 55, 0.3);
+      color: var(--gold-dim);
+    }
+
+    .dm-cat-btn--reset:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(212, 175, 55, 0.05);
+    }
+
+    .dm-cat-btn--danger {
+      border-color: rgba(196, 30, 58, 0.2);
+      color: rgba(196, 30, 58, 0.7);
+    }
+
+    .dm-cat-btn--danger:hover {
+      border-color: var(--red-accent);
+      color: var(--red-accent);
+      background: rgba(196, 30, 58, 0.08);
+    }
+
+    /* Detail View */
+    .dm-detail {
+      padding: 12px 20px;
+      background: rgba(0, 0, 0, 0.15);
+      display: none;
+    }
+
+    .dm-detail.open {
+      display: block;
+    }
+
+    .dm-detail__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .dm-detail__title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .dm-detail__close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 2px 6px;
+    }
+
+    .dm-detail__close:hover {
+      color: var(--text-primary);
+    }
+
+    .dm-detail__list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .dm-detail__item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: var(--radius);
+      font-size: 0.75rem;
+      border: 1px solid transparent;
+      transition: var(--transition);
+    }
+
+    .dm-detail__item:hover {
+      border-color: var(--border-panel);
+    }
+
+    .dm-detail__item-check {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--gold);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .dm-detail__item-name {
+      flex: 1;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dm-detail__item-sub {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .dm-detail__item-del {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: var(--transition);
+      flex-shrink: 0;
+    }
+
+    .dm-detail__item-del:hover {
+      color: var(--red-accent);
+      background: rgba(196, 30, 58, 0.1);
+    }
+
+    .dm-detail__footer {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      justify-content: flex-end;
+    }
+
+    .dm-detail__empty {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 10px 0;
+      text-align: center;
+    }
+
+    .dm-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border-panel);
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      flex-shrink: 0;
+      background: var(--bg-panel);
+    }
+
+    .dm-toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--bg-panel);
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      font-size: 0.8rem;
+      font-weight: 700;
+      z-index: 5000;
+      opacity: 0;
+      transition: all 300ms ease;
+      pointer-events: none;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .dm-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
   </style>
 
-  
+
   <!-- PWA METATAGS -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0A0A0A">
-  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
+  <meta name="apple-touch-icon" href="icons/app-icon-192.png">
   <link rel="icon" type="image/png" href="icons/app-icon-192.png">
 </head>
+
 <body>
-<div id="app">
+  <div id="app">
 
-  <div id="daimyo-header"></div>
-  <script src="js/header-loader.js"></script>
+    <div id="daimyo-header"></div>
 
-  <main class="main">
-    <!-- LEFT: COMBATANTS -->
-    <section class="panel">
-      <div class="panel__header">
-        <h2 class="panel__title">👥 Estado dos Combatentes</h2>
-        <span id="combatant-count" style="font-size: 0.7rem; color: var(--text-muted)">0 combatentes</span>
-      </div>
-      <div class="combatant-list" id="combatant-list">
-        <div class="log-empty">Nenhum combatente no sistema. Adicione-os na aba de Combate.</div>
-      </div>
-
-      <!-- LEGACY SECTION -->
-      <div class="panel__header" style="border-top:1px solid var(--border-panel)">
-        <h2 class="panel__title">💀 Crônicas de Legado (Espadas Quebradas)</h2>
-        <button class="btn-ghost" style="padding: 2px 8px; font-size: 0.65rem; border-color: var(--red-accent); color: var(--red-accent);" onclick="clearLegacy()">Limpar Crônicas</button>
-      </div>
-
-      <div class="combatant-list" id="legacy-list" style="max-height: 300px; background: rgba(139,0,0,0.03)">
-        <div class="log-empty">Nenhum herói tombou ainda. As lendas aguardam.</div>
-      </div>
-    </section>
-
-    <!-- RIGHT: TIME CONTROLS -->
-    <section class="panel">
-      <div class="panel__header">
-        <h2 class="panel__title">⏱ Controle de Tempo</h2>
-      </div>
-      
-      <div class="controls">
-        <div class="control-card">
-          <span class="control-card__title">🌀 Espiral da Morte</span>
-          <p class="control-card__desc">Rola 3d6 contra o HT de todos os combatentes sangrando (PV < 0). Falha custa 1 PV.</p>
-          <button class="btn btn-primary" id="btn-advance-min">⏱ Avançar 1 Minuto</button>
+    <main class="main">
+      <!-- LEFT: COMBATANTS -->
+      <section class="panel">
+        <div class="panel__header">
+          <h2 class="panel__title">👥 Estado dos Combatentes</h2>
+          <span id="combatant-count" style="font-size: 0.7rem; color: var(--text-muted)">0 combatentes</span>
+        </div>
+        <div class="combatant-list" id="combatant-list">
+          <div class="history__empty">Nenhum combatente no sistema. Adicione-os na aba de Combate.</div>
         </div>
 
-        <div class="control-card">
-          <span class="control-card__title">💤 Descanso Breve</span>
-          <p class="control-card__desc">Todos os personagens recuperam +1 PF (Ki). Limite de 1 PF a cada 10 minutos.</p>
-          <button class="btn btn-secondary" id="btn-rest-10">💤 Descansar 10 Minutos</button>
+        <!-- LEGACY SECTION -->
+        <div class="panel__header" style="border-top:1px solid var(--border-panel)">
+          <h2 class="panel__title">💀 Crônicas de Legado (Espadas Quebradas)</h2>
+          <button class="btn-ghost"
+            style="padding: 2px 8px; font-size: 0.65rem; border-color: var(--red-accent); color: var(--red-accent);"
+            onclick="clearLegacy()">Limpar Crônicas</button>
         </div>
 
-        <div class="control-card">
-          <span class="control-card__title">🌙 Passar a Noite</span>
-          <p class="control-card__desc">Restaura 100% do PF. Rola HT passivamente para todos não sangrando para curar +1 PV natural.</p>
-          <button class="btn btn-secondary" id="btn-long-rest" style="border-color:var(--blue-info); color:var(--blue-info)">🌙 Descanso Longo (8h)</button>
+        <div class="combatant-list" id="legacy-list" style="max-height: 300px; background: rgba(139,0,0,0.03)">
+          <div class="history__empty">Nenhum herói tombou ainda. As lendas aguardam.</div>
+        </div>
+      </section>
+
+      <!-- RIGHT: TIME CONTROLS -->
+      <section class="panel">
+        <div class="panel__header">
+          <h2 class="panel__title">⏱ Controle de Tempo</h2>
         </div>
 
-        <div class="control-card">
-          <span class="control-card__title">💖 Tratamento Médico</span>
-          <p class="control-card__desc">Cure ferimentos físicos ou aplique Primeiros Socorros para estancar sangramentos.</p>
-          <div class="field" style="margin-bottom:8px">
-            <select class="field__select" id="select-heal-target" style="width:100%; padding:8px; border-radius:var(--radius); background:rgba(0,0,0,0.3); color:var(--text-primary); border:1px solid var(--border-panel)">
-              <option value="">— Selecione —</option>
-            </select>
+        <div class="controls">
+          <div class="control-card">
+            <span class="control-card__title">🌀 Espiral da Morte</span>
+            <p class="control-card__desc">Rola 3d6 contra o HT de todos os combatentes sangrando (PV < 0). Falha custa 1
+                PV.</p>
+                <button class="btn btn-primary" id="btn-advance-min">⏱ Avançar 1 Minuto</button>
           </div>
-          <div style="display:flex; gap:8px; margin-bottom:8px">
-            <input type="number" id="input-heal-amount" min="1" max="99" value="1" style="width:60px; padding:8px; border-radius:var(--radius); background:rgba(0,0,0,0.3); color:var(--text-primary); border:1px solid var(--border-panel); text-align:center">
-            <button class="btn btn-secondary" id="btn-heal-hp" style="flex:1">💖 Curar PV</button>
+
+          <div class="control-card">
+            <span class="control-card__title">💤 Descanso Breve</span>
+            <p class="control-card__desc">Todos os personagens recuperam +1 PF (Ki). Limite de 1 PF a cada 10 minutos.
+            </p>
+            <button class="btn btn-secondary" id="btn-rest-10">💤 Descansar 10 Minutos</button>
           </div>
-          <button class="btn btn-primary" id="btn-first-aid" style="width:100%; font-size:0.75rem">🩹 Primeiros Socorros (Curar 1 PV + Estancar)</button>
+
+          <div class="control-card">
+            <span class="control-card__title">🌙 Passar a Noite</span>
+            <p class="control-card__desc">Restaura 100% do PF. Rola HT passivamente para todos não sangrando para curar
+              +1 PV natural.</p>
+            <button class="btn btn-secondary" id="btn-long-rest"
+              style="border-color:var(--blue-info); color:var(--blue-info)">🌙 Descanso Longo (8h)</button>
+          </div>
+
+          <div class="control-card">
+            <span class="control-card__title">💖 Tratamento Médico</span>
+            <p class="control-card__desc">Cure ferimentos físicos ou aplique Primeiros Socorros para estancar
+              sangramentos.</p>
+            <div class="field" style="margin-bottom:8px">
+              <select class="field__select" id="select-heal-target"
+                style="width:100%; padding:8px; border-radius:var(--radius); background:rgba(0,0,0,0.3); color:var(--text-primary); border:1px solid var(--border-panel)">
+                <option value="">— Selecione —</option>
+              </select>
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:8px">
+              <input type="number" id="input-heal-amount" min="1" max="99" value="1"
+                style="width:60px; padding:8px; border-radius:var(--radius); background:rgba(0,0,0,0.3); color:var(--text-primary); border:1px solid var(--border-panel); text-align:center">
+              <button class="btn btn-secondary" id="btn-heal-hp" style="flex:1">💖 Curar PV</button>
+            </div>
+            <button class="btn btn-primary" id="btn-first-aid" style="width:100%; font-size:0.75rem">🩹 Primeiros
+              Socorros (Curar 1 PV + Estancar)</button>
+          </div>
         </div>
+
+        <section class="history" id="history-section">
+          <div class="history__header">
+            <h3 class="history__title">📜 Histórico Local</h3>
+            <button class="btn btn-ghost btn-sm" id="btn-clear-log">Limpar</button>
+          </div>
+          <div class="history__list" id="log-list">
+            <p class="history__empty">Nenhum evento registrado.</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <!-- ═══ DATA MANAGER DRAWER ═══ -->
+    <div class="dm-overlay" id="dm-overlay"></div>
+    <div class="dm-drawer" id="dm-drawer">
+      <div class="dm-header">
+        <span class="dm-header__title">⚙️ Gerenciamento de Dados</span>
+        <button class="dm-close" onclick="DataManager.close()">✕</button>
       </div>
-
-      <div class="log-panel">
-        <div class="panel__header" style="padding: 8px 16px; border-top: 1px solid var(--border-panel); border-bottom: none;">
-          <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted)">📜 Histórico Local</span>
-          <button class="btn-ghost" style="padding: 2px 6px; font-size: 0.6rem;" id="btn-clear-log">Limpar</button>
+      <div class="dm-toolbar">
+        <button class="btn-sm" onclick="DataManager.refresh()">🔄 Atualizar</button>
+        <button class="btn-sm" onclick="DataManager.exportBackup()">📤 Backup</button>
+        <button class="btn-sm" onclick="document.getElementById('dm-import-file').click()">📥 Restaurar</button>
+        <input type="file" id="dm-import-file" accept=".json" style="display:none"
+          onchange="DataManager.importBackup(this.files[0])">
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <button class="btn-sm btn-sm--wake" id="dm-wakelock-btn" onclick="DataManager.toggleWakeLock()"
+            title="Impedir a tela de apagar">🏮 Tocha Apagada</button>
+          <p id="dm-wake-warning" style="display:none; font-size:0.55rem; color:var(--gold-dim); margin-left:2px;">⚠️
+            Aumenta consumo de bateria.</p>
         </div>
-        <div class="log-list" id="log-list">
-          <p class="log-empty">Nenhum evento registrado.</p>
-        </div>
+        <button class="btn-sm btn-sm--danger" onclick="DataManager.factoryReset()">🏭 Reset Fábrica</button>
       </div>
-    </section>
-  </main>
+      <div class="dm-body" id="dm-body">
+        <!-- Categories rendered by JS -->
+      </div>
+      <div class="dm-footer">
+        <span style="font-size:0.65rem; color:var(--text-muted); display:flex; align-items:center;">
+          <span id="dm-total-size" style="margin-right:12px;"></span>
+          <span id="dm-total-items"></span>
+        </span>
+        <button class="btn-sm" onclick="DataManager.close()"
+          style="font-family:var(--font-body); font-size:0.65rem; font-weight:700; padding:6px 12px; border-radius:var(--radius); border:1px solid var(--border-panel); background:transparent; color:var(--text-muted); cursor:pointer;">Fechar</button>
+      </div>
+    </div>
 
-</div>
+    <div class="dm-toast" id="dm-toast"></div>
 
-<script>
-/* ═════════════════════════════════════════════
-   GURPS 4e ENGINE — Escudo do Daimyo
-   Milestone Final: Controle de Tempo
-   ═════════════════════════════════════════════ */
+  </div>
 
-const STATE_KEY = 'daimyoShieldState';
-const TIME_LOG_KEY = 'daimyoShieldTimeLog';
+  <script>
+    /* ═════════════════════════════════════════════
+       GURPS 4e ENGINE — Escudo do Daimyo
+       Milestone Final: Controle de Tempo
+       ═════════════════════════════════════════════ */
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STATE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch(e) { return null; }
-}
+    const STATE_KEY = 'daimyoShieldState';
+    const TIME_LOG_KEY = 'daimyoShieldTimeLog';
 
-function saveState(state) {
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
-}
-
-function loadTimeLog() {
-  try {
-    const raw = localStorage.getItem(TIME_LOG_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch(e) { return []; }
-}
-
-function saveTimeLog(log) {
-  localStorage.setItem(TIME_LOG_KEY, JSON.stringify(log.slice(0, 50)));
-}
-
-function addTimeLog(type, text) {
-  const log = loadTimeLog();
-  log.unshift({ type, text, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) });
-  saveTimeLog(log);
-  renderLog();
-}
-
-function roll3d6() {
-  const d1 = Math.floor(Math.random() * 6) + 1;
-  const d2 = Math.floor(Math.random() * 6) + 1;
-  const d3 = Math.floor(Math.random() * 6) + 1;
-  return { dice: [d1, d2, d3], total: d1 + d2 + d3 };
-}
-
-// ══════ FUNCTIONS ══════
-
-function handleBleedingRolls() {
-  const state = loadState();
-  if (!state || !state.combatants.length) return;
-
-  let checksCount = 0;
-  
-  state.combatants.forEach(c => {
-    // Auto-bleed check if PV < 0
-    if (c.hpCur < 0) {
-      c.isBleeding = true;
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STATE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
     }
 
-    if (c.isBleeding) {
-      checksCount++;
-      const roll = roll3d6();
-      const success = roll.total <= c.ht;
-      
-      if (!success) {
-        c.hpCur -= 1;
-        addTimeLog('fail', `${c.name}: Falhou no Sangramento (${roll.total} > HT ${c.ht}). PV: ${c.hpCur}`);
-      } else {
-        addTimeLog('success', `${c.name}: Estabilizou neste minuto (${roll.total} ≤ HT ${c.ht}).`);
+    function saveState(state) {
+      localStorage.setItem(STATE_KEY, JSON.stringify(state));
+    }
+
+    function loadTimeLog() {
+      try {
+        const raw = localStorage.getItem(TIME_LOG_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    }
+
+    function saveTimeLog(log) {
+      localStorage.setItem(TIME_LOG_KEY, JSON.stringify(log.slice(0, 50)));
+    }
+
+    function addTimeLog(type, text) {
+      const log = loadTimeLog();
+      log.unshift({ type, text, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) });
+      saveTimeLog(log);
+      renderLog();
+    }
+
+    function roll3d6() {
+      const d1 = Math.floor(Math.random() * 6) + 1;
+      const d2 = Math.floor(Math.random() * 6) + 1;
+      const d3 = Math.floor(Math.random() * 6) + 1;
+      return { dice: [d1, d2, d3], total: d1 + d2 + d3 };
+    }
+
+    // ══════ FUNCTIONS ══════
+
+    function handleBleedingRolls() {
+      const state = loadState();
+      if (!state || !state.combatants.length) return;
+
+      let checksCount = 0;
+
+      state.combatants.forEach(c => {
+        // Auto-bleed check if PV < 0
+        if (c.hpCur < 0) {
+          c.isBleeding = true;
+        }
+
+        if (c.isBleeding) {
+          checksCount++;
+          const roll = roll3d6();
+          const success = roll.total <= c.ht;
+
+          if (!success) {
+            c.hpCur -= 1;
+            addTimeLog('fail', `${c.name}: Falhou no Sangramento (${roll.total} > HT ${c.ht}). PV: ${c.hpCur}`);
+          } else {
+            addTimeLog('success', `${c.name}: Estabilizou neste minuto (${roll.total} ≤ HT ${c.ht}).`);
+          }
+        }
+      });
+
+      if (checksCount === 0) {
+        addTimeLog('time', "Avançado 1 minuto. Ninguém sangrando.");
       }
-    }
-  });
 
-  if (checksCount === 0) {
-    addTimeLog('time', "Avançado 1 minuto. Ninguém sangrando.");
-  }
-
-  saveState(state);
-  renderCombatants();
-}
-
-function handleRest() {
-  const state = loadState();
-  if (!state || !state.combatants.length) return;
-
-  let units = 0;
-  state.combatants.forEach(c => {
-    if (c.fpCur < c.fpMax) {
-      c.fpCur += 1;
-      units++;
-    }
-  });
-
-  addTimeLog('rest', `Descanso de 10 min concluído. ${units} personagem(ns) recuperaram +1 PF.`);
-  
-  saveState(state);
-  renderCombatants();
-}
-
-function handleLongRest() {
-  const state = loadState();
-  if (!state || !state.combatants.length) return;
-
-  if (!confirm('Deseja rolar cura natural e restaurar todo o Ki para todo o grupo?')) return;
-
-  let healedCount = 0;
-  let fpCount = 0;
-
-  state.combatants.forEach(c => {
-    // 1. Restaura FP totalmente
-    if (c.fpCur < c.fpMax) {
-      c.fpCur = c.fpMax;
-      fpCount++;
+      saveState(state);
+      renderCombatants();
     }
 
-    // 2. Recuperação de PV Natural (se não estiver sangrando e PV estiver acima de Vidas Negativas Críticas)
-    if (c.hpCur < c.hpMax && !c.isBleeding) {
-      const roll = roll3d6();
-      if (roll.total <= c.ht) {
-        c.hpCur += 1;
-        healedCount++;
-        addTimeLog('success', `${c.name}: Passou em Cura Natural (${roll.total} ≤ ${c.ht}). +1 PV.`);
+    function handleRest() {
+      const state = loadState();
+      if (!state || !state.combatants.length) return;
+
+      let units = 0;
+      state.combatants.forEach(c => {
+        if (c.fpCur < c.fpMax) {
+          c.fpCur += 1;
+          units++;
+        }
+      });
+
+      addTimeLog('rest', `Descanso de 10 min concluído. ${units} personagem(ns) recuperaram +1 PF.`);
+
+      saveState(state);
+      renderCombatants();
+    }
+
+    function handleLongRest() {
+      const state = loadState();
+      if (!state || !state.combatants.length) return;
+
+      if (!confirm('Deseja rolar cura natural e restaurar todo o Ki para todo o grupo?')) return;
+
+      let healedCount = 0;
+      let fpCount = 0;
+
+      state.combatants.forEach(c => {
+        // 1. Restaura FP totalmente
+        if (c.fpCur < c.fpMax) {
+          c.fpCur = c.fpMax;
+          fpCount++;
+        }
+
+        // 2. Recuperação de PV Natural (se não estiver sangrando e PV estiver acima de Vidas Negativas Críticas)
+        if (c.hpCur < c.hpMax && !c.isBleeding) {
+          const roll = roll3d6();
+          if (roll.total <= c.ht) {
+            c.hpCur += 1;
+            healedCount++;
+            addTimeLog('success', `${c.name}: Passou em Cura Natural (${roll.total} ≤ ${c.ht}). +1 PV.`);
+          } else {
+            addTimeLog('fail', `${c.name}: Falhou na Cura Natural (${roll.total} > ${c.ht}). Sem PV.`);
+          }
+        }
+      });
+
+      addTimeLog('rest', `Descanso Longo Concluído. PF restaurado integralmente. PVs recuperados passivamente.`);
+
+      saveState(state);
+      renderCombatants();
+    }
+
+    function handleHeal(isFirstAid = false) {
+      const state = loadState();
+      if (!state || !state.combatants.length) return;
+
+      const targetId = document.getElementById('select-heal-target').value;
+      const amount = parseInt(document.getElementById('input-heal-amount').value) || 1;
+      if (!targetId) return;
+
+      const healVal = isFirstAid ? 1 : amount;
+      let targets = [];
+
+      if (targetId.startsWith('TAG:')) {
+        const tag = targetId.substring(4);
+        targets = state.combatants.filter(c => c.tag === tag);
       } else {
-        addTimeLog('fail', `${c.name}: Falhou na Cura Natural (${roll.total} > ${c.ht}). Sem PV.`);
+        const c = state.combatants.find(x => x.id === targetId);
+        if (c) targets.push(c);
       }
+
+      if (targets.length === 0) return;
+
+      const timeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      let totalHealedCount = 0;
+
+      targets.forEach(c => {
+        let actuallyHealed = 0;
+        if (c.hpCur < c.hpMax) {
+          actuallyHealed = Math.min(c.hpMax - c.hpCur, healVal);
+          c.hpCur += actuallyHealed;
+        }
+
+        if (isFirstAid && c.isBleeding) {
+          c.isBleeding = false;
+          totalHealedCount++;
+          state.history.unshift({ type: 'dano', text: `${c.name} recebeu P.S e estancou sangramento.`, damage: `+${actuallyHealed} PV`, time: timeStr });
+        } else if (actuallyHealed > 0) {
+          totalHealedCount++;
+          state.history.unshift({ type: 'dano', text: `${c.name} curado.`, damage: `+${actuallyHealed} PV`, time: timeStr });
+        }
+      });
+
+      if (targets.length > 1) {
+        addTimeLog('success', `Cura em Grupo (${targetId.substring(4)}): ${totalHealedCount} personagens curados.`);
+      } else if (targets.length === 1) {
+        const n = targets[0].name;
+        if (isFirstAid) addTimeLog('success', `${n}: Primeiros Socorros aplicados.`);
+        else addTimeLog('success', `${n}: Tratamento mágico/médico. +${healVal} PV.`);
+      }
+
+      if (state.history.length > 50) state.history = state.history.slice(0, 50);
+
+      saveState(state);
+      renderCombatants();
     }
-  });
 
-  addTimeLog('rest', `Descanso Longo Concluído. PF restaurado integralmente. PVs recuperados passivamente.`);
-  
-  saveState(state);
-  renderCombatants();
-}
+    // ══════ RENDER ══════
 
-function handleHeal(isFirstAid = false) {
-  const state = loadState();
-  if (!state || !state.combatants.length) return;
-  
-  const targetId = document.getElementById('select-heal-target').value;
-  const amount = parseInt(document.getElementById('input-heal-amount').value) || 1;
-  if (!targetId) return;
+    function renderCombatants() {
+      const state = loadState();
+      const container = document.getElementById('combatant-list');
+      const countSpan = document.getElementById('combatant-count');
 
-  const healVal = isFirstAid ? 1 : amount;
-  let targets = [];
+      if (!state || !state.combatants.length) {
+        container.innerHTML = '<p class="history__empty">Nenhum combatente encontrado. Adicione no menu de Combate.</p>';
+        countSpan.textContent = '0 combatentes';
+        document.getElementById('select-heal-target').innerHTML = '<option value="">— Selecione —</option>';
+        return;
+      }
 
-  if (targetId.startsWith('TAG:')) {
-    const tag = targetId.substring(4);
-    targets = state.combatants.filter(c => c.tag === tag);
-  } else {
-    const c = state.combatants.find(x => x.id === targetId);
-    if (c) targets.push(c);
-  }
+      // Populate heal select
+      const sel = document.getElementById('select-heal-target');
+      const currentVal = sel.value;
 
-  if (targets.length === 0) return;
+      const tags = [...new Set(state.combatants.map(c => c.tag).filter(t => t && t.trim() !== ''))];
+      let tagsOptions = '';
+      if (tags.length > 0) {
+        tagsOptions = '<optgroup label="Cura em Grupo">' + tags.map(t => `<option value="TAG:${t}">Todos com a Tag: ${t}</option>`).join('') + '</optgroup>';
+      }
 
-  const timeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  let totalHealedCount = 0;
+      const individualOptions = '<optgroup label="Individuais">' + state.combatants.map(c => `<option value="${c.id}">${c.name} ${c.tag ? `[${c.tag}]` : ''} (PV: ${c.hpCur}/${c.hpMax})</option>`).join('') + '</optgroup>';
 
-  targets.forEach(c => {
-    let actuallyHealed = 0;
-    if (c.hpCur < c.hpMax) {
-      actuallyHealed = Math.min(c.hpMax - c.hpCur, healVal);
-      c.hpCur += actuallyHealed;
-    }
-    
-    if (isFirstAid && c.isBleeding) {
-      c.isBleeding = false;
-      totalHealedCount++;
-      state.history.unshift({ type: 'dano', text: `${c.name} recebeu P.S e estancou sangramento.`, damage: `+${actuallyHealed} PV`, time: timeStr });
-    } else if (actuallyHealed > 0) {
-      totalHealedCount++;
-      state.history.unshift({ type: 'dano', text: `${c.name} curado.`, damage: `+${actuallyHealed} PV`, time: timeStr });
-    }
-  });
+      sel.innerHTML = '<option value="">— Selecione —</option>' + tagsOptions + individualOptions;
+      if (currentVal && sel.querySelector(`option[value="${currentVal}"]`)) sel.value = currentVal;
 
-  if (targets.length > 1) {
-    addTimeLog('success', `Cura em Grupo (${targetId.substring(4)}): ${totalHealedCount} personagens curados.`);
-  } else if (targets.length === 1) {
-    const n = targets[0].name;
-    if (isFirstAid) addTimeLog('success', `${n}: Primeiros Socorros aplicados.`);
-    else addTimeLog('success', `${n}: Tratamento mágico/médico. +${healVal} PV.`);
-  }
+      countSpan.textContent = `${state.combatants.length} combatentes`;
+      container.innerHTML = state.combatants.map(c => {
+        const hpPct = Math.max(0, Math.min(100, (c.hpCur / c.hpMax) * 100));
+        const fpPct = Math.max(0, Math.min(100, (c.fpCur / c.fpMax) * 100));
+        const bleeding = c.hpCur < 0 || c.isBleeding;
 
-  if (state.history.length > 50) state.history = state.history.slice(0, 50);
-  
-  saveState(state);
-  renderCombatants();
-}
-
-// ══════ RENDER ══════
-
-function renderCombatants() {
-  const state = loadState();
-  const container = document.getElementById('combatant-list');
-  const countSpan = document.getElementById('combatant-count');
-
-  if (!state || !state.combatants.length) {
-    container.innerHTML = '<p class="log-empty">Nenhum combatente encontrado. Adicione no menu de Combate.</p>';
-    countSpan.textContent = '0 combatentes';
-    document.getElementById('select-heal-target').innerHTML = '<option value="">— Selecione —</option>';
-    return;
-  }
-
-  // Populate heal select
-  const sel = document.getElementById('select-heal-target');
-  const currentVal = sel.value;
-  
-  const tags = [...new Set(state.combatants.map(c => c.tag).filter(t => t && t.trim() !== ''))];
-  let tagsOptions = '';
-  if (tags.length > 0) {
-    tagsOptions = '<optgroup label="Cura em Grupo">' + tags.map(t => `<option value="TAG:${t}">Todos com a Tag: ${t}</option>`).join('') + '</optgroup>';
-  }
-
-  const individualOptions = '<optgroup label="Individuais">' + state.combatants.map(c => `<option value="${c.id}">${c.name} ${c.tag ? `[${c.tag}]` : ''} (PV: ${c.hpCur}/${c.hpMax})</option>`).join('') + '</optgroup>';
-
-  sel.innerHTML = '<option value="">— Selecione —</option>' + tagsOptions + individualOptions;
-  if (currentVal && sel.querySelector(`option[value="${currentVal}"]`)) sel.value = currentVal;
-
-  countSpan.textContent = `${state.combatants.length} combatentes`;
-  container.innerHTML = state.combatants.map(c => {
-    const hpPct = Math.max(0, Math.min(100, (c.hpCur / c.hpMax) * 100));
-    const fpPct = Math.max(0, Math.min(100, (c.fpCur / c.fpMax) * 100));
-    const bleeding = c.hpCur < 0 || c.isBleeding;
-
-    return `
+        return `
       <div class="combatant-card">
         <div class="card__info">
           <div style="display:flex; justify-content: space-between; align-items: center">
@@ -453,80 +1390,736 @@ function renderCombatants() {
         </div>
       </div>
     `;
-  }).join('');
-}
+      }).join('');
+    }
 
-function renderLog() {
-  const log = loadTimeLog();
-  const container = document.getElementById('log-list');
-  
-  if (!log.length) {
-    container.innerHTML = '<p class="log-empty">Nenhum evento registrado.</p>';
-    return;
-  }
+    function renderLog() {
+      const log = loadTimeLog();
+      const container = document.getElementById('log-list');
 
-  container.innerHTML = log.map(e => `
-    <div class="log-entry log-entry--${e.type}">
-      <span class="log-time">${e.time}</span>
-      <span class="log-text">${e.text}</span>
+      if (!log.length) {
+        container.innerHTML = '<p class="history__empty">Nenhum evento registrado.</p>';
+        return;
+      }
+
+      container.innerHTML = log.map(e => `
+    <div class="history__entry history__entry--${e.type} anim-slide">
+      <span class="history__time">${e.time}</span>
+      <span class="history__text">${e.text}</span>
     </div>
   `).join('');
-}
+    }
 
-function renderLegacy() {
-  const state = loadState();
-  const container = document.getElementById('legacy-list');
-  if (!state || !state.legacyLog || state.legacyLog.length === 0) {
-    container.innerHTML = '<div class="log-empty">Nenhum herói tombou ainda. As lendas aguardam.</div>';
-    return;
-  }
+    function renderLegacy() {
+      const state = loadState();
+      const container = document.getElementById('legacy-list');
+      if (!state || !state.legacyLog || state.legacyLog.length === 0) {
+        container.innerHTML = '<div class="history__empty">Nenhum herói tombou ainda. As lendas aguardam.</div>';
+        return;
+      }
 
-  container.innerHTML = state.legacyLog.map(l => `
-    <div class="log-entry" style="border-left-color: var(--red-accent); margin-bottom:4px">
-      <span class="log-time">${l.time}</span>
-      <strong style="color:var(--red-accent)">💀 MORTE & LEGADO:</strong> ${l.text}
+      container.innerHTML = state.legacyLog.map(l => `
+    <div class="history__entry" style="border-left-color: var(--red-accent); margin-bottom:4px">
+      <span class="history__time">${l.time}</span>
+      <strong style="color:var(--red-accent)">💀 MORTE & LEGADO:</strong>
+      <span class="history__text">${l.text}</span>
     </div>
   `).join('');
-}
+    }
 
-// ── Clear Legacy ──
-function clearLegacy() {
-  if (confirm('Deseja apagar as crônicas de legado?')) {
-    const state = loadState();
-    state.legacyLog = [];
-    saveState(state);
-    renderLegacy();
-  }
-}
+    // ── Clear Legacy ──
+    function clearLegacy() {
+      if (confirm('Deseja apagar as crônicas de legado?')) {
+        const state = loadState();
+        state.legacyLog = [];
+        saveState(state);
+        renderLegacy();
+      }
+    }
 
-// ══════ INIT ══════
+    // ══════ INIT ══════
 
-document.getElementById('btn-advance-min').addEventListener('click', handleBleedingRolls);
-document.getElementById('btn-rest-10').addEventListener('click', handleRest);
-document.getElementById('btn-long-rest').addEventListener('click', handleLongRest);
-document.getElementById('btn-first-aid').addEventListener('click', () => handleHeal(true));
-document.getElementById('btn-heal-hp').addEventListener('click', () => handleHeal(false));
-document.getElementById('btn-clear-log').addEventListener('click', () => {
-  if (confirm('Deseja limpar o histórico de tempo?')) {
-    saveTimeLog([]);
-    renderLog();
-  }
-});
+    document.getElementById('btn-advance-min').addEventListener('click', handleBleedingRolls);
+    document.getElementById('btn-rest-10').addEventListener('click', handleRest);
+    document.getElementById('btn-long-rest').addEventListener('click', handleLongRest);
+    document.getElementById('btn-first-aid').addEventListener('click', () => handleHeal(true));
+    document.getElementById('btn-heal-hp').addEventListener('click', () => handleHeal(false));
+    document.getElementById('btn-clear-log').addEventListener('click', () => {
+      if (confirm('Deseja limpar o histórico de tempo?')) {
+        saveTimeLog([]);
+        renderLog();
+      }
+    });
 
-// Periodic refresh if state changes from other tabs
-window.addEventListener('storage', (e) => {
-  if (e.key === STATE_KEY) renderCombatants();
-});
+    // Periodic refresh if state changes from other tabs
+    window.addEventListener('storage', (e) => {
+      if (e.key === STATE_KEY) renderCombatants();
+    });
 
-window.addEventListener('daimyoStateUpdated', () => {
+    window.addEventListener('daimyoStateUpdated', () => {
+      renderCombatants();
+    });
+
     renderCombatants();
-});
+    renderLog();
+    renderLegacy();
 
-renderCombatants();
-renderLog();
-renderLegacy();
+    /* ═══════════════════════════════════════════
+       DATA MANAGER — Gerenciamento de Dados
+       ═══════════════════════════════════════════ */
+    const DataManager = (function () {
 
-</script>
+      const categories = [
+        {
+          id: 'characters', icon: '👥', name: 'Personagens',
+          meta: 'Fichas de heróis e NPCs',
+          storage: 'indexeddb', store: 'characters', key: 'all',
+          hasReset: false,
+          getItemLabel: (item) => item.name || 'Sem nome',
+          getItemSub: (item) => `ST ${item.attributes?.st || '?'} | ${item.clan || 'Sem clã'}`
+        },
+        {
+          id: 'combat', icon: '⚔️', name: 'Estado de Combate',
+          meta: 'Combatentes ativos na arena',
+          storage: 'indexeddb', store: 'vault', key: 'combat_state',
+          hasReset: true,
+          getResetData: () => ({ combatants: [], combat: { activeIndex: -1, round: 0, isStarted: false, nextId: 200 }, kegare: { level: 1 }, history: [], kegareLog: [], legacyLog: [] }),
+          getListFromData: (data) => (data && data.combatants) ? data.combatants : [],
+          getItemLabel: (item) => item.name || 'Desconhecido',
+          getItemSub: (item) => `PV ${item.hpCur}/${item.hpMax} | PF ${item.fpCur}/${item.fpMax}`
+        },
+        {
+          id: 'clocks', icon: '⏱️', name: 'Relógios de Ameaça',
+          meta: 'Relógios de facção e ameaças',
+          storage: 'indexeddb', store: 'vault', key: 'clocks',
+          hasReset: false,
+          getItemLabel: (item) => item.name || 'Sem nome',
+          getItemSub: (item) => `${item.current || 0}/${item.max || '?'} passos`
+        },
+        {
+          id: 'clocks_history', icon: '📜', name: 'Histórico de Relógios',
+          meta: 'Registro de mudanças nos relógios',
+          storage: 'indexeddb', store: 'vault', key: 'clocks_history',
+          hasReset: false,
+          getItemLabel: (item) => item.msg || '(sem mensagem)',
+          getItemSub: (item) => item.timestamp || ''
+        },
+        {
+          id: 'notes', icon: '📝', name: 'Notas do Mestre',
+          meta: 'Anotações e páginas de notas',
+          storage: 'indexeddb', store: 'vault', key: 'gm_notes',
+          hasReset: true,
+          getResetData: () => [{ id: 'default', title: 'Principal', content: '' }],
+          getItemLabel: (item) => item.title || 'Sem título',
+          getItemSub: (item) => `${(item.content || '').length} caracteres`
+        },
+        {
+          id: 'library', icon: '📚', name: 'Biblioteca',
+          meta: 'Vantagens, perícias, regras e mais',
+          storage: 'indexeddb', store: 'vault', key: 'library_data',
+          hasReset: true,
+          getResetData: () => null,
+          resetFn: () => resetLibrary(),
+          getItemLabel: (item) => item.nome || item.name || 'Sem nome',
+          getItemSub: (item) => `${item.cat || ''} > ${item.sub || ''}`
+        },
+        {
+          id: 'library_cats', icon: '🏷️', name: 'Categorias da Biblioteca',
+          meta: 'Categorias organizacionais',
+          storage: 'indexeddb', store: 'vault', key: 'library_categories',
+          hasReset: true,
+          getResetData: () => null,
+          resetFn: () => resetLibraryCategories(),
+          getItemLabel: (item) => `${item.icon || ''} ${item.name || 'Sem nome'}`,
+          getItemSub: (item) => `${(item.tags || []).length} tags`
+        },
+        {
+          id: 'maps', icon: '🗺️', name: 'Mapas Táticos',
+          meta: 'Hierarquia de mapas e tokens',
+          storage: 'indexeddb', store: 'map_state', key: 'hierarchy',
+          hasReset: true,
+          getResetData: () => ({ macro: { id: 'mapa-macro.png', name: 'Japão Macro' }, regions: [{ id: 'regiao-chugoku.png', name: 'Região de Chugoku' }], cities: [{ id: 'kamamura.png', name: 'Kamamura', parentId: 'regiao-chugoku.png' }] }),
+          getListFromData: (data) => {
+            const list = [];
+            if (data && data.macro) list.push({ name: data.macro.name, sub: 'mapa-macro.png' });
+            if (data && data.regions) data.regions.forEach(r => list.push({ name: r.name, sub: 'Região' }));
+            if (data && data.cities) data.cities.forEach(c => list.push({ name: c.name, sub: 'Cidade' }));
+            return list;
+          },
+          getItemLabel: (item) => item.name,
+          getItemSub: (item) => item.sub
+        },
+        {
+          id: 'map_tokens', icon: '📍', name: 'Tokens dos Mapas',
+          meta: 'Posições de tokens por mapa',
+          storage: 'indexeddb', store: 'map_state', key: 'tokens',
+          hasReset: false,
+          getListFromData: (data) => {
+            const list = [];
+            if (data && typeof data === 'object') {
+              Object.keys(data).forEach(mapId => {
+                const tokens = data[mapId];
+                if (Array.isArray(tokens)) {
+                  tokens.forEach(t => list.push({ name: t.name || t.type || '?', sub: `Mapa: ${mapId}`, _id: t.id, _mapId: mapId }));
+                }
+              });
+            }
+            return list;
+          },
+          deleteItemFn: (data, item) => {
+            if (data && data[item._mapId]) {
+              data[item._mapId] = data[item._mapId].filter(t => t.id !== item._id);
+            }
+            return data;
+          },
+          getItemLabel: (item) => item.name,
+          getItemSub: (item) => item.sub
+        },
+        {
+          id: 'session_log', icon: '📋', name: 'Histórico de Sessão',
+          meta: 'Log global de combate e ações',
+          storage: 'indexeddb', store: 'history', key: 'session_log',
+          hasReset: false,
+          getItemLabel: (item) => item.text || '(sem texto)',
+          getItemSub: (item) => `${(item.type || '').toUpperCase()} | ${item.time || ''}`
+        },
+        {
+          id: 'time_log', icon: '⏱️', name: 'Log de Tempo',
+          meta: 'Eventos do controle de tempo',
+          storage: 'localstorage', lsKey: 'daimyoShieldTimeLog',
+          hasReset: false,
+          getItemLabel: (item) => item.text || '(sem texto)',
+          getItemSub: (item) => `${(item.type || '').toUpperCase()} | ${item.time || ''}`
+        },
+        {
+          id: 'oracles', icon: '🔮', name: 'Histórico de Oráculos',
+          meta: 'Rolagens de oráculos e geradores',
+          storage: 'localstorage', lsKey: 'espadas_quebradas_oracles',
+          hasReset: false,
+          getItemLabel: (item) => item.text || item.result || '(sem texto)',
+          getItemSub: (item) => item.time || ''
+        },
+        {
+          id: 'theme', icon: '🎨', name: 'Tema e Aparência',
+          meta: 'Configurações visuais do sistema',
+          storage: 'localstorage', lsKey: 'daimyo-theme-preference',
+          hasReset: true,
+          getResetData: () => 'dark',
+          isSingleValue: true,
+          getItemLabel: (item) => `Tema: ${item}`,
+          getItemSub: () => 'Configuração global'
+        },
+        {
+          id: 'ui_settings', icon: '🖥️', name: 'Configurações de UI',
+          meta: 'Fonte, tamanho e cores de texto',
+          storage: 'localstorage', lsKey: 'daimyo-ui-settings',
+          hasReset: true,
+          getResetData: () => JSON.stringify({ theme: 'dark', textColor: '', fontFamily: 'serif', fontSize: 100 }),
+          isSingleValue: true,
+          getItemLabel: (item) => 'Configurações de interface',
+          getItemSub: () => 'Padrões do sistema'
+        }
+      ];
+
+      let _activeDetail = null;
+
+      async function getData(cat) {
+        try {
+          if (cat.storage === 'indexeddb') {
+            if (!window.DaimyoDB) return null;
+            return await window.DaimyoDB.get(cat.store, cat.key);
+          } else {
+            const raw = localStorage.getItem(cat.lsKey);
+            if (raw === null) return null;
+            if (cat.isSingleValue) return raw;
+            try { return JSON.parse(raw); } catch (_) { return raw; }
+          }
+        } catch (e) {
+          console.error(`Erro ao ler ${cat.id}:`, e);
+          return null;
+        }
+      }
+
+      async function saveData(cat, data) {
+        try {
+          if (cat.storage === 'indexeddb') {
+            if (!window.DaimyoDB) return;
+            await window.DaimyoDB.put(cat.store, cat.key, data);
+          } else {
+            if (cat.isSingleValue) localStorage.setItem(cat.lsKey, data);
+            else localStorage.setItem(cat.lsKey, JSON.stringify(data));
+          }
+        } catch (e) {
+          console.error(`Erro ao salvar ${cat.id}:`, e);
+        }
+      }
+
+      function getList(cat, data) {
+        if (data === null || data === undefined) return [];
+        if (cat.getListFromData) return cat.getListFromData(data);
+        if (cat.isSingleValue) return [data];
+        if (Array.isArray(data)) return data;
+        return [];
+      }
+
+      function showToast(msg) {
+        const el = document.getElementById('dm-toast');
+        el.textContent = msg;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 2500);
+      }
+
+      async function render() {
+        const body = document.getElementById('dm-body');
+        let totalItems = 0;
+        let html = '';
+
+        // Parallelize all reads to avoid sequential IndexedDB latency
+        const allData = await Promise.all(categories.map(cat => getData(cat)));
+
+        for (let i = 0; i < categories.length; i++) {
+          const cat = categories[i];
+          const data = allData[i];
+          const items = getList(cat, data);
+          const count = items.length;
+          totalItems += count;
+
+          const countClass = count === 0 ? 'dm-cat-count dm-cat-count--empty' : 'dm-cat-count';
+          const resetBtn = cat.hasReset ? `<button class="dm-cat-btn dm-cat-btn--reset" onclick="event.stopPropagation(); DataManager.resetCategory('${cat.id}')">↺ Reset</button>` : '';
+          const clearBtn = count > 0 ? `<button class="dm-cat-btn dm-cat-btn--danger" onclick="event.stopPropagation(); DataManager.clearCategory('${cat.id}')">🗑 Limpar</button>` : '';
+          const viewBtn = count > 0 ? `<button class="dm-cat-btn" onclick="event.stopPropagation(); DataManager.toggleDetail('${cat.id}')">👁 Ver</button>` : '';
+
+          html += `
+        <div class="dm-category" id="dm-cat-${cat.id}">
+          <div class="dm-cat-header" onclick="DataManager.toggleDetail('${cat.id}')">
+            <span class="dm-cat-icon">${cat.icon}</span>
+            <div class="dm-cat-info">
+              <div class="dm-cat-name">${cat.name}</div>
+              <div class="dm-cat-meta">${cat.meta}</div>
+            </div>
+            <span class="${countClass}">${count}</span>
+            <div class="dm-cat-actions">
+              ${viewBtn}
+              ${resetBtn}
+              ${clearBtn}
+            </div>
+          </div>
+          <div class="dm-detail" id="dm-detail-${cat.id}">
+            <div class="dm-detail__header">
+              <span class="dm-detail__title">${cat.name}</span>
+              <button class="dm-detail__close" onclick="DataManager.toggleDetail('${cat.id}')">✕</button>
+            </div>
+            <div class="dm-detail__list" id="dm-list-${cat.id}">
+              ${items.length === 0 ? '<div class="dm-detail__empty">Nenhum item encontrado.</div>' : ''}
+              ${items.map((item, idx) => {
+            const label = cat.getItemLabel(item);
+            const sub = cat.getItemSub(item);
+            const deleteFn = cat.deleteItemFn
+              ? `onclick="DataManager.deleteCustomItem('${cat.id}', ${idx})"`
+              : `onclick="DataManager.deleteItem('${cat.id}', ${idx})"`;
+            return `
+                  <div class="dm-detail__item">
+                    <input type="checkbox" class="dm-detail__item-check" data-cat="${cat.id}" data-idx="${idx}">
+                    <span class="dm-detail__item-name">${escapeHtml(String(label))}</span>
+                    <span class="dm-detail__item-sub">${escapeHtml(String(sub))}</span>
+                    <button class="dm-detail__item-del" ${deleteFn} title="Excluir">✕</button>
+                  </div>`;
+          }).join('')}
+            </div>
+            <div class="dm-detail__footer">
+              <button class="dm-cat-btn" onclick="DataManager.selectAll('${cat.id}')">☑ Todos</button>
+              <button class="dm-cat-btn" onclick="DataManager.deselectAll('${cat.id}')">☐ Nenhum</button>
+              <button class="dm-cat-btn dm-cat-btn--danger" onclick="DataManager.deleteSelected('${cat.id}')">🗑 Excluir Selecionados</button>
+            </div>
+          </div>
+        </div>`;
+        }
+
+        body.innerHTML = html;
+        document.getElementById('dm-total-items').textContent = `${totalItems} itens no total`;
+      }
+
+      function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+      }
+
+      function open() {
+        document.getElementById('dm-overlay').classList.add('open');
+        document.getElementById('dm-drawer').classList.add('open');
+        render();
+        updateWakeLockUI();
+      }
+
+      function close() {
+        document.getElementById('dm-overlay').classList.remove('open');
+        document.getElementById('dm-drawer').classList.remove('open');
+        _activeDetail = null;
+      }
+
+      function toggleDetail(catId) {
+        const el = document.getElementById(`dm-detail-${catId}`);
+        if (_activeDetail && _activeDetail !== catId) {
+          const prev = document.getElementById(`dm-detail-${_activeDetail}`);
+          if (prev) prev.classList.remove('open');
+        }
+        el.classList.toggle('open');
+        _activeDetail = el.classList.contains('open') ? catId : null;
+      }
+
+      async function clearCategory(catId) {
+        const cat = categories.find(c => c.id === catId);
+        if (!cat) return;
+        if (!confirm(`Deseja limpar todos os dados de "${cat.name}"? Esta ação não pode ser desfeita.`)) return;
+
+        if (cat.storage === 'indexeddb') {
+          if (cat.key === 'all') {
+            await saveData(cat, []);
+          } else if (cat.key === 'combat_state') {
+            await saveData(cat, cat.getResetData());
+          } else if (cat.key === 'tokens') {
+            await saveData(cat, {});
+          } else {
+            await saveData(cat, []);
+          }
+        } else {
+          if (cat.isSingleValue) {
+            localStorage.removeItem(cat.lsKey);
+          } else {
+            await saveData(cat, []);
+          }
+        }
+
+        showToast(`${cat.icon} ${cat.name} limpo com sucesso.`);
+        render();
+      }
+
+      async function resetCategory(catId) {
+        const cat = categories.find(c => c.id === catId);
+        if (!cat || !cat.hasReset) return;
+        if (!confirm(`Deseja redefinir "${cat.name}" ao padrão? Dados customizados serão preservados onde aplicável.`)) return;
+
+        if (cat.resetFn) {
+          await cat.resetFn();
+        } else if (cat.isSingleValue) {
+          localStorage.setItem(cat.lsKey, cat.getResetData());
+        } else {
+          await saveData(cat, cat.getResetData());
+        }
+
+        showToast(`${cat.icon} ${cat.name} redefinido ao padrão.`);
+        render();
+        refreshOtherPages();
+      }
+
+      async function deleteItem(catId, idx) {
+        const cat = categories.find(c => c.id === catId);
+        if (!cat) return;
+
+        const data = await getData(cat);
+        const items = getList(cat, data);
+
+        if (cat.isSingleValue) {
+          localStorage.removeItem(cat.lsKey);
+          showToast(`${cat.icon} ${cat.name} removido.`);
+          render();
+          return;
+        }
+
+        if (!Array.isArray(items) || idx >= items.length) return;
+
+        if (cat.id === 'combat') {
+          items.splice(idx, 1);
+          data.combatants = items;
+          await saveData(cat, data);
+        } else if (cat.id === 'maps') {
+          showToast('Mapas: use "Limpar" para remover toda a hierarquia.');
+          return;
+        } else if (cat.id === 'map_tokens' && cat.deleteItemFn) {
+          const updated = cat.deleteItemFn(data, items[idx]);
+          await saveData(cat, updated);
+        } else if (Array.isArray(data)) {
+          data.splice(idx, 1);
+          await saveData(cat, data);
+        }
+
+        showToast(`Item excluído de ${cat.name}.`);
+        render();
+        refreshOtherPages();
+      }
+
+      async function deleteCustomItem(catId, idx) {
+        await deleteItem(catId, idx);
+      }
+
+      async function deleteSelected(catId) {
+        const cat = categories.find(c => c.id === catId);
+        if (!cat) return;
+
+        const checkboxes = document.querySelectorAll(`input[data-cat="${catId}"]:checked`);
+        if (checkboxes.length === 0) {
+          showToast('Nenhum item selecionado.');
+          return;
+        }
+        if (!confirm(`Deseja excluir ${checkboxes.length} item(ns) de "${cat.name}"?`)) return;
+
+        const indices = Array.from(checkboxes).map(cb => parseInt(cb.dataset.idx)).sort((a, b) => b - a);
+
+        if (cat.isSingleValue) {
+          localStorage.removeItem(cat.lsKey);
+          showToast(`${cat.name} removido.`);
+          render();
+          return;
+        }
+
+        const data = await getData(cat);
+
+        if (cat.id === 'combat' && data) {
+          indices.forEach(i => data.combatants.splice(i, 1));
+          await saveData(cat, data);
+        } else if (cat.id === 'map_tokens' && cat.deleteItemFn) {
+          const items = getList(cat, data);
+          let updated = data;
+          indices.forEach(i => { updated = cat.deleteItemFn(updated, items[i]); });
+          await saveData(cat, updated);
+        } else if (Array.isArray(data)) {
+          indices.forEach(i => data.splice(i, 1));
+          await saveData(cat, data);
+        }
+
+        showToast(`${indices.length} item(ns) excluído(s) de ${cat.name}.`);
+        render();
+        refreshOtherPages();
+      }
+
+      function selectAll(catId) {
+        document.querySelectorAll(`input[data-cat="${catId}"]`).forEach(cb => cb.checked = true);
+      }
+
+      function deselectAll(catId) {
+        document.querySelectorAll(`input[data-cat="${catId}"]`).forEach(cb => cb.checked = false);
+      }
+
+      async function nukeAll() {
+        if (!confirm('⚠️ ATENÇÃO MÁXIMA!\n\nIso irá EXCLUIR TODOS os dados do sistema:\n• Personagens\n• Combate\n• Mapas\n• Notas\n• Biblioteca\n• Logs\n• Configurações\n\nEssa ação NÃO pode ser desfeita.\n\nTem CERTEZA absoluta?')) return;
+        if (!confirm('ÚLTIMO AVISO: Todos os dados serão perdidos permanentemente. Continuar?')) return;
+
+        try {
+          if (window.DaimyoDB) {
+            await window.DaimyoDB.clearStore('characters');
+            await window.DaimyoDB.clearStore('vault');
+            await window.DaimyoDB.clearStore('map_state');
+            await window.DaimyoDB.clearStore('history');
+          }
+          localStorage.clear();
+
+          showToast('☢️ Todos os dados foram limpos. Recarregando...');
+          setTimeout(() => window.location.reload(), 1500);
+        } catch (e) {
+          console.error('Erro ao limpar tudo:', e);
+          showToast('Erro ao limpar dados. Verifique o console.');
+        }
+      }
+
+      async function factoryReset() {
+        if (!confirm('🏭 RESET DE FÁBRICA\n\nIsso irá redefinir TODOS os dados ao estado original:\n• Personagens → vazios\n• Combate → vazio\n• Mapas → padrão (Japão/Kamamura)\n• Notas → vazias\n• Biblioteca → 170+ itens padrão\n• Categorias → 12 padrão\n• Logs → vazios\n• Tema → escuro padrão\n\nDados customizados serão perdidos.\n\nDeseja continuar?')) return;
+        if (!confirm('CONFIRMAÇÃO FINAL: Resetar tudo ao padrão de fábrica?')) return;
+
+        try {
+          // 0. Preserve library defaults backup before anything else
+          let libBackup = null;
+          if (window.DaimyoDB) {
+            libBackup = await window.DaimyoDB.get('vault', 'library_defaults_backup');
+          }
+
+          // 1. Reset IndexedDB stores
+          if (window.DaimyoDB) {
+            // Characters
+            await window.DaimyoDB.put('characters', 'all', []);
+
+            // Vault: combat, clocks, notes, library
+            const defaultCombat = { combatants: [], combat: { activeIndex: -1, round: 0, isStarted: false, nextId: 200 }, kegare: { level: 1 }, history: [], kegareLog: [], legacyLog: [] };
+            await window.DaimyoDB.put('vault', 'combat_state', defaultCombat);
+            await window.DaimyoDB.put('vault', 'clocks', []);
+            await window.DaimyoDB.put('vault', 'clocks_history', []);
+            await window.DaimyoDB.put('vault', 'gm_notes', [{ id: 'default', title: 'Principal', content: '' }]);
+
+            // Library: restore from backup if available
+            if (libBackup && libBackup.data) {
+              await window.DaimyoDB.put('vault', 'library_data', libBackup.data);
+              await window.DaimyoDB.put('vault', 'library_data_version', 3);
+              await window.DaimyoDB.put('vault', 'library_categories', libBackup.categories || []);
+            } else {
+              await window.DaimyoDB.put('vault', 'library_data', null);
+              await window.DaimyoDB.put('vault', 'library_data_version', 0);
+              await window.DaimyoDB.put('vault', 'library_categories', [
+                { id: 'cat_van', name: 'Vantagem', icon: '🌟', tags: ['Combate', 'Social', 'Mental', 'Extra', 'Política', 'Mestria', 'Vida'], order: 0 },
+                { id: 'cat_des', name: 'Desvantagem', icon: '⛓️', tags: ['Código de Honra', 'Social', 'Pessoal', 'Extra', 'Física', 'Mental'], order: 1 },
+                { id: 'cat_per', name: 'Perícia', icon: '🥋', tags: ['Combate', 'Furtividade', 'Social', 'Sobrevivência', 'Intelectual', 'Artesão', 'Espião', 'Natureza', 'Esotérica', 'Artes', 'Conhecimento'], order: 2 },
+                { id: 'cat_qua', name: 'Qualidade', icon: '🎭', tags: ['Combate', 'Social', 'Equip', 'Estilo de Vida'], order: 3 },
+                { id: 'cat_pec', name: 'Peculiaridade', icon: '🔹', tags: ['Crença', 'Aversão', 'Traço', 'Código', 'Mania'], order: 4 },
+                { id: 'cat_bud', name: 'Budo', icon: '⚔️', tags: ['Espada', 'Arco', 'Lança', 'Desarmado', 'Saque', 'Corrente', 'Arremesso', 'Haste', 'Bastão', 'Ferramenta', 'Captura'], order: 5 },
+                { id: 'cat_reg', name: 'Regra', icon: '📜', tags: ['Referência', 'Mecânica', 'Combate', 'Dano'], order: 6 },
+                { id: 'cat_arq', name: 'Arquétipo', icon: '👥', tags: ['Nobre', 'Ronin', 'Místico', 'Ninja'], order: 7 },
+                { id: 'cat_yok', name: 'Yokai', icon: '👻', tags: ['Espírito', 'Físico', 'Terror', 'Calamidade'], order: 8 },
+                { id: 'cat_alq', name: 'Alquimia', icon: '🧪', tags: ['Veneno', 'Poção', 'Explosivo'], order: 9 },
+                { id: 'cat_atl', name: 'Atlas', icon: '🗺️', tags: ['Província', 'Cidade', 'Santuário'], order: 10 },
+                { id: 'cat_cas', name: 'Casa', icon: '🏠', tags: ['Mentalidade', 'Karma', 'Maestria', 'Mecânica'], order: 11 }
+              ]);
+            }
+
+            // Preserve the backup itself
+            if (libBackup) {
+              await window.DaimyoDB.put('vault', 'library_defaults_backup', libBackup);
+            }
+
+            // Map state
+            const defaultHierarchy = { macro: { id: 'mapa-macro.png', name: 'Japão Macro' }, regions: [{ id: 'regiao-chugoku.png', name: 'Região de Chugoku' }], cities: [{ id: 'kamamura.png', name: 'Kamamura', parentId: 'regiao-chugoku.png' }] };
+            await window.DaimyoDB.put('map_state', 'hierarchy', defaultHierarchy);
+            await window.DaimyoDB.put('map_state', 'tokens', {});
+
+            // History
+            await window.DaimyoDB.put('history', 'session_log', []);
+          }
+
+          // 2. Reset localStorage keys
+          localStorage.setItem('daimyo-theme-preference', 'dark');
+          localStorage.setItem('daimyo-ui-settings', JSON.stringify({ theme: 'dark', textColor: '', fontFamily: 'serif', fontSize: 100 }));
+          localStorage.setItem('daimyoShieldState', JSON.stringify({ combatants: [], combat: { activeIndex: -1, round: 0, isStarted: false, nextId: 200 }, kegare: { level: 1 }, history: [], kegareLog: [], legacyLog: [] }));
+          localStorage.setItem('daimyoShieldTimeLog', '[]');
+          localStorage.setItem('espadas_quebradas_oracles', '[]');
+
+          // 3. Clear migration flag so library re-seeds on next visit
+          localStorage.removeItem('daimyo_migrated_v2');
+
+          showToast('🏭 Reset de fábrica concluído! Recarregando...');
+          setTimeout(() => window.location.reload(), 1500);
+        } catch (e) {
+          console.error('Erro no reset de fábrica:', e);
+          showToast('Erro durante o reset. Verifique o console.');
+        }
+      }
+
+      function exportBackup() {
+        if (window.DaimyoSeal) {
+          window.DaimyoSeal.exportCampaign();
+          showToast('📤 Backup exportado com sucesso.');
+        } else {
+          showToast('Erro: DaimyoSeal não disponível.');
+        }
+      }
+
+      function importBackup(file) {
+        if (window.DaimyoSeal) {
+          window.DaimyoSeal.importCampaign(file);
+        } else {
+          showToast('Erro: DaimyoSeal não disponível.');
+        }
+      }
+
+      async function resetLibrary() {
+        if (window.LibraryManager && typeof window.LibraryManager.resetToDefaults === 'function') {
+          await window.LibraryManager.resetToDefaults();
+        } else if (window.DaimyoDB) {
+          // Try to restore from backup saved by LibraryManager
+          const backup = await window.DaimyoDB.get('vault', 'library_defaults_backup');
+          if (backup && backup.data) {
+            await window.DaimyoDB.put('vault', 'library_data', backup.data);
+            await window.DaimyoDB.put('vault', 'library_data_version', 3);
+            showToast(`📚 Biblioteca redefinida: ${backup.data.length} itens padrão restaurados.`);
+          } else {
+            // Fallback: clear and mark for re-seed on next library.html visit
+            await window.DaimyoDB.put('vault', 'library_data', null);
+            await window.DaimyoDB.put('vault', 'library_data_version', 0);
+            showToast('📚 Biblioteca será redefinida na próxima visita à Biblioteca.');
+          }
+        }
+      }
+
+      async function resetLibraryCategories() {
+        if (window.LibraryManager && typeof window.LibraryManager.resetCategories === 'function') {
+          await window.LibraryManager.resetCategories();
+        } else if (window.DaimyoDB) {
+          const backup = await window.DaimyoDB.get('vault', 'library_defaults_backup');
+          if (backup && backup.categories) {
+            await window.DaimyoDB.put('vault', 'library_categories', backup.categories);
+            showToast(`🏷️ ${backup.categories.length} categorias redefinidas.`);
+          } else {
+            // Hardcoded fallback
+            const defaultCats = [
+              { id: 'cat_van', name: 'Vantagem', icon: '🌟', tags: ['Combate', 'Social', 'Mental', 'Extra', 'Política', 'Mestria', 'Vida'], order: 0 },
+              { id: 'cat_des', name: 'Desvantagem', icon: '⛓️', tags: ['Código de Honra', 'Social', 'Pessoal', 'Extra', 'Física', 'Mental'], order: 1 },
+              { id: 'cat_per', name: 'Perícia', icon: '🥋', tags: ['Combate', 'Furtividade', 'Social', 'Sobrevivência', 'Intelectual', 'Artesão', 'Espião', 'Natureza', 'Esotérica', 'Artes', 'Conhecimento'], order: 2 },
+              { id: 'cat_qua', name: 'Qualidade', icon: '🎭', tags: ['Combate', 'Social', 'Equip', 'Estilo de Vida'], order: 3 },
+              { id: 'cat_pec', name: 'Peculiaridade', icon: '🔹', tags: ['Crença', 'Aversão', 'Traço', 'Código', 'Mania'], order: 4 },
+              { id: 'cat_bud', name: 'Budo', icon: '⚔️', tags: ['Espada', 'Arco', 'Lança', 'Desarmado', 'Saque', 'Corrente', 'Arremesso', 'Haste', 'Bastão', 'Ferramenta', 'Captura'], order: 5 },
+              { id: 'cat_reg', name: 'Regra', icon: '📜', tags: ['Referência', 'Mecânica', 'Combate', 'Dano'], order: 6 },
+              { id: 'cat_arq', name: 'Arquétipo', icon: '👥', tags: ['Nobre', 'Ronin', 'Místico', 'Ninja'], order: 7 },
+              { id: 'cat_yok', name: 'Yokai', icon: '👻', tags: ['Espírito', 'Físico', 'Terror', 'Calamidade'], order: 8 },
+              { id: 'cat_alq', name: 'Alquimia', icon: '🧪', tags: ['Veneno', 'Poção', 'Explosivo'], order: 9 },
+              { id: 'cat_atl', name: 'Atlas', icon: '🗺️', tags: ['Província', 'Cidade', 'Santuário'], order: 10 },
+              { id: 'cat_cas', name: 'Casa', icon: '🏠', tags: ['Mentalidade', 'Karma', 'Maestria', 'Mecânica'], order: 11 }
+            ];
+            await window.DaimyoDB.put('vault', 'library_categories', defaultCats);
+            showToast('🏷️ 12 categorias redefinidas.');
+          }
+        }
+      }
+
+      function refreshOtherPages() {
+        window.dispatchEvent(new CustomEvent('daimyoStateUpdated'));
+      }
+
+      /* === WAKE LOCK INTEGRATION === */
+      function updateWakeLockUI() {
+        if (!window.WakeLockManager) return;
+        const active = window.WakeLockManager.isActive();
+        const btn = document.getElementById('dm-wakelock-btn');
+        const warn = document.getElementById('dm-wake-warning');
+
+        if (btn) {
+          btn.innerHTML = active ? '🏮 Tocha Acesa' : '🏮 Tocha Apagada';
+          if (active) btn.classList.add('active');
+          else btn.classList.remove('active');
+        }
+        if (warn) warn.style.display = active ? 'block' : 'none';
+      }
+
+      async function toggleWakeLock() {
+        if (!window.WakeLockManager) {
+          showToast('Erro: Sistema de Tocha não carregado.');
+          return;
+        }
+        await window.WakeLockManager.toggle();
+        updateWakeLockUI();
+        if (window.WakeLockManager.isActive()) {
+          showToast('🏮 Tocha Inextinguível acesa.');
+        } else {
+          showToast('Tocha apagada.');
+        }
+      }
+
+      // Listen for global state changes (e.g. from other tabs)
+      window.addEventListener('wakeLockStateChanged', () => {
+        updateWakeLockUI();
+      });
+
+      // Init overlay click to close
+      document.getElementById('dm-overlay').addEventListener('click', close);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+
+      return {
+        open, close, refresh: render,
+        toggleDetail, clearCategory, resetCategory,
+        deleteItem, deleteCustomItem, deleteSelected,
+        selectAll, deselectAll, nukeAll, factoryReset,
+        exportBackup, importBackup, toggleWakeLock
+      };
+    })();
+    window.DataManager = DataManager;
+
+  </script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -537,4 +2130,5 @@ renderLegacy();
     }
   </script>
 </body>
+
 </html>

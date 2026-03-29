@@ -79,7 +79,6 @@ window.ThemeManager = (function() {
   }
 
   function setFontSize(percent) {
-    console.log('✨ ThemeManager: Mudando fonte para:', percent);
     // Limites razoáveis: 70% a 160%
     const newSize = Math.max(70, Math.min(160, percent));
     currentSettings.fontSize = newSize;

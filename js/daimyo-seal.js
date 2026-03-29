@@ -58,19 +58,22 @@ window.DaimyoSeal = (function() {
         const data = JSON.parse(e.target.result);
         
         // Validação básica: verificar se contém chaves essenciais
-        if (!data['daimyoShieldState'] && !data['daimyo-theme-preference']) {
-            alert('❌ Erro: O arquivo selecionado não parece ser um backup válido do Escudo do Daimyo.');
+        if (!data['daimyoShieldState'] && !data['daimyo-theme-preference'] && !data['daimyo_migrated_v2']) {
+            alert('❌ Erro: O arquivo selecionado não parece ser um backup válido.');
             return;
         }
 
-        // Limpar e aplicar novos dados
-        localStorage.clear();
-        for (const key in data) {
-            localStorage.setItem(key, data[key]);
+        // Aplicar novos dados de forma segura (sobrescrever)
+        try {
+            for (const key in data) {
+                localStorage.setItem(key, data[key]);
+            }
+            alert('✅ Campanha restaurada com sucesso! A página será recarregada.');
+            window.location.reload();
+        } catch (e) {
+            console.error('Erro ao gravar no localStorage:', e);
+            alert('❌ Erro ao gravar no armazenamento local (talvez limite de cota excedido).');
         }
-
-        alert('✅ Campanha restaurada com sucesso! A página será recarregada.');
-        window.location.reload();
         
       } catch (err) {
         console.error('Erro na importação:', err);

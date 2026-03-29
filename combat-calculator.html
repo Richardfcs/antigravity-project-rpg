@@ -8,6 +8,27 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- CORE INFRASTRUCTURE (Explicit Loading) -->
+  <script src="js/daimyo-db.js"></script>
+  <script src="js/theme-manager.js"></script>
+  <script src="js/log-manager.js"></script>
+  <script src="js/daimyo-seal.js"></script>
+  <script src="js/kegare-manager.js"></script>
+  <script src="js/header-loader.js"></script>
+  
+  <script>
+    // Initialize Database & Migration before page logic
+    if (window.DaimyoDB) {
+      window.DaimyoDB.init().then(() => {
+        window.DaimyoDB.migrateFromLocalStorage();
+        console.log("⛩️ Porta do Daimyo: Banco de dados e migrações ativos.");
+      }).catch(err => console.error("Falha na inicialização do Cofre:", err));
+    }
+    // Defensive fallbacks for async loading
+    window.RangedCalc = window.RangedCalc || { update: () => {} };
+    window.logRangedResult = window.logRangedResult || (() => {});
+  </script>
   <style>
     /* ═══════════════════════════════════════════
        DESIGN TOKENS — Japão Feudal Dark Mode
@@ -16,6 +37,7 @@
       --bg-deep: #0A0A0A;
       --bg-panel: #141414;
       --bg-panel-hover: #1C1C1C;
+      --bg-card: #181818;
       --bg-input: #0F0F0F;
       --border-panel: #2A2A2A;
       --border-input: #333;
@@ -28,8 +50,11 @@
 
       --gold: #D4A846;
       --gold-glow: rgba(212, 168, 70, 0.5);
+      --gold-dim: #8B6914;
 
       --green-success: #22C55E;
+      --blue-info: #3B82F6;
+      --kegare-tainted: #C084FC;
       --text-primary: #F5F0E8;
       --text-secondary: #9CA3AF;
       --text-muted: #6B7280;
@@ -66,7 +91,8 @@
       grid-template-rows: auto 1fr auto;
       height: 100vh;
       max-height: 100vh;
-      gap: 0;
+      overflow: hidden;
+      width: 100%;
     }
 
     /* ═══════════════════════════════════════════
@@ -434,7 +460,7 @@
        ═══════════════════════════════════════════ */
     @media (max-width: 900px) {
       body, html { overflow: auto; min-height: 100vh; }
-      #app { height: auto; min-height: 100vh; grid-template-rows: auto 1fr auto; display: block; }
+      #app { height: auto; min-height: 100vh; grid-template-rows: auto 1fr auto; display: block; overflow: visible; }
       .main { grid-template-columns: 1fr; overflow-y: visible; height: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; background: transparent; }
       .header { flex-wrap: wrap; gap: 10px; }
       .header__actions { width: 100%; justify-content: space-between; border-top: 1px solid var(--border-panel); padding-top: 10px; }
@@ -482,73 +508,129 @@
     /* ═══════════════════════════════════════════
        HISTORY STRIP
        ═══════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════
+       PADRÃO UNIFICADO — REGISTRO DE HISTÓRICO
+       ═══════════════════════════════════════════ */
     .history {
       background: var(--bg-panel);
       border-top: 1px solid var(--border-panel);
       display: flex;
       flex-direction: column;
-      max-height: 30vh;
-      min-height: 120px;
+      height: 320px;
+      max-height: 40vh;
+      flex-shrink: 0;
+      overflow: hidden;
     }
 
     .history__header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 24px;
+      padding: 8px 16px;
       border-bottom: 1px solid var(--border-panel);
       flex-shrink: 0;
     }
 
     .history__title {
       font-family: var(--font-display);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: var(--text-muted);
+      color: var(--gold);
     }
 
     .history__list {
       overflow-y: auto;
-      padding: 8px 24px;
+      padding: 10px 16px 40px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
       flex: 1;
       min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-panel) transparent;
     }
+
+    .history__list::-webkit-scrollbar { width: 5px; }
+    .history__list::-webkit-scrollbar-track { background: transparent; }
+    .history__list::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
+    .history__list::-webkit-scrollbar-thumb:hover { background: var(--gold); }
 
     .history__empty {
       color: var(--text-muted);
       font-size: 0.8rem;
       text-align: center;
-      padding: 16px;
+      padding: 20px 12px;
       font-style: italic;
     }
 
     .history__entry {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 6px 12px;
+      gap: 10px;
+      padding: 8px 12px;
       border-radius: var(--radius);
       background: var(--bg-deep);
       font-size: 0.78rem;
       font-variant-numeric: tabular-nums;
       border-left: 3px solid var(--border-panel);
+      transition: background var(--transition);
+      flex-wrap: wrap;
     }
 
-    .history__entry--critico { border-left-color: var(--gold); }
-    .history__entry--sucesso { border-left-color: var(--green-success); }
-    .history__entry--falha { border-left-color: var(--text-muted); }
-    .history__entry--falha-critica { border-left-color: var(--red-failure); }
+    .history__entry:hover { background: rgba(255, 255, 255, 0.02); }
 
-    .history__time { color: var(--text-muted); min-width: 45px; }
-    .history__action { color: var(--text-secondary); min-width: 65px; font-weight: 600; }
-    .history__dice { color: var(--text-secondary); min-width: 90px; }
-    .history__result-text { font-weight: 700; min-width: 110px; }
-    .history__damage { color: var(--red-accent); font-weight: 600; }
+    .history__time {
+      color: var(--text-muted);
+      min-width: 48px;
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      font-family: monospace;
+    }
+
+    .history__badge {
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      background: rgba(212, 168, 70, 0.1);
+      padding: 2px 6px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .history__text {
+      color: var(--text-secondary);
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ── Variantes de cor por tipo ── */
+    .history__entry--dano,
+    .history__entry--sucesso { border-left-color: var(--green-success); }
+    .history__entry--dano .history__text { color: #e5e7eb; }
+    .history__entry--turno,
+    .history__entry--oraculo,
+    .history__entry--time { border-left-color: var(--gold); }
+    .history__entry--turno .history__badge,
+    .history__entry--oraculo .history__badge { color: var(--gold); background: rgba(212, 168, 70, 0.12); }
+    .history__entry--critico { border-left-color: var(--gold); }
+    .history__entry--critico .history__badge { color: var(--gold); background: rgba(212, 168, 70, 0.15); }
+    .history__entry--falha { border-left-color: var(--text-muted); }
+    .history__entry--falha-critica,
+    .history__entry--death { border-left-color: var(--red-failure); }
+    .history__entry--death .history__text { color: #ef4444; font-weight: 700; }
+    .history__entry--panic { border-left-color: #C084FC; }
+    .history__entry--panic .history__text { color: #fbbf24; }
+    .history__entry--reacao { border-left-color: var(--blue-info); }
+    .history__entry--rest { border-left-color: var(--blue-info); }
+    .history__entry--exhaust { border-left-color: var(--blue-info); }
+    .history__entry--npc { border-left-color: var(--green-success); }
+    .history__entry--kegare { border-left-color: var(--kegare-tainted); }
+    .history__entry--fail { border-left-color: var(--red-failure); }
+
 
     /* ═══════════════════════════════════════════
        ANIMATIONS
@@ -585,6 +667,7 @@
         grid-template-rows: auto auto auto;
         height: auto;
         min-height: 100vh;
+        overflow: visible;
       }
       .main {
         grid-template-columns: 1fr;
@@ -595,6 +678,7 @@
       }
       .history {
         max-height: none;
+        height: auto;
         min-height: 150px;
       }
     }
@@ -607,8 +691,8 @@
       }
       .header__title { font-size: 0.95rem; }
       .panel { padding: 14px 16px; }
-      .history__list { padding: 8px 16px; }
-      .history__header { padding: 8px 16px; }
+      .history__header { padding: 8px 12px; }
+      .history__list { padding: 8px 12px 30px; }
       .field-row { grid-template-columns: 1fr; }
       .contest-result { grid-template-columns: 1fr; gap: 4px; }
       .contest-vs-divider {
@@ -627,7 +711,7 @@
   <!-- PWA METATAGS -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0A0A0A">
-  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
+  <meta name="apple-touch-icon" href="icons/app-icon-192.png">
   <link rel="icon" type="image/png" href="icons/app-icon-192.png">
 </head>
 <body>
@@ -636,7 +720,7 @@
 
   <!-- ════════ HEADER ════════ -->
   <div id="daimyo-header"></div>
-  <script src="js/header-loader.js"></script>
+
 
   <script src="js/weapons-data.js"></script>
 
@@ -781,22 +865,22 @@
 
       <div class="field-row">
         <div class="field">
-          <label class="field__label">Distância (m)</label>
+          <label class="field__label" for="rc-distance">Distância (m)</label>
           <input type="number" id="rc-distance" class="field__input" value="2" oninput="RangedCalc.update()">
         </div>
         <div class="field">
-          <label class="field__label">Tamanho (SM)</label>
+          <label class="field__label" for="rc-sm">Tamanho (SM)</label>
           <input type="number" id="rc-sm" class="field__input" value="0" oninput="RangedCalc.update()">
         </div>
       </div>
 
       <div class="field-row">
         <div class="field">
-          <label class="field__label">Precisão (Acc)</label>
+          <label class="field__label" for="rc-acc">Precisão (Acc)</label>
           <input type="number" id="rc-acc" class="field__input" value="0" oninput="RangedCalc.update()">
         </div>
         <div class="field">
-          <label class="field__label">Mira</label>
+          <label class="field__label" for="rc-aim">Mira</label>
           <select id="rc-aim" class="field__input" onchange="RangedCalc.update()" style="padding:10px; font-size:0.9rem; text-align:center;">
             <option value="0">Nenhum</option>
             <option value="1">1 Turno (Acc)</option>
@@ -820,7 +904,10 @@
         <input type="number" id="rc-custom" class="field__input" value="0" oninput="RangedCalc.update()">
       </div>
 
+      <button class="btn btn-secondary" onclick="logRangedResult()" style="width:100%; font-size:0.7rem; margin-top:8px;">📋 Registrar Modificador</button>
+
       <div class="result-box result--dano" id="result-ranged" style="margin-top:auto;">
+
         <span id="rc-result" style="font-size:2rem; font-weight:900; font-family:var(--font-display); color:var(--gold);">+0</span>
         <span class="result-box__kanji">MODIFICADOR FINAL</span>
         <div id="rc-breakdown-range" style="font-size:0.7rem; color:var(--text-muted); font-style:italic;">Distância: +0</div>
@@ -833,10 +920,10 @@
   <section class="history" id="history-section">
     <div class="history__header">
       <h3 class="history__title">📜 Histórico de Combate</h3>
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-ghost" id="btn-sync-state">🔄 Sincronizar</button>
-        <button class="btn btn-ghost" id="btn-reset">Resetar</button>
-        <button class="btn btn-ghost" id="btn-limpar-historico">Limpar</button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-ghost btn-sm" id="btn-sync-state">🔄 Sincronizar</button>
+        <button class="btn btn-ghost btn-sm" id="btn-reset">Resetar</button>
+        <button class="btn btn-ghost btn-sm" id="btn-limpar-historico">Limpar</button>
       </div>
     </div>
     <div class="history__list" id="history-list">
@@ -874,42 +961,45 @@ const RESULT_KANJI = Object.freeze({
 });
 
 /* ═══════════════════════════════════════════════════════
-   HISTORY MANAGER — IndexedDB (Cofre Infinito)
+   HISTORY — Global Log Transition
    ═══════════════════════════════════════════════════════ */
-const HISTORY_STORE = 'vault';
-const HISTORY_KEY = 'calc_history';
 
-async function loadHistory() {
-  if (window.DaimyoDB) {
-    const saved = await window.DaimyoDB.get(HISTORY_STORE, HISTORY_KEY);
-    return saved || [];
+function addHistoryEntry(entry) {
+  try {
+    if (!window.LogManager || typeof window.LogManager.add !== 'function') {
+      console.warn('LogManager não disponível, registrando entrada pendente.');
+      return;
+    }
+
+    let logMsg = '';
+    if (entry.type === 'Teste') {
+      logMsg = `🎯 TESTE: ${entry.resultText} [Roll: ${entry.diceText}]`;
+    } else if (entry.type === 'Disputa') {
+      logMsg = `⚔️ DISPUTA: ${entry.resultText} (${entry.diceText})`;
+    } else if (entry.type === 'Dano') {
+      logMsg = `🗡️ DANO: ${entry.resultText} (${entry.diceText})`;
+    } else if (entry.type === 'Ranged') {
+      logMsg = `📏 ATAQUE À DISTÂNCIA: ${entry.resultText} (${entry.diceText})`;
+    }
+    
+    if (logMsg) {
+      window.LogManager.add('calculadora', logMsg);
+    }
+  } catch (e) {
+    console.error('Erro ao adicionar entrada ao log:', e);
   }
-  return [];
 }
 
-async function saveHistory(entries) {
-  if (window.DaimyoDB) {
-    await window.DaimyoDB.put(HISTORY_STORE, HISTORY_KEY, entries);
-  }
-}
 
-async function addHistoryEntry(entry) {
-  const entries = await loadHistory();
-  const timestamp = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  entries.unshift({ ...entry, time: timestamp });
-  if (entries.length > 100) entries.pop(); // Still reasonable limit for UI, but saved in IDB
-  await saveHistory(entries);
-  renderHistory();
-}
 
-async function clearHistory(e) {
+function clearHistory(e) {
   const btn = typeof e === 'object' ? e.target : document.getElementById('btn-limpar-historico');
   if (btn.dataset.confirming === 'true') {
-    if (window.DaimyoDB) await window.DaimyoDB.put(HISTORY_STORE, HISTORY_KEY, []);
-    renderHistory();
+    if (window.LogManager) window.LogManager.clear();
     btn.dataset.confirming = 'false';
     btn.textContent = 'Limpar';
     btn.style.color = '';
+    renderHistory();
   } else {
     btn.dataset.confirming = 'true';
     btn.textContent = 'Confirmar?';
@@ -922,31 +1012,38 @@ async function clearHistory(e) {
   }
 }
 
+
 // --- CHARACTER INTEGRATION ---
 async function populateCombatants() {
   const select = document.getElementById('select-attacker-calc');
   if (!select || !window.DaimyoDB) return;
 
   try {
-    const characters = await window.DaimyoDB.getAll('characters');
+    // Usar CharacterManager.loadAll() ou o GET correto (os personagens estão no registro 'all' da store 'characters')
+    const characters = await window.DaimyoDB.get('characters', 'all') || [];
     const combatState = await window.DaimyoDB.get('vault', 'combat_state');
     
-    let options = '<option value="">— Selecionar Combatente —</option>';
+    let options = '<option value="">— Selecionar Combatente —</option>' +
+                  '<option value="none" selected>🧪 Teste Livre (Manual)</option>';
     
-    // Add from Library
+    // Adicionar do Registro de Bushido (Santuário)
     if (characters && characters.length > 0) {
       options += '<optgroup label="Santuário de Heróis">';
       characters.forEach(c => {
-        options += `<option value="char_${c.id}">${c.name} (ST ${c.st || 10})</option>`;
+        if (!c.name) return; // Segurança extra
+        const st = c.attributes?.st || 10;
+        options += `<option value="char_${c.id}">${c.name} (ST ${st})</option>`;
       });
       options += '</optgroup>';
     }
 
-    // Add from Active Combat
-    if (combatState && combatState.combatants) {
+    // Adicionar da Arena Ativa
+    if (combatState && combatState.combatants && combatState.combatants.length > 0) {
       options += '<optgroup label="Arena Atual">';
       combatState.combatants.forEach(c => {
-        options += `<option value="combat_${c.id}">${c.name} (RD ${c.rd || 0})</option>`;
+        if (!c.name) return;
+        const info = c.dr !== undefined ? `RD ${c.dr}` : `ST ${c.st || 10}`;
+        options += `<option value="combat_${c.id}">${c.name} (${info})</option>`;
       });
       options += '</optgroup>';
     }
@@ -963,36 +1060,70 @@ async function populateCombatants() {
 async function renderHistory() {
   const list = document.getElementById('history-list');
   const empty = document.getElementById('history-empty');
-  const entries = await loadHistory();
-
-  if (!entries || entries.length === 0) {
-    empty.style.display = 'block';
-    list.innerHTML = '';
+  
+  if (!list) {
+    console.warn('renderHistory: elemento #history-list não encontrado');
     return;
   }
 
-  empty.style.display = 'none';
-  list.innerHTML = entries.map(e => `
-    <div class="history__entry history__entry--${e.status?.toLowerCase() || 'default'}">
-      <span class="history__time">${e.time}</span>
-      <span class="history__action">${e.type || 'Ação'}</span>
-      <span class="history__dice">${e.diceText || ''}</span>
-      <span class="history__result-text">${e.resultText || ''}</span>
-      ${e.damage ? `<span class="history__damage">Dano: ${e.damage}</span>` : ''}
-    </div>
-  `).join('');
+  try {
+    if (!window.LogManager || typeof window.LogManager.get !== 'function') {
+      if (empty) empty.style.display = 'block';
+      return;
+    }
+
+    const entries = window.LogManager.get();
+
+    if (!entries || entries.length === 0) {
+      if (empty) empty.style.display = 'block';
+      list.innerHTML = '';
+      return;
+    }
+
+    if (empty) empty.style.display = 'none';
+
+    list.innerHTML = entries.map(e => {
+      const typeCls = e.type || 'ação';
+      const badgeText = e.type ? e.type.toUpperCase() : 'AÇÃO';
+      return `
+      <div class="history__entry history__entry--${typeCls} anim-slide">
+        <span class="history__time">${e.time || '—'}</span>
+        <span class="history__badge">${badgeText}</span>
+        <span class="history__text">${e.text}</span>
+      </div>
+    `;
+    }).join('');
+    
+    // Auto-scroll to top when adding new entry (since we use unshift)
+    list.scrollTop = 0;
+  } catch (e) {
+    console.error('Erro ao renderizar histórico:', e);
+  }
 }
+
+// Escutar atualizações do LogManager (Anexado imediatamente para não perder eventos)
+window.addEventListener('daimyoLogUpdated', () => {
+    renderHistory();
+});
 
 // Initial Boot
 async function init() {
-  await renderHistory();
-  await populateCombatants();
-  console.log("🛡️ Calculadora: Alinhada com o Cofre Infinito.");
+  try {
+    await populateCombatants();
+    await renderHistory();
+    console.log("🛡️ Calculadora: Alinhada com o Registro de Sessão.");
+  } catch (e) {
+    console.error("Erro na inicialização da Calculadora:", e);
+    // Retry once after delay
+    setTimeout(async () => {
+      try { await renderHistory(); } catch (_) {}
+    }, 1000);
+  }
 }
 
 window.addEventListener('load', () => {
-  if (window.DaimyoDB) init();
-  else setTimeout(init, 300);
+  if (window.DaimyoDB && window.LogManager) init();
+  else setTimeout(init, 500);
 });
 
 // Sync from other tabs
@@ -1001,11 +1132,19 @@ if (window.DaimyoDB) {
     if (change.store === 'characters' || (change.store === 'vault' && change.key === 'combat_state')) {
       populateCombatants();
     }
-    if (change.store === 'vault' && change.key === HISTORY_KEY) {
-      renderHistory();
+  });
+} else {
+  window.addEventListener('load', () => {
+    if (window.DaimyoDB) {
+      window.DaimyoDB.onSync((change) => {
+        if (change.store === 'characters' || (change.store === 'vault' && change.key === 'combat_state')) {
+          populateCombatants();
+        }
+      });
     }
   });
 }
+
 
 function roll3d6() {
   const dice = [
@@ -1085,6 +1224,7 @@ document.getElementById('btn-rolar-sucesso')?.addEventListener('click', () => {
     diceText: roll.dice.join('+'),
     resultText: `${roll.total} vs NH ${nh} (${RESULT_LABELS[result]})`
   });
+  renderHistory();
 });
 
 document.getElementById('btn-disputa')?.addEventListener('click', () => {
@@ -1120,6 +1260,7 @@ document.getElementById('btn-disputa')?.addEventListener('click', () => {
       diceText: `A:${res.attacker.roll.total} vs D:${res.defender.roll.total}`,
       resultText: `Vencedor: ${res.winner}`
     });
+    renderHistory();
 });
 
 document.getElementById('btn-calcular-dano')?.addEventListener('click', () => {
@@ -1153,6 +1294,7 @@ document.getElementById('btn-calcular-dano')?.addEventListener('click', () => {
       resultText: `${damage} Final`,
       damage: damage
     });
+    renderHistory();
 });
 
 document.getElementById('btn-sync-state')?.addEventListener('click', populateCombatants);
@@ -1208,7 +1350,59 @@ const RangedCalc = {
     }
 };
 
+async function updateCalcFromSelection(value) {
+    if (!value || value === 'none') {
+        if (value === 'none') {
+            console.log("🧪 Teste Livre selecionado.");
+        }
+        return;
+    }
+    
+    try {
+        let char;
+        if (value.startsWith('char_')) {
+            const id = value.replace('char_', '');
+            char = (await window.DaimyoDB.getAll('characters')).find(c => c.id === id);
+        } else if (value.startsWith('combat_')) {
+            const id = value.replace('combat_', '');
+            const combatState = await window.DaimyoDB.get('vault', 'combat_state');
+            char = combatState.combatants.find(c => c.id === id);
+        }
+
+        if (char) {
+            // Preencher campos da calculadora
+            const st = char.attributes?.st || char.st || 10;
+            const rd = char.attributes?.dr || char.dr || char.rd || 0;
+            
+            if (document.getElementById('nh-sucesso')) document.getElementById('nh-sucesso').value = st;
+            if (document.getElementById('nh-atacante')) document.getElementById('nh-atacante').value = st;
+            if (document.getElementById('input-rd')) document.getElementById('input-rd').value = rd;
+            
+            console.log(`🛡️ Carregado: ${char.name} (ST ${st}, RD ${rd})`);
+        }
+    } catch (e) {
+        console.error("Erro ao carregar dados do combatente", e);
+    }
+}
+
+window.logRangedResult = function() {
+    const dist = document.getElementById('rc-distance').value;
+    const sm = document.getElementById('rc-sm').value;
+    const acc = document.getElementById('rc-acc').value;
+    const mod = document.getElementById('rc-result').textContent;
+    
+    addHistoryEntry({
+        type: 'Ranged',
+        status: 'INFO',
+        diceText: `D:${dist}m | SM:${sm} | Acc:${acc}`,
+        resultText: `Modificador Final: ${mod}`
+    });
+    renderHistory();
+};
+
+
 window.RangedCalc = RangedCalc;
+
 </script>
   <script src="js/character-manager.js"></script>
   <script src="js/character-ui.js"></script>

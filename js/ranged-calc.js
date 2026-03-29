@@ -97,7 +97,7 @@ if (typeof window.RangedCalc === 'undefined') {
 
       const display = document.getElementById('rc-result');
       if (display) {
-        const sign = finalMod >= 0 ? '+' : '';
+        const sign = finalMod > 0 ? '+' : '';
         display.textContent = `${sign}${finalMod}`;
         display.style.color = finalMod >= 0 ? 'var(--green-success)' : 'var(--red-accent)';
       }

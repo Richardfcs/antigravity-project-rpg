@@ -39,29 +39,47 @@ function initMerchant() {
   updateCartUI();
 
   // Floating button event
-  document.getElementById('merchant-fab').addEventListener('click', () => {
-    toggleMerchantPanel();
-  });
+  const fab = document.getElementById('merchant-fab');
+  if (fab) {
+    fab.addEventListener('click', () => {
+      toggleMerchantPanel();
+    });
+  }
 
   // Controls
-  document.getElementById('mod-condition').addEventListener('change', (e) => {
-    merchantState.modifierCondition = e.target.checked ? 0.5 : 1.0;
-    updateCartUI();
-  });
+  const modCond = document.getElementById('mod-condition');
+  if (modCond) {
+    modCond.addEventListener('change', (e) => {
+      merchantState.modifierCondition = e.target.checked ? 0.5 : 1.0;
+      updateCartUI();
+    });
+  }
 
-  document.getElementById('mod-reaction').addEventListener('change', (e) => {
-    merchantState.modifierReaction = parseFloat(e.target.value);
-    updateCartUI();
-  });
+  const modReact = document.getElementById('mod-reaction');
+  if (modReact) {
+    modReact.addEventListener('change', (e) => {
+      merchantState.modifierReaction = parseFloat(e.target.value);
+      updateCartUI();
+    });
+  }
 
-  document.getElementById('btn-loot-oracle').addEventListener('click', generateLoot);
+  const btnLoot = document.getElementById('btn-loot-oracle');
+  if (btnLoot) {
+    btnLoot.addEventListener('click', generateLoot);
+  }
   
-  document.getElementById('btn-clear-cart').addEventListener('click', () => {
-    merchantState.cart = [];
-    updateCartUI();
-  });
+  const btnClear = document.getElementById('btn-clear-cart');
+  if (btnClear) {
+    btnClear.addEventListener('click', () => {
+      merchantState.cart = [];
+      updateCartUI();
+    });
+  }
 
-  document.getElementById('merchant-close').addEventListener('click', toggleMerchantPanel);
+  const mClose = document.getElementById('merchant-close');
+  if (mClose) {
+    mClose.addEventListener('click', toggleMerchantPanel);
+  }
 }
 
 function parsePriceCents(custoStr) {
@@ -106,10 +124,24 @@ function removeFromCart(cartId) {
   updateCartUI();
 }
 
+function escapeHtml(text) {
+  if (!text) return "";
+  const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+  };
+  return text.toString().replace(/[&<>"']/g, function (m) { return map[m]; });
+}
+
 function updateCartUI() {
   const listEl = document.getElementById('cart-list');
   const totalEl = document.getElementById('cart-total');
   const badgeEl = document.getElementById('merchant-badge');
+
+  if (!listEl || !totalEl || !badgeEl) return;
 
   listEl.innerHTML = '';
   let sum = 0;
@@ -121,10 +153,10 @@ function updateCartUI() {
     li.className = 'cart-item';
     li.innerHTML = `
       <div class="cart-item__info">
-        <span class="cart-item__name">${item.nome}</span>
-        <span class="cart-item__price">${item.refCusto}</span>
+        <span class="cart-item__name">${escapeHtml(item.nome)}</span>
+        <span class="cart-item__price">${escapeHtml(item.refCusto)}</span>
       </div>
-      <button class="cart-item__del" onclick="removeFromCart('${item.id}')">✕</button>
+      <button class="cart-item__del" onclick="removeFromCart('${escapeHtml(item.id)}')">✕</button>
     `;
     listEl.appendChild(li);
   });
@@ -148,19 +180,25 @@ function getRandom(arr) {
 
 function generateLoot() {
   const logEl = document.getElementById('oracle-log');
+  if (!logEl) return;
   
   const coin = getRandom(lootTables.moedas);
   const item1 = getRandom(lootTables.itens);
   let item2 = getRandom(lootTables.itens);
-  while(item2 === item1) { item2 = getRandom(lootTables.itens); }
-  const trait = getRandom(lootTables.peculiaridades);
+  
+  // Safety break for while loop
+  let safety = 0;
+  while(item2 === item1 && safety < 50) { 
+    item2 = getRandom(lootTables.itens); 
+    safety++;
+  }
 
   const lootMsg = `
     <div class="loot-entry anim-fade">
       <strong>📦 Espólios Encontrados:</strong>
       <ul>
         <li>${coin}</li>
-        <li>${item1} (${trait})</li>
+        <li>${item1} (${getRandom(lootTables.peculiaridades)})</li>
         <li>${item2}</li>
       </ul>
     </div>

@@ -9,10 +9,22 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- CORE SCRIPTS -->
-  <script src="js/kegare-manager.js"></script>
+  <!-- CORE INFRASTRUCTURE (Explicit Loading) -->
+  <script src="js/daimyo-db.js"></script>
+  <script src="js/theme-manager.js"></script>
   <script src="js/log-manager.js"></script>
+  <script src="js/daimyo-seal.js"></script>
+  <script src="js/kegare-manager.js"></script>
   <script src="js/header-loader.js"></script>
+  
+  <script>
+    if (window.DaimyoDB) {
+      window.DaimyoDB.init().then(() => {
+        window.DaimyoDB.migrateFromLocalStorage();
+        console.log("⛩️ Porta do Daimyo: Banco de dados e migrações ativos.");
+      }).catch(err => console.error("Falha na inicialização do Cofre:", err));
+    }
+  </script>
   <style>
     :root {
       --bg-deep: #0A0A0A; --bg-panel: #111; --bg-card: #181818; --bg-input: #0F0F0F;
@@ -132,20 +144,42 @@
     /* SECTION DIVIDER */
     .section-divider { border: none; border-top: 1px solid var(--border-panel); margin: 4px 0; }
 
-    /* HISTORY (REGISTRO) */
-    .history { background: var(--bg-panel); border-top: 1px solid var(--border-panel); display: flex; flex-direction: column; max-height: 25vh; min-height: 100px; z-index: 10; }
-    .history__header { display: flex; align-items: center; justify-content: space-between; padding: 6px 20px; border-bottom: 1px solid var(--border-panel); flex-shrink: 0; }
-    .history__title { font-family: var(--font-display); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
-    .history__list { overflow-y: auto; padding: 8px 20px; display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; }
-    .history__empty { color: var(--text-muted); font-size: 0.75rem; text-align: center; padding: 12px; font-style: italic; }
+    /* ═══════════════════════════════════════════
+       PADRÃO UNIFICADO — REGISTRO DE HISTÓRICO
+       ═══════════════════════════════════════════ */
+    .history { background: var(--bg-panel); border-top: 1px solid var(--border-panel); display: flex; flex-direction: column; height: 320px; max-height: 40vh; flex-shrink: 0; overflow: hidden; }
+    .history__header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid var(--border-panel); flex-shrink: 0; }
+    .history__title { font-family: var(--font-display); font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); }
+    .history__list { overflow-y: auto; padding: 10px 16px 40px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--border-panel) transparent; }
+    .history__list::-webkit-scrollbar { width: 5px; }
+    .history__list::-webkit-scrollbar-track { background: transparent; }
+    .history__list::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
+    .history__list::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+    .history__empty { color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 20px 12px; font-style: italic; }
+    .history__entry { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--radius); background: var(--bg-deep); font-size: 0.78rem; font-variant-numeric: tabular-nums; border-left: 3px solid var(--border-panel); transition: background var(--transition); flex-wrap: wrap; }
+    .history__entry:hover { background: rgba(255, 255, 255, 0.02); }
+    .history__time { color: var(--text-muted); min-width: 48px; flex-shrink: 0; font-size: 0.7rem; font-family: monospace; }
+    .history__badge { color: var(--gold); font-weight: 700; font-size: 0.65rem; text-transform: uppercase; background: rgba(212, 168, 70, 0.1); padding: 2px 6px; border-radius: 3px; flex-shrink: 0; white-space: nowrap; }
+    .history__text { color: var(--text-secondary); flex: 1; min-width: 0; }
 
-    /* LOG ENTRIES (inside history__list) */
-    .log-entry { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: var(--radius); background: var(--bg-deep); font-size: 0.72rem; border-left: 3px solid var(--border-panel); }
-    .log-entry--panic { border-left-color: #C084FC; }
-    .log-entry--exhaust { border-left-color: var(--blue-info); }
-    .log-entry--kegare { border-left-color: var(--kegare-tainted); }
-    .log-time { color: var(--text-muted); min-width: 40px; }
-    .log-text { color: var(--text-secondary); }
+    /* ── Variantes de cor por tipo ── */
+    .history__entry--dano, .history__entry--sucesso { border-left-color: var(--green-success); }
+    .history__entry--dano .history__text { color: #e5e7eb; }
+    .history__entry--turno, .history__entry--oraculo, .history__entry--time { border-left-color: var(--gold); }
+    .history__entry--turno .history__badge, .history__entry--oraculo .history__badge { color: var(--gold); background: rgba(212, 168, 70, 0.12); }
+    .history__entry--critico { border-left-color: var(--gold); }
+    .history__entry--critico .history__badge { color: var(--gold); background: rgba(212, 168, 70, 0.15); }
+    .history__entry--falha { border-left-color: var(--text-muted); }
+    .history__entry--falha-critica, .history__entry--death { border-left-color: var(--red-failure); }
+    .history__entry--death .history__text { color: #ef4444; font-weight: 700; }
+    .history__entry--panic { border-left-color: #C084FC; }
+    .history__entry--panic .history__text { color: #fbbf24; }
+    .history__entry--reacao { border-left-color: var(--blue-info); }
+    .history__entry--rest { border-left-color: var(--blue-info); }
+    .history__entry--exhaust { border-left-color: var(--blue-info); }
+    .history__entry--npc { border-left-color: var(--green-success); }
+    .history__entry--kegare { border-left-color: var(--kegare-tainted); }
+    .history__entry--fail { border-left-color: var(--red-failure); }
 
     /* KEGARE DOTS/SEGS */
     .kegare-seg.active-pure { background: #22c55e !important; box-shadow: 0 0 8px rgba(34,197,94,0.4); border-color: #22c55e !important; color: white !important; }
@@ -172,8 +206,9 @@
       .main { grid-template-columns: 1fr; overflow: visible; height: auto; padding: 10px; display: flex; flex-direction: column; }
       .panel { height: auto; overflow: visible; min-height: fit-content; }
       .combatant-list { height: auto; overflow: visible; flex: none; }
-      .history { max-height: none; min-height: 150px; overflow: visible; flex: none; }
-      .history__list { height: auto; overflow: visible; }
+      .history { max-height: none; height: auto; min-height: 150px; }
+      .history__header { padding: 8px 12px; }
+      .history__list { padding: 8px 12px 30px; }
       
       .kegare-clock { flex-wrap: wrap; justify-content: center; width: 100%; order: 3; margin-top: 10px; }
       .header { gap: 10px; }
@@ -196,7 +231,6 @@
 <body>
 <div id="app">
 
-  <script src="js/header-loader.js"></script>
 
   <main class="main">
     <!-- CENTER: GLOBAL STATS & KEGARE -->
@@ -211,9 +245,7 @@
           <span class="kegare-clock__mod" id="kegare-mod">Von +0</span>
         </div>
         
-        <div style="display:flex; gap:8px;">
-           <button class="btn btn-ghost btn-sm" id="btn-reset">Resetar</button>
-        </div>
+
       </div>
     </section>
 
@@ -329,7 +361,7 @@
   <section class="history" id="history-section">
     <div class="history__header">
       <h3 class="history__title">📜 Registro de Sangue</h3>
-      <button class="btn btn-ghost btn-sm" id="btn-clear-log">Limpar Registro</button>
+      <button class="btn btn-ghost btn-sm" id="btn-clear-log">Limpar</button>
     </div>
     <div class="history__list" id="log-list">
       <p class="history__empty">Nenhuma ação registrada.</p>
@@ -574,23 +606,20 @@ function renderLog() {
   const entries = LogManager.get();
   
   if (!entries || entries.length === 0) { 
-    list.innerHTML = '<p class="history__empty">Nenhuma ação registrada no pergaminho.</p>'; 
+    list.innerHTML = '<p class="history__empty">Nenhuma ação registrada.</p>'; 
     return; 
   }
   
   list.innerHTML = entries.map(e => {
-    const roundInfo = e.round ? `<span class="log-round">[T${e.round}]</span>` : '';
+    const roundInfo = e.round ? `<span class="history__badge">T${e.round}</span>` : '';
     return `
-      <div class="log-entry log-entry--${e.type} anim-slide">
-        <span class="log-time">${e.time}</span>
+      <div class="history__entry history__entry--${e.type} anim-slide">
+        <span class="history__time">${e.time}</span>
         ${roundInfo}
-        <span class="log-text">${e.text}</span>
+        <span class="history__text">${e.text}</span>
       </div>
     `;
   }).join('');
-  
-  // Auto-scroll para o final (comportamento de console)
-  list.scrollTop = list.scrollHeight;
 }
 
 /* ═══════ RENDER ═══════ */
@@ -644,6 +673,7 @@ function renderCombatants() {
 
 function renderTargetSelects() {
   const opts = '<option value="">— Selecione —</option>' +
+    '<option value="none" selected>🧪 Teste Livre (Sem Alvo)</option>' +
     state.combatants.map(c => `<option value="${c.id}">${c.name} (Von ${c.will}, PF ${c.fpCur}/${c.fpMax})</option>`).join('');
   document.getElementById('select-target').innerHTML = opts;
   document.getElementById('select-ki-target').innerHTML = opts;
@@ -685,24 +715,30 @@ window.removeCondition = function(id, cond) {
   renderAll();
 };
 
-document.getElementById('btn-add-combatant').addEventListener('click', () => {
-  const name = document.getElementById('input-name').value.trim();
-  const hpMax = parseInt(document.getElementById('input-hp').value);
-  const fpMax = parseInt(document.getElementById('input-fp').value);
-  const will = parseInt(document.getElementById('input-will').value);
-  const dr = parseInt(document.getElementById('input-dr').value);
+  const btnAdd = document.getElementById('btn-add-combatant');
+  if (btnAdd) {
+    btnAdd.addEventListener('click', () => {
+      const name = document.getElementById('input-name').value.trim();
+      const hpMax = parseInt(document.getElementById('input-hp').value);
+      const fpMax = parseInt(document.getElementById('input-fp').value);
+      const will = parseInt(document.getElementById('input-will').value);
+      const dr = parseInt(document.getElementById('input-dr').value);
 
-  if (!name) { document.getElementById('input-name').focus(); return; }
-  if (isNaN(hpMax) || hpMax < 1) { document.getElementById('input-hp').focus(); return; }
-  if (isNaN(fpMax) || fpMax < 1) { document.getElementById('input-fp').focus(); return; }
-  if (isNaN(will) || will < 1) { document.getElementById('input-will').focus(); return; }
-  if (isNaN(dr) || dr < 0) { document.getElementById('input-dr').focus(); return; }
+      if (!name) { document.getElementById('input-name').focus(); return; }
+      if (isNaN(hpMax) || hpMax < 1) { document.getElementById('input-hp').focus(); return; }
+      if (isNaN(fpMax) || fpMax < 1) { document.getElementById('input-fp').focus(); return; }
+      if (isNaN(will) || will < 1) { document.getElementById('input-will').focus(); return; }
+      if (isNaN(dr) || dr < 0) { document.getElementById('input-dr').focus(); return; }
 
-  addCombatant({ name, hpMax, fpMax, will, dr });
-  ['input-name', 'input-hp', 'input-fp', 'input-will', 'input-dr'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('input-name').focus();
-  renderAll();
-});
+      addCombatant({ name, hpMax, fpMax, will, dr });
+      ['input-name', 'input-hp', 'input-fp', 'input-will', 'input-dr'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+      });
+      document.getElementById('input-name').focus();
+      renderAll();
+    });
+  }
 
 function removeCombatantUI(id) { removeCombatant(id); renderAll(); }
 
@@ -712,10 +748,16 @@ document.getElementById('btn-fright-check').addEventListener('click', () => {
   const monsterMod = parseInt(document.getElementById('input-monster-mod').value) || 0;
   if (!targetId) { document.getElementById('select-target').focus(); return; }
 
-  const c = findCombatant(targetId);
-  if (!c) return;
-
-  const result = frightCheck(c, monsterMod);
+  let c, result;
+  if (targetId === 'none') {
+    const willTemp = 10; // Base padrão para teste livre
+    result = KegareManager.runFrightCheck(willTemp, monsterMod);
+    c = { name: 'Teste Livre', will: willTemp, conditions: [] };
+  } else {
+    c = findCombatant(targetId);
+    if (!c) return;
+    result = frightCheck(c, monsterMod);
+  }
   const box = document.getElementById('fright-result');
   box.classList.add('visible');
 
@@ -756,9 +798,11 @@ document.getElementById('btn-fright-check').addEventListener('click', () => {
     effectEl.innerHTML = `<strong>${result.tableResult.label}</strong> — ${result.tableResult.desc}`;
 
     // Add condition
-    if (result.tableResult.label === 'Pânico' && !c.conditions.includes('Pânico')) c.conditions.push('Pânico');
-    if (result.tableResult.label === 'Atordoado' && !c.conditions.includes('Atordoado')) c.conditions.push('Atordoado');
-    saveState(state);
+    if (targetId !== 'none') {
+      if (result.tableResult.label === 'Pânico' && !c.conditions.includes('Pânico')) c.conditions.push('Pânico');
+      if (result.tableResult.label === 'Atordoado' && !c.conditions.includes('Atordoado')) c.conditions.push('Atordoado');
+      saveState(state);
+    }
 
     addLog('panic', `${c.name}: Pânico FALHA (${result.roll1.total} > ${result.target}, MoF ${result.mof}) → ${result.tableResult.label}`);
   }
@@ -773,7 +817,12 @@ document.getElementById('btn-spend-fp').addEventListener('click', () => {
   const amount = parseInt(document.getElementById('input-fp-amount').value) || 1;
   if (!targetId) { document.getElementById('select-ki-target').focus(); return; }
 
-  const result = spendFP(targetId, amount);
+  let result;
+  if (targetId === 'none') {
+    result = { name: 'Teste Livre', fpSpent: amount, hpSpent: 0, alerts: [] };
+  } else {
+    result = spendFP(targetId, amount);
+  }
   if (!result) return;
 
   const alertEl = document.getElementById('exhaust-alert');
@@ -798,7 +847,12 @@ document.getElementById('btn-recover-fp').addEventListener('click', () => {
   const amount = parseInt(document.getElementById('input-fp-amount').value) || 1;
   if (!targetId) { document.getElementById('select-ki-target').focus(); return; }
 
-  const result = recoverFP(targetId, amount);
+  let result;
+  if (targetId === 'none') {
+    result = { name: 'Teste Livre', recovered: amount };
+  } else {
+    result = recoverFP(targetId, amount);
+  }
   if (!result) return;
 
   document.getElementById('exhaust-alert').style.display = 'none';
@@ -829,7 +883,7 @@ document.getElementById('btn-clear-log').addEventListener('click', function() {
 });
 
 // Enter keys
-document.getElementById('input-dr').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-add').click(); });
+document.getElementById('input-dr').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-add-combatant').click(); });
 document.getElementById('input-monster-mod').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-fright-check').click(); });
 
 /* ═══════ TESTS ═══════ */
@@ -884,6 +938,11 @@ window.runTests = function() {
   console.log(pass === total ? `✅ All ${total} tests passed` : `❌ ${pass}/${total} passed`);
 };
 
+// Listener para o novo sistema de Log (Movido para antes do Init para não perder eventos)
+window.addEventListener('daimyoLogUpdated', () => {
+  renderLog();
+});
+
 /* ═══════ INIT ═══════ */
 migrateOldData();
 state = loadState();
@@ -900,11 +959,6 @@ window.addEventListener('storage', (e) => {
 window.addEventListener('daimyoStateUpdated', () => {
     state = loadState(); 
     renderAll();
-});
-
-// Listener para o novo sistema de Log
-window.addEventListener('daimyoLogUpdated', () => {
-  renderLog();
 });
 </script>
   <script>

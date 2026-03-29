@@ -91,12 +91,27 @@
     .tag-atlas { color: #06b6d4; border-color: rgba(6,182,212,0.3); }
     .tag-yokai { color: #ef4444; border-color: rgba(239,68,68,0.3); }
     .tag-peculiaridade { color: #a78bfa; border-color: rgba(167,139,250,0.3); }
+    .tag-casa { color: #8b5cf6; border-color: rgba(139, 92, 246, 0.3); }
 
     .lib-card__cost { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .lib-card__fonte { font-size: 0.65rem; padding: 2px 6px; border-radius: 3px; background: rgba(59,130,246,0.1); color: rgba(59,130,246,0.7); border: 1px solid rgba(59,130,246,0.2); font-weight: 700; white-space: nowrap; }
 
     .lib-card__body { padding: 0 20px 20px 20px; color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; display: none; border-top: 1px dashed rgba(255,255,255,0.1); margin-top: 10px; padding-top: 15px; }
     .lib-card__body b { color: var(--gold); }
+    .lib-card__body i { color: var(--text-primary); font-style: italic; opacity: 0.9; }
+    
+    .lib-card__body ul, .lib-card__body ol { margin: 8px 0; padding-left: 20px; }
+    .lib-card__body li { margin-bottom: 6px; position: relative; list-style: none; }
+    .lib-card__body ul li::before { content: '•'; color: var(--gold); position: absolute; left: -15px; font-weight: 900; }
+    .lib-card__body ol { list-style: decimal; }
+    .lib-card__body ol li::marker { color: var(--gold); font-weight: 700; }
+
+    .md-line { margin-bottom: 4px; }
+    .md-spacer { height: 12px; }
+    
+    .md-code { font-family: monospace; background: rgba(0,0,0,0.3); padding: 2px 5px; border-radius: 3px; color: #BBB; border: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; }
+    .md-ref { font-size: 0.7rem; font-weight: 700; color: var(--gold); background: rgba(212, 175, 70, 0.1); border: 1px solid var(--gold-dim); padding: 1px 4px; border-radius: 3px; margin: 0 2px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.03em; }
+
     .lib-card.expanded .lib-card__body { display: block; }
     .lib-card.expanded .lib-card__header { background: rgba(0,0,0,0.2); }
 
@@ -164,16 +179,26 @@
       .results-area { padding: 10px; }
     }
   </style>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0A0A0A">
-  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
   <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+  
+  <!-- CORE INFRASTRUCTURE (Explicit Loading) -->
+  <script src="js/daimyo-db.js"></script>
+  <script src="js/theme-manager.js"></script>
+  <script src="js/log-manager.js"></script>
+  <script src="js/daimyo-seal.js"></script>
+  <script src="js/header-loader.js"></script>
+  <script>
+    if (window.DaimyoDB) {
+      window.DaimyoDB.init().then(() => {
+        window.DaimyoDB.migrateFromLocalStorage();
+        console.log("⛩️ Porta do Daimyo: Banco de dados e migrações ativos.");
+      }).catch(err => console.error("Falha na inicialização do Cofre:", err));
+    }
+  </script>
 </head>
 <body>
 
   <div id="daimyo-header"></div>
-  <script src="js/header-loader.js"></script>
 
   <main class="library-main">
     
@@ -183,7 +208,7 @@
 
     <section class="content-area">
       <div class="search-box">
-        <input type="text" id="input-search" class="search-input" placeholder="Buscar por Nome, Efeito, Técnica ou Custo... (Ex: Kenjutsu, Contra-Ataque, -15)">
+        <input type="text" id="input-search" class="search-input" placeholder="Buscar por Nome, Efeito, Técnica ou Custo... (Ex: Kenjutsu, Contra-Ataque, -15)" aria-label="Buscar na biblioteca">
       </div>
       <div class="sub-chips" id="sub-chips"></div>
       <div class="results-area" id="results-area"></div>
@@ -270,26 +295,25 @@
     }
 
     function init() {
-      console.log("📚 Library UI: Inicializando...");
-      renderAll();
+      console.log("📚 Library UI: Inicializando listeners...");
+      searchInput.addEventListener('input', renderLibrary);
       
-      // If manager is already ready (e.g. static load), render again just in case
+      // Se o manager já estiver pronto (ex: carregamento estático e scripts já rodaram), renderiza.
+      // Senão, o daimyoLibraryReady cuidará disso.
       if (LibraryManager.isReady()) {
-          console.log("📚 Library UI: Manager já pronto.");
+          console.log("📚 Library UI: Manager detectado como pronto no boot.");
           renderAll();
       }
-      
-      searchInput.addEventListener('input', renderLibrary);
     }
 
-    // Reactive listeners for Infinite Vault
+    // Reactive listener para o Cofre Infinito
     window.addEventListener('daimyoLibraryReady', () => {
-        console.log("📚 Library UI: Vault pronto, re-renderizando...");
+        console.log("📚 Library UI: Sinal de Vault recebido, renderizando conteúdo final.");
         renderAll();
     });
     
     window.addEventListener('daimyoStateUpdated', () => {
-        console.log("📚 Library UI: Estado atualizado, sincronizando...");
+        console.log("📚 Library UI: Estado do Cofre atualizado.");
         renderAll();
     });
 
@@ -398,52 +422,113 @@
       }).join('');
     }
 
-    function parseMarkdownTable(text) {
+    function escapeHtml(text) {
+      if (!text) return "";
+      const map = {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#039;'
+      };
+      return text.toString().replace(/[&<>"']/g, function (m) { return map[m]; });
+    }
+
+    function parseLibraryDescription(text) {
       if (!text) return '';
-      const lines = text.replace(/<br\s*\/?>/gi, '\n').split('\n');
+      
+      // Sanitização básica antes de processar MD
+      let escaped = escapeHtml(text);
+      
+      // Normalize: replace \\n with \n and <br> with \n
+      let content = escaped.replace(/\\n/g, '\n').replace(/&lt;br\s*\/?&gt;/gi, '\n');
+      
+      const lines = content.split('\n');
       let html = '';
       let inTable = false;
+      let inList = false;
+      let listType = null; // 'ul' or 'ol'
       
       for (let i = 0; i < lines.length; i++) {
         let line = lines[i].trim();
-        let isSeparator = line.includes('-') && /^\|?[\s\-:]+\|?([\s\-:]+\|?)*$/.test(line);
-        let isRow = line.includes('|') && line.split('|').length > 1;
-
-        if (isSeparator) continue; // Skip --- dividers entirely
-
-        if (!inTable && isRow) {
-          inTable = true;
-          if (html.endsWith('<br>')) html = html.slice(0, -4);
-          html += '<div class="md-table-wrap"><table class="md-table"><thead>';
-          
-          let cells = line.split('|');
-          if (cells[0].trim() === '') cells.shift();
-          if (cells.length > 0 && cells[cells.length-1].trim() === '') cells.pop();
-          
-          html += '<tr>' + cells.map(c => `<th>${c.trim()}</th>`).join('') + '</tr></thead><tbody>';
+        if (!line && !inTable && !inList) {
+          html += '<div class="md-spacer"></div>';
           continue;
         }
 
-        if (inTable && isRow) {
+        // --- TABLE DETECTION ---
+        let isSeparator = line.includes('-') && /^\|?[\s\-:]+\|?([\s\-:]+\|?)*$/.test(line);
+        let isRow = line.includes('|') && line.split('|').length > 1;
+
+        if (isSeparator) continue;
+
+        if (!inTable && isRow) {
+          if (inList) { html += `</${listType}>`; inList = false; }
+          inTable = true;
+          html += '<div class="md-table-wrap"><table class="md-table"><thead>';
           let cells = line.split('|');
           if (cells[0].trim() === '') cells.shift();
           if (cells.length > 0 && cells[cells.length-1].trim() === '') cells.pop();
+          html += '<tr>' + cells.map(c => `<th>${parseInlineMarkdown(c)}</th>`).join('') + '</tr></thead><tbody>';
+          continue;
+        }
+
+        if (inTable) {
+          if (isRow) {
+            let cells = line.split('|');
+            if (cells[0].trim() === '') cells.shift();
+            if (cells.length > 0 && cells[cells.length-1].trim() === '') cells.pop();
+            html += '<tr>' + cells.map(c => `<td>${parseInlineMarkdown(c)}</td>`).join('') + '</tr>';
+            continue;
+          } else {
+            html += '</tbody></table></div>';
+            inTable = false;
+          }
+        }
+
+        // --- LIST DETECTION ---
+        const ulMatch = line.match(/^([•\-\*])\s+(.*)/);
+        const olMatch = line.match(/^(\d+[\.\)])\s+(.*)/);
+        
+        if (ulMatch || olMatch) {
+          const currentType = ulMatch ? 'ul' : 'ol';
+          const lineContent = ulMatch ? ulMatch[2] : olMatch[2];
           
-          html += '<tr>' + cells.map(c => {
-            let ct = c.trim().replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-            return `<td>${ct}</td>`;
-          }).join('') + '</tr>';
-        } else if (inTable && !isRow) {
-          html += '</tbody></table></div>';
-          inTable = false;
-          html += line + (line ? '<br>' : '');
-        } else {
-          html += line + (line ? '<br>' : '');
+          if (!inList) {
+            inList = true;
+            listType = currentType;
+            html += `<${listType}>`;
+          } else if (listType !== currentType) {
+            html += `</${listType}><${currentType}>`;
+            listType = currentType;
+          }
+          
+          html += `<li>${parseInlineMarkdown(lineContent)}</li>`;
+          continue;
+        } else if (inList) {
+          html += `</${listType}>`;
+          inList = false;
+        }
+
+        // --- REGULAR LINE ---
+        if (line) {
+          html += `<div class="md-line">${parseInlineMarkdown(line)}</div>`;
         }
       }
+      
       if (inTable) html += '</tbody></table></div>';
-      while (html.endsWith('<br>')) html = html.slice(0, -4);
+      if (inList) html += `</${listType}>`;
+      
       return html;
+    }
+
+    function parseInlineMarkdown(text) {
+      if (!text) return '';
+      return text.trim()
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/\*(.*?)\*/g, '<i>$1</i>')
+        .replace(/`([^`]+)`/g, '<code class="md-code">$1</code>')
+        .replace(/\[([^\]]+)\]/g, '<span class="md-ref">$1</span>');
     }
 
     function renderStandardCard(item) {
@@ -451,7 +536,8 @@
       const tagsHtml = (item.tags || []).map(t => `<span class="tag-mini" style="font-size:0.6rem; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:3px; color:var(--text-muted); border:1px solid var(--border-panel); margin-right:4px; white-space:nowrap;">${t}</span>`).join('');
       const fonteHtml = item.fonte ? `<span class="lib-card__fonte">${item.fonte}</span>` : '';
       const subHtml = item.sub ? `<span style="font-size:0.65rem; color:var(--text-muted); font-weight:400;">${item.sub}</span>` : '';
-      const descParsed = parseMarkdownTable(item.desc);
+      const descParsed = parseLibraryDescription(item.desc);
+
 
       return `
       <div class="lib-card">
@@ -574,7 +660,7 @@
         </div>
       `).join('');
     }
-    
+
     function addNewCategory() {
       const name = document.getElementById('cat-new-name').value;
       if (!name) return;
@@ -583,14 +669,6 @@
       renderCatManagerList();
       renderAll();
     }
-
-    function renderAll() {
-      renderCategories();
-      renderSubChips();
-      renderLibrary();
-    }
-
-    document.addEventListener('DOMContentLoaded', init);
   </script>
   <script>
     if ('serviceWorker' in navigator) {

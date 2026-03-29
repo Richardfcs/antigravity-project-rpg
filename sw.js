@@ -1,4 +1,4 @@
-const CACHE_NAME = 'daimyo-cache-v9';
+const CACHE_NAME = 'daimyo-cache-v12';
 const ASSETS = [
   './',
   './index.html',
@@ -9,7 +9,6 @@ const ASSETS = [
   './kegare-panico.html',
   './combat-calculator.html',
   './characters-sheet.html',
-  './css/characters.css',
   './js/daimyo-db.js',
   './js/header-loader.js',
   './js/theme-manager.js',
@@ -28,9 +27,9 @@ const ASSETS = [
   './manifest.json',
   './icons/app-icon-192.png',
   './icons/app-icon-512.png',
-  './Maps/Kamamura.png',
-  './Maps/Mapa Macro.png',
-  './Maps/Região Chugoku.png'
+  './maps/kamamura.png',
+  './maps/mapa-macro.png',
+  './maps/regiao-chugoku.png'
 ];
 
 // INSTALL: Cache current assets
@@ -39,9 +38,8 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('🛡️ Daimyo Shield: Pre-caching core assets for offline use...');
-        // Using map to return all promises and ensure we cache what we can
         return Promise.allSettled(
-          ASSETS.map(url => cache.add(url).catch(err => console.warn(`Failed to cache: ${url}`, err)))
+          ASSETS.map(url => cache.add(url))
         );
       })
       .then(() => self.skipWaiting())
@@ -60,15 +58,34 @@ self.addEventListener('activate', event => {
   );
 });
 
-// FETCH: Network-First with Cache Fallback for dynamic content (HTML/JS)
-// This ensures we get updates if online, but stay functional if offline.
+// FETCH: Advanced Strategy
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+
+  // OPTIMIZATION: Cross-Origin Assets (Fonts & External Tools)
+  if (url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com') {
+    event.respondWith(
+      caches.match(event.request).then(response => {
+        return response || fetch(event.request).then(networkResponse => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
+          }
+          return networkResponse;
+        });
+      })
+    );
+    return;
+  }
+
+  // DEFAULT: Network-First with Cache Fallback for common local files
   event.respondWith(
     fetch(event.request)
       .then(networkResponse => {
-        // If success, update cache and return
+        // Cache apenas respostas bem-sucedidas do mesmo domínio
+        // Cache sucessful responses (200 OK)
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
@@ -76,14 +93,14 @@ self.addEventListener('fetch', event => {
         return networkResponse;
       })
       .catch(() => {
-        // If offline/error, return from cache
         return caches.match(event.request).then(cachedResponse => {
           if (cachedResponse) return cachedResponse;
 
-          // Return index.html as fallback for navigation if offline
+          // Fallback final apenas para navegações que não estão no cache e rede falhou
           if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
+            return caches.match('./index.html') || caches.match('index.html');
           }
+          return new Response('Offline and content not available', { status: 503, statusText: 'Service Unavailable' });
         });
       })
   );

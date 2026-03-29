@@ -50,26 +50,45 @@ window.KegareManager = (function() {
     return cache.kegare?.level || 1;
   }
 
-  function setLevel(level) {
+  async function setLevel(level) {
     cache.kegare = cache.kegare || {};
     cache.kegare.level = Math.max(1, Math.min(6, level));
-    saveState();
+    await saveState();
     return cache.kegare.level;
   }
 
   // Sync between tabs
-  window.addEventListener('load', () => {
+  async function boot() {
     if (window.DaimyoDB) {
-       init();
+       await init();
        window.DaimyoDB.onSync((data) => {
          if (data.store === STORE && data.key === KEY) {
-           window.DaimyoDB.get(STORE, KEY).then(d => { if(d) cache = d; });
+           window.DaimyoDB.get(STORE, KEY).then(d => { 
+             if(d) {
+               cache = d;
+               window.dispatchEvent(new CustomEvent('daimyoStateUpdated', { detail: cache }));
+             }
+           });
          }
        });
     } else {
-       setTimeout(init, 200);
+       // Retry briefy
+       let retries = 0;
+       const timer = setInterval(() => {
+         if (window.DaimyoDB || retries > 20) {
+           clearInterval(timer);
+           if (window.DaimyoDB) boot();
+         }
+         retries++;
+       }, 200);
     }
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    window.addEventListener('load', boot);
+  } else {
+    boot();
+  }
 
   function getModifier(level) {
     const lv = level !== undefined ? level : getLevel();

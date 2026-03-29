@@ -15,6 +15,8 @@ window.LogManager = (function() {
       const data = await window.DaimyoDB.get(window.DaimyoDB.STORES.HISTORY, KEY);
       if (data) cache = data;
       console.log(`🛡️ DaimyoDB: ${cache.length} entradas de log carregadas.`);
+      // Notificar que o log inicial está pronto
+      window.dispatchEvent(new CustomEvent('daimyoLogUpdated', { detail: { initial: true } }));
     } catch (e) {
       console.error("Erro ao inicializar cache de log", e);
     }
@@ -32,7 +34,8 @@ window.LogManager = (function() {
       time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     };
 
-    cache.push(entry);
+    cache.unshift(entry);
+
     
     // Sem limite artificial de linhas (Cofre Infinito)
     if (window.DaimyoDB) {
@@ -57,9 +60,33 @@ window.LogManager = (function() {
     window.dispatchEvent(new CustomEvent('daimyoLogUpdated', { detail: { type: 'clear' } }));
   }
 
-  // Auto-init
-  if (document.readyState === 'complete') init();
-  else window.addEventListener('load', init);
+  // Auto-init with retry for DaimyoDB
+  let bootRetries = 0;
+  const boot = async () => {
+    if (window.DaimyoDB) {
+      await init();
+      // Register sync after initialization
+      window.DaimyoDB.onSync(async (change) => {
+        if (change.store === window.DaimyoDB.STORES.HISTORY && change.key === KEY) {
+          try {
+            const data = await window.DaimyoDB.get(window.DaimyoDB.STORES.HISTORY, KEY);
+            if (data) {
+              cache = data;
+              window.dispatchEvent(new CustomEvent('daimyoLogUpdated', { detail: { sync: true } }));
+            }
+          } catch (e) {
+            console.error("Erro ao sincronizar cache de log", e);
+          }
+        }
+      });
+    } else if (bootRetries < 30) {
+      bootRetries++;
+      setTimeout(boot, 200);
+    }
+  };
+
+  if (document.readyState === 'complete') boot();
+  else window.addEventListener('load', boot);
 
   return {
     add,
@@ -67,3 +94,4 @@ window.LogManager = (function() {
     clear
   };
 })();
+

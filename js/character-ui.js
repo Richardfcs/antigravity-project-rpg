@@ -8,6 +8,16 @@ const CharacterUI = {
         editingId: null
     },
 
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
     init() {
         console.log("📜 CharacterUI - Iniciado");
         window.toggleCharacterDrawer = this.toggleDrawer.bind(this);
@@ -83,8 +93,8 @@ const CharacterUI = {
         return `
             <div class="char-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <span class="char-card__name">${c.name}</span>
-                    <span style="font-size:0.65rem; color:var(--text-muted); opacity:0.8;">${c.clan || 'Ronin'}</span>
+                    <span class="char-card__name">${this.escapeHtml(c.name)}</span>
+                    <span style="font-size:0.65rem; color:var(--text-muted); opacity:0.8;">${this.escapeHtml(c.clan) || 'Ronin'}</span>
                 </div>
                 <!-- 8 STATS GRID -->
                 <div class="char-card__stats" style="grid-template-columns: repeat(4, 1fr); row-gap: 10px;">
@@ -100,7 +110,7 @@ const CharacterUI = {
                 </div>
 
                 <div style="font-size:0.65rem; color:var(--text-secondary); margin-top:12px; border-top:1px solid rgba(255,255,255,0.05); padding-top:6px; display:flex; align-items:center; gap:5px;">
-                    <span style="opacity:0.5;">Equip:</span> ${c.equippedWeapon ? (typeof weaponsDB !== 'undefined' ? (weaponsDB.find(w=>w.id===c.equippedWeapon)?.nome || c.equippedWeapon) : c.equippedWeapon) : 'Mãos Nuas'}
+                    <span style="opacity:0.5;">Equip:</span> ${c.equippedWeapon ? (typeof weaponsDB !== 'undefined' ? this.escapeHtml(weaponsDB.find(w=>w.id===c.equippedWeapon)?.nome || c.equippedWeapon) : this.escapeHtml(c.equippedWeapon)) : 'Mãos Nuas'}
                 </div>
                 <div class="char-card__actions">
                     <button class="btn btn-ghost" style="flex:1; font-size:0.6rem; padding:6px; border-color:var(--gold-glow); color:var(--gold);" onclick="CharacterUI.portToCombat('${c.id}')">⚔ Portar</button>
@@ -121,8 +131,8 @@ const CharacterUI = {
                 ${ancestors.length === 0 ? '<p style="text-align:center; font-size:0.8rem; color:var(--text-muted);">Nenhum ancestral registrado ainda.</p>' : 
                   ancestors.map(c => `
                     <div class="char-card ancestor-card">
-                        <div class="char-card__name">${c.name} <span class="tag-dead">Legado</span></div>
-                        <p style="font-size:0.7rem; color:var(--text-muted); margin-top:5px; font-style:italic;">"${c.concept || 'Guerreiro de honra imortal'}"</p>
+                        <div class="char-card__name">${this.escapeHtml(c.name)} <span class="tag-dead">Legado</span></div>
+                        <p style="font-size:0.7rem; color:var(--text-muted); margin-top:5px; font-style:italic;">"${this.escapeHtml(c.concept) || 'Guerreiro de honra imortal'}"</p>
                         <div class="char-card__actions">
                             <button class="btn btn-ghost" style="flex:1; font-size:0.6rem; color:var(--green-success);" onclick="CharacterUI.recover('${c.id}')">Restaurar</button>
                             <button class="btn btn-ghost" style="flex:1; font-size:0.6rem; color:var(--text-muted);" onclick="CharacterUI.deleteChar('${c.id}')">Apagar</button>
@@ -149,7 +159,7 @@ const CharacterUI = {
             
             <div class="field">
                 <label class="field__label">Nome / Título</label>
-                <input type="text" id="ui-char-name" class="field__input" value="${char ? char.name : ''}" placeholder="Ex: Miyamoto Musashi" style="text-align:left;">
+                <input type="text" id="ui-char-name" class="field__input" value="${char ? this.escapeHtml(char.name) : ''}" placeholder="Ex: Miyamoto Musashi" style="text-align:left;">
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
@@ -275,6 +285,8 @@ const CharacterUI = {
             CharacterManager.saveAll(allChars);
             CharacterUI.setView('list');
             alert(`${char.name} foi restaurado para os samurais ativos!`);
+        } else {
+            alert("Samurai não encontrado nos registros.");
         }
     },
 
@@ -305,7 +317,11 @@ const CharacterUI = {
 
             const event = new Event('daimyoStateUpdated');
             window.dispatchEvent(event);
-            alert(`${char.name} portado para a Calculadora com sucesso!`);
+            if (char) {
+                alert(`${char.name} portado para a Calculadora com sucesso!`);
+            } else {
+                alert("Samurai portado com sucesso.");
+            }
         }
     }
 };

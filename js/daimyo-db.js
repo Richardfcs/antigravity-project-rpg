@@ -17,9 +17,14 @@ window.DaimyoDB = (function() {
 
   const channel = new BroadcastChannel('daimyo_sync');
   let db = null;
+  let initPromise = null;
+  const syncListeners = [];
 
   function init() {
-    return new Promise((resolve, reject) => {
+    if (initPromise) return initPromise;
+
+    initPromise = new Promise((resolve, reject) => {
+      console.log("⛩️ Cofre Infinito: Abrindo conexão...");
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
       request.onupgradeneeded = (event) => {
@@ -33,15 +38,26 @@ window.DaimyoDB = (function() {
 
       request.onsuccess = (event) => {
         db = event.target.result;
+        console.log("⛩️ Cofre Infinito: Conexão estabelecida.");
         resolve(db);
       };
 
       request.onerror = (event) => {
         console.error("❌ Erro ao abrir DaimyoDB:", event.target.error);
+        initPromise = null; // Permitir tentativa futura se falhar
         reject(event.target.error);
       };
     });
+
+    return initPromise;
   }
+
+  // Escuta central de sincronização via BroadcastChannel
+  channel.onmessage = (event) => {
+    syncListeners.forEach(callback => {
+      try { callback(event.data); } catch(e) { console.error("Erro no listener de sync:", e); }
+    });
+  };
 
   async function put(storeName, key, value) {
     if (!db) await init();
@@ -174,6 +190,8 @@ window.DaimyoDB = (function() {
     clearStore,
     migrateFromLocalStorage,
     STORES,
-    onSync: (callback) => channel.onmessage = (event) => callback(event.data)
+    onSync: (callback) => {
+      if (typeof callback === 'function') syncListeners.push(callback);
+    }
   };
 })();

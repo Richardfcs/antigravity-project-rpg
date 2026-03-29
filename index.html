@@ -1,262 +1,1231 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Escudo do Daimyo — Companion de Combate GURPS 4e</title>
-  <meta name="description" content="Companion App de combate GURPS 4e para o RPG A Era das Espadas Quebradas. Rastreador de Iniciativa e Calculadora de Dano.">
+  <meta name="description"
+    content="Companion App de combate GURPS 4e para o RPG A Era das Espadas Quebradas. Rastreador de Iniciativa e Calculadora de Dano.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
   <!-- PWA METATAGS -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0A0A0A">
-  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
+  <meta name="apple-touch-icon" href="icons/app-icon-192.png">
   <link rel="icon" type="image/png" href="icons/app-icon-192.png">
-  
-  <!-- CORE SCRIPTS -->
+
+  <!-- CORE INFRASTRUCTURE (Explicit Loading) -->
+  <script src="js/daimyo-db.js"></script>
+  <script src="js/theme-manager.js"></script>
+  <script src="js/log-manager.js"></script>
+  <script src="js/daimyo-seal.js"></script>
   <script src="js/kegare-manager.js"></script>
   <script src="js/header-loader.js"></script>
+
+  <script src="js/weapons-data.js"></script>
+  <script src="js/library-data.js"></script>
+  <script src="js/enemy-generator.js"></script>
+  <script src="js/narrative-tools.js"></script>
+  <script src="js/ranged-calc.js"></script>
+  <script src="js/character-manager.js"></script>
+  <script src="js/character-ui.js"></script>
+
+  <script>
+    // Initialize Database & Migration before page logic
+    if (window.DaimyoDB) {
+      window.DaimyoDB.init().then(() => {
+        window.DaimyoDB.migrateFromLocalStorage();
+        console.log("⛩️ Porta do Daimyo: Banco de dados e migrações ativos.");
+      }).catch(err => console.error("Falha na inicialização do Cofre:", err));
+    }
+  </script>
   <style>
     :root {
-      --bg-deep: #0A0A0A; --bg-panel: #111; --bg-card: #181818; --bg-input: #0F0F0F;
-      --border-panel: #2A2A2A; --border-input: #333; --border-focus: #8B0000;
-      --red-blood: #8B0000; --red-accent: #C41E3A; --red-glow: rgba(196,30,58,0.4); --red-failure: #DC2626;
-      --gold: #D4A846; --gold-glow: rgba(212,168,70,0.5);
-      --green-success: #22C55E; --blue-info: #3B82F6;
-      --text-primary: #F5F0E8; --text-secondary: #9CA3AF; --text-muted: #6B7280;
-      --font-display: 'Noto Serif JP', serif; --font-body: 'Inter', system-ui, sans-serif;
-      --radius: 6px; --radius-lg: 10px; --transition: 200ms ease;
+      --bg-deep: #0A0A0A;
+      --bg-panel: #111;
+      --bg-card: #181818;
+      --bg-input: #0F0F0F;
+      --border-panel: #2A2A2A;
+      --border-input: #333;
+      --border-focus: #8B0000;
+      --red-blood: #8B0000;
+      --red-accent: #C41E3A;
+      --red-glow: rgba(196, 30, 58, 0.4);
+      --red-failure: #DC2626;
+      --gold: #D4A846;
+      --gold-glow: rgba(212, 168, 70, 0.5);
+      --gold-dim: #8B6914;
+      --green-success: #22C55E;
+      --blue-info: #3B82F6;
+      --kegare-tainted: #C084FC;
+      --text-primary: #F5F0E8;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+      --font-display: 'Noto Serif JP', serif;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --radius: 6px;
+      --radius-lg: 10px;
+      --transition: 200ms ease;
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { min-height: 100%; background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-body); font-size: 1rem; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden !important; width: 100%; position: relative; }
-    
-    #app { display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden !important; width: 100%; position: relative; }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 1rem;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden !important;
+      width: 100%;
+      position: relative;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-x: hidden !important;
+      width: 100%;
+      position: relative;
+    }
 
     /* HEADER */
-    .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: var(--bg-panel); border-bottom: 1px solid var(--border-panel); flex-wrap: wrap; gap: 8px; }
-    .header__title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text-primary); letter-spacing: 0.02em; text-decoration: none; }
-    .tab-nav { display: flex; gap: 4px; }
-    .tab-nav__link { font-family: var(--font-body); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); text-decoration: none; padding: 6px 12px; border-radius: var(--radius) var(--radius) 0 0; border: 1px solid transparent; transition: all var(--transition); }
-    .tab-nav__link:hover { color: var(--text-secondary); background: rgba(255,255,255,0.03); }
-    .tab-nav__link--active { color: var(--gold); border-bottom: 2px solid var(--gold); }
-    .header__title span { color: var(--red-accent); }
-    .header__meta { display: flex; align-items: center; gap: 16px; font-size: 0.8rem; color: var(--text-secondary); }
-    .header__round { font-weight: 700; color: var(--gold); font-family: var(--font-display); }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-panel);
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .header__title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.02em;
+      text-decoration: none;
+    }
+
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tab-nav__link {
+      font-family: var(--font-body);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      border: 1px solid transparent;
+      transition: all var(--transition);
+    }
+
+    .tab-nav__link:hover {
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tab-nav__link--active {
+      color: var(--gold);
+      border-bottom: 2px solid var(--gold);
+    }
+
+    .header__title span {
+      color: var(--red-accent);
+    }
+
+    .header__meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .header__round {
+      font-weight: 700;
+      color: var(--gold);
+      font-family: var(--font-display);
+    }
 
     /* MAIN LAYOUT */
-    .main { display: grid; grid-template-columns: 1fr 380px; gap: 1px; background: var(--border-panel); flex: none; min-height: 0; }
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1px;
+      background: var(--border-panel);
+      flex: none;
+      min-height: 0;
+    }
 
     /* PANELS */
-    .panel { background: var(--bg-panel); padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
-    .panel__header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--border-panel); }
-    .panel__title { font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
+    .panel {
+      background: var(--bg-panel);
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .panel__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-panel);
+    }
+
+    .panel__title {
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+    }
 
     /* FORM */
-    .field { display: flex; flex-direction: column; gap: 3px; }
-    .field__label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
-    .field__input, .field__select { background: var(--bg-input); border: 1px solid var(--border-input); border-radius: var(--radius); color: var(--text-primary); font-family: var(--font-body); font-size: 1rem; font-weight: 600; padding: 8px 10px; text-align: center; transition: border-color var(--transition); width: 100%; outline: none; }
-    .field__input:focus, .field__select:focus { border-color: var(--border-focus); box-shadow: 0 0 0 2px var(--red-glow); }
-    .field__select { text-align: left; cursor: pointer; }
-    .field__select option { background: var(--bg-panel); }
-    .field__input::-webkit-outer-spin-button, .field__input::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; }
-    .field__input[type=number] { -moz-appearance: textfield; appearance: textfield; }
-    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .field__label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .field__input,
+    .field__select {
+      background: var(--bg-input);
+      border: 1px solid var(--border-input);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 8px 10px;
+      text-align: center;
+      transition: border-color var(--transition);
+      width: 100%;
+      outline: none;
+    }
+
+    .field__input:focus,
+    .field__select:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 2px var(--red-glow);
+    }
+
+    .field__select {
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .field__select option {
+      background: var(--bg-panel);
+    }
+
+    .field__input::-webkit-outer-spin-button,
+    .field__input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .field__input[type=number] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .field-row-3 {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr 1fr;
+      gap: 8px;
+    }
 
     /* ADD COMBATANT FORM */
-    .add-form { display: grid; gap: 8px; padding: 12px; background: var(--bg-deep); border-radius: var(--radius-lg); border: 1px solid var(--border-panel); }
-    .add-form.collapsed .add-form__body { display: none; }
-    .add-form__toggle { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-family: var(--font-body); font-size: 0.8rem; font-weight: 600; text-align: left; padding: 4px 0; letter-spacing: 0.04em; }
-    .add-form__toggle:hover { color: var(--text-primary); }
-    .add-form__body { display: grid; gap: 8px; }
+    .add-form {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      background: var(--bg-deep);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-panel);
+    }
+
+    .add-form.collapsed .add-form__body {
+      display: none;
+    }
+
+    .add-form__toggle {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-align: left;
+      padding: 4px 0;
+      letter-spacing: 0.04em;
+    }
+
+    .add-form__toggle:hover {
+      color: var(--text-primary);
+    }
+
+    .add-form__body {
+      display: grid;
+      gap: 8px;
+    }
 
     /* BUTTONS */
-    .btn { border: none; border-radius: var(--radius); cursor: pointer; font-family: var(--font-body); font-weight: 700; letter-spacing: 0.04em; transition: all var(--transition); outline: none; text-transform: uppercase; }
-    .btn-primary { background: linear-gradient(135deg, var(--red-blood), var(--red-accent)); color: var(--text-primary); font-size: 0.85rem; padding: 10px 16px; width: 100%; box-shadow: 0 2px 8px var(--red-glow); }
-    .btn-primary:hover { box-shadow: 0 4px 16px var(--red-glow); transform: translateY(-1px); }
-    .btn-primary:active { transform: translateY(1px); }
-    .btn-secondary { background: var(--bg-input); border: 1px solid var(--border-input); color: var(--text-secondary); font-size: 0.75rem; padding: 6px 12px; }
-    .btn-secondary:hover { border-color: var(--text-secondary); color: var(--text-primary); }
-    .btn-ghost { background: transparent; border: 1px solid var(--border-panel); color: var(--text-muted); font-size: 0.7rem; padding: 5px 10px; }
-    .btn-ghost:hover { border-color: var(--red-accent); color: var(--red-accent); }
-    .btn-gold { background: linear-gradient(135deg, #8B6914, var(--gold)); color: #1a1a1a; font-size: 0.85rem; padding: 10px 16px; width: 100%; }
-    .btn-gold:hover { box-shadow: 0 4px 16px var(--gold-glow); transform: translateY(-1px); }
-    .btn-sm { padding: 4px 8px; font-size: 0.65rem; }
+    .btn {
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      transition: all var(--transition);
+      outline: none;
+      text-transform: uppercase;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--red-blood), var(--red-accent));
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      padding: 10px 16px;
+      width: 100%;
+      box-shadow: 0 2px 8px var(--red-glow);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 4px 16px var(--red-glow);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(1px);
+    }
+
+    .btn-secondary {
+      background: var(--bg-input);
+      border: 1px solid var(--border-input);
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      padding: 6px 12px;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--text-secondary);
+      color: var(--text-primary);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border-panel);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      padding: 5px 10px;
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--red-accent);
+      color: var(--red-accent);
+    }
+
+    .btn-gold {
+      background: linear-gradient(135deg, #8B6914, var(--gold));
+      color: #1a1a1a;
+      font-size: 0.85rem;
+      padding: 10px 16px;
+      width: 100%;
+    }
+
+    .btn-gold:hover {
+      box-shadow: 0 4px 16px var(--gold-glow);
+      transform: translateY(-1px);
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 0.65rem;
+    }
 
     /* COMBATANT CARDS */
-    .combatant-list { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
-    .combatant-card { background: var(--bg-card); border: 1px solid var(--border-panel); border-radius: var(--radius-lg); padding: 10px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; transition: all 300ms ease; cursor: default; position: relative; }
-    .combatant-card.active { border-color: var(--gold); box-shadow: 0 0 12px var(--gold-glow); }
-    .combatant-card.dead { opacity: 0.4; }
+    .combatant-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
 
-    .card__order { font-family: var(--font-display); font-size: 1.4rem; font-weight: 900; color: var(--text-muted); min-width: 28px; text-align: center; }
-    .combatant-card.active .card__order { color: var(--gold); }
+    .combatant-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-panel);
+      border-radius: var(--radius-lg);
+      padding: 10px 14px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      transition: all 300ms ease;
+      cursor: default;
+      position: relative;
+    }
 
-    .card__info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .card__name { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .card__stats { display: flex; gap: 10px; font-size: 0.7rem; color: var(--text-secondary); font-weight: 500; }
-    .card__bars { display: flex; gap: 8px; align-items: center; }
+    .combatant-card.active {
+      border-color: var(--gold);
+      box-shadow: 0 0 12px var(--gold-glow);
+    }
 
-    .bar { height: 6px; border-radius: 3px; background: var(--bg-deep); flex: 1; min-width: 60px; overflow: hidden; position: relative; }
-    .bar__fill { height: 100%; border-radius: 3px; transition: width 400ms ease; }
-    .bar--hp .bar__fill { background: linear-gradient(90deg, var(--red-failure), var(--red-accent)); }
-    .bar--fp .bar__fill { background: linear-gradient(90deg, #1D4ED8, var(--blue-info)); }
-    .bar__label { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); min-width: 20px; }
+    .combatant-card.dead {
+      opacity: 0.4;
+    }
 
-    .card__actions { display: flex; flex-direction: column; gap: 3px; }
+    .card__order {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: var(--text-muted);
+      min-width: 28px;
+      text-align: center;
+    }
+
+    .combatant-card.active .card__order {
+      color: var(--gold);
+    }
+
+    .card__info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .card__name {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card__stats {
+      display: flex;
+      gap: 10px;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .card__bars {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--bg-deep);
+      flex: 1;
+      min-width: 60px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar__fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 400ms ease;
+    }
+
+    .bar--hp .bar__fill {
+      background: linear-gradient(90deg, var(--red-failure), var(--red-accent));
+    }
+
+    .bar--fp .bar__fill {
+      background: linear-gradient(90deg, #1D4ED8, var(--blue-info));
+    }
+
+    .bar__label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      min-width: 20px;
+    }
+
+    .card__actions {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
 
     /* TAGS / CONDITIONS */
-    .card__tags { display: flex; flex-wrap: wrap; gap: 4px; }
-    .tag { display: inline-flex; align-items: center; font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .tag-close { background: transparent; border: none; color: inherit; margin-left: 6px; font-size: 0.65rem; font-weight: 900; cursor: pointer; opacity: 0.6; display: flex; align-items: center; transition: opacity var(--transition); outline: none; }
-    .tag-close:hover { opacity: 1; }
-    .tag--shock { background: rgba(234,179,8,0.15); color: #EAB308; border: 1px solid rgba(234,179,8,0.3); }
-    .tag--severe { background: rgba(220,38,38,0.15); color: var(--red-failure); border: 1px solid rgba(220,38,38,0.3); animation: pulse-red 1.5s ease infinite; }
-    .tag--death { background: rgba(220,38,38,0.25); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.5); animation: pulse-red 1s ease infinite; }
-    .tag--bleeding { background: rgba(196,30,58,0.2); color: var(--red-accent); border: 1px solid rgba(196,30,58,0.4); animation: pulse-red 1.2s ease infinite; }
+    .card__tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .tag-close {
+      background: transparent;
+      border: none;
+      color: inherit;
+      margin-left: 6px;
+      font-size: 0.65rem;
+      font-weight: 900;
+      cursor: pointer;
+      opacity: 0.6;
+      display: flex;
+      align-items: center;
+      transition: opacity var(--transition);
+      outline: none;
+    }
+
+    .tag-close:hover {
+      opacity: 1;
+    }
+
+    .tag--shock {
+      background: rgba(234, 179, 8, 0.15);
+      color: #EAB308;
+      border: 1px solid rgba(234, 179, 8, 0.3);
+    }
+
+    .tag--severe {
+      background: rgba(220, 38, 38, 0.15);
+      color: var(--red-failure);
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      animation: pulse-red 1.5s ease infinite;
+    }
+
+    .tag--death {
+      background: rgba(220, 38, 38, 0.25);
+      color: #FCA5A5;
+      border: 1px solid rgba(220, 38, 38, 0.5);
+      animation: pulse-red 1s ease infinite;
+    }
+
+    .tag--bleeding {
+      background: rgba(196, 30, 58, 0.2);
+      color: var(--red-accent);
+      border: 1px solid rgba(196, 30, 58, 0.4);
+      animation: pulse-red 1.2s ease infinite;
+    }
 
     /* FORM LAYOUTS */
-    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .field-row-3 { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 8px; }
-    .field-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-    .field-row-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
-    .field-row-wrap .field { flex: 1; min-width: 50px; }
+    .field-row-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .field-row-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .field-row-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .field-row-wrap .field {
+      flex: 1;
+      min-width: 50px;
+    }
 
     /* DAMAGE CALCULATOR */
-    .type-selector { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-    .type-selector input[type="radio"] { display: none; }
-    .type-selector__label { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; border: 1px solid var(--border-input); border-radius: var(--radius); cursor: pointer; transition: all var(--transition); font-size: 0.6rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); text-align: center; user-select: none; }
-    .type-selector__label:hover { border-color: var(--text-secondary); color: var(--text-secondary); }
-    .type-selector input:checked + .type-selector__label { border-color: var(--red-accent); color: var(--red-accent); background: rgba(196,30,58,0.08); }
-    .type-selector__mult { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); }
-    .type-selector input:checked + .type-selector__label .type-selector__mult { color: var(--red-accent); }
+    .type-selector {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+    }
 
-    .loc-selector { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-    .loc-selector input[type="radio"] { display: none; }
-    .loc-selector__label { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; border: 1px solid var(--border-input); border-radius: var(--radius); cursor: pointer; transition: all var(--transition); font-size: 0.6rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); text-align: center; user-select: none; }
-    .loc-selector__label:hover { border-color: var(--text-secondary); }
-    .loc-selector input:checked + .loc-selector__label { border-color: var(--blue-info); color: var(--blue-info); background: rgba(59,130,246,0.08); }
+    .type-selector input[type="radio"] {
+      display: none;
+    }
+
+    .type-selector__label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      padding: 6px 2px;
+      border: 1px solid var(--border-input);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all var(--transition);
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      text-align: center;
+      user-select: none;
+    }
+
+    .type-selector__label:hover {
+      border-color: var(--text-secondary);
+      color: var(--text-secondary);
+    }
+
+    .type-selector input:checked+.type-selector__label {
+      border-color: var(--red-accent);
+      color: var(--red-accent);
+      background: rgba(196, 30, 58, 0.08);
+    }
+
+    .type-selector__mult {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .type-selector input:checked+.type-selector__label .type-selector__mult {
+      color: var(--red-accent);
+    }
+
+    .loc-selector {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+    }
+
+    .loc-selector input[type="radio"] {
+      display: none;
+    }
+
+    .loc-selector__label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      padding: 6px 2px;
+      border: 1px solid var(--border-input);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all var(--transition);
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      text-align: center;
+      user-select: none;
+    }
+
+    .loc-selector__label:hover {
+      border-color: var(--text-secondary);
+    }
+
+    .loc-selector input:checked+.loc-selector__label {
+      border-color: var(--blue-info);
+      color: var(--blue-info);
+      background: rgba(59, 130, 246, 0.08);
+    }
 
     /* RESULT */
-    .result-box { display: none; flex-direction: column; align-items: center; gap: 4px; padding: 14px; border-radius: var(--radius-lg); background: var(--bg-deep); border: 1px solid var(--border-panel); transition: all 400ms ease; }
-    .result-box.visible { display: flex; }
-    .result-box__formula { font-size: 0.65rem; color: var(--text-muted); font-family: monospace; text-align: center; }
-    .result-box__damage { font-size: 2rem; font-weight: 700; color: var(--red-accent); font-variant-numeric: tabular-nums; }
-    .result-box__label { font-size: 0.7rem; color: var(--text-muted); }
+    .result-box {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 14px;
+      border-radius: var(--radius-lg);
+      background: var(--bg-deep);
+      border: 1px solid var(--border-panel);
+      transition: all 400ms ease;
+    }
+
+    .result-box.visible {
+      display: flex;
+    }
+
+    .result-box__formula {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      font-family: monospace;
+      text-align: center;
+    }
+
+    .result-box__damage {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--red-accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-box__label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
 
     /* ALERTS */
-    .alert-container { display: flex; flex-direction: column; gap: 4px; }
-    .alert { padding: 8px 12px; border-radius: var(--radius); font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-    .alert--severe { background: rgba(220,38,38,0.12); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
-    .alert--death { background: rgba(220,38,38,0.2); color: #FECACA; border: 1px solid rgba(220,38,38,0.5); }
-    .alert--shock { background: rgba(234,179,8,0.1); color: #FDE68A; border: 1px solid rgba(234,179,8,0.2); }
+    .alert-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
 
-    /* REGISTRO DE SANGUE (Combat Log) */
-    .history { background: var(--bg-deep); border-top: 1px solid var(--border-panel); display: flex; flex-direction: column; min-height: 200px; max-height: 500px; font-family: var(--font-body); flex-shrink: 0; }
-    .history__header { display: flex; align-items: center; justify-content: space-between; padding: 6px 15px; border-bottom: 1px solid var(--border-panel); flex-shrink: 0; background: var(--bg-panel); }
-    .history__title { font-family: var(--font-display); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); }
-    .history__list { overflow-y: auto; padding: 10px 15px; display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; }
-    .history__empty { color: var(--text-muted); font-size: 0.75rem; text-align: center; padding: 20px; font-style: italic; }
-    .history__entry { display: flex; align-items: flex-start; gap: 8px; padding: 2px 0; font-size: 0.75rem; line-height: 1.4; border-bottom: 1px solid var(--border-panel); opacity: 0.9; }
-    .history__time { color: var(--text-muted); min-width: 65px; flex-shrink: 0; font-family: monospace; }
-    .history__round { color: var(--gold); font-weight: 700; min-width: 45px; flex-shrink: 0; opacity: 0.8; }
-    .history__text { color: var(--text-secondary); flex: 1; }
+    .alert {
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .alert--severe {
+      background: rgba(220, 38, 38, 0.12);
+      color: #FCA5A5;
+      border: 1px solid rgba(220, 38, 38, 0.3);
+    }
+
+    .alert--death {
+      background: rgba(220, 38, 38, 0.2);
+      color: #FECACA;
+      border: 1px solid rgba(220, 38, 38, 0.5);
+    }
+
+    .alert--shock {
+      background: rgba(234, 179, 8, 0.1);
+      color: #FDE68A;
+      border: 1px solid rgba(234, 179, 8, 0.2);
+    }
+
+    /* ═══════════════════════════════════════════
+       PADRÃO UNIFICADO — REGISTRO DE HISTÓRICO
+       ═══════════════════════════════════════════ */
+    .history {
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border-panel);
+      display: flex;
+      flex-direction: column;
+      height: 320px;
+      max-height: 40vh;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .history__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border-panel);
+      flex-shrink: 0;
+    }
+
+    .history__title {
+      font-family: var(--font-display);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gold);
+    }
+
+    .history__list {
+      overflow-y: auto;
+      padding: 10px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-panel) transparent;
+    }
+
+    .history__list::-webkit-scrollbar { width: 5px; }
+    .history__list::-webkit-scrollbar-track { background: transparent; }
+    .history__list::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
+    .history__list::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+    .history__empty {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-align: center;
+      padding: 20px 12px;
+      font-style: italic;
+    }
+
+    .history__entry {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      background: var(--bg-deep);
+      font-size: 0.78rem;
+      font-variant-numeric: tabular-nums;
+      border-left: 3px solid var(--border-panel);
+      transition: background var(--transition);
+      flex-wrap: wrap;
+    }
+
+    .history__entry:hover { background: rgba(255, 255, 255, 0.02); }
+
+    .history__time {
+      color: var(--text-muted);
+      min-width: 48px;
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      font-family: monospace;
+    }
+
+    .history__badge {
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      background: rgba(212, 168, 70, 0.1);
+      padding: 2px 6px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .history__text {
+      color: var(--text-secondary);
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ── Variantes de cor por tipo ── */
+    .history__entry--dano,
+    .history__entry--sucesso { border-left-color: var(--green-success); }
     .history__entry--dano .history__text { color: #e5e7eb; }
-    .history__entry--turno { background: rgba(212,168,70,0.05); border-left: 2px solid var(--gold); padding-left: 5px; margin: 4px 0; }
-    .history__entry--turno .history__text { color: var(--gold); font-weight: 700; }
-    .history__entry--panic .history__text { color: #fbbf24; }
+    .history__entry--turno,
+    .history__entry--oraculo,
+    .history__entry--time { border-left-color: var(--gold); }
+    .history__entry--turno .history__badge,
+    .history__entry--oraculo .history__badge { color: var(--gold); background: rgba(212, 168, 70, 0.12); }
+    .history__entry--critico { border-left-color: var(--gold); }
+    .history__entry--critico .history__badge { color: var(--gold); background: rgba(212, 168, 70, 0.15); }
+    .history__entry--falha { border-left-color: var(--text-muted); }
+    .history__entry--falha-critica,
+    .history__entry--death { border-left-color: var(--red-failure); }
     .history__entry--death .history__text { color: #ef4444; font-weight: 700; }
+    .history__entry--panic { border-left-color: #C084FC; }
+    .history__entry--panic .history__text { color: #fbbf24; }
+    .history__entry--reacao { border-left-color: var(--blue-info); }
+    .history__entry--rest { border-left-color: var(--blue-info); }
+    .history__entry--exhaust { border-left-color: var(--blue-info); }
+    .history__entry--npc { border-left-color: var(--green-success); }
+    .history__entry--kegare { border-left-color: var(--kegare-tainted); }
+    .history__entry--fail { border-left-color: var(--red-failure); }
+
+    @media (max-width: 900px) {
+      .history {
+        max-height: none;
+        height: auto;
+        min-height: 150px;
+      }
+    }
 
     /* EMPTY STATE */
-    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; color: var(--text-muted); text-align: center; flex: 1; }
-    .empty-state__icon { font-size: 2.5rem; opacity: 0.3; }
-    .empty-state__text { font-size: 0.85rem; }
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      text-align: center;
+      flex: 1;
+    }
+
+    .empty-state__icon {
+      font-size: 2.5rem;
+      opacity: 0.3;
+    }
+
+    .empty-state__text {
+      font-size: 0.85rem;
+    }
 
     /* ANIMATIONS */
-    @keyframes pulse-red { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
-    @keyframes slide-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-    .anim-slide { animation: slide-in 300ms ease; }
+    @keyframes pulse-red {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.6;
+      }
+    }
+
+    @keyframes slide-in {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .anim-slide {
+      animation: slide-in 300ms ease;
+    }
 
     /* DRAWERS & MODALS (Narrative Tools) */
-    .drawer { position: fixed; top: 0; right: 0; transform: translateX(100%); width: 420px; max-width: 95vw; height: 100vh; background: var(--bg-panel); border-left: 1px solid var(--border-panel); box-shadow: -4px 0 15px rgba(0,0,0,0.8); transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; display: flex; flex-direction: column; padding: 20px; overflow-x: hidden; }
-    .drawer.open { transform: translateX(0); }
-    .drawer__header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-panel); padding-bottom: 12px; margin-bottom: 15px; flex-shrink: 0; gap: 10px; }
-    .drawer__title { font-family: var(--font-display); font-size: 1rem; color: var(--gold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .drawer__close { background: var(--bg-deep); border: 1px solid var(--border-panel); color: var(--text-secondary); cursor: pointer; font-size: 1rem; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 200ms; flex-shrink: 0; }
-    .drawer__close:hover { color: var(--red-accent); border-color: var(--red-accent); background: rgba(196,30,58,0.1); }
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      transform: translateX(100%);
+      width: 420px;
+      max-width: 95vw;
+      height: 100vh;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border-panel);
+      box-shadow: -4px 0 15px rgba(0, 0, 0, 0.8);
+      transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      overflow-x: hidden;
+    }
 
-    
-    .gm-editor { flex: 1; width: 100%; background: var(--bg-input); border: 1px solid var(--border-input); border-radius: var(--radius); color: var(--text-primary); font-family: var(--font-body); padding: 10px; resize: none; outline: none; transition: border-color var(--transition); line-height: 1.5; }
-    .gm-editor:focus { border-color: var(--border-focus); box-shadow: 0 0 0 1px var(--red-glow); }
-    
-    .clock-item { background: var(--bg-deep); border: 1px solid var(--border-panel); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; transition: all 300ms ease; }
-    .clock-header { display: flex; justify-content: space-between; align-items: center; }
-    .clock-title { font-weight: 700; font-size: 0.85rem; color: var(--text-primary); transition: color 300ms; }
-    .clock-delete { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.7rem; }
-    .clock-delete:hover { color: var(--red-failure); }
-    .clock-progress { display: flex; gap: 4px; }
-    .clock-segment { flex: 1; height: 10px; border-radius: 2px; background: var(--bg-panel); border: 1px solid var(--border-panel); transition: background 200ms ease, border-color 200ms ease; }
-    .clock-segment.filled { background: var(--red-accent); border-color: var(--red-blood); }
-    .clock-action { display: flex; gap: 6px; }
-    
-    #combat-mass-overlay { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index: 200; display:none; justify-content:center; align-items:center; opacity:0; transition:opacity 300ms; }
-    #combat-mass-overlay.open { display:flex; opacity:1; }
-    .mass-modal { background: var(--bg-panel); border: 1px solid var(--gold); border-radius: var(--radius-lg); padding: 25px; width: 100%; max-width: 600px; box-shadow: 0 10px 40px rgba(0,0,0,0.9); transform: scale(0.95); transition: transform 300ms; }
-    #combat-mass-overlay.open .mass-modal { transform: scale(1); }
-    .mass-log { margin-top: 15px; padding: 10px; background: var(--bg-deep); border-left: 3px solid var(--gold); border-radius: 0 var(--radius) var(--radius) 0; font-size: 0.8rem; color: var(--text-secondary); min-height: 50px; white-space: pre-wrap; line-height: 1.4; }
+    .drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-panel);
+      padding-bottom: 12px;
+      margin-bottom: 15px;
+      flex-shrink: 0;
+      gap: 10px;
+    }
+
+    .drawer__title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      color: var(--gold);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .drawer__close {
+      background: var(--bg-deep);
+      border: 1px solid var(--border-panel);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 1rem;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 200ms;
+      flex-shrink: 0;
+    }
+
+    .drawer__close:hover {
+      color: var(--red-accent);
+      border-color: var(--red-accent);
+      background: rgba(196, 30, 58, 0.1);
+    }
+
+
+    .gm-editor {
+      flex: 1;
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-input);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      padding: 10px;
+      resize: none;
+      outline: none;
+      transition: border-color var(--transition);
+      line-height: 1.5;
+    }
+
+    .gm-editor:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 1px var(--red-glow);
+    }
+
+    .clock-item {
+      background: var(--bg-deep);
+      border: 1px solid var(--border-panel);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 300ms ease;
+    }
+
+    .clock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .clock-title {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      transition: color 300ms;
+    }
+
+    .clock-delete {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.7rem;
+    }
+
+    .clock-delete:hover {
+      color: var(--red-failure);
+    }
+
+    .clock-progress {
+      display: flex;
+      gap: 4px;
+    }
+
+    .clock-segment {
+      flex: 1;
+      height: 10px;
+      border-radius: 2px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-panel);
+      transition: background 200ms ease, border-color 200ms ease;
+    }
+
+    .clock-segment.filled {
+      background: var(--red-accent);
+      border-color: var(--red-blood);
+    }
+
+    .clock-action {
+      display: flex;
+      gap: 6px;
+    }
+
+    #combat-mass-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 200;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 300ms;
+    }
+
+    #combat-mass-overlay.open {
+      display: flex;
+      opacity: 1;
+    }
+
+    .mass-modal {
+      background: var(--bg-panel);
+      border: 1px solid var(--gold);
+      border-radius: var(--radius-lg);
+      padding: 25px;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+      transform: scale(0.95);
+      transition: transform 300ms;
+    }
+
+    #combat-mass-overlay.open .mass-modal {
+      transform: scale(1);
+    }
+
+    .mass-log {
+      margin-top: 15px;
+      padding: 10px;
+      background: var(--bg-deep);
+      border-left: 3px solid var(--gold);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      min-height: 50px;
+      white-space: pre-wrap;
+      line-height: 1.4;
+    }
 
     /* RESPONSIVE */
     @media (max-width: 900px) {
-      body { overflow-y: auto !important; }
-      #app { position: relative; height: auto; min-height: 100vh; grid-template-rows: auto 1fr auto; overflow: visible; width: 100%; }
-      .main { grid-template-columns: 1fr; overflow: visible; padding: 10px; }
-      .history { max-height: none; }
-      .header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 10px; }
-      .header__meta { display: none; }
-      .tab-nav { margin: 0; width: 100%; flex-wrap: wrap; justify-content: center; }
-      .panel { min-height: 400px; }
-      
+      body {
+        overflow-y: auto !important;
+      }
+
+      #app {
+        position: relative;
+        height: auto;
+        min-height: 100vh;
+        grid-template-rows: auto 1fr auto;
+        overflow: visible;
+        width: 100%;
+      }
+
+      .main {
+        grid-template-columns: 1fr;
+        overflow: visible;
+        padding: 10px;
+      }
+
+      .history {
+        max-height: none;
+        height: auto;
+        min-height: 150px;
+      }
+
+      .history__header {
+        padding: 8px 12px;
+      }
+
+      .history__list {
+        padding: 8px 12px 30px;
+      }
+
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px;
+      }
+
+      .header__meta {
+        display: none;
+      }
+
+      .tab-nav {
+        margin: 0;
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .panel {
+        min-height: 400px;
+      }
+
       /* Force 2x2 grid for mass combat fields on mobile */
-      .field-row-4 { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
-      .field-row-3 { grid-template-columns: 1fr !important; }
-      .mass-modal { padding: 15px; width: 95%; max-width: 400px; }
-      .drawer { width: 100%; }
+      .field-row-4 {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+      }
+
+      .field-row-3 {
+        grid-template-columns: 1fr !important;
+      }
+
+      .mass-modal {
+        padding: 15px;
+        width: 95%;
+        max-width: 400px;
+      }
+
+      .drawer {
+        width: 100%;
+      }
     }
 
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: var(--bg-deep); }
-    ::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
+    .anim-slide {
+      animation: slide-in 300ms ease;
+    }
   </style>
-
-  
-  <!-- PWA METATAGS -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0A0A0A">
-  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
-  <link rel="icon" type="image/png" href="icons/app-icon-192.png">
 </head>
+
 <body>
-<div id="app">
-
-  <div id="daimyo-header"></div>
-
-  <!-- CORE SCRIPTS - Moved up to fix ReferenceErrors -->
-  <script src="js/weapons-data.js"></script>
-  <script src="js/library-data.js"></script>
-  <script src="js/log-manager.js"></script>
-  <script src="js/enemy-generator.js"></script>
-  <script src="js/narrative-tools.js"></script>
-
-  <main class="main">
-    <!-- LEFT: INITIATIVE TRACKER -->
-    <section class="panel" id="panel-initiative">
+  <div id="app">
+    <div id="daimyo-header"></div>
+    <main class="main">
+      <!-- LEFT: INITIATIVE TRACKER -->
+      <section class="panel" id="panel-initiative">
       <div class="panel__header">
         <h2 class="panel__title">⚔ Ordem de Iniciativa</h2>
         <div style="display:flex;gap:6px;align-items:center;">
-          <span style="font-size:0.75rem; color:var(--text-muted);">Turno: <strong id="round-display" style="color:var(--gold); margin-left:2px; font-size:1rem">—</strong></span>
-          <button class="btn btn-ghost btn-sm" id="btn-end-combat" style="display:none; margin-left:10px;">✕ Encerrar</button>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Turno: <strong id="round-display"
+              style="color:var(--gold); margin-left:2px; font-size:1rem">—</strong></span>
+          <button class="btn btn-ghost btn-sm" id="btn-end-combat" style="display:none; margin-left:10px;">✕
+            Encerrar</button>
           <button class="btn btn-gold" id="btn-next-turn" style="display:none">▶ Próximo Turno</button>
           <button class="btn btn-secondary" id="btn-start-combat" style="display:none">▶ Iniciar Combate</button>
         </div>
@@ -267,24 +1236,27 @@
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
           <button class="add-form__toggle" id="add-form-toggle">＋ Adicionar Combatente</button>
           <div style="display: flex; gap: 4px; flex: 1; justify-content: flex-end;">
-            <select id="select-archetype" style="padding:4px; font-size:0.75rem; border-radius:3px; border:1px solid var(--border-panel); background:var(--bg-panel); color:var(--text-primary); max-width:130px;">
-               <option value="civil">Civil (Não-Combatente)</option>
-               <option value="recruta">Recruta (10 DX)</option>
-               <option value="capanga">Capanga (10-11 DX)</option>
-               <option value="veterano">Veterano (11-12 DX)</option>
-               <option value="elite">Elite (12-13 DX)</option>
-               <option value="excepcional">Excepcional (13-14 DX)</option>
-               <option value="mestre">Mestre (14-15 DX)</option>
+            <select id="select-archetype"
+              style="padding:4px; font-size:0.75rem; border-radius:3px; border:1px solid var(--border-panel); background:var(--bg-panel); color:var(--text-primary); max-width:130px;">
+              <option value="civil">Civil (Não-Combatente)</option>
+              <option value="recruta">Recruta (10 DX)</option>
+              <option value="capanga">Capanga (10-11 DX)</option>
+              <option value="veterano">Veterano (11-12 DX)</option>
+              <option value="elite">Elite (12-13 DX)</option>
+              <option value="excepcional">Excepcional (13-14 DX)</option>
+              <option value="mestre">Mestre (14-15 DX)</option>
 
             </select>
-            <button class="btn btn-gold btn-sm" id="btn-generate-enemy" title="Gerar Inimigo Procedural">🎲 Gerar</button>
+            <button class="btn btn-gold btn-sm" id="btn-generate-enemy" title="Gerar Inimigo Procedural">🎲
+              Gerar</button>
             <button class="btn btn-ghost btn-sm" id="btn-quick-fill">⚡ Injetar</button>
           </div>
         </div>
         <div class="add-form__body" id="add-form-body" style="display:none">
           <div class="field">
             <label class="field__label" for="input-name">Nome</label>
-            <input class="field__input" type="text" id="input-name" placeholder="Ex: Samurai Ronin" style="text-align:left">
+            <input class="field__input" type="text" id="input-name" placeholder="Ex: Samurai Ronin"
+              style="text-align:left">
           </div>
           <div class="field-row">
             <div class="field">
@@ -309,7 +1281,8 @@
             </div>
             <div class="field">
               <label class="field__label" for="input-speed">VEL</label>
-              <input class="field__input" type="number" id="input-speed" min="0" max="20" step="0.25" placeholder="5.75">
+              <input class="field__input" type="number" id="input-speed" min="0" max="20" step="0.25"
+                placeholder="5.75">
             </div>
             <div class="field">
               <label class="field__label" for="input-st">ST</label>
@@ -370,62 +1343,75 @@
         </select>
       </div>
 
-      <div style="padding: 10px; border: 1px dashed var(--border-panel); border-radius: var(--radius); margin-bottom: 8px;">
+      <div
+        style="padding: 10px; border: 1px dashed var(--border-panel); border-radius: var(--radius); margin-bottom: 8px;">
         <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
           <input type="checkbox" id="toggle-adv-dmg">
-          <label class="field__label" for="toggle-adv-dmg" style="cursor:pointer; color:var(--gold)">Ativar Cálculo de Dano por ST (Arma)</label>
+          <label class="field__label" for="toggle-adv-dmg" style="cursor:pointer; color:var(--gold)">Ativar Cálculo de
+            Dano por ST (Arma)</label>
         </div>
-        
+
         <div id="adv-dmg-panel" style="display:none; flex-direction:column; gap:8px;">
           <div class="field">
             <label class="field__label" for="select-attacker">Atacante (Lê ST)</label>
-            <select class="field__select" id="select-attacker"><option value="">— Selecione —</option></select>
+            <select class="field__select" id="select-attacker">
+              <option value="">— Selecione —</option>
+            </select>
           </div>
           <div style="display:flex; gap:8px;">
             <div class="field" style="flex:1">
-              <label class="field__label">Modo</label>
+              <label class="field__label" for="select-st-mode">Modo</label>
               <select class="field__select" id="select-st-mode">
                 <option value="sw">Balanço (Sw)</option>
                 <option value="thr">Golpe (Thr)</option>
               </select>
             </div>
             <div class="field" style="flex:1">
-              <label class="field__label">Modificador</label>
+              <label class="field__label" for="input-wpn-bonus">Modificador</label>
               <input class="field__input" type="number" id="input-wpn-bonus" value="0">
             </div>
           </div>
           <button class="btn btn-secondary" id="btn-roll-st">🎲 Rolar Dados de Força</button>
-          <div id="adv-dmg-log" style="font-size:0.7rem; font-family:monospace; color:var(--text-muted); text-align:center">Base ST aguardando...</div>
+          <div id="adv-dmg-log"
+            style="font-size:0.7rem; font-family:monospace; color:var(--text-muted); text-align:center">Base ST
+            aguardando...</div>
         </div>
       </div>
 
       <!-- RANGED CALC INTEGRATION -->
-      <div style="padding: 10px; border: 1px dashed var(--border-panel); border-radius: var(--radius); margin-bottom: 8px;">
+      <div
+        style="padding: 10px; border: 1px dashed var(--border-panel); border-radius: var(--radius); margin-bottom: 8px;">
         <div style="display: flex; gap: 8px; align-items: center;">
-          <input type="checkbox" id="toggle-ranged-calc" onchange="document.getElementById('rc-panel').style.display = this.checked ? 'flex' : 'none'">
-          <label class="field__label" for="toggle-ranged-calc" style="cursor:pointer; color:var(--gold)">📏 Ativar Cálculo de Distância (SSR)</label>
+          <input type="checkbox" id="toggle-ranged-calc"
+            onchange="document.getElementById('rc-panel').style.display = this.checked ? 'flex' : 'none'">
+          <label class="field__label" for="toggle-ranged-calc" style="cursor:pointer; color:var(--gold)">📏 Ativar
+            Cálculo de Distância (SSR)</label>
         </div>
-        
+
         <div id="rc-panel" style="display:none; flex-direction:column; gap:12px; margin-top:10px;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div class="field">
-              <label class="field__label">Distância (m)</label>
-              <input type="number" id="rc-distance" class="field__input" value="2" oninput="RangedCalc.update()" style="font-size:1rem; padding:8px;">
+              <label class="field__label" for="rc-distance">Distância (m)</label>
+              <input type="number" id="rc-distance" class="field__input" value="2" oninput="window.RangedCalc && RangedCalc.update()"
+                style="font-size:1rem; padding:8px;">
             </div>
             <div class="field">
-              <label class="field__label">Tamanho (SM)</label>
-              <input type="number" id="rc-sm" class="field__input" value="0" oninput="RangedCalc.update()" style="font-size:1rem; padding:8px;">
+              <label class="field__label" for="rc-sm">Tamanho (SM)</label>
+              <input type="number" id="rc-sm" class="field__input" value="0" oninput="window.RangedCalc && RangedCalc.update()"
+                style="font-size:1rem; padding:8px;">
             </div>
           </div>
-          
+
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div class="field">
               <label class="field__label">Precisão (Acc)</label>
-              <input type="number" id="rc-acc" class="field__input" value="0" oninput="RangedCalc.update()" style="font-size:1rem; padding:8px;">
+              <input type="number" id="rc-acc" class="field__input" value="0" oninput="window.RangedCalc && RangedCalc.update()"
+                style="font-size:1rem; padding:8px;">
             </div>
             <div class="field">
               <label class="field__label">Turnos de Mira</label>
-              <select id="rc-aim" class="field__input" onchange="RangedCalc.update()" style="font-size:0.9rem; padding:8px;">
+              <select id="rc-aim" class="field__input" onchange="window.RangedCalc && RangedCalc.update()"
+                style="font-size:0.9rem; padding:8px;">
                 <option value="0">Nenhum</option>
                 <option value="1">1 Turno (Acc)</option>
                 <option value="2">2 Turnos (Acc+1)</option>
@@ -433,25 +1419,32 @@
               </select>
             </div>
           </div>
-  
+
           <div style="display:flex; gap:15px; justify-content:center;">
-             <label style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:5px; cursor:pointer;">
-                <input type="checkbox" id="rc-braced" onchange="RangedCalc.update()"> Apoiado (+1)
-             </label>
-             <label style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:5px; cursor:pointer;">
-                <input type="checkbox" id="rc-determined" onchange="RangedCalc.update()"> Determinada (+1)
-             </label>
+            <label
+              style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:5px; cursor:pointer;">
+              <input type="checkbox" id="rc-braced" onchange="window.RangedCalc && RangedCalc.update()"> Apoiado (+1)
+            </label>
+            <label
+              style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:5px; cursor:pointer;">
+              <input type="checkbox" id="rc-determined" onchange="window.RangedCalc && RangedCalc.update()"> Determinada (+1)
+            </label>
           </div>
 
           <div class="field">
             <label class="field__label">Modificador Manual</label>
-            <input type="number" id="rc-custom" class="field__input" value="0" oninput="RangedCalc.update()" style="font-size:1rem; padding:8px;">
+            <input type="number" id="rc-custom" class="field__input" value="0" oninput="window.RangedCalc && RangedCalc.update()"
+              style="font-size:1rem; padding:8px;">
           </div>
-  
+
           <div class="result-box" style="min-height:50px; padding:8px; background:rgba(0,0,0,0.2);">
-            <div id="rc-result" style="font-size:1.8rem; font-weight:900; font-family:var(--font-display); color:var(--gold);">+0</div>
-            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Modificador Final</div>
-            <div id="rc-breakdown-range" style="font-size:0.65rem; font-style:italic; color:var(--text-secondary); margin-top:2px;">Distância: +0</div>
+            <div id="rc-result"
+              style="font-size:1.8rem; font-weight:900; font-family:var(--font-display); color:var(--gold);">+0</div>
+            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">
+              Modificador Final</div>
+            <div id="rc-breakdown-range"
+              style="font-size:0.65rem; font-style:italic; color:var(--text-secondary); margin-top:2px;">Distância: +0
+            </div>
           </div>
         </div>
       </div>
@@ -471,13 +1464,15 @@
           <input type="radio" name="dmg-type" id="dt-imp" value="imp">
           <label class="type-selector__label" for="dt-imp"><span class="type-selector__mult">×2</span>Perfuração</label>
           <input type="radio" name="dmg-type" id="dt-pi" value="pi-">
-          <label class="type-selector__label" for="dt-pi"><span class="type-selector__mult">×0.5</span>Perf. Peq.</label>
+          <label class="type-selector__label" for="dt-pi"><span class="type-selector__mult">×0.5</span>Perf.
+            Peq.</label>
         </div>
       </div>
 
       <div class="field">
         <label class="field__label">Local de Acerto</label>
-        <select class="field__select" id="select-hit-loc" style="width:100%; padding:8px; border-radius:var(--radius); background:rgba(0,0,0,0.3); color:var(--text-primary); border:1px solid var(--border-panel); font-size:0.8rem">
+        <select class="field__select" id="select-hit-loc"
+          style="width:100%; padding:8px; border-radius:var(--radius); background:rgba(0,0,0,0.3); color:var(--text-primary); border:1px solid var(--border-panel); font-size:0.8rem">
           <option value="torso">Tronco (×1)</option>
           <option value="skull">Crânio (RD+2, ×4)</option>
           <option value="face">Rosto / Pescoço (Corte ×2 / Perf ×1.5)</option>
@@ -498,513 +1493,606 @@
 
       <div class="alert-container" id="alert-container"></div>
     </section>
-  </main>
+    </main>
 
-  <section class="history" id="history-section">
-    <div class="history__header">
-      <h3 class="history__title">📜 Registro de Sangue</h3>
-      <button class="btn btn-ghost btn-sm" id="btn-clear-history">Limpar Registro</button>
-    </div>
-    <div class="history__list" id="history-list">
-      <p class="history__empty">Nenhuma ação registrada.</p>
-    </div>
-  </section>
-
-  <!-- NARRATIVE TOOLS DRAWERS -->
-  <div id="gm-notes-drawer" class="drawer">
-    <div class="drawer__header">
-      <h3 class="drawer__title">📝 Anotações do Mestre</h3>
-      <div style="display:flex; gap:8px; align-items: center;">
-        <button class="btn btn-secondary btn-sm" id="btn-toggle-preview" onclick="NarrativeTools.toggleNotesPreview()" style="white-space:nowrap;">👁️ Preview</button>
-        <button class="drawer__close" onclick="NarrativeTools.toggleDrawer('gm-notes-drawer')" title="Fechar">✕</button>
+    <section class="history" id="history-section">
+      <div class="history__header">
+        <h3 class="history__title">📜 Registro de Sangue</h3>
+        <button class="btn btn-ghost btn-sm" id="btn-clear-history">Limpar</button>
       </div>
-    </div>
-
-    
-    <div id="gm-notes-nav" style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap; padding-bottom:10px; border-bottom:1px solid var(--border-panel);">
-      <!-- Tabs rendered via JS -->
-    </div>
-
-    <div style="flex:1; position:relative; display:flex; flex-direction:column; overflow:hidden;">
-        <textarea id="gm-notes-editor" class="gm-editor" placeholder="Markdown suportado: # H1, ## H2, **negrito**, *itálico*, - lista..." oninput="NarrativeTools.updateActiveNoteContent(this.value)"></textarea>
-        <div id="gm-notes-preview" style="display:none; flex:1; background:var(--bg-card); border:1px solid var(--gold-dim); border-radius:var(--radius); padding:15px; overflow-y:auto; color:var(--text-primary); line-height:1.6;"></div>
-    </div>
-
-    <div style="font-size:0.65rem; color:var(--text-muted); text-align:right; margin-top:5px;" id="gm-notes-status">Sincronizado ✓</div>
-  </div>
-
-  <style>
-    .note-tab { font-size: 0.65rem; padding: 4px 10px; background: var(--bg-deep); border: 1px solid var(--border-panel); border-radius: 4px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; gap: 6px; transition: all 200ms; }
-    .note-tab:hover { border-color: var(--text-secondary); color: var(--text-secondary); }
-    .note-tab.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
-    .note-tab button { background: none; border: none; color: inherit; padding: 0 2px; cursor: pointer; opacity: 0.5; }
-    .note-tab button:hover { opacity: 1; color: var(--red-accent); }
-    
-    #gm-notes-preview h1, #gm-notes-preview h2, #gm-notes-preview h3 { color: var(--gold); font-family: var(--font-display); margin-top: 10px; margin-bottom: 5px; }
-    #gm-notes-preview h1 { font-size: 1.2rem; border-bottom: 1px solid var(--gold-dim); }
-    #gm-notes-preview h2 { font-size: 1rem; }
-    #gm-notes-preview h3 { font-size: 0.9rem; }
-    #gm-notes-preview li { margin-left: 15px; }
-  </style>
-
-
-  <div id="clocks-drawer" class="drawer">
-    <div class="drawer__header">
-      <h3 class="drawer__title">⏱ Frentes e Ameaças</h3>
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-gold btn-sm" onclick="NarrativeTools.rollAllClocks()">🎲 Rolar Todos</button>
-        <button class="drawer__close" onclick="NarrativeTools.toggleDrawer('clocks-drawer')">✕</button>
+      <div class="history__list" id="history-list">
+        <p class="history__empty">Nenhuma ação registrada.</p>
       </div>
-    </div>
-    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom: 12px; flex-shrink:0;">
-      <div style="display:flex; gap:6px;">
-        <input type="text" id="clock-new-name" class="field__input" placeholder="Nova Facção / Plano" style="font-size:0.75rem; padding:6px; text-align:left;">
-        <input type="number" id="clock-new-steps" class="field__input" value="4" min="2" max="10" 
-               onchange="NarrativeTools.renderStepInputs()"
-               onkeyup="NarrativeTools.renderStepInputs()"
-               style="width:50px; font-size:0.75rem; padding:6px;">
-        <button class="btn btn-secondary" onclick="NarrativeTools.addClock()">＋</button>
+    </section>
+
+    <!-- NARRATIVE TOOLS DRAWERS -->
+    <div id="gm-notes-drawer" class="drawer">
+      <div class="drawer__header">
+        <h3 class="drawer__title">📝 Anotações do Mestre</h3>
+        <div style="display:flex; gap:8px; align-items: center;">
+          <button class="btn btn-secondary btn-sm" id="btn-toggle-preview" onclick="NarrativeTools.toggleNotesPreview()"
+            style="white-space:nowrap;">👁️ Preview</button>
+          <button class="drawer__close" onclick="NarrativeTools.toggleDrawer('gm-notes-drawer')"
+            title="Fechar">✕</button>
+        </div>
       </div>
-      <div id="clock-steps-descriptions" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; border:1px dashed var(--border-panel);">
-        <!-- Gerado via JS -->
+
+
+      <div id="gm-notes-nav"
+        style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap; padding-bottom:10px; border-bottom:1px solid var(--border-panel);">
+        <!-- Tabs rendered via JS -->
       </div>
+
+      <div style="flex:1; position:relative; display:flex; flex-direction:column; overflow:hidden;">
+        <textarea id="gm-notes-editor" class="gm-editor"
+          placeholder="Markdown suportado: # H1, ## H2, **negrito**, *itálico*, - lista..."
+          oninput="NarrativeTools.updateActiveNoteContent(this.value)"></textarea>
+        <div id="gm-notes-preview"
+          style="display:none; flex:1; background:var(--bg-card); border:1px solid var(--gold-dim); border-radius:var(--radius); padding:15px; overflow-y:auto; color:var(--text-primary); line-height:1.6;">
+        </div>
+      </div>
+
+      <div style="font-size:0.65rem; color:var(--text-muted); text-align:right; margin-top:5px;" id="gm-notes-status">
+        Sincronizado ✓</div>
     </div>
-    
+
     <style>
-        .clock-segment { cursor: pointer; transition: transform 200ms; }
-        .clock-segment:hover { transform: scaleY(1.2); }
-        .step-label { outline: none; transition: color 200ms; }
-        .step-label:focus { color: var(--gold) !important; }
-        .clock-item { position: relative; }
-        .clock-history { max-height: 60px; overflow-y: auto; scrollbar-width: none; }
-        .clock-history::-webkit-scrollbar { display: none; }
+      .note-tab {
+        font-size: 0.65rem;
+        padding: 4px 10px;
+        background: var(--bg-deep);
+        border: 1px solid var(--border-panel);
+        border-radius: 4px;
+        cursor: pointer;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 200ms;
+      }
+
+      .note-tab:hover {
+        border-color: var(--text-secondary);
+        color: var(--text-secondary);
+      }
+
+      .note-tab.active {
+        background: var(--gold-dim);
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+
+      .note-tab button {
+        background: none;
+        border: none;
+        color: inherit;
+        padding: 0 2px;
+        cursor: pointer;
+        opacity: 0.5;
+      }
+
+      .note-tab button:hover {
+        opacity: 1;
+        color: var(--red-accent);
+      }
+
+      #gm-notes-preview h1,
+      #gm-notes-preview h2,
+      #gm-notes-preview h3 {
+        color: var(--gold);
+        font-family: var(--font-display);
+        margin-top: 10px;
+        margin-bottom: 5px;
+      }
+
+      #gm-notes-preview h1 {
+        font-size: 1.2rem;
+        border-bottom: 1px solid var(--gold-dim);
+      }
+
+      #gm-notes-preview h2 {
+        font-size: 1rem;
+      }
+
+      #gm-notes-preview h3 {
+        font-size: 0.9rem;
+      }
+
+      #gm-notes-preview li {
+        margin-left: 15px;
+      }
     </style>
 
-    <div id="clocks-list" style="overflow-y:auto; flex:1; padding-right:4px;"></div>
 
-    <!-- Unified History -->
-    <div style="border-top:2px solid var(--border-panel); margin-top:10px; padding-top:10px; flex-shrink:0; display:flex; flex-direction:column; max-height:200px;">
+    <div id="clocks-drawer" class="drawer">
+      <div class="drawer__header">
+        <h3 class="drawer__title">⏱ Frentes e Ameaças</h3>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-gold btn-sm" onclick="NarrativeTools.rollAllClocks()">🎲 Rolar Todos</button>
+          <button class="drawer__close" onclick="NarrativeTools.toggleDrawer('clocks-drawer')">✕</button>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom: 12px; flex-shrink:0;">
+        <div style="display:flex; gap:6px;">
+          <input type="text" id="clock-new-name" class="field__input" placeholder="Nova Facção / Plano"
+            style="font-size:0.75rem; padding:6px; text-align:left;">
+          <input type="number" id="clock-new-steps" class="field__input" value="4" min="2" max="10"
+            onchange="NarrativeTools.renderStepInputs()" onkeyup="NarrativeTools.renderStepInputs()"
+            style="width:50px; font-size:0.75rem; padding:6px;">
+          <button class="btn btn-secondary" onclick="NarrativeTools.addClock()">＋</button>
+        </div>
+        <div id="clock-steps-descriptions"
+          style="display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:8px; background:rgba(255,255,255,0.02); border-radius:4px; border:1px dashed var(--border-panel);">
+          <!-- Gerado via JS -->
+        </div>
+      </div>
+
+      <style>
+        .clock-segment {
+          cursor: pointer;
+          transition: transform 200ms;
+        }
+
+        .clock-segment:hover {
+          transform: scaleY(1.2);
+        }
+
+        .step-label {
+          outline: none;
+          transition: color 200ms;
+        }
+
+        .step-label:focus {
+          color: var(--gold) !important;
+        }
+
+        .clock-item {
+          position: relative;
+        }
+
+        .clock-history {
+          max-height: 60px;
+          overflow-y: auto;
+          scrollbar-width: none;
+        }
+
+        .clock-history::-webkit-scrollbar {
+          display: none;
+        }
+      </style>
+
+      <div id="clocks-list" style="overflow-y:auto; flex:1; padding-right:4px;"></div>
+
+      <!-- Unified History -->
+      <div
+        style="border-top:2px solid var(--border-panel); margin-top:10px; padding-top:10px; flex-shrink:0; display:flex; flex-direction:column; max-height:200px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <h4 style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">📜 Histórico de Frentes</h4>
-            <button class="btn-ghost btn-sm" onclick="NarrativeTools.clearClocksHistory()" style="font-size:0.6rem; opacity:0.6;">Limpar Log</button>
+          <h4 style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">📜
+            Histórico de Frentes</h4>
+          <button class="btn-ghost btn-sm" onclick="NarrativeTools.clearClocksHistory()"
+            style="font-size:0.6rem; opacity:0.6;">Limpar Log</button>
         </div>
         <div id="clocks-global-history" style="overflow-y:auto; flex:1; scrollbar-width:thin;">
-            <!-- Histórico unificado -->
+          <!-- Histórico unificado -->
         </div>
+      </div>
     </div>
-  </div>
 
-  <div id="combat-mass-overlay">
-    <div class="mass-modal">
-      <div class="drawer__header">
-        <h3 class="drawer__title" style="font-size:1.3rem;">⚔ Resolução Rápida: Combate em Massa</h3>
-        <button class="drawer__close" onclick="NarrativeTools.toggleModal('combat-mass-overlay')">✕</button>
+    <div id="combat-mass-overlay">
+      <div class="mass-modal">
+        <div class="drawer__header">
+          <h3 class="drawer__title" style="font-size:1.3rem;">⚔ Resolução Rápida: Combate em Massa</h3>
+          <button class="drawer__close" onclick="NarrativeTools.toggleModal('combat-mass-overlay')">✕</button>
+        </div>
+
+        <div class="field-row" style="margin-bottom:15px;">
+          <div class="field">
+            <label class="field__label">Exército / General</label>
+            <input type="text" id="mass-name" class="field__input" placeholder="Ex: Clã Takeda"
+              style="text-align:left;">
+          </div>
+          <div class="field">
+            <label class="field__label">Adversário / Situação</label>
+            <input type="text" id="mass-enemy" class="field__input" placeholder="Ex: Tropas rebeldes"
+              style="text-align:left;">
+          </div>
+        </div>
+
+        <div class="field-row-4" style="margin-bottom:15px;">
+          <div class="field">
+            <label class="field__label">Poder (A)</label>
+            <input type="number" id="mass-force-a" class="field__input" value="10">
+          </div>
+          <div class="field">
+            <label class="field__label">+ Vantagem</label>
+            <input type="number" id="mass-adv" class="field__input" value="0" placeholder="+x">
+          </div>
+          <div class="field">
+            <label class="field__label">- Desvant.</label>
+            <input type="number" id="mass-disadv" class="field__input" value="0" placeholder="-x">
+          </div>
+          <div class="field">
+            <label class="field__label">Rolagem (d6)</label>
+            <input type="number" id="mass-roll" class="field__input" placeholder="Auto">
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="NarrativeTools.resolveMassCombat()"
+          style="font-size:1rem; padding:12px;">🗡 Calcular Confronto</button>
+
+        <div class="mass-log" id="mass-log">O resultado narrativo da batalha aparecerá aqui...</div>
       </div>
-      
-      <div class="field-row" style="margin-bottom:15px;">
-        <div class="field">
-          <label class="field__label">Exército / General</label>
-          <input type="text" id="mass-name" class="field__input" placeholder="Ex: Clã Takeda" style="text-align:left;">
-        </div>
-        <div class="field">
-          <label class="field__label">Adversário / Situação</label>
-          <input type="text" id="mass-enemy" class="field__input" placeholder="Ex: Tropas rebeldes" style="text-align:left;">
-        </div>
-      </div>
-      
-      <div class="field-row-4" style="margin-bottom:15px;">
-        <div class="field">
-          <label class="field__label">Poder (A)</label>
-          <input type="number" id="mass-force-a" class="field__input" value="10">
-        </div>
-        <div class="field">
-          <label class="field__label">+ Vantagem</label>
-          <input type="number" id="mass-adv" class="field__input" value="0" placeholder="+x">
-        </div>
-        <div class="field">
-          <label class="field__label">- Desvant.</label>
-          <input type="number" id="mass-disadv" class="field__input" value="0" placeholder="-x">
-        </div>
-        <div class="field">
-          <label class="field__label">Rolagem (d6)</label>
-          <input type="number" id="mass-roll" class="field__input" placeholder="Auto">
-        </div>
-      </div>
-      
-      <button class="btn btn-primary" onclick="NarrativeTools.resolveMassCombat()" style="font-size:1rem; padding:12px;">🗡 Calcular Confronto</button>
-      
-      <div class="mass-log" id="mass-log">O resultado narrativo da batalha aparecerá aqui...</div>
     </div>
-  </div>
 
-  <div id="status-fx-overlay" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index: 200; display:none; justify-content:center; align-items:center; opacity:0; transition:opacity 300ms;">
-    <div class="mass-modal" style="max-width:350px;">
-      <div class="drawer__header">
-        <h3 class="drawer__title" style="font-size:1.1rem; color:var(--text-primary);">👤 Status de Combate</h3>
-        <button class="drawer__close" onclick="window.closeStatusFx()">✕</button>
-      </div>
-      
-      <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
-         <div class="field">
-           <label class="field__label">Postura</label>
-           <select id="fx-posture" class="field__select">
-             <option value="standing">🧍 Em Pé (Normal)</option>
-             <option value="kneeling">🧎 Ajoelhado (Ataque/Defesa -2)</option>
-             <option value="sitting">🧘 Sentado (Ataque/Defesa -2)</option>
-             <option value="prone">🛌 Deitado (Ataque -4, Def. -3)</option>
-           </select>
-         </div>
-         <div class="field" style="margin-top:10px;">
-           <label class="field__label">Condições GURPS</label>
-           <div style="display:flex; flex-direction:column; gap:10px; margin-top:5px; background:var(--bg-deep); padding:10px; border-radius:var(--radius); border:1px solid var(--border-panel);">
+    <div id="status-fx-overlay"
+      style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index: 200; display:none; justify-content:center; align-items:center; opacity:0; transition:opacity 300ms;">
+      <div class="mass-modal" style="max-width:350px;">
+        <div class="drawer__header">
+          <h3 class="drawer__title" style="font-size:1.1rem; color:var(--text-primary);">👤 Status de Combate</h3>
+          <button class="drawer__close" onclick="window.closeStatusFx()">✕</button>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+          <div class="field">
+            <label class="field__label">Postura</label>
+            <select id="fx-posture" class="field__select">
+              <option value="standing">🧍 Em Pé (Normal)</option>
+              <option value="kneeling">🧎 Ajoelhado (Ataque/Defesa -2)</option>
+              <option value="sitting">🧘 Sentado (Ataque/Defesa -2)</option>
+              <option value="prone">🛌 Deitado (Ataque -4, Def. -3)</option>
+            </select>
+          </div>
+          <div class="field" style="margin-top:10px;">
+            <label class="field__label">Condições GURPS</label>
+            <div
+              style="display:flex; flex-direction:column; gap:10px; margin-top:5px; background:var(--bg-deep); padding:10px; border-radius:var(--radius); border:1px solid var(--border-panel);">
               <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
                 <input type="checkbox" id="fx-stunned" style="width:16px; height:16px;"> 💫 Atordoado (-4 Defesa Ativa)
               </label>
               <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
-                <input type="checkbox" id="fx-blind" style="width:16px; height:16px;"> 🙈 Cego (-10 Ataque, Def. Frontal Nula)
+                <input type="checkbox" id="fx-blind" style="width:16px; height:16px;"> 🙈 Cego (-10 Ataque, Def. Frontal
+                Nula)
               </label>
               <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
-                <input type="checkbox" id="fx-grappled" style="width:16px; height:16px;"> 🤼 Agarrado (-4 DX, VEL Halved)
+                <input type="checkbox" id="fx-grappled" style="width:16px; height:16px;"> 🤼 Agarrado (-4 DX, VEL
+                Halved)
               </label>
-           </div>
-         </div>
-         <input type="hidden" id="fx-combatant-id" value="">
+            </div>
+          </div>
+          <input type="hidden" id="fx-combatant-id" value="">
+        </div>
+        <button class="btn btn-gold" onclick="window.saveStatusFx()" style="border-radius:100px;">✓ Salvar
+          Condições</button>
       </div>
-      <button class="btn btn-gold" onclick="window.saveStatusFx()" style="border-radius:100px;">✓ Salvar Condições</button>
     </div>
+
   </div>
-  
+
+  <script>
+    /* ═════════════════════════════════════════════
+       GURPS 4e ENGINE — Escudo do Daimyo
+       ═════════════════════════════════════════════ */
+
+    const MULTIPLIERS = Object.freeze({ cr: 1, cut: 1.5, imp: 2, 'pi-': 0.5 });
+    const TYPE_LABELS = Object.freeze({ cr: 'Contusão', cut: 'Corte', imp: 'Perfuração', 'pi-': 'Perf. Pequena' });
+
+    function calculateDamage(rawDamage, drBase, damageType, hitLocation, hpMax) {
+      let drEff = drBase;
+      if (hitLocation === 'skull') drEff = drBase + 2;
+
+      const penetrating = Math.max(0, rawDamage - drEff);
+      if (penetrating === 0) return { injury: 0, penetrating: 0, drEff, multUsed: 0, formula: '' };
+
+      const baseMult = MULTIPLIERS[damageType] || 1;
+      let multUsed = baseMult;
+      let injury;
+
+      if (hitLocation === 'skull') {
+        const afterType = Math.floor(penetrating * baseMult);
+        injury = afterType * 4;
+        multUsed = baseMult;
+        return {
+          injury, penetrating, drEff, multUsed, skullX4: true,
+          formula: `floor(max(${rawDamage}-${drEff},0) × ${baseMult}) × 4 = floor(${penetrating} × ${baseMult}) × 4 = ${afterType} × 4 = ${injury}`
+        };
+      }
+
+      if (hitLocation === 'face') {
+        if (damageType === 'cut') multUsed = 2;
+        if (damageType === 'imp' || damageType === 'pi-') multUsed = 1.5;
+      } else if (hitLocation === 'vitals' && damageType === 'imp') {
+        multUsed = 3;
+      }
+
+      injury = Math.floor(penetrating * multUsed);
+      let formula = `floor(max(${rawDamage}-${drEff},0) × ${multUsed}) = floor(${penetrating} × ${multUsed}) = ${injury}`;
+
+      // Aplicação do Teto de Dano em Membros
+      let cap = Infinity;
+      if (hpMax) {
+        if (hitLocation === 'arm' || hitLocation === 'leg') cap = Math.floor(hpMax / 2);
+        if (hitLocation === 'extremity') cap = Math.floor(hpMax / 3);
+      }
+
+      if (injury > cap) {
+        injury = cap;
+        formula += ` → (Limitado teto PV p/ Membro: ${cap})`;
+      }
+
+      return { injury, penetrating, drEff, multUsed, formula };
+    }
+
+    /* ═══════ COMBAT STATE (COFRE INFINITO) ═══════ */
+    const STATE_STORE = 'vault';
+    const STATE_KEY = 'combat_state';
+
+    function getDefaultState() {
+      return {
+        combatants: [],
+        combat: { activeIndex: -1, round: 0, isStarted: false, nextId: 200 },
+        kegare: { level: 1 },
+        history: [],
+        kegareLog: [],
+        legacyLog: []
+      };
+    }
+
+    let state = getDefaultState();
+
+    async function loadState() {
+      const defaults = getDefaultState();
+      if (!window.DaimyoDB) return defaults;
+      try {
+        const data = await window.DaimyoDB.get(STATE_STORE, STATE_KEY);
+        // Merge defaults to ensure all keys like 'combatants' and 'combat' exist
+        return data ? { ...defaults, ...data } : defaults;
+      } catch (e) {
+        console.error("Erro ao carregar estado do Cofre:", e);
+        return defaults;
+      }
+    }
+
+    async function saveState(newState) {
+      state = newState;
+      if (window.DaimyoDB) {
+        await window.DaimyoDB.put(STATE_STORE, STATE_KEY, state);
+      }
+      // Sync fallback for characters-sheet or internal modules
+      window.dispatchEvent(new CustomEvent('daimyoStateUpdated'));
+    }
+
+    function generateId() {
+      if (!state.combat) state.combat = getDefaultState().combat;
+      const id = 'c' + (state.combat.nextId++);
+      saveState(state);
+      return id;
+    }
 
 
+    function addCombatant(data) {
+      const c = {
+        id: generateId(), name: data.name, tag: data.tag || '',
+        hpMax: data.hpMax, hpCur: data.hpMax,
+        fpMax: data.fpMax, fpCur: data.fpMax,
+        speed: data.speed, st: data.st || 10, dx: data.dx, ht: data.ht, will: data.will, dr: data.dr || 0,
+        esquiva: data.esquiva || 0, aparar: data.aparar || 0, bloqueio: data.bloqueio || 0,
+        equippedWeapon: data.equippedWeapon || '',
+        shockPenalty: 0,
+        conditions: Array.isArray(data.conditions) ? data.conditions : [],
+        isBleeding: !!data.isBleeding,
+        isActive: true,
+        posture: data.posture || 'standing',
+        statusFx: data.statusFx || { blind: false, stunned: false, grappled: false }
+      };
+      state.combatants.push(c);
+      sortByInitiative();
+      saveState(state);
+      return c;
+    }
 
+    function removeCombatant(id) {
+      const idx = state.combatants.findIndex(c => c.id === id);
+      if (idx === -1) return;
+      state.combatants.splice(idx, 1);
+      if (state.combat.isStarted && state.combat.activeIndex >= state.combatants.length) {
+        state.combat.activeIndex = 0;
+      }
+      saveState(state);
+    }
 
-  <script src="js/character-manager.js"></script>
-  <script src="js/character-ui.js"></script>
+    function sortByInitiative() {
+      state.combatants.sort((a, b) => {
+        if (b.speed !== a.speed) return b.speed - a.speed;
+        if (b.dx !== a.dx) return b.dx - a.dx;
+        return 0;
+      });
+    }
 
-</div>
+    function startCombat() {
+      if (state.combatants.length === 0) return;
+      sortByInitiative();
+      state.combat.isStarted = true;
+      state.combat.round = 1;
+      state.combat.activeIndex = 0;
+      saveState(state);
+      renderAll();
+      addHistory('turno', `Combate iniciado! Turno 1 — ${getCurrentCombatant().name}`);
+    }
 
-<script>
-/* ═════════════════════════════════════════════
-   GURPS 4e ENGINE — Escudo do Daimyo
-   ═════════════════════════════════════════════ */
+    function nextTurn() {
+      if (!state.combat.isStarted || state.combatants.length === 0) return;
 
-const MULTIPLIERS = Object.freeze({ cr: 1, cut: 1.5, imp: 2, 'pi-': 0.5 });
-const TYPE_LABELS = Object.freeze({ cr: 'Contusão', cut: 'Corte', imp: 'Perfuração', 'pi-': 'Perf. Pequena' });
+      // Clear shock from current before moving
+      const current = getCurrentCombatant();
+      if (current) current.shockPenalty = 0;
 
-function calculateDamage(rawDamage, drBase, damageType, hitLocation, hpMax) {
-  let drEff = drBase;
-  if (hitLocation === 'skull') drEff = drBase + 2;
+      state.combat.activeIndex++;
+      if (state.combat.activeIndex >= state.combatants.length) {
+        state.combat.activeIndex = 0;
+        state.combat.round++;
+      }
 
-  const penetrating = Math.max(0, rawDamage - drEff);
-  if (penetrating === 0) return { injury: 0, penetrating: 0, drEff, multUsed: 0, formula: '' };
+      saveState(state);
+      renderAll(); // Ensure UI updates before history logs
 
-  const baseMult = MULTIPLIERS[damageType] || 1;
-  let multUsed = baseMult;
-  let injury;
+      const next = getCurrentCombatant();
+      if (next) {
+        LogManager.add('turno', `Início do Turno ${state.combat.round}: ${next.name}`, state.combat.round);
+      }
+    }
 
-  if (hitLocation === 'skull') {
-    const afterType = Math.floor(penetrating * baseMult);
-    injury = afterType * 4;
-    multUsed = baseMult;
-    return { injury, penetrating, drEff, multUsed, skullX4: true,
-      formula: `floor(max(${rawDamage}-${drEff},0) × ${baseMult}) × 4 = floor(${penetrating} × ${baseMult}) × 4 = ${afterType} × 4 = ${injury}` };
-  }
+    function endCombat() {
+      state.combat.isStarted = false;
+      state.combat.round = 0;
+      state.combat.activeIndex = -1;
+      state.combatants.forEach(c => { c.shockPenalty = 0; c.conditions = []; });
+      saveState(state);
+      renderAll();
+    }
 
-  if (hitLocation === 'face') {
-    if (damageType === 'cut') multUsed = 2;
-    if (damageType === 'imp' || damageType === 'pi-') multUsed = 1.5;
-  } else if (hitLocation === 'vitals' && damageType === 'imp') {
-    multUsed = 3;
-  }
+    function getCurrentCombatant() {
+      return state.combatants[state.combat.activeIndex] || null;
+    }
 
-  injury = Math.floor(penetrating * multUsed);
-  let formula = `floor(max(${rawDamage}-${drEff},0) × ${multUsed}) = floor(${penetrating} × ${multUsed}) = ${injury}`;
-  
-  // Aplicação do Teto de Dano em Membros
-  let cap = Infinity;
-  if (hpMax) {
-    if (hitLocation === 'arm' || hitLocation === 'leg') cap = Math.floor(hpMax / 2);
-    if (hitLocation === 'extremity') cap = Math.floor(hpMax / 3);
-  }
-  
-  if (injury > cap) {
-    injury = cap;
-    formula += ` → (Limitado teto PV p/ Membro: ${cap})`;
-  }
+    function applyDamageToTarget(targetId, rawDamage, damageType, hitLocation) {
+      const target = state.combatants.find(c => c.id === targetId);
+      if (!target) return null;
 
-  return { injury, penetrating, drEff, multUsed, formula };
-}
+      const result = calculateDamage(rawDamage, target.dr, damageType, hitLocation, target.hpMax);
+      if (result.injury <= 0) return { ...result, target, alerts: [] };
 
-/* ═══════ COMBAT STATE (COFRE INFINITO) ═══════ */
-const STATE_STORE = 'vault';
-const STATE_KEY = 'combat_state';
+      target.hpCur -= result.injury;
 
-function getDefaultState() {
-  return {
-    combatants: [],
-    combat: { activeIndex: -1, round: 0, isStarted: false, nextId: 200 },
-    kegare: { level: 1 },
-    history: [],
-    kegareLog: [],
-    legacyLog: []
-  };
-}
+      // Auto-set bleeding
+      if (target.hpCur < 0) target.isBleeding = true;
 
-let state = getDefaultState();
+      const alerts = [];
 
-async function loadState() {
-  if (!window.DaimyoDB) return getDefaultState();
-  try {
-    const data = await window.DaimyoDB.get(STATE_STORE, STATE_KEY);
-    return data || getDefaultState();
-  } catch(e) { 
-    console.error("Erro ao carregar estado do Cofre:", e); 
-    return getDefaultState();
-  }
-}
+      // Shock
+      const shock = Math.min(result.injury, 4);
+      target.shockPenalty = shock;
+      alerts.push({ type: 'shock', text: `Choque: -${shock} DX/IQ no próximo turno` });
 
-async function saveState(newState) {
-  state = newState;
-  if (window.DaimyoDB) {
-    await window.DaimyoDB.put(STATE_STORE, STATE_KEY, state);
-  }
-  // Sync fallback for characters-sheet or internal modules
-  window.dispatchEvent(new CustomEvent('daimyoStateUpdated'));
-}
+      // Severe Wound
+      if (result.injury > Math.floor(target.hpMax / 2)) {
+        alerts.push({ type: 'severe', text: '⚠ FERIMENTO GRAVE! Teste HT ou caia Atordoado' });
+        if (!target.conditions.includes('Ferimento Grave')) target.conditions.push('Ferimento Grave');
+      }
 
-function generateId() {
-  const id = 'c' + (state.combat.nextId++);
-  saveState(state);
-  return id;
-}
+      // Death Risk
+      if (target.hpCur <= 0) {
+        alerts.push({ type: 'death', text: '💀 RISCO DE MORTE! Teste HT a cada turno ou desmaia/morre' });
+        if (!target.conditions.includes('Risco de Morte')) target.conditions.push('Risco de Morte');
+      }
 
+      saveState(state);
+      return { ...result, target, alerts };
+    }
 
-function addCombatant(data) {
-  const c = {
-    id: generateId(), name: data.name, tag: data.tag || '',
-    hpMax: data.hpMax, hpCur: data.hpMax,
-    fpMax: data.fpMax, fpCur: data.fpMax,
-    speed: data.speed, st: data.st || 10, dx: data.dx, ht: data.ht, will: data.will, dr: data.dr || 0,
-    esquiva: data.esquiva || 0, aparar: data.aparar || 0, bloqueio: data.bloqueio || 0,
-    equippedWeapon: data.equippedWeapon || '',
-    shockPenalty: 0, 
-    conditions: Array.isArray(data.conditions) ? data.conditions : [], 
-    isBleeding: !!data.isBleeding, 
-    isActive: true,
-    posture: data.posture || 'standing', 
-    statusFx: data.statusFx || { blind: false, stunned: false, grappled: false }
-  };
-  state.combatants.push(c);
-  sortByInitiative();
-  saveState(state);
-  return c;
-}
+    function addHistory(type, text, damage, rollInfo) {
+      // Mantendo a função por retrocompatibilidade no script local, mas roteando para o LogManager
+      const round = (state.combat && state.combat.isStarted) ? state.combat.round : null;
+      let msg = damage ? `${text} [${damage} lesão]` : text;
+      if (rollInfo) msg = `${rollInfo} → ${msg}`;
+      LogManager.add(type, msg, round);
+      renderHistory();
+    }
 
-function removeCombatant(id) {
-  const idx = state.combatants.findIndex(c => c.id === id);
-  if (idx === -1) return;
-  state.combatants.splice(idx, 1);
-  if (state.combat.isStarted && state.combat.activeIndex >= state.combatants.length) {
-    state.combat.activeIndex = 0;
-  }
-  saveState(state);
-}
+    function renderHistory() {
+      const list = document.getElementById('history-list');
+      const entries = LogManager.get();
 
-function sortByInitiative() {
-  state.combatants.sort((a, b) => {
-    if (b.speed !== a.speed) return b.speed - a.speed;
-    if (b.dx !== a.dx) return b.dx - a.dx;
-    return 0;
-  });
-}
+      if (!entries || entries.length === 0) {
+        list.innerHTML = '<p class="history__empty">Nenhuma ação registrada.</p>';
+        return;
+      }
 
-function startCombat() {
-  if (state.combatants.length === 0) return;
-  sortByInitiative();
-  state.combat.isStarted = true;
-  state.combat.round = 1;
-  state.combat.activeIndex = 0;
-  saveState(state);
-  renderAll();
-  addHistory('turno', `Combate iniciado! Turno 1 — ${getCurrentCombatant().name}`);
-}
-
-function nextTurn() {
-  if (!state.combat.isStarted || state.combatants.length === 0) return;
-  
-  // Clear shock from current before moving
-  const current = getCurrentCombatant();
-  if (current) current.shockPenalty = 0;
-
-  state.combat.activeIndex++;
-  if (state.combat.activeIndex >= state.combatants.length) {
-    state.combat.activeIndex = 0;
-    state.combat.round++;
-  }
-  
-  saveState(state);
-  renderAll(); // Ensure UI updates before history logs
-  
-  const next = getCurrentCombatant();
-  if (next) {
-    LogManager.add('turno', `Início do Turno ${state.combat.round}: ${next.name}`, state.combat.round);
-  }
-}
-
-function endCombat() {
-  state.combat.isStarted = false;
-  state.combat.round = 0;
-  state.combat.activeIndex = -1;
-  state.combatants.forEach(c => { c.shockPenalty = 0; c.conditions = []; });
-  saveState(state);
-  renderAll();
-}
-
-function getCurrentCombatant() {
-  return state.combatants[state.combat.activeIndex] || null;
-}
-
-function applyDamageToTarget(targetId, rawDamage, damageType, hitLocation) {
-  const target = state.combatants.find(c => c.id === targetId);
-  if (!target) return null;
-
-  const result = calculateDamage(rawDamage, target.dr, damageType, hitLocation, target.hpMax);
-  if (result.injury <= 0) return { ...result, target, alerts: [] };
-
-  target.hpCur -= result.injury;
-
-  // Auto-set bleeding
-  if (target.hpCur < 0) target.isBleeding = true;
-
-  const alerts = [];
-
-  // Shock
-  const shock = Math.min(result.injury, 4);
-  target.shockPenalty = shock;
-  alerts.push({ type: 'shock', text: `Choque: -${shock} DX/IQ no próximo turno` });
-
-  // Severe Wound
-  if (result.injury > Math.floor(target.hpMax / 2)) {
-    alerts.push({ type: 'severe', text: '⚠ FERIMENTO GRAVE! Teste HT ou caia Atordoado' });
-    if (!target.conditions.includes('Ferimento Grave')) target.conditions.push('Ferimento Grave');
-  }
-
-  // Death Risk
-  if (target.hpCur <= 0) {
-    alerts.push({ type: 'death', text: '💀 RISCO DE MORTE! Teste HT a cada turno ou desmaia/morre' });
-    if (!target.conditions.includes('Risco de Morte')) target.conditions.push('Risco de Morte');
-  }
-
-  saveState(state);
-  return { ...result, target, alerts };
-}
-
-function addHistory(type, text, damage) {
-  // Mantendo a função por retrocompatibilidade no script local, mas roteando para o LogManager
-  const round = state.combat.isStarted ? state.combat.round : null;
-  const msg = damage ? `${text} [${damage} lesão]` : text;
-  LogManager.add(type, msg, round);
-  renderHistory();
-}
-
-function renderHistory() {
-  const list = document.getElementById('history-list');
-  const entries = LogManager.get();
-  
-  if (!entries || entries.length === 0) { 
-    list.innerHTML = '<p class="history__empty">Nenhuma ação registrada no pergaminho.</p>'; 
-    return; 
-  }
-  
-  list.innerHTML = entries.map(e => {
-    const roundInfo = e.round ? `<span class="history__round">[T${e.round}]</span>` : '<span class="history__round"></span>';
-    return `
+      list.innerHTML = entries.map(e => {
+        const roundInfo = e.round ? `<span class="history__badge">T${e.round}</span>` : '';
+        return `
       <div class="history__entry history__entry--${e.type} anim-slide">
         <span class="history__time">${e.time}</span>
         ${roundInfo}
         <span class="history__text">${e.text}</span>
       </div>
     `;
-  }).join('');
-  
-  // Auto-scroll para o final (comportamento de console)
-  list.scrollTop = list.scrollHeight;
-}
-
-/* ═══════ RENDER ═══════ */
-function renderAll() {
-  renderCombatants();
-  renderTargetSelect();
-  renderControls();
-  document.getElementById('round-display').textContent = state.combat.isStarted ? state.combat.round : '—';
-}
-
-function renderControls() {
-  document.getElementById('btn-start-combat').style.display = (!state.combat.isStarted && state.combatants.length >= 2) ? '' : 'none';
-  document.getElementById('btn-next-turn').style.display = state.combat.isStarted ? '' : 'none';
-  document.getElementById('btn-end-combat').style.display = state.combat.isStarted ? '' : 'none';
-}
-
-function renderCombatants() {
-  const container = document.getElementById('combatant-list');
-  const empty = document.getElementById('empty-state');
-
-  if (state.combatants.length === 0) {
-    container.innerHTML = '';
-    container.appendChild(createEmptyState());
-    return;
-  }
-
-  container.innerHTML = state.combatants.map((c, i) => {
-    const isActive = state.combat.isStarted && i === state.combat.activeIndex;
-    const hpPct = Math.max(0, Math.min(100, (c.hpCur / c.hpMax) * 100));
-    const fpPct = Math.max(0, Math.min(100, (c.fpCur / c.fpMax) * 100));
-    const isDead = c.hpCur <= -(c.hpMax * 5);
-
-    // Compatibilidade Retroativa
-    c.posture = c.posture || 'standing';
-    c.statusFx = c.statusFx || { blind: false, stunned: false, grappled: false };
-
-    let currentSpeed = parseFloat(c.speed) || 0;
-    let currentDx = parseInt(c.dx) || 10;
-    
-    let fxTags = [];
-    if (c.posture === 'kneeling') {
-      currentSpeed = currentSpeed > 0 ? Math.floor((currentSpeed / 3) * 100) / 100 : 0;
-      fxTags.push(`<span class="tag tag--fx" style="background:rgba(139,105,20,0.15); color:var(--gold); border:1px solid rgba(212,168,70,0.3);">🧎 Ajoelhado (-2 Atq/Def)</span>`);
-    } else if (c.posture === 'sitting') {
-      currentSpeed = 0;
-      fxTags.push(`<span class="tag tag--fx" style="background:rgba(139,105,20,0.15); color:var(--gold); border:1px solid rgba(212,168,70,0.3);">🧘 Sentado (-2 Atq/Def)</span>`);
-    } else if (c.posture === 'prone') {
-      currentSpeed = currentSpeed > 0 ? 1 : 0; // rastejar é 1m/s
-      fxTags.push(`<span class="tag tag--fx" style="background:rgba(139,105,20,0.15); color:var(--gold); border:1px solid rgba(212,168,70,0.3);">🛌 Deitado (-4 Atq/ -3 Def)</span>`);
+      }).join('');
     }
 
-    if (c.statusFx.blind) {
-      currentSpeed = currentSpeed > 0 ? Math.floor((currentSpeed / 2) * 100) / 100 : 0;
-      fxTags.push(`<span class="tag tag--fx" style="background:rgba(156,163,175,0.15); color:#9CA3AF; border:1px solid rgba(156,163,175,0.3);">🙈 Cego (-10 Atq / Sem Df)</span>`);
-    }
-    if (c.statusFx.stunned) {
-      fxTags.push(`<span class="tag tag--fx" style="background:rgba(239,68,68,0.15); color:#FCA5A5; border:1px solid rgba(239,68,68,0.3); animation:pulse-red 1.5s ease infinite;">💫 Atordoado (-4 Def)</span>`);
-    }
-    if (c.statusFx.grappled) {
-      currentDx -= 4;
-      currentSpeed = currentSpeed > 0 ? Math.floor((currentSpeed / 2) * 100) / 100 : 0;
-      fxTags.push(`<span class="tag tag--fx" style="background:rgba(217,119,6,0.15); color:#FBBF24; border:1px solid rgba(217,119,6,0.3);">🤼 Agarrado (-4 DX)</span>`);
+    /* ═══════ RENDER ═══════ */
+    function renderAll() {
+      renderCombatants();
+      renderTargetSelect();
+      renderControls();
+      document.getElementById('round-display').textContent = state.combat.isStarted ? state.combat.round : '—';
     }
 
-    let tags = fxTags.join('');
-    const conditionList = c.conditions || [];
-    const statusFx = c.statusFx || { blind: false, stunned: false, grappled: false };
-    
-    if (c.shockPenalty > 0) tags += `<span class="tag tag--shock">-${c.shockPenalty} DX/IQ <button class="tag-close" onclick="window.clearShock('${c.id}')" title="Limpar">✕</button></span>`;
-    if (conditionList.includes('Ferimento Grave')) tags += `<span class="tag tag--severe">Ferimento Grave <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Ferimento Grave')" title="Curar cond.">✕</button></span>`;
-    if (c.hpCur <= 0) tags += '<span class="tag tag--death">Risco de Morte</span>';
-    if (c.isBleeding) tags += `<span class="tag tag--bleeding">🩸 Sangrando <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Bleeding')" title="Estancar">✕</button></span>`;
+    function renderControls() {
+      document.getElementById('btn-start-combat').style.display = (!state.combat.isStarted && state.combatants.length >= 2) ? '' : 'none';
+      document.getElementById('btn-next-turn').style.display = state.combat.isStarted ? '' : 'none';
+      document.getElementById('btn-end-combat').style.display = state.combat.isStarted ? '' : 'none';
+    }
 
-    const weaponName = c.equippedWeapon ? (findWeapon(c.equippedWeapon)?.nome || 'Arma Desconhecida') : 'Desarmado';
+    function renderCombatants() {
+      const container = document.getElementById('combatant-list');
+      const empty = document.getElementById('empty-state');
 
-    return `<div class="combatant-card ${isActive ? 'active' : ''} ${isDead ? 'dead' : ''} anim-slide" data-id="${c.id}">
+      if (!state.combatants || state.combatants.length === 0) {
+        container.innerHTML = '';
+        container.appendChild(createEmptyState());
+        return;
+      }
+
+      container.innerHTML = state.combatants.map((c, i) => {
+        const isActive = state.combat.isStarted && i === state.combat.activeIndex;
+        const hpPct = Math.max(0, Math.min(100, (c.hpCur / c.hpMax) * 100));
+        const fpPct = Math.max(0, Math.min(100, (c.fpCur / c.fpMax) * 100));
+        const isDead = c.hpCur <= -(c.hpMax * 5);
+
+        // Compatibilidade Retroativa
+        c.posture = c.posture || 'standing';
+        c.statusFx = c.statusFx || { blind: false, stunned: false, grappled: false };
+
+        let currentSpeed = parseFloat(c.speed) || 0;
+        let currentDx = parseInt(c.dx) || 10;
+
+        let fxTags = [];
+        if (c.posture === 'kneeling') {
+          currentSpeed = currentSpeed > 0 ? Math.floor((currentSpeed / 3) * 100) / 100 : 0;
+          fxTags.push(`<span class="tag tag--fx" style="background:rgba(139,105,20,0.15); color:var(--gold); border:1px solid rgba(212,168,70,0.3);">🧎 Ajoelhado (-2 Atq/Def)</span>`);
+        } else if (c.posture === 'sitting') {
+          currentSpeed = 0;
+          fxTags.push(`<span class="tag tag--fx" style="background:rgba(139,105,20,0.15); color:var(--gold); border:1px solid rgba(212,168,70,0.3);">🧘 Sentado (-2 Atq/Def)</span>`);
+        } else if (c.posture === 'prone') {
+          currentSpeed = currentSpeed > 0 ? 1 : 0; // rastejar é 1m/s
+          fxTags.push(`<span class="tag tag--fx" style="background:rgba(139,105,20,0.15); color:var(--gold); border:1px solid rgba(212,168,70,0.3);">🛌 Deitado (-4 Atq/ -3 Def)</span>`);
+        }
+
+        if (c.statusFx.blind) {
+          currentSpeed = currentSpeed > 0 ? Math.floor((currentSpeed / 2) * 100) / 100 : 0;
+          fxTags.push(`<span class="tag tag--fx" style="background:rgba(156,163,175,0.15); color:#9CA3AF; border:1px solid rgba(156,163,175,0.3);">🙈 Cego (-10 Atq / Sem Df)</span>`);
+        }
+        if (c.statusFx.stunned) {
+          fxTags.push(`<span class="tag tag--fx" style="background:rgba(239,68,68,0.15); color:#FCA5A5; border:1px solid rgba(239,68,68,0.3); animation:pulse-red 1.5s ease infinite;">💫 Atordoado (-4 Def)</span>`);
+        }
+        if (c.statusFx.grappled) {
+          currentDx -= 4;
+          currentSpeed = currentSpeed > 0 ? Math.floor((currentSpeed / 2) * 100) / 100 : 0;
+          fxTags.push(`<span class="tag tag--fx" style="background:rgba(217,119,6,0.15); color:#FBBF24; border:1px solid rgba(217,119,6,0.3);">🤼 Agarrado (-4 DX)</span>`);
+        }
+
+        let tags = fxTags.join('');
+        const conditionList = c.conditions || [];
+        const statusFx = c.statusFx || { blind: false, stunned: false, grappled: false };
+
+        if (c.shockPenalty > 0) tags += `<span class="tag tag--shock">-${c.shockPenalty} DX/IQ <button class="tag-close" onclick="window.clearShock('${c.id}')" title="Limpar">✕</button></span>`;
+        if (conditionList.includes('Ferimento Grave')) tags += `<span class="tag tag--severe">Ferimento Grave <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Ferimento Grave')" title="Curar cond.">✕</button></span>`;
+        if (c.hpCur <= 0) tags += '<span class="tag tag--death">Risco de Morte</span>';
+        if (c.isBleeding) tags += `<span class="tag tag--bleeding">🩸 Sangrando <button class="tag-close" onclick="window.removeCondition('${c.id}', 'Bleeding')" title="Estancar">✕</button></span>`;
+
+        const weaponName = c.equippedWeapon ? (findWeapon(c.equippedWeapon)?.nome || 'Arma Desconhecida') : 'Desarmado';
+
+        return `<div class="combatant-card ${isActive ? 'active' : ''} ${isDead ? 'dead' : ''} anim-slide" data-id="${c.id}">
       <span class="card__order">${i + 1}</span>
       <div class="card__info">
         <div style="display:flex; justify-content:space-between; align-items:center">
@@ -1037,492 +2125,511 @@ function renderCombatants() {
         <button class="btn btn-ghost btn-sm" onclick="removeCombatantUI('${c.id}')" title="Remover">✕</button>
       </div>
     </div>`;
-  }).join('');
-}
+      }).join('');
+    }
 
-function createEmptyState() {
-  const div = document.createElement('div');
-  div.className = 'empty-state';
-  div.id = 'empty-state';
-  div.innerHTML = '<span class="empty-state__icon">⚔</span><p class="empty-state__text">Adicione combatentes para iniciar.</p>';
-  return div;
-}
+    function createEmptyState() {
+      const div = document.createElement('div');
+      div.className = 'empty-state';
+      div.id = 'empty-state';
+      div.innerHTML = '<span class="empty-state__icon">⚔</span><p class="empty-state__text">Adicione combatentes para iniciar.</p>';
+      return div;
+    }
 
-function renderTargetSelect() {
-  const sel = document.getElementById('select-target');
-  const atkSel = document.getElementById('select-attacker');
-  const current = sel.value;
-  const atkCurrent = atkSel ? atkSel.value : '';
+    function renderTargetSelect() {
+      const sel = document.getElementById('select-target');
+      const atkSel = document.getElementById('select-attacker');
+      const current = sel.value;
+      const atkCurrent = atkSel ? atkSel.value : '';
 
-  const options = '<option value="">— Selecione —</option>' +
-    state.combatants.map(c => `<option value="${c.id}">${c.name} (PV: ${c.hpCur}/${c.hpMax}, RD: ${c.dr})</option>`).join('');
-  
-  sel.innerHTML = options;
-  if (current && state.combatants.find(c => c.id === current)) sel.value = current;
+      const options = '<option value="">— Selecione —</option>' +
+        '<option value="none" selected>🧪 Teste Livre (Sem Alvo)</option>' +
+        (state.combatants || []).map(c => `<option value="${c.id}">${c.name} (PV: ${c.hpCur}/${c.hpMax}, RD: ${c.dr})</option>`).join('');
 
-  if (atkSel) {
-    atkSel.innerHTML = '<option value="">— Selecione —</option>' + state.combatants.map(c => `<option value="${c.id}">${c.name} (ST: ${c.st})</option>`).join('');
-    if (atkCurrent && state.combatants.find(c => c.id === atkCurrent)) atkSel.value = atkCurrent;
-  }
-}
-
-// GURPS ST Table
-function getSTDamage(st) {
-  const stTable = {
-    1: {thr: [1, -6], sw: [1, -5]}, 2: {thr: [1, -6], sw: [1, -5]}, 3: {thr: [1, -5], sw: [1, -4]},
-    4: {thr: [1, -5], sw: [1, -4]}, 5: {thr: [1, -4], sw: [1, -3]}, 6: {thr: [1, -4], sw: [1, -3]},
-    7: {thr: [1, -3], sw: [1, -2]}, 8: {thr: [1, -3], sw: [1, -2]}, 9: {thr: [1, -2], sw: [1, -1]},
-    10: {thr: [1, -2], sw: [1, 0]}, 11: {thr: [1, -1], sw: [1, 1]}, 12: {thr: [1, -1], sw: [1, 2]},
-    13: {thr: [1, 0], sw: [2, -1]}, 14: {thr: [1, 0], sw: [2, 0]}, 15: {thr: [1, 1], sw: [2, 1]},
-    16: {thr: [1, 1], sw: [2, 2]}, 17: {thr: [1, 2], sw: [3, -1]}, 18: {thr: [1, 2], sw: [3, 0]},
-    19: {thr: [2, -1], sw: [3, 1]}, 20: {thr: [2, -1], sw: [3, 2]}, 21: {thr: [2, 0], sw: [4, -1]},
-    22: {thr: [2, 0], sw: [4, 0]}, 23: {thr: [2, 1], sw: [4, 1]}, 24: {thr: [2, 1], sw: [4, 2]},
-    25: {thr: [2, 2], sw: [5, -1]}, 26: {thr: [2, 2], sw: [5, 0]}, 27: {thr: [3, -1], sw: [5, 1]},
-    28: {thr: [3, -1], sw: [5, 1]}, 29: {thr: [3, 0], sw: [5, 2]}, 30: {thr: [3, 0], sw: [5, 2]}
-  };
-  return stTable[st] || {thr: [1, 0], sw: [1, 0]};
-}
-
-document.getElementById('toggle-adv-dmg').addEventListener('change', function() {
-  document.getElementById('adv-dmg-panel').style.display = this.checked ? 'flex' : 'none';
-});
-
-document.getElementById('btn-roll-st').addEventListener('click', () => {
-  const atkId = document.getElementById('select-attacker').value;
-  if (!atkId) return alert("Selecione um atacante.");
-  const attacker = state.combatants.find(c => c.id === atkId);
-  if (!attacker) return;
-
-  const mode = document.getElementById('select-st-mode').value;
-  const bonus = parseInt(document.getElementById('input-wpn-bonus').value) || 0;
-  const dmgBase = getSTDamage(attacker.st)[mode]; // [dice, mod]
-
-  let diceCount = dmgBase[0];
-  let flatMod = dmgBase[1] + bonus;
-
-  let totalRoll = 0;
-  let rollsLog = [];
-  for (let i = 0; i < diceCount; i++) {
-    const r = Math.floor(Math.random() * 6) + 1;
-    rollsLog.push(r);
-    totalRoll += r;
-  }
-  
-  let finalDamage = Math.max(0, totalRoll + flatMod);
-  document.getElementById('input-damage').value = finalDamage;
-  
-  const sign = flatMod >= 0 ? `+${flatMod}` : `${flatMod}`;
-  document.getElementById('adv-dmg-log').innerHTML = `ST ${attacker.st} (${mode.toUpperCase()}): <strong>${diceCount}d${sign}</strong><br>[${rollsLog.join(', ')}] ${sign} = ${finalDamage}`;
-});
-
-/* ═══════ UI EVENT HANDLERS ═══════ */
-
-// Toggle add form
-document.getElementById('add-form-toggle').addEventListener('click', () => {
-  const body = document.getElementById('add-form-body');
-  body.style.display = body.style.display === 'none' ? 'grid' : 'none';
-});
-
-// Quick fill from Archetypes
-document.getElementById('btn-quick-fill').addEventListener('click', () => {
-  const arc = document.getElementById('select-archetype').value;
-  // Fallback if the archetypes aren't procedural
-  let data = { name: 'Bandido Comum', hpMax: 10, fpMax: 10, speed: 5.0, dx: 10, ht: 10, will: 10, dr: 0 };
-  
-  if (arc === 'elite') data = { name: 'Guerreiro de Elite', hpMax: 14, fpMax: 12, speed: 6.0, dx: 12, ht: 11, will: 11, dr: 3 };
-  else if (arc === 'mestre') data = { name: 'Mestre de Armas', hpMax: 18, fpMax: 15, speed: 7.25, dx: 15, ht: 13, will: 14, dr: 5 };
-
-  document.getElementById('input-name').value = data.name;
-  document.getElementById('input-hp').value = data.hpMax;
-  document.getElementById('input-fp').value = data.fpMax;
-  document.getElementById('input-speed').value = data.speed;
-  document.getElementById('input-st').value = data.st || 10;
-  document.getElementById('input-dx').value = data.dx;
-  document.getElementById('input-ht').value = data.ht;
-  document.getElementById('input-will').value = data.will;
-  document.getElementById('input-dr').value = data.dr;
-  // Valores padrão para Injetar
-  document.getElementById('input-esquiva').value = Math.floor(data.speed) + 3;
-  document.getElementById('input-aparar').value = Math.floor(data.dx / 2) + 3;
-  document.getElementById('input-bloqueio').value = 0;
-  document.getElementById('add-form-body').style.display = 'grid';
-});
-
-// Procedural Enemy Generation Bridge
-document.getElementById('btn-generate-enemy').addEventListener('click', () => {
-  if (typeof EnemyGenerator === 'undefined') return alert("Erro: Motor de geração não carregado.");
-  
-  const level = document.getElementById('select-archetype').value;
-  const enemy = EnemyGenerator.generate(level);
-  
-  // Fill UI
-  document.getElementById('input-name').value = enemy.name;
-  document.getElementById('input-hp').value = enemy.hp;
-  document.getElementById('input-fp').value = enemy.pf;
-  document.getElementById('input-speed').value = enemy.velocidade.toFixed(2);
-  document.getElementById('input-st').value = enemy.st;
-  document.getElementById('input-dx').value = enemy.dx;
-  document.getElementById('input-ht').value = enemy.ht;
-  document.getElementById('input-will').value = enemy.vont;
-  document.getElementById('input-dr').value = 0;
-  document.getElementById('input-esquiva').value = enemy.esquiva;
-  document.getElementById('input-aparar').value = enemy.aparar;
-  document.getElementById('input-bloqueio').value = enemy.bloqueio;
-  document.getElementById('input-tag').value = "Inimigo";
-
-  
-  // Custom Notes
-  const noteBox = document.getElementById('input-tag');
-  if (enemy.armas) {
-      // Find the first weapon in the generated list and select it in the dropdown
-      const firstWeaponName = enemy.armas.split(',')[0].trim();
-      const weaponObj = weaponsDB.find(w => w.nome === firstWeaponName);
-      if (weaponObj) {
-          document.getElementById('select-weapon').value = weaponObj.id;
+      sel.innerHTML = options;
+      // Fallback para 'none' se o alvo atual for inválido ou não existir
+      if (current && state.combatants && state.combatants.find(c => c.id === current)) {
+        sel.value = current;
+      } else {
+        sel.value = "none";
       }
-      addHistory('info', `🎲 Gerado: ${enemy.name} equipado com ${enemy.armas}`);
-  }
 
-  alert(`Gerado com sucesso!\nArmas: ${enemy.armas}\nOráculo: ${enemy.notas}`);
-  
-  document.getElementById('add-form-body').style.display = 'grid';
-  // Removido scrollIntoView que causava travamento no topo
-});
+      if (atkSel) {
+        atkSel.innerHTML = '<option value="">— Selecione —</option>' + state.combatants.map(c => `<option value="${c.id}">${c.name} (ST: ${c.st})</option>`).join('');
+        if (atkCurrent && state.combatants.find(c => c.id === atkCurrent)) atkSel.value = atkCurrent;
+      }
+    }
 
-// Modifiers & Tags removals
-window.removeCondition = function(id, cond) {
-  const target = state.combatants.find(c => c.id === id);
-  if (!target) return;
-  if (cond === 'Bleeding') target.isBleeding = false;
-  else target.conditions = target.conditions.filter(x => x !== cond);
-  saveState(state);
-  renderAll();
-};
-window.clearShock = function(id) {
-  const target = state.combatants.find(c => c.id === id);
-  if (target) { target.shockPenalty = 0; saveState(state); renderAll(); }
-};
+    // GURPS ST Table
+    function getSTDamage(st) {
+      const stTable = {
+        1: { thr: [1, -6], sw: [1, -5] }, 2: { thr: [1, -6], sw: [1, -5] }, 3: { thr: [1, -5], sw: [1, -4] },
+        4: { thr: [1, -5], sw: [1, -4] }, 5: { thr: [1, -4], sw: [1, -3] }, 6: { thr: [1, -4], sw: [1, -3] },
+        7: { thr: [1, -3], sw: [1, -2] }, 8: { thr: [1, -3], sw: [1, -2] }, 9: { thr: [1, -2], sw: [1, -1] },
+        10: { thr: [1, -2], sw: [1, 0] }, 11: { thr: [1, -1], sw: [1, 1] }, 12: { thr: [1, -1], sw: [1, 2] },
+        13: { thr: [1, 0], sw: [2, -1] }, 14: { thr: [1, 0], sw: [2, 0] }, 15: { thr: [1, 1], sw: [2, 1] },
+        16: { thr: [1, 1], sw: [2, 2] }, 17: { thr: [1, 2], sw: [3, -1] }, 18: { thr: [1, 2], sw: [3, 0] },
+        19: { thr: [2, -1], sw: [3, 1] }, 20: { thr: [2, -1], sw: [3, 2] }, 21: { thr: [2, 0], sw: [4, -1] },
+        22: { thr: [2, 0], sw: [4, 0] }, 23: { thr: [2, 1], sw: [4, 1] }, 24: { thr: [2, 1], sw: [4, 2] },
+        25: { thr: [2, 2], sw: [5, -1] }, 26: { thr: [2, 2], sw: [5, 0] }, 27: { thr: [3, -1], sw: [5, 1] },
+        28: { thr: [3, -1], sw: [5, 1] }, 29: { thr: [3, 0], sw: [5, 2] }, 30: { thr: [3, 0], sw: [5, 2] }
+      };
+      return stTable[st] || { thr: [1, 0], sw: [1, 0] };
+    }
 
-// Add combatant
-document.getElementById('btn-add-combatant').addEventListener('click', () => {
-  const name = document.getElementById('input-name').value.trim();
-  const tag = document.getElementById('input-tag').value.trim();
-  const hpMax = parseInt(document.getElementById('input-hp').value);
-  const fpMax = parseInt(document.getElementById('input-fp').value);
-  const speed = parseFloat(document.getElementById('input-speed').value);
-  const st = parseInt(document.getElementById('input-st').value) || 10;
-  const dx = parseInt(document.getElementById('input-dx').value);
-  const ht = parseInt(document.getElementById('input-ht').value);
-  const will = parseInt(document.getElementById('input-will').value);
-  const dr = parseInt(document.getElementById('input-dr').value) || 0;
-  const esquiva = parseInt(document.getElementById('input-esquiva').value) || 0;
-  const aparar = parseInt(document.getElementById('input-aparar').value) || 0;
-  const bloqueio = parseInt(document.getElementById('input-bloqueio').value) || 0;
-  const equippedWeapon = document.getElementById('select-weapon').value;
-
-  if (!name) { document.getElementById('input-name').focus(); return; }
-  if (isNaN(hpMax) || hpMax < 1) { document.getElementById('input-hp').focus(); return; }
-  if (isNaN(fpMax) || fpMax < 1) { document.getElementById('input-fp').focus(); return; }
-  if (isNaN(speed) || speed < 0) { document.getElementById('input-speed').focus(); return; }
-  if (isNaN(dx) || dx < 1) { document.getElementById('input-dx').focus(); return; }
-  if (isNaN(ht) || ht < 1) { document.getElementById('input-ht').focus(); return; }
-  if (isNaN(will) || will < 1) { document.getElementById('input-will').focus(); return; }
-  
-  addCombatant({ name, tag, hpMax, fpMax, speed, st, dx, ht, will, dr, esquiva, aparar, bloqueio, equippedWeapon });
-  ['input-name', 'input-tag', 'input-hp', 'input-fp', 'input-speed', 'input-st', 'input-dx', 'input-ht', 'input-will', 'input-dr', 'input-esquiva', 'input-aparar', 'input-bloqueio'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('select-weapon').value = '';
-  document.getElementById('input-name').focus();
-  renderAll();
-});
-
-function removeCombatantUI(id) { removeCombatant(id); renderAll(); }
-
-// Start combat
-document.getElementById('btn-start-combat').addEventListener('click', startCombat);
-document.getElementById('btn-next-turn').addEventListener('click', () => {
-  nextTurn();
-  // Visual feedback
-  const btn = document.getElementById('btn-next-turn');
-  btn.style.transform = 'scale(0.98)';
-  setTimeout(() => btn.style.transform = '', 100);
-});
-document.getElementById('btn-end-combat').addEventListener('click', () => {
-  if (confirm('Encerrar combate? As condições serão limpas.')) {
-    endCombat();
-  }
-});
-
-// Apply Damage
-document.getElementById('btn-apply-damage').addEventListener('click', () => {
-  const targetId = document.getElementById('select-target').value;
-  const rawDamage = parseInt(document.getElementById('input-damage').value);
-  const damageType = document.querySelector('input[name="dmg-type"]:checked').value;
-  const hitLocation = document.getElementById('select-hit-loc').value;
-
-  if (!targetId) { document.getElementById('select-target').focus(); return; }
-  if (isNaN(rawDamage) || rawDamage < 0) { document.getElementById('input-damage').focus(); return; }
-
-  const result = applyDamageToTarget(targetId, rawDamage, damageType, hitLocation);
-  if (!result) return;
-
-  // Show result
-  const box = document.getElementById('result-damage');
-  box.classList.add('visible');
-  document.getElementById('dmg-formula').textContent = result.formula || `Dano penetrante = 0 (RD ${result.drEff} absorveu tudo)`;
-  document.getElementById('dmg-value').textContent = result.injury;
-
-  // Alerts
-  const alertContainer = document.getElementById('alert-container');
-  alertContainer.innerHTML = result.alerts.map(a =>
-    `<div class="alert alert--${a.type}">${a.text}</div>`
-  ).join('');
-
-  // History
-  const locLabels = { torso: 'Tronco', face: 'Rosto/Pesc.', skull: 'Crânio', arm: 'Braço', leg: 'Perna', extremity: 'Extremidade', vitals: 'Vitais' };
-  addHistory('dano',
-    `${result.target.name} ← ${rawDamage} ${TYPE_LABELS[damageType]} (${locLabels[hitLocation]})`,
-    result.injury
-  );
-
-  renderAll();
-  document.getElementById('input-damage').value = '';
-});
-
-// Consolidando botão de limpar histórico
-let _clrTimeout;
-document.getElementById('btn-clear-history').addEventListener('click', function() {
-  if (this.dataset.confirming === 'true') {
-    LogManager.clear();
-    renderHistory();
-    this.dataset.confirming = 'false';
-    this.textContent = 'Limpar Registro';
-    this.style.color = '';
-    clearTimeout(_clrTimeout);
-  } else {
-    this.dataset.confirming = 'true';
-    this.textContent = 'Confirma?';
-    this.style.color = 'var(--red-accent)';
-    _clrTimeout = setTimeout(() => { 
-      this.dataset.confirming = 'false'; 
-      this.textContent = 'Limpar Registro'; 
-      this.style.color = ''; 
-    }, 3000);
-  }
-});
-
-// Allow Enter key on add form
-document.getElementById('input-dr').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('btn-add-combatant').click();
-});
-document.getElementById('input-damage').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('btn-apply-damage').click();
-});
-
-/* ═══════ TESTS ═══════ */
-window.runTests = function() {
-  const tests = [
-    { d: 8, rd: 3, t: 'cr',  loc: 'torso',  exp: 5 },
-    { d: 8, rd: 3, t: 'cut', loc: 'torso',  exp: 7 },
-    { d: 8, rd: 3, t: 'imp', loc: 'torso',  exp: 10 },
-    { d: 8, rd: 3, t: 'pi-', loc: 'torso',  exp: 2 },
-    { d: 8, rd: 3, t: 'cut', loc: 'neck',   exp: 10 },
-    { d: 8, rd: 3, t: 'imp', loc: 'neck',   exp: 10 },
-    { d: 8, rd: 3, t: 'cr',  loc: 'neck',   exp: 5 },
-    { d: 8, rd: 3, t: 'pi-', loc: 'neck',   exp: 2 },
-    { d: 8, rd: 3, t: 'cr',  loc: 'skull',  exp: 12 },
-    { d: 8, rd: 3, t: 'cut', loc: 'skull',  exp: 16 },
-    { d: 8, rd: 3, t: 'imp', loc: 'vitals', exp: 15 },
-    { d: 8, rd: 3, t: 'cut', loc: 'vitals', exp: 7 },
-    { d: 3, rd: 5, t: 'imp', loc: 'torso',  exp: 0 },
-    { d: 4, rd: 2, t: 'cut', loc: 'skull',  exp: 0 },
-  ];
-  let pass = 0;
-  tests.forEach((tc, i) => {
-    const r = calculateDamage(tc.d, tc.rd, tc.t, tc.loc);
-    if (r.injury === tc.exp) { pass++; }
-    else { console.error(`❌ Test ${i+1}: expected ${tc.exp}, got ${r.injury} (d=${tc.d} rd=${tc.rd} ${tc.t} ${tc.loc})`); }
-  });
-  console.log(pass === tests.length ? `✅ All ${tests.length} damage tests passed` : `❌ ${pass}/${tests.length} passed`);
-
-  // Initiative sort test
-  const testCombatants = [
-    { speed: 6.00, dx: 11, name: 'Sato' },
-    { url: 'kegare-panico.html', icon: '🧠', label: 'Sanidade' },
-    { speed: 6.00, dx: 14, name: 'Yamamoto' },
-  ];
-  const sorted = [...testCombatants].sort((a, b) => b.speed !== a.speed ? b.speed - a.speed : b.dx - a.dx);
-  const expectedOrder = ['Tanaka', 'Yamamoto', 'Sato', 'Kato'];
-  const sortOk = sorted.every((c, i) => c.name === expectedOrder[i]);
-  console.log(sortOk ? '✅ Initiative sort passed' : `❌ Initiative sort failed: ${sorted.map(c=>c.name).join(',')}`);
-
-  // Effects tests
-  const e1 = Math.min(3, 4); // shock 3 → -3
-  const e2 = Math.min(7, 4); // shock 7 → capped -4
-  const e3 = 7 > Math.floor(12 / 2); // severe wound: 7 > 6 = true
-  const e4 = 6 > Math.floor(12 / 2); // not severe: 6 > 6 = false
-  const efOk = e1 === 3 && e2 === 4 && e3 === true && e4 === false;
-  console.log(efOk ? '✅ Effects tests passed' : '❌ Effects tests failed');
-};
-
-// Trigger Legacy/Heir System
-window.triggerHeir = function(id) {
-  const target = state.combatants.find(c => c.id === id);
-  if (!target) return;
-  
-  const ok = confirm(`Deseja ativar o Legado para ${target.name}?\nIsso registrará a morte e passará a arma de assinatura para o próximo personagem no histórico de Legado.`);
-  if (!ok) return;
-
-  const weaponName = target.equippedWeapon ? (findWeapon(target.equippedWeapon)?.nome || 'Arma Desconhecida') : 'Nenhuma';
-  const legacyEntry = {
-    type: 'legacy',
-    text: `${target.name} caiu com honra. Legado passado: 25% XP + Arma: ${weaponName}.`,
-    time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  };
-  
-  // Push to history
-  addHistory('dano', `💀 LEGADO: ${target.name} caiu. Arma reservada: ${weaponName}.`);
-  
-  // Save specific legacy in state for time-management view
-  if (!state.legacyLog) state.legacyLog = [];
-  state.legacyLog.unshift(legacyEntry);
-  
-  // Mark as dead or remove
-  target.hpCur = -(target.hpMax * 5); // Instantly dead
-  saveState(state);
-  renderAll();
-};
-
-
-// ── Status FX Handlers ──
-window.openStatusFx = function(id) {
-  const c = state.combatants.find(x => x.id === id);
-  if (!c) return;
-  c.posture = c.posture || 'standing';
-  c.statusFx = c.statusFx || { blind: false, stunned: false, grappled: false };
-
-  document.getElementById('fx-combatant-id').value = id;
-  document.getElementById('fx-posture').value = c.posture;
-  document.getElementById('fx-stunned').checked = c.statusFx.stunned;
-  document.getElementById('fx-blind').checked = c.statusFx.blind;
-  document.getElementById('fx-grappled').checked = c.statusFx.grappled;
-
-  const overlay = document.getElementById('status-fx-overlay');
-  overlay.style.display = 'flex';
-  setTimeout(() => overlay.style.opacity = '1', 10);
-};
-
-window.closeStatusFx = function() {
-  const overlay = document.getElementById('status-fx-overlay');
-  overlay.style.opacity = '0';
-  setTimeout(() => overlay.style.display = 'none', 300);
-};
-
-window.saveStatusFx = function() {
-  const id = document.getElementById('fx-combatant-id').value;
-  const c = state.combatants.find(x => x.id === id);
-  if (c) {
-    c.posture = document.getElementById('fx-posture').value;
-    c.statusFx = {
-      stunned: document.getElementById('fx-stunned').checked,
-      blind: document.getElementById('fx-blind').checked,
-      grappled: document.getElementById('fx-grappled').checked
-    };
-    saveState(state);
-    renderAll();
-  }
-  window.closeStatusFx();
-};
-
-/* ═══════ INIT ═══════ */
-
-// ── INITIALIZATION ──
-async function initApp() {
-  console.log("⚔️ Escudo do Daimyo: Inicializando Arena...");
-  
-  // 1. Migrate if needed
-  if (window.DaimyoDB) {
-    try {
-        await window.DaimyoDB.migrateFromLocalStorage();
-    } catch(e) { console.warn("Erro na migração:", e); }
-  }
-  
-  // 2. Load and set state
-  state = await loadState();
-  
-  // 3. Initialize Weapon Select
-  const wpSelect = document.getElementById('select-weapon');
-  if (wpSelect && typeof weaponsDB !== 'undefined' && wpSelect.options.length <= 1) {
-    weaponsDB.forEach(w => {
-      const opt = document.createElement('option');
-      opt.value = w.id;
-      opt.textContent = w.nome;
-      wpSelect.appendChild(opt);
+    document.getElementById('toggle-adv-dmg').addEventListener('change', function () {
+      document.getElementById('adv-dmg-panel').style.display = this.checked ? 'flex' : 'none';
     });
-  }
-  
-  // 4. Initial Render
-  renderAll();
-  renderHistory();
-  
-  // 5. Setup Live Listeners (if not already set)
-  if (window.DaimyoDB && !window._daimyoSyncActive) {
-    window._daimyoSyncActive = true;
-    window.DaimyoDB.onSync(async (data) => {
-       if (data.store === STATE_STORE && data.key === STATE_KEY) {
-          state = await loadState();
-          renderAll();
-          renderHistory();
-       }
+
+    document.getElementById('btn-roll-st').addEventListener('click', () => {
+      const atkId = document.getElementById('select-attacker').value;
+      if (!atkId) return alert("Selecione um atacante.");
+      const attacker = state.combatants.find(c => c.id === atkId);
+      if (!attacker) return;
+
+      const mode = document.getElementById('select-st-mode').value;
+      const bonus = parseInt(document.getElementById('input-wpn-bonus').value) || 0;
+      const dmgBase = getSTDamage(attacker.st)[mode]; // [dice, mod]
+
+      let diceCount = dmgBase[0];
+      let flatMod = dmgBase[1] + bonus;
+
+      let totalRoll = 0;
+      let rollsLog = [];
+      for (let i = 0; i < diceCount; i++) {
+        const r = Math.floor(Math.random() * 6) + 1;
+        rollsLog.push(r);
+        totalRoll += r;
+      }
+
+      let finalDamage = Math.max(0, totalRoll + flatMod);
+      document.getElementById('input-damage').value = finalDamage;
+
+      const sign = flatMod >= 0 ? `+${flatMod}` : `${flatMod}`;
+      document.getElementById('adv-dmg-log').innerHTML = `ST ${attacker.st} (${mode.toUpperCase()}): <strong>${diceCount}d${sign}</strong><br>[${rollsLog.join(', ')}] ${sign} = ${finalDamage}`;
     });
-  }
-}
 
-// Global Ranged Calc Fallback 
-if (typeof RangedCalc === 'undefined') {
-    window.RangedCalc = {
-        update: () => console.log("RangedCalc: Aguardando carregamento...")
+    /* ═══════ UI EVENT HANDLERS ═══════ */
+
+    // Toggle add form
+    document.getElementById('add-form-toggle').addEventListener('click', () => {
+      const body = document.getElementById('add-form-body');
+      body.style.display = body.style.display === 'none' ? 'grid' : 'none';
+    });
+
+    // Quick fill from Archetypes
+    document.getElementById('btn-quick-fill').addEventListener('click', () => {
+      const arc = document.getElementById('select-archetype').value;
+      // Fallback if the archetypes aren't procedural
+      let data = { name: 'Bandido Comum', hpMax: 10, fpMax: 10, speed: 5.0, dx: 10, ht: 10, will: 10, dr: 0 };
+
+      if (arc === 'elite') data = { name: 'Guerreiro de Elite', hpMax: 14, fpMax: 12, speed: 6.0, dx: 12, ht: 11, will: 11, dr: 3 };
+      else if (arc === 'mestre') data = { name: 'Mestre de Armas', hpMax: 18, fpMax: 15, speed: 7.25, dx: 15, ht: 13, will: 14, dr: 5 };
+
+      document.getElementById('input-name').value = data.name;
+      document.getElementById('input-hp').value = data.hpMax;
+      document.getElementById('input-fp').value = data.fpMax;
+      document.getElementById('input-speed').value = data.speed;
+      document.getElementById('input-st').value = data.st || 10;
+      document.getElementById('input-dx').value = data.dx;
+      document.getElementById('input-ht').value = data.ht;
+      document.getElementById('input-will').value = data.will;
+      document.getElementById('input-dr').value = data.dr;
+      // Valores padrão para Injetar
+      document.getElementById('input-esquiva').value = Math.floor(data.speed) + 3;
+      document.getElementById('input-aparar').value = Math.floor(data.dx / 2) + 3;
+      document.getElementById('input-bloqueio').value = 0;
+      document.getElementById('add-form-body').style.display = 'grid';
+    });
+
+    // Procedural Enemy Generation Bridge
+    document.getElementById('btn-generate-enemy').addEventListener('click', () => {
+      if (typeof EnemyGenerator === 'undefined') return alert("Erro: Motor de geração não carregado.");
+
+      const level = document.getElementById('select-archetype').value;
+      const enemy = EnemyGenerator.generate(level);
+
+      // Fill UI
+      document.getElementById('input-name').value = enemy.name;
+      document.getElementById('input-hp').value = enemy.hp;
+      document.getElementById('input-fp').value = enemy.pf;
+      document.getElementById('input-speed').value = enemy.velocidade.toFixed(2);
+      document.getElementById('input-st').value = enemy.st;
+      document.getElementById('input-dx').value = enemy.dx;
+      document.getElementById('input-ht').value = enemy.ht;
+      document.getElementById('input-will').value = enemy.vont;
+      document.getElementById('input-dr').value = 0;
+      document.getElementById('input-esquiva').value = enemy.esquiva;
+      document.getElementById('input-aparar').value = enemy.aparar;
+      document.getElementById('input-bloqueio').value = enemy.bloqueio;
+      document.getElementById('input-tag').value = "Inimigo";
+
+
+      // Custom Notes
+      const noteBox = document.getElementById('input-tag');
+      if (enemy.armas) {
+        // Find the first weapon in the generated list and select it in the dropdown
+        const firstWeaponName = enemy.armas.split(',')[0].trim();
+        const weaponObj = weaponsDB.find(w => w.nome === firstWeaponName);
+        if (weaponObj) {
+          document.getElementById('select-weapon').value = weaponObj.id;
+        }
+        addHistory('info', `🎲 Gerado: ${enemy.name} equipado com ${enemy.armas}`);
+      }
+
+      alert(`Gerado com sucesso!\nArmas: ${enemy.armas}\nOráculo: ${enemy.notas}`);
+
+      document.getElementById('add-form-body').style.display = 'grid';
+      // Removido scrollIntoView que causava travamento no topo
+    });
+
+    // Modifiers & Tags removals
+    window.removeCondition = function (id, cond) {
+      const target = state.combatants.find(c => c.id === id);
+      if (!target) return;
+      if (cond === 'Bleeding') target.isBleeding = false;
+      else target.conditions = target.conditions.filter(x => x !== cond);
+      saveState(state);
+      renderAll();
     };
-}
+    window.clearShock = function (id) {
+      const target = state.combatants.find(c => c.id === id);
+      if (target) { target.shockPenalty = 0; saveState(state); renderAll(); }
+    };
 
-// Unified Boot
-window.addEventListener('load', () => {
-    // If DaimyoDB is ready, boot, otherwise wait slightly
-    if (window.DaimyoDB) initApp();
-    else setTimeout(initApp, 400); 
-});
+    // Add combatant
+    document.getElementById('btn-add-combatant').addEventListener('click', () => {
+      const name = document.getElementById('input-name').value.trim();
+      const tag = document.getElementById('input-tag').value.trim();
+      const hpMax = parseInt(document.getElementById('input-hp').value);
+      const fpMax = parseInt(document.getElementById('input-fp').value);
+      const speed = parseFloat(document.getElementById('input-speed').value);
+      const st = parseInt(document.getElementById('input-st').value) || 10;
+      const dx = parseInt(document.getElementById('input-dx').value);
+      const ht = parseInt(document.getElementById('input-ht').value);
+      const will = parseInt(document.getElementById('input-will').value);
+      const dr = parseInt(document.getElementById('input-dr').value) || 0;
+      const esquiva = parseInt(document.getElementById('input-esquiva').value) || 0;
+      const aparar = parseInt(document.getElementById('input-aparar').value) || 0;
+      const bloqueio = parseInt(document.getElementById('input-bloqueio').value) || 0;
+      const equippedWeapon = document.getElementById('select-weapon').value;
 
-window.addEventListener('storage', async (e) => {
-  if (e.key === STATE_KEY) {
-    state = await loadState();
-    renderAll();
-    renderHistory();
-  }
-});
+      if (!name) { document.getElementById('input-name').focus(); return; }
+      if (isNaN(hpMax) || hpMax < 1) { document.getElementById('input-hp').focus(); return; }
+      if (isNaN(fpMax) || fpMax < 1) { document.getElementById('input-fp').focus(); return; }
+      if (isNaN(speed) || speed < 0) { document.getElementById('input-speed').focus(); return; }
+      if (isNaN(dx) || dx < 1) { document.getElementById('input-dx').focus(); return; }
+      if (isNaN(ht) || ht < 1) { document.getElementById('input-ht').focus(); return; }
+      if (isNaN(will) || will < 1) { document.getElementById('input-will').focus(); return; }
 
-window.addEventListener('daimyoStateUpdated', async () => {
-    state = await loadState();
-    renderAll();
-    renderHistory();
-});
-</script>
+      addCombatant({ name, tag, hpMax, fpMax, speed, st, dx, ht, will, dr, esquiva, aparar, bloqueio, equippedWeapon });
+      ['input-name', 'input-tag', 'input-hp', 'input-fp', 'input-speed', 'input-st', 'input-dx', 'input-ht', 'input-will', 'input-dr', 'input-esquiva', 'input-aparar', 'input-bloqueio'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('select-weapon').value = '';
+      document.getElementById('input-name').focus();
+      renderAll();
+    });
 
-<script src="js/ranged-calc.js"></script>
-<script src="js/header-loader.js"></script>
+    function removeCombatantUI(id) { removeCombatant(id); renderAll(); }
 
-<script>
-// Limpeza preventiva de scroll no carregamento
-window.scrollTo(0, 0);
-document.body.scrollTop = 0;
+    // Start combat
+    document.getElementById('btn-start-combat').addEventListener('click', startCombat);
+    document.getElementById('btn-next-turn').addEventListener('click', () => {
+      nextTurn();
+      // Visual feedback
+      const btn = document.getElementById('btn-next-turn');
+      btn.style.transform = 'scale(0.98)';
+      setTimeout(() => btn.style.transform = '', 100);
+    });
+    document.getElementById('btn-end-combat').addEventListener('click', () => {
+      if (confirm('Encerrar combate? As condições serão limpas.')) {
+        endCombat();
+      }
+    });
 
-// Garantir renderização inicial
-if (typeof renderAll === 'function') renderAll();
-if (typeof renderHistory === 'function') renderHistory();
+    // Apply Damage
+    document.getElementById('btn-apply-damage').addEventListener('click', () => {
+      const targetId = document.getElementById('select-target').value;
+      const rawDamage = parseInt(document.getElementById('input-damage').value);
+      const damageType = document.querySelector('input[name="dmg-type"]:checked').value;
+      const hitLocation = document.getElementById('select-hit-loc').value;
 
-// Listener para o novo sistema de Log
-window.addEventListener('daimyoLogUpdated', () => {
-  if (typeof renderHistory === 'function') renderHistory();
-});
-</script>
+      if (!targetId) { document.getElementById('select-target').focus(); return; }
+      if (isNaN(rawDamage) || rawDamage < 0) { document.getElementById('input-damage').focus(); return; }
+
+      let result;
+      if (targetId === 'none') {
+        // Calculo direto para teste livre
+        result = calculateDamage(rawDamage, 0, damageType, hitLocation);
+        result.target = { name: 'Teste Livre' };
+        result.alerts = [];
+      } else {
+        result = applyDamageToTarget(targetId, rawDamage, damageType, hitLocation);
+      }
+
+      if (!result) return;
+
+      // Show result
+      const box = document.getElementById('result-damage');
+      box.classList.add('visible');
+      document.getElementById('dmg-formula').textContent = result.formula || `Dano penetrante = 0 (RD ${result.drEff} absorveu tudo)`;
+      document.getElementById('dmg-value').textContent = result.injury;
+
+      // Alerts
+      const alertContainer = document.getElementById('alert-container');
+      alertContainer.innerHTML = result.alerts.map(a =>
+        `<div class="alert alert--${a.type}">${a.text}</div>`
+      ).join('');
+
+      // History
+      const locLabels = { torso: 'Tronco', face: 'Rosto/Pesc.', skull: 'Crânio', arm: 'Braço', leg: 'Perna', extremity: 'Extremidade', vitals: 'Vitais' };
+      // Simplificando a fórmula para o log (removendo o cálculo matemático puro)
+      const dmgSummary = result.formula ? `(RD: ${result.drEff})` : `(Bloqueado por RD: ${result.drEff})`;
+
+      addHistory('dano',
+        `${result.target.name} ← ${rawDamage} ${TYPE_LABELS[damageType]} (${locLabels[hitLocation]})`,
+        result.injury,
+        dmgSummary
+      );
+
+
+      renderAll();
+      document.getElementById('input-damage').value = '';
+    });
+
+    // Consolidando botão de limpar histórico
+    let _clrTimeout;
+    document.getElementById('btn-clear-history').addEventListener('click', function () {
+      if (this.dataset.confirming === 'true') {
+        LogManager.clear();
+        renderHistory();
+        this.dataset.confirming = 'false';
+        this.textContent = 'Limpar Registro';
+        this.style.color = '';
+        clearTimeout(_clrTimeout);
+      } else {
+        this.dataset.confirming = 'true';
+        this.textContent = 'Confirma?';
+        this.style.color = 'var(--red-accent)';
+        _clrTimeout = setTimeout(() => {
+          this.dataset.confirming = 'false';
+          this.textContent = 'Limpar Registro';
+          this.style.color = '';
+        }, 3000);
+      }
+    });
+
+    // Allow Enter key on add form
+    document.getElementById('input-dr').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btn-add-combatant').click();
+    });
+    document.getElementById('input-damage').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btn-apply-damage').click();
+    });
+
+    /* ═══════ TESTS ═══════ */
+    window.runTests = function () {
+      const tests = [
+        { d: 8, rd: 3, t: 'cr', loc: 'torso', exp: 5 },
+        { d: 8, rd: 3, t: 'cut', loc: 'torso', exp: 7 },
+        { d: 8, rd: 3, t: 'imp', loc: 'torso', exp: 10 },
+        { d: 8, rd: 3, t: 'pi-', loc: 'torso', exp: 2 },
+        { d: 8, rd: 3, t: 'cut', loc: 'neck', exp: 10 },
+        { d: 8, rd: 3, t: 'imp', loc: 'neck', exp: 10 },
+        { d: 8, rd: 3, t: 'cr', loc: 'neck', exp: 5 },
+        { d: 8, rd: 3, t: 'pi-', loc: 'neck', exp: 2 },
+        { d: 8, rd: 3, t: 'cr', loc: 'skull', exp: 12 },
+        { d: 8, rd: 3, t: 'cut', loc: 'skull', exp: 16 },
+        { d: 8, rd: 3, t: 'imp', loc: 'vitals', exp: 15 },
+        { d: 8, rd: 3, t: 'cut', loc: 'vitals', exp: 7 },
+        { d: 3, rd: 5, t: 'imp', loc: 'torso', exp: 0 },
+        { d: 4, rd: 2, t: 'cut', loc: 'skull', exp: 0 },
+      ];
+      let pass = 0;
+      tests.forEach((tc, i) => {
+        const r = calculateDamage(tc.d, tc.rd, tc.t, tc.loc);
+        if (r.injury === tc.exp) { pass++; }
+        else { console.error(`❌ Test ${i + 1}: expected ${tc.exp}, got ${r.injury} (d=${tc.d} rd=${tc.rd} ${tc.t} ${tc.loc})`); }
+      });
+      console.log(pass === tests.length ? `✅ All ${tests.length} damage tests passed` : `❌ ${pass}/${tests.length} passed`);
+
+      // Initiative sort test
+      const testCombatants = [
+        { speed: 7.00, dx: 12, name: 'Tanaka' },
+        { speed: 6.00, dx: 14, name: 'Yamamoto' },
+        { speed: 6.00, dx: 11, name: 'Sato' },
+        { speed: 5.50, dx: 10, name: 'Kato' },
+      ];
+      const sorted = [...testCombatants].sort((a, b) => b.speed !== a.speed ? b.speed - a.speed : b.dx - a.dx);
+      const expectedOrder = ['Tanaka', 'Yamamoto', 'Sato', 'Kato'];
+      const sortOk = sorted.every((c, i) => c.name === expectedOrder[i]);
+      console.log(sortOk ? '✅ Initiative sort passed' : `❌ Initiative sort failed: ${sorted.map(c => c.name).join(',')}`);
+
+      // Effects tests
+      const e1 = Math.min(3, 4); // shock 3 → -3
+      const e2 = Math.min(7, 4); // shock 7 → capped -4
+      const e3 = 7 > Math.floor(12 / 2); // severe wound: 7 > 6 = true
+      const e4 = 6 > Math.floor(12 / 2); // not severe: 6 > 6 = false
+      const efOk = e1 === 3 && e2 === 4 && e3 === true && e4 === false;
+      console.log(efOk ? '✅ Effects tests passed' : '❌ Effects tests failed');
+    };
+
+    // Trigger Legacy/Heir System
+    window.triggerHeir = function (id) {
+      const target = state.combatants.find(c => c.id === id);
+      if (!target) return;
+
+      const ok = confirm(`Deseja ativar o Legado para ${target.name}?\nIsso registrará a morte e passará a arma de assinatura para o próximo personagem no histórico de Legado.`);
+      if (!ok) return;
+
+      const weaponName = target.equippedWeapon ? (findWeapon(target.equippedWeapon)?.nome || 'Arma Desconhecida') : 'Nenhuma';
+      const legacyEntry = {
+        type: 'legacy',
+        text: `${target.name} caiu com honra. Legado passado: 25% XP + Arma: ${weaponName}.`,
+        time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      };
+
+      // Push to history
+      addHistory('dano', `💀 LEGADO: ${target.name} caiu. Arma reservada: ${weaponName}.`);
+
+      // Save specific legacy in state for time-management view
+      if (!state.legacyLog) state.legacyLog = [];
+      state.legacyLog.unshift(legacyEntry);
+
+      // Mark as dead or remove
+      target.hpCur = -(target.hpMax * 5); // Instantly dead
+      saveState(state);
+      renderAll();
+    };
+
+
+    // ── Status FX Handlers ──
+    window.openStatusFx = function (id) {
+      const c = state.combatants.find(x => x.id === id);
+      if (!c) return;
+      c.posture = c.posture || 'standing';
+      c.statusFx = c.statusFx || { blind: false, stunned: false, grappled: false };
+
+      document.getElementById('fx-combatant-id').value = id;
+      document.getElementById('fx-posture').value = c.posture;
+      document.getElementById('fx-stunned').checked = c.statusFx.stunned;
+      document.getElementById('fx-blind').checked = c.statusFx.blind;
+      document.getElementById('fx-grappled').checked = c.statusFx.grappled;
+
+      const overlay = document.getElementById('status-fx-overlay');
+      overlay.style.display = 'flex';
+      setTimeout(() => overlay.style.opacity = '1', 10);
+    };
+
+    window.closeStatusFx = function () {
+      const overlay = document.getElementById('status-fx-overlay');
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.style.display = 'none', 300);
+    };
+
+    window.saveStatusFx = function () {
+      const id = document.getElementById('fx-combatant-id').value;
+      const c = state.combatants.find(x => x.id === id);
+      if (c) {
+        c.posture = document.getElementById('fx-posture').value;
+        c.statusFx = {
+          stunned: document.getElementById('fx-stunned').checked,
+          blind: document.getElementById('fx-blind').checked,
+          grappled: document.getElementById('fx-grappled').checked
+        };
+        saveState(state);
+        renderAll();
+      }
+      window.closeStatusFx();
+    };
+
+    /* ═══════ INIT ═══════ */
+
+    // ── INITIALIZATION ──
+    async function initApp() {
+      console.log("⚔️ Escudo do Daimyo: Inicializando Arena...");
+
+      // 1. Migrate if needed
+      if (window.DaimyoDB) {
+        try {
+          await window.DaimyoDB.migrateFromLocalStorage();
+        } catch (e) { console.warn("Erro na migração:", e); }
+      }
+
+      // 2. Load and set state
+      state = await loadState();
+
+      // 3. Initialize Weapon Select
+      const wpSelect = document.getElementById('select-weapon');
+      if (wpSelect && typeof weaponsDB !== 'undefined' && wpSelect.options.length <= 1) {
+        weaponsDB.forEach(w => {
+          const opt = document.createElement('option');
+          opt.value = w.id;
+          opt.textContent = w.nome;
+          wpSelect.appendChild(opt);
+        });
+      }
+
+      // 4. Initial Render
+      renderAll();
+      renderHistory();
+
+      // 5. Setup Live Listeners (if not already set)
+      if (window.DaimyoDB && !window._daimyoSyncActive) {
+        window._daimyoSyncActive = true;
+        window.DaimyoDB.onSync(async (data) => {
+          if (data.store === STATE_STORE && data.key === STATE_KEY) {
+            state = await loadState();
+            renderAll();
+            renderHistory();
+          }
+        });
+      }
+    }
+
+    // Unified Boot & Dependency Fallbacks
+    if (typeof RangedCalc === 'undefined') {
+      window.RangedCalc = { update: () => {} };
+    }
+    if (typeof weaponsDB === 'undefined') window.weaponsDB = [];
+    if (typeof qualityWeaponDB === 'undefined') window.qualityWeaponDB = [];
+    if (typeof LibraryManager === 'undefined') {
+      window.LibraryManager = { isReady: () => false, getItems: () => [], getCategories: () => [] };
+    }
+
+    // Unified Boot
+    window.addEventListener('load', () => {
+      // If DaimyoDB is ready, boot, otherwise wait slightly
+      if (window.DaimyoDB) initApp();
+      else setTimeout(initApp, 400);
+    });
+
+    window.addEventListener('storage', async (e) => {
+      if (e.key === STATE_KEY) {
+        state = await loadState();
+        renderAll();
+        renderHistory();
+      }
+    });
+
+    window.addEventListener('daimyoStateUpdated', async () => {
+      state = await loadState();
+      renderAll();
+      renderHistory();
+    });
+  </script>
+
+  <script>
+    // Limpeza preventiva de scroll no carregamento
+    window.scrollTo(0, 0);
+    document.body.scrollTop = 0;
+
+    // Garantir renderização inicial via initApp no evento 'load'
+
+    // Listener para o novo sistema de Log
+    window.addEventListener('daimyoLogUpdated', () => {
+      if (typeof renderHistory === 'function') renderHistory();
+    });
+  </script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -1533,4 +2640,5 @@ window.addEventListener('daimyoLogUpdated', () => {
     }
   </script>
 </body>
+
 </html>

@@ -5,15 +5,32 @@
 
 const NarrativeTools = (function () {
 
-  // State Keys
-  const NOTES_KEY = 'daimyo_gm_notes';
-  const CLOCKS_KEY = 'daimyo_faction_clocks';
-  const CLOCKS_HIST_KEY = 'daimyo_clocks_history';
-
+  // State Settings
+  const STORE = 'vault';
+  const KEYS = {
+    NOTES: 'gm_notes',
+    CLOCKS: 'clocks',
+    HISTORY: 'clocks_history'
+  };
+  
   // Local State
   let clocks = [];
   let clocksHistory = [];
+  let gmNotes = []; // { id, title, content }
+  let activePageId = null;
   let editingClockId = null;
+
+  // --- PERSISTENCE ENGINE (Cofre Infinito) ---
+  async function persistData() {
+    if (!window.DaimyoDB) return;
+    try {
+      await window.DaimyoDB.put(STORE, KEYS.NOTES, gmNotes);
+      await window.DaimyoDB.put(STORE, KEYS.CLOCKS, clocks);
+      await window.DaimyoDB.put(STORE, KEYS.HISTORY, clocksHistory);
+    } catch (e) {
+      console.error("NarrativeTools: Erro ao persistir no Cofre:", e);
+    }
+  }
 
   // --- DRAWER & MODAL UI ---
   function toggleDrawer(id) {
@@ -29,28 +46,14 @@ const NarrativeTools = (function () {
   }
 
   // --- GM NOTES (MULTI-PAGE) ---
-  let gmNotes = []; // { id, title, content }
-  let activePageId = null;
-
-  function initNotes() {
-    const saved = localStorage.getItem(NOTES_KEY);
-    if (saved) {
-      try {
-        gmNotes = JSON.parse(saved);
-        if (!Array.isArray(gmNotes)) gmNotes = [{ id: 'default', title: 'Principal', content: saved }];
-      } catch (e) {
-        gmNotes = [{ id: 'default', title: 'Principal', content: saved }];
-      }
-    } else {
-      gmNotes = [{ id: 'default', title: 'Principal', content: '' }];
-    }
-    
-    if (!activePageId && gmNotes.length > 0) activePageId = gmNotes[0].id;
+  function addNotePage() {
+    const title = prompt("Nome da nova página:", "Nova Anotação");
+    if (!title) return;
+    const newId = 'note_' + Date.now();
+    gmNotes.push({ id: newId, title: title, content: '' });
+    activePageId = newId;
+    persistData();
     renderNotesUI();
-  }
-
-  function saveNotes() {
-    localStorage.setItem(NOTES_KEY, JSON.stringify(gmNotes));
   }
 
   function addNotePage() {
@@ -59,7 +62,7 @@ const NarrativeTools = (function () {
     const newId = 'note_' + Date.now();
     gmNotes.push({ id: newId, title: title, content: '' });
     activePageId = newId;
-    saveNotes();
+    persistData();
     renderNotesUI();
   }
 
@@ -68,7 +71,7 @@ const NarrativeTools = (function () {
     if (!confirm("Excluir esta página permanentemente?")) return;
     gmNotes = gmNotes.filter(n => n.id !== id);
     if (activePageId === id) activePageId = gmNotes[0].id;
-    saveNotes();
+    persistData();
     renderNotesUI();
   }
 
@@ -78,7 +81,7 @@ const NarrativeTools = (function () {
     const newTitle = prompt("Novo nome:", note.title);
     if (!newTitle) return;
     note.title = newTitle;
-    saveNotes();
+    persistData();
     renderNotesUI();
   }
 
@@ -91,7 +94,8 @@ const NarrativeTools = (function () {
     const note = gmNotes.find(n => n.id === activePageId);
     if (note) {
       note.content = content;
-      saveNotes();
+      persistData();
+
       
       const status = document.getElementById('gm-notes-status');
       if (status) {
@@ -117,6 +121,19 @@ const NarrativeTools = (function () {
       .replace(/\n/gim, '<br>');
   }
 
+  // Helper: Escape HTML to avoid XSS
+  function escapeHtml(text) {
+    if (!text) return "";
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.toString().replace(/[&<>"']/g, function (m) { return map[m]; });
+  }
+
   function renderNotesUI() {
     const nav = document.getElementById('gm-notes-nav');
     const editor = document.getElementById('gm-notes-editor');
@@ -125,16 +142,16 @@ const NarrativeTools = (function () {
 
     // Render Tabs
     nav.innerHTML = gmNotes.map(n => `
-      <div class="note-tab ${n.id === activePageId ? 'active' : ''}" onclick="NarrativeTools.switchNotePage('${n.id}')">
-        <span>${n.id === activePageId ? '👁️' : ''} ${n.title}</span>
-        ${n.id !== 'default' ? `<button onclick="event.stopPropagation(); NarrativeTools.renameNotePage('${n.id}')">✏️</button>` : ''}
-        ${n.id !== 'default' ? `<button onclick="event.stopPropagation(); NarrativeTools.deleteNotePage('${n.id}')">✕</button>` : ''}
+      <div class="note-tab ${n.id === activePageId ? 'active' : ''}" onclick="NarrativeTools.switchNotePage('${escapeHtml(n.id)}')">
+        <span>${n.id === activePageId ? '👁️' : ''} ${escapeHtml(n.title)}</span>
+        ${n.id !== 'default' ? `<button onclick="event.stopPropagation(); NarrativeTools.renameNotePage('${escapeHtml(n.id)}')">✏️</button>` : ''}
+        ${n.id !== 'default' ? `<button onclick="event.stopPropagation(); NarrativeTools.deleteNotePage('${escapeHtml(n.id)}')">✕</button>` : ''}
       </div>
     `).join('') + `<button class="btn-ghost btn-sm" onclick="NarrativeTools.addNotePage()">＋ Nova</button>`;
 
     // Update Content
     const activeNote = gmNotes.find(n => n.id === activePageId) || gmNotes[0];
-    editor.value = activeNote.content;
+    if (editor) editor.value = activeNote.content;
     
     if (preview && preview.style.display !== 'none') {
         preview.innerHTML = parseMarkdown(activeNote.content);
@@ -162,21 +179,44 @@ const NarrativeTools = (function () {
   const init = async () => {
     if (!window.DaimyoDB) return;
     try {
-      // Load Notes
-      const savedNotes = await window.DaimyoDB.get(window.DaimyoDB.STORES.VAULT, 'gm_notes');
+      // 1. Ensure any legacy data is migrated
+      await window.DaimyoDB.migrateFromLocalStorage();
+
+      // 2. Load all from DB
+      const [savedNotes, savedClocks, savedHist] = await Promise.all([
+        window.DaimyoDB.get(STORE, KEYS.NOTES),
+        window.DaimyoDB.get(STORE, KEYS.CLOCKS),
+        window.DaimyoDB.get(STORE, KEYS.HISTORY)
+      ]);
+
       if (savedNotes) {
         gmNotes = Array.isArray(savedNotes) ? savedNotes : [{ id: 'default', title: 'Principal', content: savedNotes }];
       } else {
         gmNotes = [{ id: 'default', title: 'Principal', content: '' }];
       }
-      if (!activePageId && gmNotes.length > 0) activePageId = gmNotes[0].id;
-      renderNotesUI();
+      
+      clocks = savedClocks || [];
+      clocksHistory = savedHist || [];
 
-      // Load Clocks
-      const savedClocks = await window.DaimyoDB.get(window.DaimyoDB.STORES.VAULT, 'clocks');
-      const savedClocksHist = await window.DaimyoDB.get(window.DaimyoDB.STORES.VAULT, 'clocks_history');
-      if (savedClocks) clocks = savedClocks;
-      if (savedClocksHist) clocksHistory = savedClocksHist;
+      if (!activePageId && gmNotes.length > 0) activePageId = gmNotes[0].id;
+      
+      // 3. Setup Sync Listener
+      if (!window._narrativeSyncActive) {
+        window._narrativeSyncActive = true;
+        window.DaimyoDB.onSync(async (data) => {
+          if (data.store === STORE) {
+             const newVal = await window.DaimyoDB.get(STORE, data.key);
+             if (data.key === KEYS.NOTES) gmNotes = newVal || [];
+             if (data.key === KEYS.CLOCKS) clocks = newVal || [];
+             if (data.key === KEYS.HISTORY) clocksHistory = newVal || [];
+             renderNotesUI();
+             renderClocks();
+             renderGlobalHistory();
+          }
+        });
+      }
+
+      renderNotesUI();
       renderClocks();
       renderGlobalHistory();
 
@@ -189,7 +229,10 @@ const NarrativeTools = (function () {
   // Auto-init connection attempt
   window.addEventListener('load', () => {
     if (window.DaimyoDB) init();
-    else setTimeout(init, 150);
+    else {
+      // Small delay fallback if the DB is still initializing
+      setTimeout(() => { if (window.DaimyoDB) init(); }, 200);
+    }
   });
 
   // --- CLOCKS (AMEAÇAS) ---
@@ -198,10 +241,8 @@ const NarrativeTools = (function () {
   }
 
   async function saveClocks() {
-    if (window.DaimyoDB) {
-      await window.DaimyoDB.put(window.DaimyoDB.STORES.VAULT, 'clocks', clocks);
-      await window.DaimyoDB.put(window.DaimyoDB.STORES.VAULT, 'clocks_history', clocksHistory);
-    }
+    await persistData();
+
     renderClocks();
     renderGlobalHistory();
   }
@@ -525,13 +566,12 @@ const NarrativeTools = (function () {
     }
 
     document.getElementById('mass-log').innerHTML = resultLog;
+    addHistoryEntry(`⚔️ COMBATE EM MASSA: ${margin >= 0 ? 'Vitória' : 'Revés'} de ${aName} (Poder ${effectiveSkill} vs Rolagem ${rollTotal})`);
+
   }
 
   // --- INIT BOOT ---
-  document.addEventListener("DOMContentLoaded", () => {
-    initNotes();
-    loadClocks();
-  });
+
 
   return { 
     toggleDrawer, toggleModal, addClock, deleteClock, tickClock, setClock, resolveMassCombat,

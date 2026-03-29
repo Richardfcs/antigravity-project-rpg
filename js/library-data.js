@@ -5,7 +5,7 @@
  */
 
 const LibraryManager = (function() {
-    const DATA_VERSION = 2;
+    const DATA_VERSION = 3;
 
     const defaultCategories = [
         { id: 'cat_van', name: 'Vantagem', icon: '🌟', tags: ['Combate', 'Social', 'Mental', 'Extra', 'Política', 'Mestria', 'Vida'], order: 0 },
@@ -14,11 +14,12 @@ const LibraryManager = (function() {
         { id: 'cat_qua', name: 'Qualidade', icon: '🎭', tags: ['Combate', 'Social', 'Equip', 'Estilo de Vida'], order: 3 },
         { id: 'cat_pec', name: 'Peculiaridade', icon: '🔹', tags: ['Crença', 'Aversão', 'Traço', 'Código', 'Mania'], order: 4 },
         { id: 'cat_bud', name: 'Budo', icon: '⚔️', tags: ['Espada', 'Arco', 'Lança', 'Desarmado', 'Saque', 'Corrente', 'Arremesso', 'Haste', 'Bastão', 'Ferramenta', 'Captura'], order: 5 },
-        { id: 'cat_reg', name: 'Regra', icon: '📜', tags: ['Referência', 'Mecânica'], order: 6 },
+        { id: 'cat_reg', name: 'Regra', icon: '📜', tags: ['Referência', 'Mecânica', 'Combate', 'Dano'], order: 6 },
         { id: 'cat_arq', name: 'Arquétipo', icon: '👥', tags: ['Nobre', 'Ronin', 'Místico', 'Ninja'], order: 7 },
         { id: 'cat_yok', name: 'Yokai', icon: '👻', tags: ['Espírito', 'Físico', 'Terror', 'Calamidade'], order: 8 },
         { id: 'cat_alq', name: 'Alquimia', icon: '🧪', tags: ['Veneno', 'Poção', 'Explosivo'], order: 9 },
-        { id: 'cat_atl', name: 'Atlas', icon: '🗺️', tags: ['Província', 'Cidade', 'Santuário'], order: 10 }
+        { id: 'cat_atl', name: 'Atlas', icon: '🗺️', tags: ['Província', 'Cidade', 'Santuário'], order: 10 },
+        { id: 'cat_cas', name: 'Casa', icon: '🏠', tags: ['Mentalidade', 'Karma', 'Maestria', 'Mecânica'], order: 11 }
     ];
 
     const initialData = [
@@ -272,7 +273,44 @@ const LibraryManager = (function() {
         // REGRAS E TABELAS (2 itens)
         // ═══════════════════════════════════════════════════════════
         { id: 'lib_r01', nome: "Tabela de Custo de Perícias", cat: "Regra", sub: "Referência", cust: "Referência", fonte: "[MB]", desc: "NH Final | Fácil (E) | Média (A) | Difícil (H) | M.Difícil (VH)\nAtributo -3 | — | — | — | 1 pt\nAtributo -2 | — | — | 1 pt | 2 pts\nAtributo -1 | — | 1 pt | 2 pts | 4 pts\nAtributo +0 | 1 pt | 2 pts | 4 pts | 8 pts\nAtributo +1 | 2 pts | 4 pts | 8 pts | 12 pts\nAtributo +2 | 4 pts | 8 pts | 12 pts | 16 pts\nAtributo +3 | 8 pts | 12 pts | 16 pts | 20 pts\nNível Extra (+1) | +4 pts | +4 pts | +4 pts | +4 pts", tags: ["Referência", "Tabela"] },
-        { id: 'lib_r02', nome: "Tabela de Custo de Técnicas", cat: "Regra", sub: "Referência", cust: "Referência", fonte: "[MB]", desc: "Nível Desejado | Custo Média | Custo Difícil\nBase +1 (Reduz penalidade em 1) | 1 pt | 2 pts\nBase +2 (Reduz penalidade em 2) | 2 pts | 3 pts\nBase +3 (Reduz penalidade em 3) | 3 pts | 4 pts\nBase +4 (Reduz penalidade em 4) | 4 pts | 5 pts", tags: ["Referência", "Tabela"] },
+        { id: 'lib_r02', nome: "Tabela de Custo de Técnicas", cat: "Regra", sub: "Referência", cust: "Referência", fonte: "[MB]", desc: "Nível Desejado | Custo Média | Custo Difícil\nAtributo +1 (Reduz penalidade em 1) | 1 pt | 2 pts\nAtributo +2 (Reduz penalidade em 2) | 2 pts | 3 pts\nAtributo +3 (Reduz penalidade em 3) | 3 pts | 4 pts\nAtributo +4 (Reduz penalidade em 4) | 4 pts | 5 pts", tags: ["Referência", "Tabela"] },
+
+        // ═══════════════════════════════════════════════════════════
+        // REGRAS DE COMBATE (Manual Técnico)
+        // ═══════════════════════════════════════════════════════════
+
+        { id: 'lib_c01', nome: "A Sequência de Turno", cat: "Regra", sub: "Combate", fonte: "[MB 362]", desc: "O tempo é dividido em Turnos de 1 segundo.\\n1. Iniciativa: Ordem decrescente de Velocidade Básica (DX desempatado).\\n2. Sua Vez: Escolha UMA Manobra e execute-a.\\n3. Defesa: Reaja a ataques no turno do inimigo.", tags: ["Combate", "Mecânica"] },
+        { id: 'lib_c02', nome: "Manobra: Ataque", cat: "Regra", sub: "Combate", fonte: "[MB 365]", desc: "Ação padrão. Você ataca uma vez com sua arma.\\n• Vantagem: Mantém suas Defesas Ativas normais.\\n• Opções: Pode usar Ataque Deceptivo ou Rápido.", tags: ["Combate", "Manobra"] },
+        { id: 'lib_c03', nome: "Manobra: Ataque Total", cat: "Regra", sub: "Combate", fonte: "[MB 365]", desc: "Golpe finalizador ou desesperado. Você desiste de TODAS as defesas até seu próximo turno.\\n• Determinado: +4 no acerto.\\n• Forte: +2 no dano (ou +1 por dado).\\n• Duplo: Dois ataques sem penalidade.\\n• Perigo: Você fica completamente indefeso.", tags: ["Combate", "Manobra"] },
+        { id: 'lib_c04', nome: "Manobra: Mover e Atacar", cat: "Regra", sub: "Combate", fonte: "[MB 365]", desc: "Correr e golpear ao mesmo tempo.\\n• Movimento: Completo.\\n• Penalidade: -4 no Ataque (NH máximo efetivo é 9!).\\n• Restrição: Não pode aparar com a mão que atacou.", tags: ["Combate", "Manobra"] },
+        { id: 'lib_c05', nome: "Manobra: Ataque Comprometido", cat: "Regra", sub: "Combate", fonte: "[AM 99]", desc: "Meio-termo entre Ataque e Ataque Total.\\n• Vantagem: +2 no Acerto, ou +Dano, ou Passo extra (2m).\\n• Penalidade: Não pode Bloquear ou Aparar com a mão do ataque; Esquiva sofre -2.", tags: ["Combate", "Manobra"] },
+        { id: 'lib_c06', nome: "Manobra: Ataque Defensivo", cat: "Regra", sub: "Combate", fonte: "[AM 100]", desc: "Lutar com cautela extrema.\\n• Penalidade: -2 no Dano (ou -1 por dado).\\n• Vantagem: +1 em todas as Defesas Ativas contra ataques frontais.", tags: ["Combate", "Manobra"] },
+        { id: 'lib_c07', nome: "Manobra: Finta", cat: "Regra", sub: "Combate", fonte: "[MB 365]", desc: "Enganar para baixar a guarda.\\n• Ação: Disputa Rápida (Sua Arma vs. Defesa Inimiga).\\n• Efeito: Margem de Vitória é subtraída da defesa do inimigo no seu próximo ataque.", tags: ["Combate", "Manobra"] },
+        { id: 'lib_c08', nome: "Manobra: Avaliar", cat: "Regra", sub: "Combate", fonte: "[MB 364]", desc: "Estudar o oponente.\\n• Efeito: +1 no próximo ataque por turno gasto (máximo +3). Apenas corpo a corpo.", tags: ["Combate", "Manobra"] },
+        { id: 'lib_c09', nome: "Manobra: Mirar", cat: "Regra", sub: "Combate", fonte: "[MB 364]", desc: "Essencial para Arcos (Yumi).\\n• Efeito: Soma a Precisão (Prec) da arma ao ataque se gastar 1 turno parado mirando.", tags: ["Combate", "Manobra"] },
+        { id: 'lib_c10', nome: "Manobra: Aguardar", cat: "Regra", sub: "Combate", fonte: "[MB 366]", desc: "Tática de contra-ataque.\\n• Ação: Define um gatilho para interromper o turno do inimigo e agir antes dele.", tags: ["Combate", "Manobra"] },
+        { id: 'lib_c11', nome: "Manobra: Preparar", cat: "Regra", sub: "Combate", fonte: "[MB 366]", desc: "Sacar espada (1s), recarregar, levantar-se.\\n• Saque Rápido: Se for bem-sucedido, sacar é ação livre.", tags: ["Combate", "Manobra"] },
+        { id: 'lib_c12', nome: "Manobra: Defesa Total", cat: "Regra", sub: "Combate", fonte: "[MB 364]", desc: "Sobrevivência pura.\\n• Efeito: +2 em uma defesa ou duas defesas contra cada ataque. Não pode atacar.", tags: ["Combate", "Manobra"] },
+        { id: 'lib_c13', nome: "Técnica: Ataque Deceptivo", cat: "Regra", sub: "Combate", fonte: "[MB 369]", desc: "Reduzir sua precisão para burlar a defesa inimiga.\\n• A Troca: Para cada -2 que você aceita no seu NH, o inimigo sofre -1 na Defesa.\\n• Exemplo: Atacar com -4 no NH impõe -2 na Esquiva/Aparar do alvo.", tags: ["Combate", "Técnica"] },
+        { id: 'lib_c14', nome: "Técnica: Ataque Rápido", cat: "Regra", sub: "Combate", fonte: "[MB 370]", desc: "Bater duas vezes em um segundo.\\n• Custo: -6 em ambos os ataques (-3 se tiver Mestre de Armas ou Treinamento de Espadachim).", tags: ["Combate", "Técnica"] },
+        { id: 'lib_c15', nome: "Opção: Golpe Localizado", cat: "Regra", sub: "Combate", fonte: "[MB 369]", desc: "Mirar em partes específicas do corpo.\\n• Regra: Deve ser declarado ANTES da rolagem. Aplica a penalidade do local (ex: -5 para o Rosto).", tags: ["Combate", "Mecânica"] },
+        { id: 'lib_c16', nome: "Defesa Ativa: Esquiva", cat: "Regra", sub: "Combate", fonte: "[MB 374]", desc: "Sair do caminho do golpe.\\n• Base: Velocidade Básica + 3.\\n• Nota: Funciona contra tudo. Pode ser feita múltiplas vezes por turno (uma por ataque). Penalizada por Carga.", tags: ["Combate", "Defesa"] },
+        { id: 'lib_c17', nome: "Defesa Ativa: Aparar", cat: "Regra", sub: "Combate", fonte: "[MB 376]", desc: "Bloquear com a arma ou mão nua.\\n• Base: (NH da Arma / 2) + 3.\\n• Aparar Múltiplo: -4 cumulativo por aparada sucessiva no mesmo turno.", tags: ["Combate", "Defesa"] },
+        { id: 'lib_c18', nome: "Defesa Ativa: Bloqueio", cat: "Regra", sub: "Combate", fonte: "[MB 375]", desc: "Usar um escudo ou Tate.\\n• Base: (NH de Escudo / 2) + 3.\\n• Restrição: Geralmente permitido apenas uma vez por turno.", tags: ["Combate", "Defesa"] },
+        { id: 'lib_c19', nome: "Bônus: Retirada", cat: "Regra", sub: "Combate", fonte: "[MB 377]", desc: "Dar um passo atrás enquanto se defende.\\n• Bônus: +3 na Esquiva ou +1 no Aparar/Bloqueio.\\n• Restrição: Uma vez por turno.", tags: ["Combate", "Defesa"] },
+        { id: 'lib_c20', nome: "Bônus: Esquiva Acrobática", cat: "Regra", sub: "Combate", fonte: "[MB 375]", desc: "Movimento ninja para evitar dano.\\n• Regra: Teste de Acrobacia antes da defesa.\\n• Sucesso: +2 na Esquiva. Falha: -2 na Esquiva.", tags: ["Combate", "Defesa"] },
+        { id: 'lib_c21', nome: "Bônus: Defesa Febril", cat: "Regra", sub: "Combate", fonte: "[MB 357]", desc: "Esforço extra desesperado.\\n• Custo: 1 PF (Ponto de Fadiga).\\n• Efeito: +2 em uma defesa ativa contra um único ataque.", tags: ["Combate", "Defesa"] },
+        { id: 'lib_c22', nome: "Resumo Visual do Combate", cat: "Regra", sub: "Combate", fonte: "[Manual]", desc: "1. Atacante escolhe Manobra + Modificadores.\\n2. Atacante Rola 3d6 <= NH.\\n3. Se acertar, Defensor escolhe Defesa + Bônus.\\n4. Defensor Rola 3d6 <= Defesa.\\n5. Falha? Rola Dano.", tags: ["Combate", "Referência"] },
+        { id: 'lib_c23', nome: "Técnica: Riposta", cat: "Regra", sub: "Combate", fonte: "[AM 124]", desc: "Atrair o inimigo para abrir sua guarda.\\n• Ação: Aceita penalidade no Aparar (ex: -2).\\n• Sucesso: Se defender, o seu próximo ataque impõe a MESMA penalidade na defesa dele.", tags: ["Combate", "Técnica"] },
+        { id: 'lib_c24', nome: "Técnica: Aparar Cruzado", cat: "Regra", sub: "Combate", fonte: "[AM 121]", desc: "Nito Ryu (Duas Espadas) total.\\n• Ação: Usa duas armas para bloquear um único golpe.\\n• Bônus: +2 no Aparar. Gasta a defesa de ambas.", tags: ["Combate", "Técnica"] },
+        { id: 'lib_c25', nome: "Opção: Aparar Desarmado vs Armas", cat: "Regra", sub: "Combate", fonte: "[MB 376]", desc: "Tentar bloquear uma Katana com a mão nua.\\n• Regra: Penalidade de -3 no Aparar.\\n• Perigo: Se falhar na defesa, a arma do inimigo acerta seu braço automaticamente.\\n• Exceção: Perícias Judô e Caratê permitem aparar armas com -3 sem o dano automático no braço.", tags: ["Combate", "Mecânica"] },
+        { id: 'lib_c26', nome: "Mecânica: Armas Desequilibradas (U)", cat: "Regra", sub: "Combate", fonte: "[MB]", desc: "Algumas armas (Tetsubo, Naginata) são difíceis de recuperar.\\n• Regra: Se o Aparar tiver um 'U' (ex: 0U), você não pode aparar se tiver atacado com ela no mesmo turno.\\n• Solução: Use Ataque Defensivo para atacar e ainda poder aparar.", tags: ["Combate", "Mecânica"] },
+        { id: 'lib_c27', nome: "Mecânica: Combate a Curta Distância", cat: "Regra", sub: "Combate", fonte: "[MB 391]", desc: "Quando o inimigo entra na sua guarda (Alcance C).\\n• Armas Longas: Katana e Yari não podem ser usadas para atacar se o inimigo estiver 'colado' (Alcance C).\\n• Defesa: Aparar ataques de curto alcance com arma longa sofre -4 ou mais.", tags: ["Combate", "Mecânica"] },
+        { id: 'lib_c28', nome: "Dano: Cálculo e Multiplicadores", cat: "Regra", sub: "Dano", fonte: "[Manual]", desc: "<div class='md-table-wrap'><table class='md-table'><thead><tr><th>Tipo</th><th>Sigla</th><th>Mult.</th><th>Exemplo</th></tr></thead><tbody><tr><td>Contusão</td><td>esm</td><td>x1</td><td>Bastão, Soco</td></tr><tr><td>Corte</td><td>cort</td><td>x1.5</td><td>Katana, Naginata</td></tr><tr><td>Perfuração</td><td>perf</td><td>x2</td><td>Lança, Flecha</td></tr><tr><td>Perf. Pequeno</td><td>pi-</td><td>x0.5</td><td>Shuriken, Dardo</td></tr></tbody></table></div>\\nSubtraia a RD da armadura do dano básico e multiplique o resto pelo fator acima.", tags: ["Combate", "Dano"] },
+        { id: 'lib_c29', nome: "Dano: Localização de Acerto", cat: "Regra", sub: "Dano", fonte: "[Manual]", desc: "<div class='md-table-wrap'><table class='md-table'><thead><tr><th>Local</th><th>Penal.</th><th>Efeito Especial</th></tr></thead><tbody><tr><td>Tronco</td><td>0</td><td>Padrão.</td></tr><tr><td>Vitais</td><td>-3</td><td>Dano x3 (Apenas Perfuração).</td></tr><tr><td>Rosto</td><td>-5</td><td>Ignora armadura (exceto máscara).</td></tr><tr><td>Pescoço</td><td>-5</td><td>Dano x2 (Corte ou Perfuração).</td></tr><tr><td>Crânio</td><td>-7</td><td>RD fixa 2. Dano x4. Nocaute.</td></tr><tr><td>Membros</td><td>-2</td><td>Inutiliza se dano > PV/2.</td></tr><tr><td>Mão/Pé</td><td>-4</td><td>Inutiliza se dano > PV/3.</td></tr><tr><td>Olhos</td><td>-9</td><td>Cegueira. Dano direto ao cérebro (x4).</td></tr></tbody></table></div>", tags: ["Combate", "Dano"] },
+        { id: 'lib_c30', nome: "Saúde: Efeitos Imediatos do Dano", cat: "Regra", sub: "Dano", fonte: "[MB 419]", desc: "• Choque: Penalidade em DX e IQ igual ao dano sofrido no próximo turno (máx -4).\\n• Atordoamento: Se sofrer dano grave (> PV/2 de uma vez) ou na cabeça, teste de HT ou cai atordoado.\\n• Inutilização: Membros param de funcionar se sofrerem dano suficiente (PV/2 para braços, PV/3 para mãos).", tags: ["Combate", "Dano"] },
+        { id: 'lib_c31', nome: "Saúde: A Espiral da Morte", cat: "Regra", sub: "Dano", fonte: "[MB 420]", desc: "• Abaixo de 1/3 PV: Deslocamento e Esquiva caem pela METADE.\\n• 0 PV ou menos: Teste de HT todo turno para não desmaiar.\\n• -1x PV: Teste de HT para não morrer.\\n• -5x PV: Morte automática.", tags: ["Combate", "Dano"] },
+        { id: 'lib_c32', nome: "Saúde: Sangramento e Recuperação", cat: "Regra", sub: "Dano", fonte: "[Manual]", desc: "• Sangramento: Teste de HT a cada minuto (ou 30s no pescoço) se sofrer corte/perfuração. Falha = perde 1 PV.\\n• Primeiros Socorros: 1 min de tratamento. Estanca sangue e recupera 1 PV.\\n• Recuperação Natural: 1 PF por 10 min de descanso. 1 PV por dia de descanso (com teste de HT).", tags: ["Combate", "Dano"] },
 
         // ═══════════════════════════════════════════════════════════
         // ESTILOS DE LUTA — BUDÔ (13 estilos)
@@ -487,6 +525,20 @@ const LibraryManager = (function() {
             { nome: "Domínio da Empunhadura (Kusarijutte)", desc: "Alternar entre jutte (aparar) e corrente (envolver) sem perder ritmo." }
           ],
           desc: "A Arte da Captura e Submissão. Polícia do Xogunato para subjugar criminosos armados, vivos ou mortos.", tags: ["Captura", "Polícia", "Equipe"] },
+        { id: 'lib_c33', nome: "Referência: Finta e Variações", cat: "Regra", sub: "Combate", fonte: "[Manual]", desc: "A finta não é um ataque, mas uma preparação.\\n• **1. Finta Padrão (Agilidade):** NH da Arma vs Defesa.\\n• **2. Batida (Beat - Força):** ST + Nível Relativo vs ST/DX. Penalidade vale para QUALQUER atacante.\\n• **3. Truque (Ruse - Astúcia):** IQ + Nível Relativo vs Percepção/Tática. Ideal para ninjas.\\n• **4. Finta Defensiva:** Se vencer, a penalidade do inimigo é aplicada ao PRÓXIMO ATAQUE dele contra você.", tags: ["Combate", "Referência"] },
+        { id: 'lib_c34', nome: "Referência: Golpe Fulminante (Crítico)", cat: "Regra", sub: "Referência", fonte: "[MB B556]", desc: "<div class='md-table-wrap'><table class='md-table'><thead><tr><th>3d6</th><th>Efeito</th></tr></thead><tbody><tr><td>3-4</td><td>DANO TRIPLO.</td></tr><tr><td>5</td><td>DANO DOBRADO.</td></tr><tr><td>6</td><td>Dano normal, sem defesa.</td></tr><tr><td>7</td><td>Ferimento Grave (teste HT).</td></tr><tr><td>8</td><td>Atinge Membro (inutiliza).</td></tr><tr><td>12</td><td>Derruba Arma.</td></tr><tr><td>13-14</td><td>IGNORA ARMADURA (RD 0).</td></tr><tr><td>15+</td><td>Dano Dobrado/Triplo.</td></tr></tbody></table></div>", tags: ["Combate", "Referência"] },
+        { id: 'lib_c35', nome: "Referência: Falha Crítica (Desastre)", cat: "Regra", sub: "Referência", fonte: "[MB B556]", desc: "<div class='md-table-wrap'><table class='md-table'><thead><tr><th>3d6</th><th>O Desastre</th></tr></thead><tbody><tr><td>3-4</td><td>QUEBRA A ARMA.</td></tr><tr><td>5-6</td><td>ATINGE A SI MESMO (braço ou perna).</td></tr><tr><td>7-8</td><td>PERDE O EQUILÍBRIO (sem defesa até prox. turno).</td></tr><tr><td>9-12</td><td>DERRUBA A ARMA (voa a 1 metro).</td></tr><tr><td>13-14</td><td>Perde equilíbrio/Atinge a si mesmo.</td></tr><tr><td>15+</td><td>Quebra a arma.</td></tr></tbody></table></div>", tags: ["Combate", "Referência"] },
+        { id: 'lib_c36', nome: "Mecânica: Sequelas (Membros Inutilizados)", cat: "Regra", sub: "Dano", fonte: "[Manual]", desc: "Consequências de perder um membro durante a luta:\\n• **Braço/Mão:** Larga o que estiver segurando. Não pode atacar/aparar com este membro.\\n• **Perna/Pé:** Cai no chão. Movimento cai para 0 ou 1 (rastejar). Lutar caído impõe -4 Atq / -3 Def.\\n• **Olho:** -1 DX, -3 em ataques à distância. Cegueira total = -10 em tudo.", tags: ["Combate", "Dano"] },
+        { id: 'lib_c37', nome: "Referência: Folha de Consulta Rápida", cat: "Regra", sub: "Referência", fonte: "[Manual]", desc: "**MANOBRAS:** Atq, Atq Total (+4/-2 dno), Atq Def (-2/-1 dno), Mover e Atq (-4 atq), Finta, Mirar (+Prec), Defesa Total (+2 def).\\n**DEFESAS:** Esq (Vel+3), Apa (NH/2+3), Blo (NH/2+3), Retirada (+3 Esq / +1 Apa).\\n**LOCALIZAÇÃO:** Tronco (0), Vitais (-3), Rosto (-5), Pescoço (-5), Crânio (-7), Olho (-9).", tags: ["Combate", "Referência"] },
+
+        // ═══════════════════════════════════════════════════════════
+        // REGRAS DA CASA (Configurações da Campanha)
+        // ═══════════════════════════════════════════════════════════
+
+        { id: 'lib_h01', nome: "Mentalidade: O Que Esquecer", cat: "Casa", sub: "Mentalidade", fonte: "[Regra da Casa]", desc: "Princípios para sobreviver ao Japão Feudal:\\n• **O Dever (Giri) acima do Eu:** Servir ao clã é absoluto.\\n• **A Face acima da Verdade:** Harmonia (Wa) vale mais que honestidade bruta.\\n• **Hierarquia Absoluta:** O samurai está acima do camponês.\\n• **O Medo do Invisível:** Yokai e superstições são reais.\\n• **Névoa de Guerra:** Não há notícias instantâneas ou mapas precisos.", tags: ["Mentalidade", "Roleplay"] },
+        { id: 'lib_h02', nome: "Mecânica: Pontos de Destino (Karma)", cat: "Casa", sub: "Karma", fonte: "[Regra da Casa]", desc: "Cada jogador inicia com **1 Ponto de Destino** (não acumula):\\n• **Sopro de Sorte:** Rerolar qualquer teste.\\n• **Determinação:** Ignorar choque/fadiga por 1 turno.\\n• **Entre a Vida e a Morte:** Evita morte instantânea, deixando-o estável com 0 PV.\\n• **Flashback:** Declarar conhecimento de NPC ou item mundano que faça sentido.", tags: ["Karma", "Mecânica"] },
+        { id: 'lib_h03', nome: "Mecânica: Memória Muscular (Slots)", cat: "Casa", sub: "Maestria", fonte: "[Regra da Casa]", desc: "Representa o foco tático do guerreiro:\\n• **Nível 1:** Manobras básicas sempre disponíveis.\\n• **Nível 2/3:** Escolha **3 Manobras** para ter prontas na sua 'Postura' (Kamae).\\n• **Mudar Postura:** Gasta **1 Turno de Concentração** em combate (livre fora de combate).", tags: ["Maestria", "Mecânica"] },
+        { id: 'lib_h04', nome: "Árvore de Habilidades: Níveis de Maestria", cat: "Casa", sub: "Maestria", fonte: "[Regra da Casa]", desc: "• **N1: Shoden (Iniciado):** Atq, Atq Total, Def Total, Mover/Atq, Preparar.\\n• **N2: Chuden (Perícia 12+):** Atq Deceptivo, Atq Defensivo, Atq Comprometido, Avaliar, Aguardar.\\n• **N3: Okuden (Perícia 14+):** Finta/Batida/Truque, Riposta, Ataque Rápido, Aparar Cruzado.", tags: ["Maestria", "Mecânica"] }
     ];
 
     const STORE = 'vault';
@@ -499,9 +551,14 @@ const LibraryManager = (function() {
     let isInitialized = false;
 
     async function init() {
-        // Wait for Vault
+        // Wait for Vault (max 10s)
+        let waitCount = 0;
         while (!window.DaimyoDB) {
             await new Promise(r => setTimeout(r, 100));
+            if (++waitCount > 100) {
+                console.error('📚 Library: DaimyoDB não carregou após 10s. Abortando init.');
+                return;
+            }
         }
         
         // 1. Ensure any legacy data is migrated if we land here first
@@ -512,13 +569,15 @@ const LibraryManager = (function() {
             
             if (savedVersion < DATA_VERSION) {
                 console.log(`📚 Library: Atualizando para versão ${DATA_VERSION}...`);
-                // Reset to fresh initial data on version bump, but merge custom users item
-                const usersItems = data.filter(item => !item.id.startsWith('lib_')); // Temporary filter
-
-                // Merge user items from previous DB or localStorage
+                
+                // Merge user items from previous DB
                 const oldData = await window.DaimyoDB.get(STORE, DATA_KEY);
                 if (oldData) {
-                    const userItems = oldData.filter(item => !item.id.startsWith('lib_v') && !item.id.startsWith('lib_d') && !item.id.startsWith('lib_p') && !item.id.startsWith('lib_q') && !item.id.startsWith('lib_k') && !item.id.startsWith('lib_budo') && !item.id.startsWith('lib_r'));
+                    const userItems = oldData.filter(item => {
+                        // Filtro robusto: itens que não começam com os prefixos padrão da biblioteca
+                        const isDefault = /^lib_(v|d|p|q|k|budo|r|c|h)\d+/.test(item.id);
+                        return !isDefault;
+                    });
                     data = [...data, ...userItems];
                 }
 
@@ -536,6 +595,36 @@ const LibraryManager = (function() {
             isInitialized = true;
             console.log(`📚 Library: ${data.length} itens carregados do Cofre.`);
             window.dispatchEvent(new CustomEvent('daimyoLibraryReady'));
+
+            // Save backup of defaults for external reset (DataManager)
+            try {
+                await window.DaimyoDB.put('vault', 'library_defaults_backup', { data: [...initialData], categories: [...defaultCategories] });
+            } catch(_) {}
+
+            // Listen for external sync once
+            if (!window._librarySyncRegistered) {
+                window.addEventListener('daimyoStateUpdated', async () => {
+                    if (window.DaimyoDB && isInitialized) {
+                        try {
+                            const freshData = await window.DaimyoDB.get(STORE, DATA_KEY);
+                            const freshCats = await window.DaimyoDB.get(STORE, CAT_KEY);
+                            const freshVersion = await window.DaimyoDB.get(STORE, VERSION_KEY) || 0;
+                            // If version was reset, re-init fully
+                            if (freshVersion < DATA_VERSION) {
+                                isInitialized = false;
+                                await init();
+                                return;
+                            }
+                            if (freshData) data = freshData;
+                            if (freshCats) categories = freshCats;
+                            console.log(`📚 Library: dados sincronizados via evento.`);
+                        } catch (e) {
+                            console.error('Erro ao sincronizar biblioteca:', e);
+                        }
+                    }
+                });
+                window._librarySyncRegistered = true;
+            }
         } catch (e) {
             console.error("Erro ao inicializar biblioteca no Cofre:", e);
             data = [...initialData];
@@ -607,17 +696,42 @@ const LibraryManager = (function() {
     }
 
     // Auto-init connection attempt
-    window.addEventListener('load', () => {
+    const boot = () => {
       if (window.DaimyoDB) init();
-      else setTimeout(init, 250);
-    });
+      else {
+        let retries = 0;
+        const timer = setInterval(() => {
+          if (window.DaimyoDB || retries > 30) {
+            clearInterval(timer);
+            if (window.DaimyoDB) init();
+          }
+          retries++;
+        }, 200);
+      }
+    };
+
+    if (document.readyState === 'loading') {
+      window.addEventListener('load', boot);
+    } else {
+      boot();
+    }
 
     return {
         getItems: () => data,
         getCategories: () => categories,
         addItem, editItem, removeItem,
         addCategory, editCategory, removeCategory, reorderCategory,
-        isReady: () => isInitialized
+        isReady: () => isInitialized,
+        resetToDefaults: async () => {
+            data = [...initialData];
+            await saveData();
+            console.log('📚 Library: Dados redefinidos ao padrão.');
+        },
+        resetCategories: async () => {
+            categories = [...defaultCategories];
+            await saveCategories();
+            console.log('📚 Library: Categorias redefinidas ao padrão.');
+        }
     };
 })();
 

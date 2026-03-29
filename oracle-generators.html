@@ -1,13 +1,41 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Escudo do Daimyo — Geradores e Oráculos</title>
-  <meta name="description" content="Geradores procedurais e oráculos para o RPG A Era das Espadas Quebradas. Reação Social, Oráculo de Trama d66 e Gerador de NPC.">
+  <meta name="description"
+    content="Geradores procedurais e oráculos para o RPG A Era das Espadas Quebradas. Reação Social, Oráculo de Trama d66 e Gerador de NPC.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <!-- PWA METATAGS -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0A0A0A">
+  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
+  <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+
+  <!-- CORE INFRASTRUCTURE (Explicit Loading) -->
+  <script src="js/daimyo-db.js"></script>
+  <script src="js/theme-manager.js"></script>
+  <script src="js/log-manager.js"></script>
+  <script src="js/daimyo-seal.js"></script>
+  <script src="js/kegare-manager.js"></script>
+  <script src="js/header-loader.js"></script>
+
+  <script>
+    // Initialize Database & Migration before page logic
+    if (window.DaimyoDB) {
+      window.DaimyoDB.init().then(() => {
+        window.DaimyoDB.migrateFromLocalStorage();
+        console.log("⛩️ Porta do Daimyo: Banco de dados e migrações ativos.");
+      }).catch(err => console.error("Falha na inicialização do Cofre:", err));
+    }
+  </script>
   <style>
     /* ═══════════════════════════════════════════
        DESIGN TOKENS — Japão Feudal Dark Mode
@@ -33,6 +61,8 @@
       --green-success: #22C55E;
       --blue-info: #3B82F6;
       --orange-warn: #F59E0B;
+      --gold-dim: #8B6914;
+      --kegare-tainted: #C084FC;
       --text-primary: #F5F0E8;
       --text-secondary: #9CA3AF;
       --text-muted: #6B7280;
@@ -48,9 +78,16 @@
     /* ═══════════════════════════════════════════
        RESET & BASE
        ═══════════════════════════════════════════ */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    html, body {
+    html,
+    body {
       height: 100%;
       overflow: hidden;
       background: var(--bg-deep);
@@ -92,7 +129,9 @@
       letter-spacing: 0.02em;
     }
 
-    .header__title span { color: var(--red-accent); }
+    .header__title span {
+      color: var(--red-accent);
+    }
 
     .header__subtitle {
       font-size: 0.7rem;
@@ -102,18 +141,40 @@
       letter-spacing: 0.04em;
     }
 
-    .header__actions { display: flex; gap: 8px; align-items: center; }
-
-    .tab-nav { display: flex; gap: 4px; }
-    .tab-nav__link {
-      font-family: var(--font-body); font-size: 0.7rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted);
-      text-decoration: none; padding: 6px 12px;
-      border-radius: var(--radius) var(--radius) 0 0;
-      border: 1px solid transparent; transition: all var(--transition);
+    .header__actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
     }
-    .tab-nav__link:hover { color: var(--text-secondary); background: rgba(255,255,255,0.03); }
-    .tab-nav__link--active { color: var(--gold); border-bottom: 2px solid var(--gold); }
+
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tab-nav__link {
+      font-family: var(--font-body);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      border: 1px solid transparent;
+      transition: all var(--transition);
+    }
+
+    .tab-nav__link:hover {
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tab-nav__link--active {
+      color: var(--gold);
+      border-bottom: 2px solid var(--gold);
+    }
 
     /* ═══════════════════════════════════════════
        MAIN — RESPONSIVE GRID
@@ -148,7 +209,9 @@
       border-bottom: 1px solid var(--border-panel);
     }
 
-    .panel__icon { font-size: 1.2rem; }
+    .panel__icon {
+      font-size: 1.2rem;
+    }
 
     .panel__title {
       font-family: var(--font-display);
@@ -203,8 +266,16 @@
     }
 
     .field__input::-webkit-outer-spin-button,
-    .field__input::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
-    .field__input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+    .field__input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      appearance: none;
+      margin: 0;
+    }
+
+    .field__input[type=number] {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
 
     .field__hint {
       font-size: 0.65rem;
@@ -244,22 +315,72 @@
 
     .btn-primary:active {
       transform: translateY(1px);
-      box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
     }
 
     /* ═══════════════════════════════════════════
        RESPONSIVE MOBILE
        ═══════════════════════════════════════════ */
     @media (max-width: 900px) {
-      body, html { overflow: auto; min-height: 100vh; }
-      #app { height: auto; min-height: 100vh; grid-template-rows: auto 1fr; display: block; }
-      .main { grid-template-columns: 1fr; overflow-y: visible; height: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; background: transparent; }
-      .header { flex-wrap: wrap; gap: 10px; }
-      .header__meta { width: 100%; justify-content: space-between; border-top: 1px solid var(--border-panel); padding-top: 10px; }
-      .tab-nav { margin-right: 0; width: 100%; overflow-x: auto; white-space: nowrap; flex-wrap: nowrap; border-bottom: 1px solid rgba(212,175,55,0.1); padding-bottom: 2px; }
-      .tab-nav::-webkit-scrollbar { display: none; }
-      .panel { min-height: fit-content; border: 1px solid var(--border-panel); border-radius: var(--radius-lg); }
+
+      body,
+      html {
+        overflow: auto;
+        min-height: 100vh;
+      }
+
+      #app {
+        height: auto;
+        min-height: 100vh;
+        grid-template-rows: auto 1fr;
+        display: block;
+        overflow: visible;
+      }
+
+      .main {
+        grid-template-columns: 1fr;
+        overflow-y: visible;
+        height: auto;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: transparent;
+      }
+
+      .header {
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .header__meta {
+        width: 100%;
+        justify-content: space-between;
+        border-top: 1px solid var(--border-panel);
+        padding-top: 10px;
+      }
+
+      .tab-nav {
+        margin-right: 0;
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+        flex-wrap: nowrap;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+        padding-bottom: 2px;
+      }
+
+      .tab-nav::-webkit-scrollbar {
+        display: none;
+      }
+
+      .panel {
+        min-height: fit-content;
+        border: 1px solid var(--border-panel);
+        border-radius: var(--radius-lg);
+      }
     }
+
     .btn-secondary {
       background: var(--bg-input);
       border: 1px solid var(--border-input);
@@ -296,8 +417,15 @@
       align-self: center;
     }
 
-    .btn-copy:hover { border-color: var(--gold); color: var(--gold); }
-    .btn-copy.copied { border-color: var(--green-success); color: var(--green-success); }
+    .btn-copy:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .btn-copy.copied {
+      border-color: var(--green-success);
+      color: var(--green-success);
+    }
 
     /* ═══════════════════════════════════════════
        RESULT DISPLAYS
@@ -348,22 +476,72 @@
     }
 
     /* Reaction result states */
-    .result--desastroso { border-color: var(--red-failure); box-shadow: 0 0 16px rgba(220,38,38,0.25); }
-    .result--desastroso .result-box__level { color: var(--red-failure); }
-    .result--muito-ruim { border-color: #B91C1C; }
-    .result--muito-ruim .result-box__level { color: #EF4444; }
-    .result--ruim { border-color: var(--orange-warn); }
-    .result--ruim .result-box__level { color: var(--orange-warn); }
-    .result--fraco { border-color: #92400E; }
-    .result--fraco .result-box__level { color: #D97706; }
-    .result--neutro { border-color: var(--border-panel); }
-    .result--neutro .result-box__level { color: var(--text-secondary); }
-    .result--bom { border-color: #059669; }
-    .result--bom .result-box__level { color: #34D399; }
-    .result--muito-bom { border-color: var(--green-success); box-shadow: 0 0 12px rgba(34,197,94,0.2); }
-    .result--muito-bom .result-box__level { color: var(--green-success); }
-    .result--excelente { border-color: var(--gold); box-shadow: 0 0 20px var(--gold-glow); }
-    .result--excelente .result-box__level { color: var(--gold); }
+    .result--desastroso {
+      border-color: var(--red-failure);
+      box-shadow: 0 0 16px rgba(220, 38, 38, 0.25);
+    }
+
+    .result--desastroso .result-box__level {
+      color: var(--red-failure);
+    }
+
+    .result--muito-ruim {
+      border-color: #B91C1C;
+    }
+
+    .result--muito-ruim .result-box__level {
+      color: #EF4444;
+    }
+
+    .result--ruim {
+      border-color: var(--orange-warn);
+    }
+
+    .result--ruim .result-box__level {
+      color: var(--orange-warn);
+    }
+
+    .result--fraco {
+      border-color: #92400E;
+    }
+
+    .result--fraco .result-box__level {
+      color: #D97706;
+    }
+
+    .result--neutro {
+      border-color: var(--border-panel);
+    }
+
+    .result--neutro .result-box__level {
+      color: var(--text-secondary);
+    }
+
+    .result--bom {
+      border-color: #059669;
+    }
+
+    .result--bom .result-box__level {
+      color: #34D399;
+    }
+
+    .result--muito-bom {
+      border-color: var(--green-success);
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.2);
+    }
+
+    .result--muito-bom .result-box__level {
+      color: var(--green-success);
+    }
+
+    .result--excelente {
+      border-color: var(--gold);
+      box-shadow: 0 0 20px var(--gold-glow);
+    }
+
+    .result--excelente .result-box__level {
+      color: var(--gold);
+    }
 
     /* Oracle result */
     .oracle-result {
@@ -405,8 +583,13 @@
       font-weight: 300;
     }
 
-    .oracle-result__action { color: var(--red-accent); }
-    .oracle-result__theme { color: var(--gold); }
+    .oracle-result__action {
+      color: var(--red-accent);
+    }
+
+    .oracle-result__theme {
+      color: var(--gold);
+    }
 
     .oracle-result__prompt {
       font-size: 0.7rem;
@@ -485,224 +668,1068 @@
     }
 
     /* ═══════════════════════════════════════════
-       HISTORY STRIP
+       PADRÃO UNIFICADO — REGISTRO DE HISTÓRICO
        ═══════════════════════════════════════════ */
     .history {
       background: var(--bg-panel);
       border-top: 1px solid var(--border-panel);
       display: flex;
       flex-direction: column;
-      max-height: 28vh;
-      min-height: 100px;
+      height: 320px;
+      max-height: 40vh;
+      flex-shrink: 0;
+      overflow: hidden;
     }
 
     .history__header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 24px;
+      padding: 8px 16px;
       border-bottom: 1px solid var(--border-panel);
       flex-shrink: 0;
     }
 
     .history__title {
       font-family: var(--font-display);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: var(--text-muted);
+      color: var(--gold);
     }
 
     .history__list {
       overflow-y: auto;
-      padding: 8px 24px;
+      padding: 10px 16px 40px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
       flex: 1;
       min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-panel) transparent;
     }
+
+    .history__list::-webkit-scrollbar { width: 5px; }
+    .history__list::-webkit-scrollbar-track { background: transparent; }
+    .history__list::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
+    .history__list::-webkit-scrollbar-thumb:hover { background: var(--gold); }
 
     .history__empty {
       color: var(--text-muted);
       font-size: 0.8rem;
       text-align: center;
-      padding: 12px;
+      padding: 20px 12px;
       font-style: italic;
     }
 
     .history__entry {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 5px 12px;
+      gap: 10px;
+      padding: 8px 12px;
       border-radius: var(--radius);
       background: var(--bg-deep);
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       font-variant-numeric: tabular-nums;
       border-left: 3px solid var(--border-panel);
+      transition: background var(--transition);
+      flex-wrap: wrap;
     }
 
-    .history__entry--reacao { border-left-color: var(--blue-info); }
-    .history__entry--oraculo { border-left-color: var(--gold); }
-    .history__entry--npc { border-left-color: var(--green-success); }
+    .history__entry:hover { background: rgba(255, 255, 255, 0.02); }
 
-    .history__time { color: var(--text-muted); min-width: 40px; }
-    .history__action { color: var(--text-secondary); min-width: 60px; font-weight: 600; }
-    .history__detail { color: var(--text-secondary); flex: 1; }
-    .history__result-text { font-weight: 700; }
+    .history__time {
+      color: var(--text-muted);
+      min-width: 48px;
+      flex-shrink: 0;
+      font-size: 0.7rem;
+      font-family: monospace;
+    }
+
+    .history__badge {
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      background: rgba(212, 168, 70, 0.1);
+      padding: 2px 6px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .history__text {
+      color: var(--text-secondary);
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ── Variantes de cor por tipo ── */
+    .history__entry--dano,
+    .history__entry--sucesso { border-left-color: var(--green-success); }
+    .history__entry--dano .history__text { color: #e5e7eb; }
+    .history__entry--turno,
+    .history__entry--oraculo,
+    .history__entry--time { border-left-color: var(--gold); }
+    .history__entry--turno .history__badge,
+    .history__entry--oraculo .history__badge { color: var(--gold); background: rgba(212, 168, 70, 0.12); }
+    .history__entry--critico { border-left-color: var(--gold); }
+    .history__entry--critico .history__badge { color: var(--gold); background: rgba(212, 168, 70, 0.15); }
+    .history__entry--falha { border-left-color: var(--text-muted); }
+    .history__entry--falha-critica,
+    .history__entry--death { border-left-color: var(--red-failure); }
+    .history__entry--death .history__text { color: #ef4444; font-weight: 700; }
+    .history__entry--panic { border-left-color: #C084FC; }
+    .history__entry--panic .history__text { color: #fbbf24; }
+    .history__entry--reacao { border-left-color: var(--blue-info); }
+    .history__entry--rest { border-left-color: var(--blue-info); }
+    .history__entry--exhaust { border-left-color: var(--blue-info); }
+    .history__entry--npc { border-left-color: var(--green-success); }
+    .history__entry--kegare { border-left-color: var(--kegare-tainted); }
+    .history__entry--fail { border-left-color: var(--red-failure); }
 
     /* ═══════════════════════════════════════════
        ANIMATIONS
        ═══════════════════════════════════════════ */
     @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20% { transform: translateX(-4px); }
-      40% { transform: translateX(4px); }
-      60% { transform: translateX(-3px); }
-      80% { transform: translateX(3px); }
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      20% {
+        transform: translateX(-4px);
+      }
+
+      40% {
+        transform: translateX(4px);
+      }
+
+      60% {
+        transform: translateX(-3px);
+      }
+
+      80% {
+        transform: translateX(3px);
+      }
     }
 
     @keyframes glow-pulse {
-      0%, 100% { box-shadow: 0 0 15px var(--gold-glow); }
-      50% { box-shadow: 0 0 30px var(--gold-glow), 0 0 50px rgba(212,168,70,0.2); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 15px var(--gold-glow);
+      }
+
+      50% {
+        box-shadow: 0 0 30px var(--gold-glow), 0 0 50px rgba(212, 168, 70, 0.2);
+      }
     }
 
     @keyframes dice-shimmer {
-      0% { opacity: 1; }
-      50% { opacity: 0.4; }
-      100% { opacity: 1; }
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+
+      100% {
+        opacity: 1;
+      }
     }
 
     @keyframes slideIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
-    .anim-shake { animation: shake 400ms ease; }
-    .anim-glow { animation: glow-pulse 1.5s ease infinite; }
+    .anim-shake {
+      animation: shake 400ms ease;
+    }
+
+    .anim-glow {
+      animation: glow-pulse 1.5s ease infinite;
+    }
+
     .anim-rolling .result-box__dice,
-    .anim-rolling .oracle-result__dice { animation: dice-shimmer 100ms linear infinite; }
-    .anim-slide { animation: slideIn 350ms ease; }
+    .anim-rolling .oracle-result__dice {
+      animation: dice-shimmer 100ms linear infinite;
+    }
+
+    .anim-slide {
+      animation: slideIn 350ms ease;
+    }
 
     /* ═══════════════════════════════════════════
        RESPONSIVE
        ═══════════════════════════════════════════ */
     @media (max-width: 700px) {
-        .side-by-side {
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
+      .side-by-side {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
     }
 
     /* ═══════════════════════════════════════════
        TACTICAL MAP ENHANCEMENTS
        ═══════════════════════════════════════════ */
     .tactical-token {
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-        user-select: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      user-select: none;
     }
-    .tactical-token.dragging { 
-        transform: scale(1.1);
-        box-shadow: 0 0 20px rgba(255,255,255,0.4);
-        z-index: 1000;
+
+    .tactical-token.dragging {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+      z-index: 1000;
     }
 
     /* Sizes (High Specificity to override base class) */
-    .tactical-token.token-sm { width: 20px; height: 20px; font-size: 0.6rem; }
-    .tactical-token.token-md { width: 32px; height: 32px; font-size: 0.8rem; }
-    .tactical-token.token-lg { width: 48px; height: 48px; font-size: 1.1rem; }
+    .tactical-token.token-sm {
+      width: 20px;
+      height: 20px;
+      font-size: 0.6rem;
+    }
+
+    .tactical-token.token-md {
+      width: 32px;
+      height: 32px;
+      font-size: 0.8rem;
+    }
+
+    .tactical-token.token-lg {
+      width: 48px;
+      height: 48px;
+      font-size: 1.1rem;
+    }
 
     /* Colors */
-    .token-player  { border: 2px solid #3B82F6; background: rgba(59, 130, 246, 0.5) !important; }
-    .token-enemy   { border: 2px solid var(--red-accent); background: rgba(196, 30, 58, 0.5) !important; }
-    .token-neutral { border: 2px solid var(--text-muted); background: rgba(107, 114, 128, 0.5) !important; }
-    .token-gold    { border: 2px solid var(--gold); background: rgba(212, 168, 70, 0.5) !important; }
-    .token-purple  { border: 2px solid #8B5CF6; background: rgba(139, 92, 246, 0.5) !important; }
-    .token-green   { border: 2px solid #22C55E; background: rgba(34, 197, 94, 0.5) !important; }
-    .token-pink    { border: 2px solid #EC4899; background: rgba(236, 72, 153, 0.5) !important; }
-    .token-cyan    { border: 2px solid #06B6D4; background: rgba(6, 182, 212, 0.5) !important; }
-    .token-orange  { border: 2px solid #F97316; background: rgba(249, 115, 22, 0.5) !important; }
+    .token-player {
+      border: 2px solid #3B82F6;
+      background: rgba(59, 130, 246, 0.5) !important;
+    }
+
+    .token-enemy {
+      border: 2px solid var(--red-accent);
+      background: rgba(196, 30, 58, 0.5) !important;
+    }
+
+    .token-neutral {
+      border: 2px solid var(--text-muted);
+      background: rgba(107, 114, 128, 0.5) !important;
+    }
+
+    .token-gold {
+      border: 2px solid var(--gold);
+      background: rgba(212, 168, 70, 0.5) !important;
+    }
+
+    .token-purple {
+      border: 2px solid #8B5CF6;
+      background: rgba(139, 92, 246, 0.5) !important;
+    }
+
+    .token-green {
+      border: 2px solid #22C55E;
+      background: rgba(34, 197, 94, 0.5) !important;
+    }
+
+    .token-pink {
+      border: 2px solid #EC4899;
+      background: rgba(236, 72, 153, 0.5) !important;
+    }
+
+    .token-cyan {
+      border: 2px solid #06B6D4;
+      background: rgba(6, 182, 212, 0.5) !important;
+    }
+
+    .token-orange {
+      border: 2px solid #F97316;
+      background: rgba(249, 115, 22, 0.5) !important;
+    }
 
     /* Shapes */
-    .token-shape-circle   { border-radius: 50% !important; clip-path: none !important; }
-    .token-shape-square   { border-radius: 0 !important; clip-path: none !important; }
-    .token-shape-triangle { border-radius: 0 !important; clip-path: polygon(50% 0%, 0% 100%, 100% 100%) !important; }
-    .token-shape-diamond  { border-radius: 0 !important; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important; }
-    .token-shape-star     { border-radius: 0 !important; clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%) !important; }
+    .token-shape-circle {
+      border-radius: 50% !important;
+      clip-path: none !important;
+    }
+
+    .token-shape-square {
+      border-radius: 0 !important;
+      clip-path: none !important;
+    }
+
+    .token-shape-triangle {
+      border-radius: 0 !important;
+      clip-path: polygon(50% 0%, 0% 100%, 100% 100%) !important;
+    }
+
+    .token-shape-diamond {
+      border-radius: 0 !important;
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important;
+    }
+
+    .token-shape-star {
+      border-radius: 0 !important;
+      clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%) !important;
+    }
 
     /* Context Menu */
     #token-context-menu {
-        position: fixed;
-        z-index: 10000;
-        background: var(--bg-panel);
-        border: 1px solid var(--border-panel);
-        border-radius: var(--radius);
-        box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-        padding: 5px;
-        min-width: 140px;
-        display: none;
-        flex-direction: column;
-        gap: 2px;
+      position: fixed;
+      z-index: 10000;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-panel);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+      padding: 5px;
+      min-width: 140px;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
     }
+
     .context-menu__item {
-        padding: 8px 12px;
-        font-size: 0.75rem;
-        color: var(--text-primary);
-        cursor: pointer;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: background 0.2s;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      color: var(--text-primary);
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.2s;
     }
+
     .context-menu__item:hover {
-        background: rgba(255,255,255,0.05);
-        color: var(--gold);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--gold);
     }
+
     .context-menu__divider {
-        height: 1px;
-        background: var(--border-panel);
-        margin: 4px 0;
+      height: 1px;
+      background: var(--border-panel);
+      margin: 4px 0;
     }
+
     .context-menu__submenu {
-        display: flex;
-        gap: 4px;
-        padding: 4px;
-        flex-wrap: wrap;
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      flex-wrap: wrap;
     }
+
     .color-dot {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        cursor: pointer;
-        border: 1px solid rgba(255,255,255,0.2);
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
+
     .size-box {
-        padding: 2px 6px;
-        background: var(--bg-input);
-        border: 1px solid var(--border-input);
-        border-radius: 3px;
-        font-size: 0.6rem;
-        cursor: pointer;
+      padding: 2px 6px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-input);
+      border-radius: 3px;
+      font-size: 0.6rem;
+      cursor: pointer;
     }
 
+    /* ═══════════════════════════════════════════
+       MAP CONTROLS REDESIGN
+       ═══════════════════════════════════════════ */
+    .map-sel {
+      width: auto;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      min-height: 36px;
+      background: var(--bg-input);
+      color: var(--text-primary);
+      border: 1px solid var(--border-input);
+      border-radius: var(--radius);
+    }
+
+    .map-sel--sm {
+      width: 72px;
+      min-width: 72px;
+    }
+
+    .map-btn {
+      padding: 6px 10px;
+      font-size: 1rem;
+      min-width: 36px;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tactical-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .map-btn-add {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--gold);
+      border: 1px solid rgba(212, 168, 70, 0.3);
+      border-radius: var(--radius);
+      min-height: 36px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .map-btn-add:hover,
+    .map-btn-add:focus-visible {
+      background: rgba(212, 168, 70, 0.1);
+      border-color: var(--gold);
+    }
+
+    .map-btn-add--blue {
+      color: #3B82F6;
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .map-btn-add--blue:hover,
+    .map-btn-add--blue:focus-visible {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: #3B82F6;
+    }
+
+    .map-btn-add--red {
+      color: var(--red-accent);
+      border-color: rgba(196, 30, 58, 0.3);
+    }
+
+    .map-btn-add--red:hover,
+    .map-btn-add--red:focus-visible {
+      background: rgba(196, 30, 58, 0.1);
+      border-color: var(--red-accent);
+    }
+
+    .map-btn-add__icon {
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+
+    /* BREADCRUMB */
+    .map-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 16px;
+      background: rgba(0, 0, 0, 0.3);
+      border-bottom: 1px solid var(--border-panel);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      overflow-x: auto;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .map-breadcrumb__item {
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .map-breadcrumb__item:hover {
+      color: var(--gold);
+      background: rgba(212, 168, 70, 0.1);
+    }
+
+    .map-breadcrumb__item--active {
+      color: var(--gold);
+      font-weight: 700;
+      cursor: default;
+    }
+
+    .map-breadcrumb__sep {
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    /* EMPTY STATE */
+    .map-empty-state {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .map-empty-state__icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+
+    .map-empty-state__title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .map-empty-state__desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      max-width: 260px;
+    }
+
+    /* BATTLE GRID */
+    .battle-grid {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 50;
+      opacity: 0.25;
+    }
+
+    /* ═══════════════════════════════════════════
+       MODAL REDESIGN
+       ═══════════════════════════════════════════ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 9000;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-panel {
+      width: 100%;
+      max-width: 440px;
+      max-height: 92vh;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-panel);
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: slideUp 0.25s ease;
+    }
+
+    @media (min-width: 600px) {
+      .modal-overlay {
+        align-items: center;
+      }
+
+      .modal-panel {
+        border-radius: var(--radius);
+        max-height: 85vh;
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-panel);
+      flex-shrink: 0;
+    }
+
+    .modal-header__title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin: 0;
+    }
+
+    .modal-header__close {
+      font-size: 1.5rem;
+      padding: 4px 8px;
+      line-height: 1;
+      color: var(--text-muted);
+      min-width: 40px;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .modal-section__label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-panel);
+      flex-shrink: 0;
+    }
+
+    .modal-footer .btn {
+      flex: 1;
+      min-height: 44px;
+      font-size: 0.85rem;
+    }
+
+    /* MAP TYPE CARDS */
+    .map-type-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .map-type-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 12px 8px;
+      background: var(--bg-input);
+      border: 2px solid var(--border-input);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, transform 0.1s;
+      text-align: center;
+      color: var(--text-primary);
+      min-height: 80px;
+      justify-content: center;
+    }
+
+    .map-type-card:hover,
+    .map-type-card:focus-visible {
+      border-color: var(--gold);
+      background: rgba(212, 168, 70, 0.05);
+    }
+
+    .map-type-card:active {
+      transform: scale(0.96);
+    }
+
+    .map-type-card.active {
+      border-color: var(--gold);
+      background: rgba(212, 168, 70, 0.12);
+      box-shadow: 0 0 12px rgba(212, 168, 70, 0.2);
+    }
+
+    .map-type-card--battle.active {
+      border-color: var(--red-accent);
+      background: rgba(196, 30, 58, 0.12);
+      box-shadow: 0 0 12px rgba(196, 30, 58, 0.2);
+    }
+
+    .map-type-card__icon {
+      font-size: 1.5rem;
+    }
+
+    .map-type-card__title {
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .map-type-card__desc {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    /* UPLOAD ZONE */
+    .upload-zone {
+      position: relative;
+      border: 2px dashed var(--border-input);
+      border-radius: var(--radius);
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: var(--bg-input);
+      min-height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .upload-zone:hover,
+    .upload-zone:focus-visible {
+      border-color: var(--gold);
+      background: rgba(212, 168, 70, 0.03);
+    }
+
+    .upload-zone.drag-over {
+      border-color: var(--gold);
+      background: rgba(212, 168, 70, 0.08);
+      box-shadow: inset 0 0 20px rgba(212, 168, 70, 0.1);
+    }
+
+    .upload-zone.has-file {
+      border-style: solid;
+      border-color: var(--gold);
+      padding: 8px;
+    }
+
+    .upload-zone__input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .upload-zone__content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .upload-zone__icon {
+      font-size: 2rem;
+      opacity: 0.5;
+    }
+
+    .upload-zone__text {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .upload-zone__sub {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .upload-zone__preview {
+      position: relative;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .upload-zone__img {
+      max-width: 100%;
+      max-height: 160px;
+      border-radius: 6px;
+      object-fit: contain;
+    }
+
+    .upload-zone__filename {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      word-break: break-all;
+    }
+
+    .upload-zone__remove {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--red-accent);
+      color: white;
+      border: none;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      min-width: 28px;
+      min-height: 28px;
+    }
+
+    /* GRID OPTIONS */
+    .grid-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .grid-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .grid-option__check {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--gold);
+    }
+
+    .grid-option__label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .grid-size-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-left: 26px;
+    }
+
+    /* MAP TREE VIEW */
+    .map-tree {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .map-tree__node {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-input);
+      border-radius: var(--radius);
+      font-size: 0.8rem;
+    }
+
+    .map-tree__node--macro {
+      border-color: var(--gold);
+      background: rgba(212, 168, 70, 0.05);
+    }
+
+    .map-tree__node--region {
+      margin-left: 16px;
+    }
+
+    .map-tree__node--city {
+      margin-left: 32px;
+    }
+
+    .map-tree__node--battle {
+      margin-left: 32px;
+      border-color: rgba(196, 30, 58, 0.3);
+    }
+
+    .map-tree__icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .map-tree__name {
+      flex: 1;
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .map-tree__badge {
+      font-size: 0.6rem;
+      padding: 2px 6px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+    }
+
+    .map-tree__delete {
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      min-height: 28px;
+      min-width: 28px;
+      color: var(--red-accent);
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+
+    .map-tree__delete:hover {
+      opacity: 1;
+    }
+
+    .map-tree__empty {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE: MOBILE MAP
+       ═══════════════════════════════════════════ */
     @media (max-width: 1024px) {
-      html, body { overflow: auto; }
-      #app { grid-template-rows: auto 1fr auto; height: 100vh; }
-      .main { grid-template-columns: 1fr; gap: 12px; padding: 10px; }
-      .panel { padding: 16px 20px; }
-      .history { max-height: 250px; min-height: 120px; }
+
+      html,
+      body {
+        overflow: auto;
+      }
+
+      #app {
+        grid-template-rows: auto 1fr auto;
+        height: 100vh;
+      }
+
+      .main {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 10px;
+      }
+
+      .panel {
+        padding: 16px 20px;
+      }
+
+      .history {
+        max-height: none;
+        height: auto;
+        min-height: 150px;
+      }
     }
 
-    @media (max-width: 480px) {
-      .header { padding: 10px 16px; flex-wrap: wrap; gap: 8px; }
-      .header__title { font-size: 0.95rem; }
-      .header__subtitle { display: none; }
-      .panel { padding: 14px 16px; }
-      .history__list { padding: 8px 16px; }
-      .history__header { padding: 8px 16px; }
+    @media (max-width: 600px) {
+      .tactical-header {
+        padding: 8px 10px;
+        gap: 6px;
+      }
+
+      .tactical-controls {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .map-select-group {
+        gap: 3px;
+        padding: 3px;
+      }
+
+      .map-sel {
+        font-size: 0.7rem;
+        padding: 5px 6px;
+        min-height: 34px;
+      }
+
+      .map-btn {
+        padding: 5px 8px;
+        min-width: 34px;
+        min-height: 34px;
+        font-size: 0.9rem;
+      }
+
+      .tactical-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .map-btn-add {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 6px;
+      }
+
+      .map-btn-add__label {
+        font-size: 0.65rem;
+      }
+
+      .tactical-map-viewport {
+        min-height: 50vh;
+      }
+
+      .map-type-cards {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      .map-type-card {
+        flex-direction: row;
+        min-height: auto;
+        padding: 10px 12px;
+        gap: 10px;
+      }
+
+      .map-type-card__desc {
+        display: none;
+      }
+
+      .map-type-card__title {
+        font-size: 0.8rem;
+      }
+
+      .header {
+        padding: 10px 16px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .header__title {
+        font-size: 0.95rem;
+      }
+
+      .header__subtitle {
+        display: none;
+      }
+
+      .panel {
+        padding: 14px 16px;
+      }
+
+      .history__list {
+        padding: 8px 16px;
+      }
+
+      .history__header {
+        padding: 8px 16px;
+      }
     }
 
     /* ═══════════════════════════════════════════
@@ -716,6 +1743,7 @@
       overflow: hidden;
       position: relative;
     }
+
     .tactical-header {
       display: flex;
       flex-wrap: wrap;
@@ -727,21 +1755,24 @@
       border-bottom: 1px solid var(--border-panel);
       flex-shrink: 0;
     }
+
     .tactical-controls {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
     }
+
     .map-select-group {
       display: flex;
       gap: 4px;
-      background: rgba(0,0,0,0.2);
+      background: rgba(0, 0, 0, 0.2);
       padding: 4px;
       border-radius: var(--radius);
       border: 1px solid var(--border-panel);
       align-items: center;
     }
+
     .tactical-map-viewport {
       flex: 1;
       position: relative;
@@ -749,13 +1780,20 @@
       touch-action: none;
       background-color: #050505;
       cursor: grab;
-      min-height: 60vh; /* Garante que nunca colapse em 0px no render de layout do Desktop */
+      min-height: 60vh;
+      /* Garante que nunca colapse em 0px no render de layout do Desktop */
     }
-    .tactical-map-viewport:active { cursor: grabbing; }
-    
+
+    .tactical-map-viewport:active {
+      cursor: grabbing;
+    }
+
     .tactical-map-content {
       position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       background-size: contain;
       background-repeat: no-repeat;
       background-position: center;
@@ -770,30 +1808,34 @@
       height: 32px;
       border-radius: 50%;
       transform: translate(-50%, -50%);
-      cursor: pointer; /* Change to pointer to prevent overlapping grab logic too awkwardly when zoomed */
+      cursor: pointer;
+      /* Change to pointer to prevent overlapping grab logic too awkwardly when zoomed */
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
       color: white;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.8), inset 0 0 0 2px rgba(255,255,255,0.2);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8), inset 0 0 0 2px rgba(255, 255, 255, 0.2);
       font-size: 0.8rem;
       user-select: none;
       z-index: 100;
       transition: box-shadow 0.2s, background-color 0.2s;
     }
-    .tactical-token:active, .tactical-token.dragging {
+
+    .tactical-token:active,
+    .tactical-token.dragging {
       cursor: grabbing;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.9), inset 0 0 0 2px rgba(255,255,255,0.4);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.9), inset 0 0 0 2px rgba(255, 255, 255, 0.4);
       z-index: 1000;
     }
+
     /* Redundant definitions removed to prevent conflict with reactive styling */
-    
+
     .tactical-token .token-label {
       position: absolute;
       top: 100%;
       margin-top: 4px;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0, 0, 0, 0.7);
       padding: 2px 6px;
       border-radius: 4px;
       font-size: 0.65rem;
@@ -804,261 +1846,384 @@
     }
 
     /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg-deep); }
-    ::-webkit-scrollbar-thumb { background: var(--border-panel); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-  </style>
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
 
-  
-  <!-- PWA METATAGS -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0A0A0A">
-  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
-  <link rel="icon" type="image/png" href="icons/app-icon-192.png">
-  <!-- PWA METATAGS -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0A0A0A">
-  <link rel="apple-touch-icon" href="icons/app-icon-192.png">
-  <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+    ::-webkit-scrollbar-track {
+      background: var(--bg-deep);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-panel);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="app">
+  <div id="app">
 
-  <!-- ════════ HEADER ════════ -->
-  <!-- daimyo-header-mount será injetado pelo script -->
-  <script src="js/header-loader.js"></script>
+    <!-- ════════ HEADER ════════ -->
+    <!-- daimyo-header-mount será injetado pelo script -->
+    <script src="js/header-loader.js"></script>
 
-  <!-- ════════ MAIN: 3 COLUMNS ════════ -->
-  <main class="main">
+    <!-- ════════ MAIN: 3 COLUMNS ════════ -->
+    <main class="main">
 
-    <!-- ── PAINEL 1: REAÇÃO SOCIAL ── -->
-    <section class="panel" id="panel-reacao">
-      <div class="panel__header">
-        <span class="panel__icon">🎭</span>
-        <h2 class="panel__title">Reação Social</h2>
-      </div>
-
-      <div class="field">
-        <label class="field__label" for="input-modificador">Modificador do Jogador</label>
-        <input class="field__input" type="number" id="input-modificador" min="-20" max="20" placeholder="Ex: +2 ou -3" value="0">
-        <span class="field__hint">Carisma, Status, Reputação, etc.</span>
-      </div>
-
-      <button class="btn btn-primary" id="btn-reacao">🎲 Rolar Reação</button>
-
-      <div class="result-box" id="result-reacao">
-        <span class="result-box__dice" id="dice-reacao">—</span>
-        <span class="result-box__level" id="level-reacao">Aguardando...</span>
-        <span class="result-box__desc" id="desc-reacao"></span>
-        <span class="result-box__kanji" id="kanji-reacao"></span>
-        <span class="field__hint" style="margin-top: 8px; opacity: 0.7;">A sociedade valoriza a harmonia (Wa) acima da verdade (Omote/Ura).</span>
-      </div>
-    </section>
-
-    <!-- ── PAINEL 2: ORÁCULO DE TRAMA ── -->
-    <section class="panel" id="panel-oraculo">
-      <div class="panel__header">
-        <span class="panel__icon">🔮</span>
-        <h2 class="panel__title">Oráculo de Trama</h2>
-      </div>
-
-      <p style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;">
-        Sistema <strong style="color:var(--text-secondary)">d66</strong>: dois d6 independentes formam um código (dezena + unidade). Gera uma combinação <em>Ação + Tema</em> para improvisar.
-      </p>
-
-      <button class="btn btn-primary" id="btn-oraculo">🔮 Consultar Oráculo</button>
-
-      <div class="oracle-result" id="result-oraculo" style="display:none;">
-        <span class="oracle-result__dice" id="dice-oraculo"></span>
-        <div class="oracle-result__row">
-          <span class="oracle-result__word oracle-result__action" id="action-oraculo"></span>
-          <span class="oracle-result__plus">+</span>
-          <span class="oracle-result__word oracle-result__theme" id="theme-oraculo"></span>
+      <!-- ── PAINEL 1: REAÇÃO SOCIAL ── -->
+      <section class="panel" id="panel-reacao">
+        <div class="panel__header">
+          <span class="panel__icon">🎭</span>
+          <h2 class="panel__title">Reação Social</h2>
         </div>
-        <span class="oracle-result__prompt" id="prompt-oraculo"></span>
-        <span class="oracle-result__prompt" id="twist-oraculo" style="color:var(--orange-warn); font-weight: 600; margin-top: 4px;"></span>
-        <button class="btn btn-copy" id="btn-copy-oraculo">📋 Copiar</button>
-      </div>
-    </section>
 
-    <!-- ── PAINEL 3: GERADOR DE NPC ── -->
-    <section class="panel" id="panel-npc">
-      <div class="panel__header">
-        <span class="panel__icon">⚔</span>
-        <h2 class="panel__title">Gerador de NPC</h2>
-      </div>
-
-      <p style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;">
-        Gera um NPC instantâneo com nome, clã, especialidade e segredo. Baseado nos dados do cenário.
-      </p>
-
-      <button class="btn btn-primary" id="btn-npc">⚔ Gerar NPC</button>
-
-      <div class="npc-card" id="result-npc" style="display:none;">
-        <span class="npc-card__clan" id="npc-clan"></span>
-        <span class="npc-card__name" id="npc-name"></span>
-        <div class="npc-card__divider"></div>
-        <div class="npc-card__row">
-          <span class="npc-card__label">Especialidade</span>
-          <span class="npc-card__value" id="npc-specialty"></span>
+        <div class="field">
+          <label class="field__label" for="input-modificador">Modificador do Jogador</label>
+          <input class="field__input" type="number" id="input-modificador" min="-20" max="20" placeholder="Ex: +2 ou -3"
+            value="0">
+          <span class="field__hint">Carisma, Status, Reputação, etc.</span>
         </div>
-        <div class="npc-card__row">
-          <span class="npc-card__label">Característica</span>
-          <span class="npc-card__value" id="npc-trait"></span>
+
+        <button class="btn btn-primary" id="btn-reacao">🎲 Rolar Reação</button>
+
+        <div class="result-box" id="result-reacao">
+          <span class="result-box__dice" id="dice-reacao">—</span>
+          <span class="result-box__level" id="level-reacao">Aguardando...</span>
+          <span class="result-box__desc" id="desc-reacao"></span>
+          <span class="result-box__kanji" id="kanji-reacao"></span>
+          <span class="field__hint" style="margin-top: 8px; opacity: 0.7;">A sociedade valoriza a harmonia (Wa) acima da
+            verdade (Omote/Ura).</span>
         </div>
-        <div class="npc-card__row">
-          <span class="npc-card__label">Status</span>
-          <span class="npc-card__value" id="npc-status"></span>
+      </section>
+
+      <!-- ── PAINEL 2: ORÁCULO DE TRAMA ── -->
+      <section class="panel" id="panel-oraculo">
+        <div class="panel__header">
+          <span class="panel__icon">🔮</span>
+          <h2 class="panel__title">Oráculo de Trama</h2>
         </div>
-        <span class="npc-card__secret" id="npc-secret"></span>
-        <button class="btn btn-copy" id="btn-copy-npc">📋 Copiar NPC</button>
-      </div>
-    </section>
 
-    <!-- ── PAINEL 4: JORNADA & CLIMA ── -->
-    <section class="panel" id="panel-jornada">
-      <div class="panel__header">
-        <span class="panel__icon">🏔</span>
-        <h2 class="panel__title">Jornada & Clima</h2>
-      </div>
+        <p style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;">
+          Sistema <strong style="color:var(--text-secondary)">d66</strong>: dois d6 independentes formam um código
+          (dezena + unidade). Gera uma combinação <em>Ação + Tema</em> para improvisar.
+        </p>
 
-      <div class="field">
-        <label class="field__label">Estação do Ano</label>
-        <select class="field__input" id="select-estacao" style="padding:8px; font-size:0.9rem;">
-          <option value="primavera">Primavera (Sakura)</option>
-          <option value="verao">Verão (Mushicatsui)</option>
-          <option value="outono" selected>Outono (Momiji)</option>
-          <option value="inverno">Inverno (Yuki)</option>
-        </select>
-      </div>
+        <button class="btn btn-primary" id="btn-oraculo">🔮 Consultar Oráculo</button>
 
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-secondary" style="flex:1" id="btn-clima">🌤 Clima</button>
-        <button class="btn btn-secondary" style="flex:1" id="btn-encontro">⚔ Encontro</button>
-      </div>
+        <div class="oracle-result" id="result-oraculo" style="display:none;">
+          <span class="oracle-result__dice" id="dice-oraculo"></span>
+          <div class="oracle-result__row">
+            <span class="oracle-result__word oracle-result__action" id="action-oraculo"></span>
+            <span class="oracle-result__plus">+</span>
+            <span class="oracle-result__word oracle-result__theme" id="theme-oraculo"></span>
+          </div>
+          <span class="oracle-result__prompt" id="prompt-oraculo"></span>
+          <span class="oracle-result__prompt" id="twist-oraculo"
+            style="color:var(--orange-warn); font-weight: 600; margin-top: 4px;"></span>
+          <button class="btn btn-copy" id="btn-copy-oraculo">📋 Copiar</button>
+        </div>
+      </section>
 
-      <div class="result-box" id="result-jornada" style="display:none; text-align:center; padding: 12px; margin-top: auto;">
-        <span class="oracle-result__theme" id="jornada-titulo" style="font-size: 0.95rem; display:block; margin-bottom: 4px;"></span>
-        <span class="oracle-result__prompt" id="jornada-efeito" style="font-size: 0.8rem; color: var(--text-primary); font-weight:600; max-width:100%;"></span>
-      </div>
-    </section>
+      <!-- ── PAINEL 3: GERADOR DE NPC ── -->
+      <section class="panel" id="panel-npc">
+        <div class="panel__header">
+          <span class="panel__icon">⚔</span>
+          <h2 class="panel__title">Gerador de NPC</h2>
+        </div>
 
-    <!-- ── PAINEL 5: MUTAÇÕES DE KEGARE ── -->
-    <section class="panel" id="panel-mutacao">
-      <div class="panel__header">
-        <span class="panel__icon">👁</span>
-        <h2 class="panel__title">Oráculo da Mácula</h2>
-      </div>
-      
-      <p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-bottom: 8px;">Role quando um personagem falhar criticamente contra o Sangramento da Terra, ou for tocado por um Onryo de alto rank.</p>
-      <button class="btn btn-primary" id="btn-mutacao">🎲 Mutação (1d6)</button>
+        <p style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;">
+          Gera um NPC instantâneo com nome, clã, especialidade e segredo. Baseado nos dados do cenário.
+        </p>
 
-      <div class="result-box" id="result-mutacao" style="display:none; text-align:center; padding: 12px; border-color:var(--red-blood); margin-top: auto;">
-        <span class="oracle-result__dice" id="mutacao-dice" style="color:var(--red-accent);"></span>
-        <span class="oracle-result__action" id="mutacao-titulo" style="font-size:1rem; margin-top:4px; display:block; color:var(--red-accent);"></span>
-        <span class="oracle-result__prompt" id="mutacao-desc" style="margin-top:4px; font-size: 0.8rem; max-width:100%;"></span>
-      </div>
-    </section>
+        <button class="btn btn-primary" id="btn-npc">⚔ Gerar NPC</button>
 
-  </main>
+        <div class="npc-card" id="result-npc" style="display:none;">
+          <span class="npc-card__clan" id="npc-clan"></span>
+          <span class="npc-card__name" id="npc-name"></span>
+          <div class="npc-card__divider"></div>
+          <div class="npc-card__row">
+            <span class="npc-card__label">Especialidade</span>
+            <span class="npc-card__value" id="npc-specialty"></span>
+          </div>
+          <div class="npc-card__row">
+            <span class="npc-card__label">Característica</span>
+            <span class="npc-card__value" id="npc-trait"></span>
+          </div>
+          <div class="npc-card__row">
+            <span class="npc-card__label">Status</span>
+            <span class="npc-card__value" id="npc-status"></span>
+          </div>
+          <span class="npc-card__secret" id="npc-secret"></span>
+          <button class="btn btn-copy" id="btn-copy-npc">📋 Copiar NPC</button>
+        </div>
+      </section>
 
-  <!-- ════════ HISTORY ════════ -->
-  <section class="history" id="history-section">
-    <div class="history__header">
-      <h3 class="history__title">📜 Registro de Sessão</h3>
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-ghost" id="btn-reset">Resetar</button>
-        <button class="btn btn-ghost" id="btn-limpar-historico">Limpar</button>
-      </div>
-    </div>
-    <div class="history__list" id="history-list">
-      <p class="history__empty">Nenhuma ação registrada. Use os geradores para começar.</p>
-    </div>
-  </section>
+      <!-- ── PAINEL 4: JORNADA & CLIMA ── -->
+      <section class="panel" id="panel-jornada">
+        <div class="panel__header">
+          <span class="panel__icon">🏔</span>
+          <h2 class="panel__title">Jornada & Clima</h2>
+        </div>
 
-  <!-- ════════ TACTICAL MAP BOARD ════════ -->
-  <section id="tactical-board">
-    <div class="tactical-header">
-      <div class="tactical-controls">
-        
-        <!-- TREE CONTROLS -->
-        <div class="map-select-group">
-          <select id="sel-map-level" class="field__input" style="width:auto; padding:6px 10px; font-size:0.75rem;">
-             <option value="macro" selected>Visão Macro</option>
-             <option value="region">Regiões</option>
-             <option value="city">Cidades Locais</option>
+        <div class="field">
+          <label class="field__label">Estação do Ano</label>
+          <select class="field__input" id="select-estacao" style="padding:8px; font-size:0.9rem;">
+            <option value="primavera">Primavera (Sakura)</option>
+            <option value="verao">Verão (Mushicatsui)</option>
+            <option value="outono" selected>Outono (Momiji)</option>
+            <option value="inverno">Inverno (Yuki)</option>
           </select>
-          <select id="sel-map-specific" class="field__input" style="width:auto; padding:6px 10px; font-size:0.75rem; display:none;">
-          </select>
-          <button class="btn btn-ghost" id="btn-register-map" style="color:var(--gold); padding:6px 12px; font-weight:700;" title="Registrar Mapa">[+] Registrar</button>
         </div>
 
-        <!-- CAMERA CONTROLS -->
-        <div class="map-select-group" style="margin-left:8px;">
-           <button class="btn btn-ghost" id="btn-zoom-out" style="padding:6px 12px; font-size:0.9rem;" title="Afastar">-</button>
-           <button class="btn btn-ghost" id="btn-zoom-reset" style="padding:6px 12px; font-size:0.9rem;" title="Centralizar Visualização">🎯 Focar</button>
-           <button class="btn btn-ghost" id="btn-zoom-in" style="padding:6px 12px; font-size:0.9rem;" title="Aproximar">+</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" style="flex:1" id="btn-clima">🌤 Clima</button>
+          <button class="btn btn-secondary" style="flex:1" id="btn-encontro">⚔ Encontro</button>
         </div>
 
-        <button class="btn btn-secondary" id="btn-add-player" style="padding: 6px 12px; border-color: #3B82F6; color: #3B82F6;">+ Grupo/Herói</button>
-        <button class="btn btn-secondary" id="btn-add-enemy" style="padding: 6px 12px; border-color: var(--red-failure); color: var(--red-failure);">+ Inimigo/Bando</button>
+        <div class="result-box" id="result-jornada"
+          style="display:none; text-align:center; padding: 12px; margin-top: auto;">
+          <span class="oracle-result__theme" id="jornada-titulo"
+            style="font-size: 0.95rem; display:block; margin-bottom: 4px;"></span>
+          <span class="oracle-result__prompt" id="jornada-efeito"
+            style="font-size: 0.8rem; color: var(--text-primary); font-weight:600; max-width:100%;"></span>
+        </div>
+      </section>
+
+      <!-- ── PAINEL 5: MUTAÇÕES DE KEGARE ── -->
+      <section class="panel" id="panel-mutacao">
+        <div class="panel__header">
+          <span class="panel__icon">👁</span>
+          <h2 class="panel__title">Oráculo da Mácula</h2>
+        </div>
+
+        <p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-bottom: 8px;">Role quando um
+          personagem falhar criticamente contra o Sangramento da Terra, ou for tocado por um Onryo de alto rank.</p>
+        <button class="btn btn-primary" id="btn-mutacao">🎲 Mutação (1d6)</button>
+
+        <div class="result-box" id="result-mutacao"
+          style="display:none; text-align:center; padding: 12px; border-color:var(--red-blood); margin-top: auto;">
+          <span class="oracle-result__dice" id="mutacao-dice" style="color:var(--red-accent);"></span>
+          <span class="oracle-result__action" id="mutacao-titulo"
+            style="font-size:1rem; margin-top:4px; display:block; color:var(--red-accent);"></span>
+          <span class="oracle-result__prompt" id="mutacao-desc"
+            style="margin-top:4px; font-size: 0.8rem; max-width:100%;"></span>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ════════ HISTORY ════════ -->
+    <section class="history" id="history-section">
+      <div class="history__header">
+        <h3 class="history__title">📜 Registro de Sessão</h3>
+        <button class="btn btn-ghost btn-sm" id="btn-limpar-historico">Limpar</button>
       </div>
-      <button class="btn btn-ghost" id="btn-clear-map" style="color: var(--text-muted)">🧹 Limpar Pinos</button>
-    </div>
-    
-    <div id="tactical-map-viewport" class="tactical-map-viewport">
-       <div id="tactical-map-content" class="tactical-map-content">
-          <!-- Tokens renderizados dinamicamente pelo JS -->
-       </div>
-    </div>
-  </section>
+      <div class="history__list" id="history-list">
+        <p class="history__empty">Nenhuma ação registrada. Use os geradores para começar.</p>
+      </div>
+    </section>
 
-  <!-- MODAL: REGISTRAR MAPA LOCAL -->
-  <div id="modal-register-map" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:9000; align-items:center; justify-content:center;">
-    <div class="panel" style="width: 340px; max-width:90%; max-height:90vh; overflow-y:auto; position:relative;">
-       <h3 class="panel__title" style="color:var(--gold);">Registrar Novo Mapa</h3>
-       <p style="font-size:0.7rem; color:var(--text-muted); line-height:1.4;">
-         Coloque o arquivo PNG/JPG na pasta <strong>Maps/</strong> do projeto antes de preencher os dados. Ele ficará salvo na memória offline da sua campanha.
-       </p>
-       
-       <div class="field" style="margin-top:10px;">
-         <label class="field__label">Nível Hierárquico</label>
-         <select id="reg-map-level" class="field__input">
-            <option value="region">Nova Região Extensa</option>
-            <option value="city">Cidade / Castelo Local</option>
-         </select>
-       </div>
-       <div class="field" id="reg-map-parent-container" style="display:none; margin-top:10px;">
-         <label class="field__label">Pertence à Região:</label>
-         <select id="reg-map-parent" class="field__input">
-            <!-- Povoado por JS -->
-         </select>
-       </div>
-       <div class="field" style="margin-top:10px;">
-         <label class="field__label">Nome do Local (Ex: Castelo da Névoa)</label>
-         <input type="text" id="reg-map-name" class="field__input" placeholder="Obrigatório">
-       </div>
-       <div class="field" style="margin-top:10px;">
-         <label class="field__label">Arquivo exato na pasta Maps/</label>
-         <input type="text" id="reg-map-file" class="field__input" placeholder="ex: castelo_nevoa.png">
-       </div>
-       
-       <div style="display:flex; gap:10px; margin-top:20px;">
-         <button class="btn btn-secondary" id="btn-reg-cancel" style="flex:1;">Cancelar</button>
-         <button class="btn btn-primary" id="btn-reg-save" style="flex:1;">Salvar Mapa</button>
-       </div>
-    </div>
-  </div>
+    <!-- ════════ TACTICAL MAP BOARD ════════ -->
+    <section id="tactical-board">
+      <!-- TOOLBAR SUPERIOR -->
+      <div class="tactical-header">
+        <div class="tactical-controls">
+          <!-- SELETOR DE MAPA -->
+          <div class="map-select-group">
+            <select id="sel-map-level" class="field__input map-sel" aria-label="Nível do mapa">
+              <option value="macro" selected>🗾 Macro</option>
+              <option value="region">🏔 Regiões</option>
+              <option value="city">🏘 Cidades</option>
+              <option value="battle">⚔ Batalha</option>
+            </select>
+            <select id="sel-map-specific" class="field__input map-sel" style="display:none;" aria-label="Mapa específico">
+            </select>
+          </div>
 
-  <!-- CONTEXT MENU: TOKEN ACTIONS -->
-  <div id="token-context-menu">
-     <div class="context-menu__item" id="ctx-delete-token" style="color:var(--red-accent);">🗑 Remover Pino</div>
-     <div class="context-menu__divider"></div>
-     
-     <div style="padding: 4px 12px; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Cor do Tema</div>
-     <div class="context-menu__submenu">
+          <!-- ZOOM -->
+          <div class="map-select-group">
+            <button class="btn btn-ghost map-btn" id="btn-zoom-out" title="Afastar" aria-label="Afastar zoom">−</button>
+            <button class="btn btn-ghost map-btn" id="btn-zoom-reset" title="Centralizar" aria-label="Resetar zoom">⊙</button>
+            <button class="btn btn-ghost map-btn" id="btn-zoom-in" title="Aproximar" aria-label="Aproximar zoom">+</button>
+          </div>
+
+          <!-- GRID BATALHA -->
+          <div class="map-select-group">
+            <button class="btn btn-ghost map-btn" id="btn-toggle-grid" title="Grid de Batalha" aria-label="Toggle grid">▦</button>
+            <select id="sel-grid-size" class="field__input map-sel map-sel--sm" style="display:none;" aria-label="Tamanho do grid">
+              <option value="32">32px</option>
+              <option value="48" selected>48px</option>
+              <option value="64">64px</option>
+              <option value="96">96px</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- AÇÕES SECUNDÁRIAS -->
+        <div class="tactical-actions">
+          <button class="btn btn-ghost map-btn-add" id="btn-register-map" title="Adicionar mapa">
+            <span class="map-btn-add__icon">+</span>
+            <span class="map-btn-add__label">Mapa</span>
+          </button>
+          <button class="btn btn-ghost map-btn" id="btn-manage-maps" title="Gerenciar mapas" aria-label="Gerenciar mapas" onclick="openManageMaps()">🗂</button>
+          <button class="btn btn-ghost map-btn-add map-btn-add--blue" id="btn-add-player" title="Adicionar aliado">
+            <span class="map-btn-add__icon">●</span>
+            <span class="map-btn-add__label">Grupo</span>
+          </button>
+          <button class="btn btn-ghost map-btn-add map-btn-add--red" id="btn-add-enemy" title="Adicionar inimigo">
+            <span class="map-btn-add__icon">●</span>
+            <span class="map-btn-add__label">Inimigo</span>
+          </button>
+          <button class="btn btn-ghost map-btn" id="btn-clear-map" title="Limpar pinos" aria-label="Limpar pinos">🧹</button>
+        </div>
+      </div>
+
+      <!-- BREADCRUMB HIERARQUIA -->
+      <div class="map-breadcrumb" id="map-breadcrumb" style="display:none;">
+        <!-- Preenchido via JS -->
+      </div>
+
+      <!-- VIEWPORT -->
+      <div id="tactical-map-viewport" class="tactical-map-viewport">
+        <div id="tactical-map-content" class="tactical-map-content">
+          <!-- Grid de batalha (overlay) -->
+          <div id="battle-grid" class="battle-grid" style="display:none;"></div>
+        </div>
+        <!-- Estado vazio -->
+        <div class="map-empty-state" id="map-empty-state">
+          <div class="map-empty-state__icon">🗾</div>
+          <div class="map-empty-state__title">Nenhum Mapa Carregado</div>
+          <div class="map-empty-state__desc">Toque em <strong>+ Mapa</strong> para adicionar seu primeiro mapa</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ MODAL: ADICIONAR MAPA (Redesign) ════════ -->
+    <div id="modal-register-map" class="modal-overlay" style="display:none;">
+      <div class="modal-panel">
+        <!-- Header -->
+        <div class="modal-header">
+          <h3 class="modal-header__title">Adicionar Mapa</h3>
+          <button class="btn btn-ghost modal-header__close" id="btn-reg-cancel" aria-label="Fechar">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- PASSO 1: Tipo Hierárquico -->
+          <div class="modal-section">
+            <label class="modal-section__label">1. Tipo de Mapa</label>
+            <div class="map-type-cards" id="map-type-cards">
+              <button class="map-type-card" data-level="region" type="button">
+                <span class="map-type-card__icon">🏔</span>
+                <span class="map-type-card__title">Região</span>
+                <span class="map-type-card__desc">Área extensa, província</span>
+              </button>
+              <button class="map-type-card" data-level="city" type="button">
+                <span class="map-type-card__icon">🏘</span>
+                <span class="map-type-card__title">Cidade</span>
+                <span class="map-type-card__desc">Cidade, vilarejo, castelo</span>
+              </button>
+              <button class="map-type-card map-type-card--battle" data-level="battle" type="button">
+                <span class="map-type-card__icon">⚔️</span>
+                <span class="map-type-card__title">Batalha</span>
+                <span class="map-type-card__desc">Grid tático de combate</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- PASSO 2: Hierarquia (se cidade) -->
+          <div class="modal-section" id="reg-map-parent-container" style="display:none;">
+            <label class="modal-section__label" for="reg-map-parent">2. Pertence à Região</label>
+            <select id="reg-map-parent" class="field__input">
+              <!-- Povoado por JS -->
+            </select>
+          </div>
+
+          <!-- PASSO 3: Nome -->
+          <div class="modal-section">
+            <label class="modal-section__label" for="reg-map-name">
+              <span id="label-name-step">2</span>. Nome do Local
+            </label>
+            <input type="text" id="reg-map-name" class="field__input" placeholder="Ex: Kamamura, Floresta Sombria..." autocomplete="off">
+          </div>
+
+          <!-- PASSO 4: Upload de Imagem -->
+          <div class="modal-section">
+            <label class="modal-section__label">
+              <span id="label-file-step">3</span>. Imagem do Mapa
+            </label>
+            <div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Arraste uma imagem ou clique para selecionar">
+              <input type="file" id="reg-map-file-input" accept="image/*" class="upload-zone__input" aria-hidden="true">
+              <div class="upload-zone__content" id="upload-zone-content">
+                <div class="upload-zone__icon">📁</div>
+                <div class="upload-zone__text">Arraste a imagem aqui</div>
+                <div class="upload-zone__sub">ou toque para selecionar (PNG, JPG, WebP)</div>
+              </div>
+              <div class="upload-zone__preview" id="upload-zone-preview" style="display:none;">
+                <img id="upload-preview-img" class="upload-zone__img" alt="Preview do mapa">
+                <div class="upload-zone__filename" id="upload-filename"></div>
+                <button class="btn btn-ghost upload-zone__remove" id="btn-remove-upload" type="button" aria-label="Remover imagem">&times;</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- PASSO 5: Grid de Batalha (opcional, só para mapas de batalha) -->
+          <div class="modal-section" id="battle-grid-options" style="display:none;">
+            <label class="modal-section__label">Grid de Batalha</label>
+            <div class="grid-options">
+              <label class="grid-option">
+                <input type="checkbox" id="reg-has-grid" class="grid-option__check">
+                <span class="grid-option__label">Ativar grid sobre o mapa</span>
+              </label>
+              <div class="grid-size-row" id="grid-size-row" style="display:none;">
+                <label class="grid-option__label" for="reg-grid-size">Tamanho:</label>
+                <select id="reg-grid-size" class="field__input map-sel--sm">
+                  <option value="32">32px</option>
+                  <option value="48" selected>48px</option>
+                  <option value="64">64px</option>
+                  <option value="96">96px</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-reg-cancel-bottom" type="button">Cancelar</button>
+          <button class="btn btn-primary" id="btn-reg-save" type="button" disabled>Salvar Mapa</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ MODAL: GERENCIAR MAPAS ════════ -->
+    <div id="modal-manage-maps" class="modal-overlay" style="display:none;">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <h3 class="modal-header__title">Gerenciar Mapas</h3>
+          <button class="btn btn-ghost modal-header__close" id="btn-manage-close" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="map-tree" id="map-tree-view">
+            <!-- Renderizado via JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTEXT MENU: TOKEN ACTIONS -->
+    <div id="token-context-menu">
+      <div class="context-menu__item" id="ctx-delete-token" style="color:var(--red-accent);">🗑 Remover Pino</div>
+      <div class="context-menu__divider"></div>
+
+      <div style="padding: 4px 12px; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Cor do
+        Tema</div>
+      <div class="context-menu__submenu">
         <div class="color-dot" data-color="player" style="background:#3B82F6;" title="Azul"></div>
         <div class="color-dot" data-color="enemy" style="background:var(--red-accent);" title="Vermelho"></div>
         <div class="color-dot" data-color="neutral" style="background:#6B7280;" title="Cinza"></div>
@@ -1068,564 +2233,558 @@
         <div class="color-dot" data-color="pink" style="background:#EC4899;" title="Rosa"></div>
         <div class="color-dot" data-color="cyan" style="background:#06B6D4;" title="Ciano"></div>
         <div class="color-dot" data-color="orange" style="background:#F97316;" title="Laranja"></div>
-     </div>
-     
-     <div class="context-menu__divider"></div>
-     
-     <div style="padding: 4px 12px; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Forma</div>
-     <div class="context-menu__submenu" style="gap: 8px; justify-content: center; padding: 8px;">
-        <div class="size-box" data-shape="circle" title="Círculo" style="border-radius:50%; width:16px; height:16px; padding:0;"></div>
-        <div class="size-box" data-shape="square" title="Quadrado" style="border-radius:2px; width:16px; height:16px; padding:0;"></div>
-        <div class="size-box" data-shape="triangle" title="Triângulo" style="clip-path:polygon(50% 0%, 0% 100%, 100% 100%); width:16px; height:16px; padding:0;"></div>
-        <div class="size-box" data-shape="diamond" title="Losango" style="clip-path:polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); width:16px; height:16px; padding:0;"></div>
-        <div class="size-box" data-shape="star" title="Estrela" style="clip-path:polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); width:16px; height:16px; padding:0;"></div>
-     </div>
+      </div>
 
-     <div class="context-menu__divider"></div>
-     
-     <div style="padding: 4px 12px; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Tamanho</div>
-     <div class="context-menu__submenu" style="justify-content: space-around;">
+      <div class="context-menu__divider"></div>
+
+      <div style="padding: 4px 12px; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Forma
+      </div>
+      <div class="context-menu__submenu" style="gap: 8px; justify-content: center; padding: 8px;">
+        <div class="size-box" data-shape="circle" title="Círculo"
+          style="border-radius:50%; width:16px; height:16px; padding:0;"></div>
+        <div class="size-box" data-shape="square" title="Quadrado"
+          style="border-radius:2px; width:16px; height:16px; padding:0;"></div>
+        <div class="size-box" data-shape="triangle" title="Triângulo"
+          style="clip-path:polygon(50% 0%, 0% 100%, 100% 100%); width:16px; height:16px; padding:0;"></div>
+        <div class="size-box" data-shape="diamond" title="Losango"
+          style="clip-path:polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); width:16px; height:16px; padding:0;"></div>
+        <div class="size-box" data-shape="star" title="Estrela"
+          style="clip-path:polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); width:16px; height:16px; padding:0;">
+        </div>
+      </div>
+
+      <div class="context-menu__divider"></div>
+
+      <div style="padding: 4px 12px; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Tamanho
+      </div>
+      <div class="context-menu__submenu" style="justify-content: space-around;">
         <div class="size-box" data-size="sm">P</div>
         <div class="size-box" data-size="md">M</div>
         <div class="size-box" data-size="lg">G</div>
-     </div>
+      </div>
+    </div>
+
+
   </div>
 
+  <script>
+    /* ═══════════════════════════════════════════════════════
+       ENGINE: DICE ROLLING
+       ═══════════════════════════════════════════════════════ */
 
-</div>
-
-<script>
-/* ═══════════════════════════════════════════════════════
-   ENGINE: DICE ROLLING
-   ═══════════════════════════════════════════════════════ */
-
-function roll3d6() {
-  const dice = [
-    Math.floor(Math.random() * 6) + 1,
-    Math.floor(Math.random() * 6) + 1,
-    Math.floor(Math.random() * 6) + 1
-  ];
-  return { dice, total: dice[0] + dice[1] + dice[2] };
-}
-
-function rollD66() {
-  const tens = Math.floor(Math.random() * 6) + 1;
-  const units = Math.floor(Math.random() * 6) + 1;
-  return { tens, units, key: `${tens}${units}` };
-}
-
-function randomFrom(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-/* ═══════════════════════════════════════════════════════
-   ENGINE: REACTION TABLE (8 tiers)
-   ═══════════════════════════════════════════════════════ */
-
-const REACTION_TABLE = [
-  { min: -Infinity, max: 0,  level: 'Desastroso',  desc: 'Ódio mortal. Ataca ou trai na primeira chance.', css: 'desastroso', color: '#DC2626', kanji: '災' },
-  { min: 1,  max: 3,  level: 'Muito Ruim', desc: 'Antipatia forte. Prejudicará os PJs ativamente.', css: 'muito-ruim', color: '#EF4444', kanji: '悪' },
-  { min: 4,  max: 6,  level: 'Ruim',       desc: 'Hostil. Nega ajuda, chama guardas.', css: 'ruim', color: '#F59E0B', kanji: '' },
-  { min: 7,  max: 9,  level: 'Fraco',      desc: 'Desconfiado. Ajuda só se muito bem pago.', css: 'fraco', color: '#D97706', kanji: '' },
-  { min: 10, max: 12, level: 'Neutro',     desc: 'Indiferente. Ignora se puder.', css: 'neutro', color: '#9CA3AF', kanji: '' },
-  { min: 13, max: 15, level: 'Bom',        desc: 'Prestativo. Aceita negociar.', css: 'bom', color: '#34D399', kanji: '' },
-  { min: 16, max: 18, level: 'Muito Bom',  desc: 'Amigável. Oferece abrigo e ajuda.', css: 'muito-bom', color: '#22C55E', kanji: '善' },
-  { min: 19, max: Infinity, level: 'Excelente', desc: 'Fã/Leal. Arrisca a vida para ajudar.', css: 'excelente', color: '#D4A846', kanji: '忠' }
-];
-
-function classifyReaction(total) {
-  return REACTION_TABLE.find(tier => total >= tier.min && total <= tier.max);
-}
-
-/* ═══════════════════════════════════════════════════════
-   ENGINE: d66 ORACLE TABLES
-   ═══════════════════════════════════════════════════════ */
-
-const ACTION_TABLE = {
-  '11':'Atacar',    '12':'Defender',   '13':'Viajar',     '14':'Fugir',       '15':'Esperar',     '16':'Destruir',
-  '21':'Proteger',  '22':'Servir',     '23':'Vingar',     '24':'Jurar',       '25':'Desafiar',    '26':'Render-se',
-  '31':'Investigar','32':'Esconder',   '33':'Buscar',     '34':'Encontrar',   '35':'Negociar',    '36':'Trair',
-  '41':'Conquistar','42':'Sacrificar', '43':'Purificar',  '44':'Corromper',   '45':'Revelar',     '46':'Ocultar',
-  '51':'Libertar',  '52':'Aprisionar', '53':'Honrar',     '54':'Desonrar',    '55':'Unir',        '56':'Dividir',
-  '61':'Roubar',    '62':'Oferecer',   '63':'Observar',   '64':'Ignorar',     '65':'Suplicar',    '66':'Comandar'
-};
-
-const THEME_TABLE = {
-  '11':'Sangue',   '12':'Honra',     '13':'Dever',      '14':'Clã',        '15':'Guerra',     '16':'Paz',
-  '21':'Aço',      '22':'Fogo',      '23':'Amor',       '24':'Ódio',       '25':'Vida',       '26':'Morte',
-  '31':'Segredo',  '32':'Verdade',   '33':'Mentira',    '34':'Passado',    '35':'Futuro',     '36':'Destino',
-  '41':'Ouro',     '42':'Terra',     '43':'Mar',        '44':'Montanha',   '45':'Floresta',   '46':'Rio',
-  '51':'Espírito', '52':'Maldição',  '53':'Lâmina',     '54':'Veneno',     '55':'Sombra',     '56':'Luz',
-  '61':'Traição',  '62':'Lealdade',  '63':'Sacrifício', '64':'Ambição',    '65':'Loucura',    '66':'Profecia'
-};
-
-const TWISTS = [
-  'O Cliente está mentindo sobre o motivo',
-  'O Alvo é inocente ou honrado',
-  'Um terceiro grupo também quer o objetivo',
-  'O local é assombrado ou tem um Yokai',
-  'A missão é um teste de lealdade suicida',
-  'A recompensa é falsa ou roubada'
-];
-
-/* ═══════════════════════════════════════════════════════
-   ENGINE: NPC GENERATOR
-   ═══════════════════════════════════════════════════════ */
-
-const CLAN_PREFIXES = ['Yama', 'Kawa', 'Mori', 'Ishi', 'Taka', 'Fuji', 'Kuro', 'Shiro', 'Umi', 'Hagi', 'Tsuru', 'Hoshi'];
-const CLAN_SUFFIXES = ['mura', 'da', 'guchi', 'sawa', 'moto', 'zaki', 'shima', 'hara', 'oka', 'no', 'ta', 'be'];
-
-const GIVEN_NAMES_M = ['Kenji', 'Takeshi', 'Nobunaga', 'Goro', 'Masanori', 'Jiro', 'Saburo', 'Hayato', 'Ren', 'Shiro', 'Ichiro', 'Kenta'];
-const GIVEN_NAMES_F = ['Hana', 'Akemi', 'Chiyo', 'Ran', 'Midori', 'Rin', 'Izumi', 'Megumi', 'Hotaru', 'Aya', 'Tomoe', 'Yuki'];
-
-const SPECIALTIES = [
-  'Criador de Cavalos',
-  'Mestre de Chá / Cortesão',
-  'Ferreiro de Armaduras',
-  'Batedor de Montanha',
-  'Mercador de Sal',
-  'Fanático Religioso',
-  'Guerreiro de Infantaria',
-  'Espião / Infiltrador',
-  'Médico de Campo',
-  'Artesão de Armas'
-];
-
-const TRAITS = [
-  'Cicatriz no rosto', 'Roupas muito finas', 'Cheira a saquê', 'Armadura remendada',
-  'Sorriso falso constante', 'Voz trovejante', 'Fala por enigmas', 'Mãos trêmulas',
-  'Obeso e suado', 'Corcunda', 'Um olho só', 'Mãos calejadas', 'Muito bela/belo',
-  'Olhar triste', 'Tique nervoso', 'Dentes faltando', 'Maquiagem pesada',
-  'Implacável e frio', 'Estranhamente quieto(a)', 'Sotaque estrangeiro forte'
-];
-
-const SECRETS = [
-  'Gostaria de vingar o senhor morto', 'Quer provar seu valor', 'Precisa pagar uma dívida de jogo',
-  'Deseja proteger alguém fraco', 'Tem ordens para assassinar um alvo próximo', 'Recuperar um sutra roubado',
-  'Esconder seu passado violento', 'Apaziguar um espírito irado', 'Comprar um título de samurai',
-  'Espionar para outro clã', 'Forjar a espada perfeita', 'Salvar a vila da fome',
-  'Fugir de um casamento arranjado', 'Encontrar um irmão perdido', 'Esconder uma doença',
-  'Sobreviver ao inverno', 'Usa maquiagem para humilhar um rival', 'Viola regras por justiça cega',
-  'Viu algo mágico que não devia', 'Quer encontrar um tesouro local',
-  'Dívida de sangue com clã ninja', 'Herdeiro de linhagem maculada', 'Guarda um tesouro roubado',
-  'Informante de Otsuko', 'Busca vingança contra Bizen', 'Fobia de fogo',
-  'Honra em frangalhos — acusado de covardia', 'Plebeu que finge sangue real',
-  'O conselheiro é um agente duplo', 'Protege a entrada de uma mina secreta',
-  'Carta de amor de uma esposa de clã rival', 'Possui mapa de túnel secreto sob o castelo',
-  'Lista de subornos pagos a guardas', 'Selo (Hanko) roubado de um magistrado',
-  'Sabe de um pedido de socorro escrito em sangue', 'Confissão de um crime de 20 anos atrás'
-];
-
-/* ═══════════════════════════════════════════════════════
-   ENGINE: JOURNEY & CLIMATE
-   ═══════════════════════════════════════════════════════ */
-const CLIMA_EFEITOS = {
-  'primavera': [
-    { titulo: 'Garoa Leve / Lama', efeito: 'Deslocamento reduzido em 1/3 devido à lama. Furtividade Sonora recebe +1.' },
-    { titulo: 'Limpo / Brisa de Cerejeira', efeito: 'Moral Alta: +1 em Vontade contra medo e fadiga mental pelo dia.' },
-    { titulo: 'Neblina Matinal', efeito: 'Visão limitada a 20 metros até o meio-dia. Encontros começam mais perto.' },
-    { titulo: 'Tempestade de Sangue (Kehai)', efeito: 'Raios e chuva ácida leve. Todos perdem 1 PF. Teste de HT para não pegar gripe espiritual (doença).' }
-  ],
-  'verao': [
-    { titulo: 'Calor Sufocante / Mushicatsui', efeito: 'Fadiga: Teste de HT se caminhar muito. Usar armadura custa 1 PF extra a cada hora de marcha.' },
-    { titulo: 'Tempestade de Verão Tardia', efeito: 'Relâmpagos súbitos. Pólvora pode falhar (1 em 6 chance). Fogo é apagado.' },
-    { titulo: 'Cigarras Ensurdecedoras', efeito: '-3 em testes de Audição, bônus igual para quem quiser dissimular barulhos de batalha.' },
-    { titulo: 'Banho de Sol Escaldante', efeito: 'Água acaba mais rápido. Combate no sol ofusca visão se de frente para a luz.' }
-  ],
-  'outono': [
-    { titulo: 'Vento Cortante e Folhas Secas', efeito: 'Arqueiros sofrem de -1 a -3 no Tiro dependendo da distância. Folhas criam barulho (Furtividade -1).' },
-    { titulo: 'Chuva Congelante', efeito: 'Tudo fica úmido e escorregadio. Falhas Críticas em movimento resultam em queda automática.' },
-    { titulo: 'Tufão Iminente (Taifu)', efeito: 'O céu fica cinza escuro. Os aventureiros têm 1d horas para achar abrigo ou sofrem desastres contínuos.' },
-    { titulo: 'Céu Vermelho Vivo', efeito: 'Atividade incomum de Yokais. Um mau agouro (ou bom sinal tático), as noites ficam repletas de insetos luminescentes.' }
-  ],
-  'inverno': [
-    { titulo: 'Nevasca Leve', efeito: '-2 no Deslocamento tático. Muito difícil seguir rastros de pegadas frescas após 5 minutos.' },
-    { titulo: 'Frio Gélido Cortante', efeito: 'Frio Extremo: Teste de HT horário se exposto sem agasalhos. Falha = perde 1 PF que só recuperará aquecido.' },
-    { titulo: 'Tempestade de Neve', efeito: 'Deslocamento cai pela metade. Muito risco de desorientação. Visão máxima de 10 metros.' },
-    { titulo: 'Camada de Gelo Perigosa', efeito: 'Terreno Muito Ruim. Quedas frequentes ao esquivar (-2 na Esquiva e Aparar em terreno).' }
-  ]
-};
-
-const ENCONTROS = [
-  'Bandidos esfarrapados montando emboscada mal feita (Famintos e desesperados).',
-  'Patrulha de infantaria Ashigaru de um clã (Exigirão pedágio injusto ou documentos de viagem).',
-  'Mercador ambulante com carroça atolada (Recompensa modesta se ajudado).',
-  'Ronin insolente repousando (Quer duelo ou informação sobre a região próxima).',
-  'Refugiados de uma vila incendiada (Doenças, fome, pedindo esmola, cheios de rumores).',
-  'Cadáver recente (Guerreiro sangrado contendo um Ofuda secreto ou item selado).',
-  'Jizo de Pedra Corrompido (Emana aura de Mácula intensa. Teste de Pânico para não se afastar em medo).',
-  'Cães Raivosos (Escarnecidos, lutarão como feras brutas e rápidas).',
-  'Monge Sohei curandeiro (Oferece bênção/cura que, secretamente, cobra um preço espiritual).',
-  'Sacerdotisa Miko ferida (Perseguida por cultistas/bandidos, pede escolta para um Santuário).'
-];
-
-/* ═══════════════════════════════════════════════════════
-   ENGINE: KEGARE MUTATIONS
-   ═══════════════════════════════════════════════════════ */
-const MUTACOES_KEGARE = [
-  { titulo: '1. Olhos Obscuros', desc: 'Sua íris expande, ficando negra. Ganha Visão Noturna 1, mas ganha Fotofobia Leve (Deslumbramento sob sol forte).' },
-  { titulo: '2. Sangue Corrupto', desc: 'O sangue exala podridão. Ferimentos são 2x mais lentos para curar, mas você é ignorado por predadores comuns não provocados.' },
-  { titulo: '3. Dedos de Lâmina / Garras', desc: 'Seus dedos tornam-se espinhosos. +1 Dano em ataques desarmados, mas -1 em DX para trabalhos de precisão.' },
-  { titulo: '4. Crescimento Ósseo (Traços de Oni)', desc: 'Chifres pequenos ou osteodermos nascem no corpo. Dá 1 RD no crânio, mas piora sua aparência (Monstro).' },
-  { titulo: '5. Sede de Tainted Ki', desc: 'Exibe Gula Oculta; precisa consumir força vital, magia inimiga, ou carne recém caçada para dormir, ou perde 1 PF permanente.' },
-  { titulo: '6. Voz do Submundo', desc: 'Sua voz distorce magneticamente. +2 em Intimidação, porém desvantagem "Voz Perturbadora" em interações pacíficas.' }
-];
-
-const STATUS_LEVELS = [
-  { label: 'Pária (Status -3)', value: -3 },
-  { label: 'Ronin (Status -2)', value: -2 },
-  { label: 'Camponês (Status -1)', value: -1 },
-  { label: 'Plebeu (Status 0)', value: 0 },
-  { label: 'Ashigaru (Status 1)', value: 1 },
-  { label: 'Samurai (Status 2)', value: 2 },
-  { label: 'Samurai Veterano (Status 3)', value: 3 },
-  { label: 'Daimyo Menor (Status 4)', value: 4 }
-];
-
-function generateNPC() {
-  const clanPrefix = randomFrom(CLAN_PREFIXES);
-  const clanSuffix = randomFrom(CLAN_SUFFIXES);
-  const clanName = clanPrefix + clanSuffix;
-
-  const isFemale = Math.random() > 0.5;
-  const givenName = randomFrom(isFemale ? GIVEN_NAMES_F : GIVEN_NAMES_M);
-
-  const specialty = randomFrom(SPECIALTIES);
-  const trait = randomFrom(TRAITS);
-  const secret = randomFrom(SECRETS);
-  const status = randomFrom(STATUS_LEVELS);
-
-  return {
-    clanName,
-    fullName: `${clanName} ${givenName}`,
-    givenName,
-    isFemale,
-    specialty,
-    trait,
-    secret,
-    status
-  };
-}
-
-/* ═══════════════════════════════════════════════════════
-   HISTORY MANAGER — separated from combat-calculator
-   ═══════════════════════════════════════════════════════ */
-
-const HISTORY_KEY = 'espadas_quebradas_oracles';
-const MAX_HISTORY = 50;
-
-function loadHistory() {
-  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
-  catch { return []; }
-}
-
-function saveHistory(entries) {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(0, MAX_HISTORY)));
-}
-
-function addHistoryEntry(entry) {
-  const entries = loadHistory();
-  entries.unshift({
-    ...entry,
-    time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  });
-  saveHistory(entries);
-  renderHistory();
-}
-
-let _clearTimeout;
-function clearHistory(e) {
-  const btn = e.target;
-  if (btn.dataset.confirming === 'true') {
-    localStorage.removeItem(HISTORY_KEY);
-    renderHistory();
-    btn.dataset.confirming = 'false';
-    btn.textContent = 'Limpar';
-    btn.style.borderColor = '';
-    btn.style.color = '';
-    clearTimeout(_clearTimeout);
-  } else {
-    btn.dataset.confirming = 'true';
-    btn.textContent = 'Confirma?';
-    btn.style.borderColor = 'var(--red-accent)';
-    btn.style.color = 'var(--red-accent)';
-    _clearTimeout = setTimeout(() => {
-      btn.dataset.confirming = 'false';
-      btn.textContent = 'Limpar';
-      btn.style.borderColor = '';
-      btn.style.color = '';
-    }, 3000);
-  }
-}
-
-function renderHistory() {
-  const list = document.getElementById('history-list');
-  const entries = loadHistory();
-
-  if (entries.length === 0) {
-    list.innerHTML = '<p class="history__empty">Nenhuma ação registrada. Use os geradores para começar.</p>';
-    return;
-  }
-
-  list.innerHTML = entries.map(e => {
-    const cls = e.type || 'reacao';
-    return `<div class="history__entry history__entry--${cls}">
-      <span class="history__time">${e.time}</span>
-      <span class="history__action">${e.action}</span>
-      <span class="history__detail">${e.detail}</span>
-      <span class="history__result-text" style="color:${e.color}">${e.resultText}</span>
-    </div>`;
-  }).join('');
-}
-
-/* ═══════════════════════════════════════════════════════
-   UI: DICE ANIMATION
-   ═══════════════════════════════════════════════════════ */
-
-function animateDice(container, diceSelector, callback) {
-  container.classList.add('anim-rolling');
-  const diceEl = container.querySelector(diceSelector);
-
-  let count = 0;
-  const interval = setInterval(() => {
-    const fake = [
-      Math.floor(Math.random() * 6) + 1,
-      Math.floor(Math.random() * 6) + 1,
-      Math.floor(Math.random() * 6) + 1
-    ];
-    if (diceEl) diceEl.textContent = `[ ${fake[0]} + ${fake[1]} + ${fake[2]} = ${fake[0]+fake[1]+fake[2]} ]`;
-    count++;
-    if (count >= 8) {
-      clearInterval(interval);
-      container.classList.remove('anim-rolling');
-      callback();
+    function roll3d6() {
+      const dice = [
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1
+      ];
+      return { dice, total: dice[0] + dice[1] + dice[2] };
     }
-  }, 70);
-}
 
-/* ═══════════════════════════════════════════════════════
-   EVENT HANDLERS
-   ═══════════════════════════════════════════════════════ */
+    function rollD66() {
+      const tens = Math.floor(Math.random() * 6) + 1;
+      const units = Math.floor(Math.random() * 6) + 1;
+      return { tens, units, key: `${tens}${units}` };
+    }
 
-// ── Reação Social ──
-document.getElementById('btn-reacao').addEventListener('click', function() {
-  const modInput = document.getElementById('input-modificador');
-  const mod = parseInt(modInput.value) || 0;
+    function randomFrom(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
 
-  const box = document.getElementById('result-reacao');
-  box.className = 'result-box';
+    /* ═══════════════════════════════════════════════════════
+       ENGINE: REACTION TABLE (8 tiers)
+       ═══════════════════════════════════════════════════════ */
 
-  animateDice(box, '#dice-reacao', () => {
-    const { dice, total } = roll3d6();
-    const finalResult = total + mod;
-    const tier = classifyReaction(finalResult);
+    const REACTION_TABLE = [
+      { min: -Infinity, max: 0, level: 'Desastroso', desc: 'Ódio mortal. Ataca ou trai na primeira chance.', css: 'desastroso', color: '#DC2626', kanji: '災' },
+      { min: 1, max: 3, level: 'Muito Ruim', desc: 'Antipatia forte. Prejudicará os PJs ativamente.', css: 'muito-ruim', color: '#EF4444', kanji: '悪' },
+      { min: 4, max: 6, level: 'Ruim', desc: 'Hostil. Nega ajuda, chama guardas.', css: 'ruim', color: '#F59E0B', kanji: '' },
+      { min: 7, max: 9, level: 'Fraco', desc: 'Desconfiado. Ajuda só se muito bem pago.', css: 'fraco', color: '#D97706', kanji: '' },
+      { min: 10, max: 12, level: 'Neutro', desc: 'Indiferente. Ignora se puder.', css: 'neutro', color: '#9CA3AF', kanji: '' },
+      { min: 13, max: 15, level: 'Bom', desc: 'Prestativo. Aceita negociar.', css: 'bom', color: '#34D399', kanji: '' },
+      { min: 16, max: 18, level: 'Muito Bom', desc: 'Amigável. Oferece abrigo e ajuda.', css: 'muito-bom', color: '#22C55E', kanji: '善' },
+      { min: 19, max: Infinity, level: 'Excelente', desc: 'Fã/Leal. Arrisca a vida para ajudar.', css: 'excelente', color: '#D4A846', kanji: '忠' }
+    ];
 
-    document.getElementById('dice-reacao').textContent = `[ ${dice[0]} + ${dice[1]} + ${dice[2]} = ${total} ] ${mod >= 0 ? '+' : ''}${mod} = ${finalResult}`;
-    document.getElementById('level-reacao').textContent = tier.level;
-    document.getElementById('desc-reacao').textContent = tier.desc;
-    document.getElementById('kanji-reacao').textContent = tier.kanji;
+    function classifyReaction(total) {
+      return REACTION_TABLE.find(tier => total >= tier.min && total <= tier.max);
+    }
 
-    box.className = `result-box result--${tier.css}`;
-    if (tier.css === 'excelente') box.classList.add('anim-glow');
-    if (tier.css === 'desastroso') box.classList.add('anim-shake');
+    /* ═══════════════════════════════════════════════════════
+       ENGINE: d66 ORACLE TABLES
+       ═══════════════════════════════════════════════════════ */
 
-    addHistoryEntry({
-      type: 'reacao',
-      action: 'Reação',
-      detail: `3d6=[${dice.join(',')}]=${total} ${mod >= 0 ? '+' : ''}${mod} = ${finalResult}`,
-      resultText: tier.level,
-      color: tier.color
+    const ACTION_TABLE = {
+      '11': 'Atacar', '12': 'Defender', '13': 'Viajar', '14': 'Fugir', '15': 'Esperar', '16': 'Destruir',
+      '21': 'Proteger', '22': 'Servir', '23': 'Vingar', '24': 'Jurar', '25': 'Desafiar', '26': 'Render-se',
+      '31': 'Investigar', '32': 'Esconder', '33': 'Buscar', '34': 'Encontrar', '35': 'Negociar', '36': 'Trair',
+      '41': 'Conquistar', '42': 'Sacrificar', '43': 'Purificar', '44': 'Corromper', '45': 'Revelar', '46': 'Ocultar',
+      '51': 'Libertar', '52': 'Aprisionar', '53': 'Honrar', '54': 'Desonrar', '55': 'Unir', '56': 'Dividir',
+      '61': 'Roubar', '62': 'Oferecer', '63': 'Observar', '64': 'Ignorar', '65': 'Suplicar', '66': 'Comandar'
+    };
+
+    const THEME_TABLE = {
+      '11': 'Sangue', '12': 'Honra', '13': 'Dever', '14': 'Clã', '15': 'Guerra', '16': 'Paz',
+      '21': 'Aço', '22': 'Fogo', '23': 'Amor', '24': 'Ódio', '25': 'Vida', '26': 'Morte',
+      '31': 'Segredo', '32': 'Verdade', '33': 'Mentira', '34': 'Passado', '35': 'Futuro', '36': 'Destino',
+      '41': 'Ouro', '42': 'Terra', '43': 'Mar', '44': 'Montanha', '45': 'Floresta', '46': 'Rio',
+      '51': 'Espírito', '52': 'Maldição', '53': 'Lâmina', '54': 'Veneno', '55': 'Sombra', '56': 'Luz',
+      '61': 'Traição', '62': 'Lealdade', '63': 'Sacrifício', '64': 'Ambição', '65': 'Loucura', '66': 'Profecia'
+    };
+
+    const TWISTS = [
+      'O Cliente está mentindo sobre o motivo',
+      'O Alvo é inocente ou honrado',
+      'Um terceiro grupo também quer o objetivo',
+      'O local é assombrado ou tem um Yokai',
+      'A missão é um teste de lealdade suicida',
+      'A recompensa é falsa ou roubada'
+    ];
+
+    /* ═══════════════════════════════════════════════════════
+       ENGINE: NPC GENERATOR
+       ═══════════════════════════════════════════════════════ */
+
+    const CLAN_PREFIXES = ['Yama', 'Kawa', 'Mori', 'Ishi', 'Taka', 'Fuji', 'Kuro', 'Shiro', 'Umi', 'Hagi', 'Tsuru', 'Hoshi'];
+    const CLAN_SUFFIXES = ['mura', 'da', 'guchi', 'sawa', 'moto', 'zaki', 'shima', 'hara', 'oka', 'no', 'ta', 'be'];
+
+    const GIVEN_NAMES_M = ['Kenji', 'Takeshi', 'Nobunaga', 'Goro', 'Masanori', 'Jiro', 'Saburo', 'Hayato', 'Ren', 'Shiro', 'Ichiro', 'Kenta'];
+    const GIVEN_NAMES_F = ['Hana', 'Akemi', 'Chiyo', 'Ran', 'Midori', 'Rin', 'Izumi', 'Megumi', 'Hotaru', 'Aya', 'Tomoe', 'Yuki'];
+
+    const SPECIALTIES = [
+      'Criador de Cavalos',
+      'Mestre de Chá / Cortesão',
+      'Ferreiro de Armaduras',
+      'Batedor de Montanha',
+      'Mercador de Sal',
+      'Fanático Religioso',
+      'Guerreiro de Infantaria',
+      'Espião / Infiltrador',
+      'Médico de Campo',
+      'Artesão de Armas'
+    ];
+
+    const TRAITS = [
+      'Cicatriz no rosto', 'Roupas muito finas', 'Cheira a saquê', 'Armadura remendada',
+      'Sorriso falso constante', 'Voz trovejante', 'Fala por enigmas', 'Mãos trêmulas',
+      'Obeso e suado', 'Corcunda', 'Um olho só', 'Mãos calejadas', 'Muito bela/belo',
+      'Olhar triste', 'Tique nervoso', 'Dentes faltando', 'Maquiagem pesada',
+      'Implacável e frio', 'Estranhamente quieto(a)', 'Sotaque estrangeiro forte'
+    ];
+
+    const SECRETS = [
+      'Gostaria de vingar o senhor morto', 'Quer provar seu valor', 'Precisa pagar uma dívida de jogo',
+      'Deseja proteger alguém fraco', 'Tem ordens para assassinar um alvo próximo', 'Recuperar um sutra roubado',
+      'Esconder seu passado violento', 'Apaziguar um espírito irado', 'Comprar um título de samurai',
+      'Espionar para outro clã', 'Forjar a espada perfeita', 'Salvar a vila da fome',
+      'Fugir de um casamento arranjado', 'Encontrar um irmão perdido', 'Esconder uma doença',
+      'Sobreviver ao inverno', 'Usa maquiagem para humilhar um rival', 'Viola regras por justiça cega',
+      'Viu algo mágico que não devia', 'Quer encontrar um tesouro local',
+      'Dívida de sangue com clã ninja', 'Herdeiro de linhagem maculada', 'Guarda um tesouro roubado',
+      'Informante de Otsuko', 'Busca vingança contra Bizen', 'Fobia de fogo',
+      'Honra em frangalhos — acusado de covardia', 'Plebeu que finge sangue real',
+      'O conselheiro é um agente duplo', 'Protege a entrada de uma mina secreta',
+      'Carta de amor de uma esposa de clã rival', 'Possui mapa de túnel secreto sob o castelo',
+      'Lista de subornos pagos a guardas', 'Selo (Hanko) roubado de um magistrado',
+      'Sabe de um pedido de socorro escrito em sangue', 'Confissão de um crime de 20 anos atrás'
+    ];
+
+    /* ═══════════════════════════════════════════════════════
+       ENGINE: JOURNEY & CLIMATE
+       ═══════════════════════════════════════════════════════ */
+    const CLIMA_EFEITOS = {
+      'primavera': [
+        { titulo: 'Garoa Leve / Lama', efeito: 'Deslocamento reduzido em 1/3 devido à lama. Furtividade Sonora recebe +1.' },
+        { titulo: 'Limpo / Brisa de Cerejeira', efeito: 'Moral Alta: +1 em Vontade contra medo e fadiga mental pelo dia.' },
+        { titulo: 'Neblina Matinal', efeito: 'Visão limitada a 20 metros até o meio-dia. Encontros começam mais perto.' },
+        { titulo: 'Tempestade de Sangue (Kehai)', efeito: 'Raios e chuva ácida leve. Todos perdem 1 PF. Teste de HT para não pegar gripe espiritual (doença).' }
+      ],
+      'verao': [
+        { titulo: 'Calor Sufocante / Mushicatsui', efeito: 'Fadiga: Teste de HT se caminhar muito. Usar armadura custa 1 PF extra a cada hora de marcha.' },
+        { titulo: 'Tempestade de Verão Tardia', efeito: 'Relâmpagos súbitos. Pólvora pode falhar (1 em 6 chance). Fogo é apagado.' },
+        { titulo: 'Cigarras Ensurdecedoras', efeito: '-3 em testes de Audição, bônus igual para quem quiser dissimular barulhos de batalha.' },
+        { titulo: 'Banho de Sol Escaldante', efeito: 'Água acaba mais rápido. Combate no sol ofusca visão se de frente para a luz.' }
+      ],
+      'outono': [
+        { titulo: 'Vento Cortante e Folhas Secas', efeito: 'Arqueiros sofrem de -1 a -3 no Tiro dependendo da distância. Folhas criam barulho (Furtividade -1).' },
+        { titulo: 'Chuva Congelante', efeito: 'Tudo fica úmido e escorregadio. Falhas Críticas em movimento resultam em queda automática.' },
+        { titulo: 'Tufão Iminente (Taifu)', efeito: 'O céu fica cinza escuro. Os aventureiros têm 1d horas para achar abrigo ou sofrem desastres contínuos.' },
+        { titulo: 'Céu Vermelho Vivo', efeito: 'Atividade incomum de Yokais. Um mau agouro (ou bom sinal tático), as noites ficam repletas de insetos luminescentes.' }
+      ],
+      'inverno': [
+        { titulo: 'Nevasca Leve', efeito: '-2 no Deslocamento tático. Muito difícil seguir rastros de pegadas frescas após 5 minutos.' },
+        { titulo: 'Frio Gélido Cortante', efeito: 'Frio Extremo: Teste de HT horário se exposto sem agasalhos. Falha = perde 1 PF que só recuperará aquecido.' },
+        { titulo: 'Tempestade de Neve', efeito: 'Deslocamento cai pela metade. Muito risco de desorientação. Visão máxima de 10 metros.' },
+        { titulo: 'Camada de Gelo Perigosa', efeito: 'Terreno Muito Ruim. Quedas frequentes ao esquivar (-2 na Esquiva e Aparar em terreno).' }
+      ]
+    };
+
+    const ENCONTROS = [
+      'Bandidos esfarrapados montando emboscada mal feita (Famintos e desesperados).',
+      'Patrulha de infantaria Ashigaru de um clã (Exigirão pedágio injusto ou documentos de viagem).',
+      'Mercador ambulante com carroça atolada (Recompensa modesta se ajudado).',
+      'Ronin insolente repousando (Quer duelo ou informação sobre a região próxima).',
+      'Refugiados de uma vila incendiada (Doenças, fome, pedindo esmola, cheios de rumores).',
+      'Cadáver recente (Guerreiro sangrado contendo um Ofuda secreto ou item selado).',
+      'Jizo de Pedra Corrompido (Emana aura de Mácula intensa. Teste de Pânico para não se afastar em medo).',
+      'Cães Raivosos (Escarnecidos, lutarão como feras brutas e rápidas).',
+      'Monge Sohei curandeiro (Oferece bênção/cura que, secretamente, cobra um preço espiritual).',
+      'Sacerdotisa Miko ferida (Perseguida por cultistas/bandidos, pede escolta para um Santuário).'
+    ];
+
+    /* ═══════════════════════════════════════════════════════
+       ENGINE: KEGARE MUTATIONS
+       ═══════════════════════════════════════════════════════ */
+    const MUTACOES_KEGARE = [
+      { titulo: '1. Olhos Obscuros', desc: 'Sua íris expande, ficando negra. Ganha Visão Noturna 1, mas ganha Fotofobia Leve (Deslumbramento sob sol forte).' },
+      { titulo: '2. Sangue Corrupto', desc: 'O sangue exala podridão. Ferimentos são 2x mais lentos para curar, mas você é ignorado por predadores comuns não provocados.' },
+      { titulo: '3. Dedos de Lâmina / Garras', desc: 'Seus dedos tornam-se espinhosos. +1 Dano em ataques desarmados, mas -1 em DX para trabalhos de precisão.' },
+      { titulo: '4. Crescimento Ósseo (Traços de Oni)', desc: 'Chifres pequenos ou osteodermos nascem no corpo. Dá 1 RD no crânio, mas piora sua aparência (Monstro).' },
+      { titulo: '5. Sede de Tainted Ki', desc: 'Exibe Gula Oculta; precisa consumir força vital, magia inimiga, ou carne recém caçada para dormir, ou perde 1 PF permanente.' },
+      { titulo: '6. Voz do Submundo', desc: 'Sua voz distorce magneticamente. +2 em Intimidação, porém desvantagem "Voz Perturbadora" em interações pacíficas.' }
+    ];
+
+    const STATUS_LEVELS = [
+      { label: 'Pária (Status -3)', value: -3 },
+      { label: 'Ronin (Status -2)', value: -2 },
+      { label: 'Camponês (Status -1)', value: -1 },
+      { label: 'Plebeu (Status 0)', value: 0 },
+      { label: 'Ashigaru (Status 1)', value: 1 },
+      { label: 'Samurai (Status 2)', value: 2 },
+      { label: 'Samurai Veterano (Status 3)', value: 3 },
+      { label: 'Daimyo Menor (Status 4)', value: 4 }
+    ];
+
+    function generateNPC() {
+      const clanPrefix = randomFrom(CLAN_PREFIXES);
+      const clanSuffix = randomFrom(CLAN_SUFFIXES);
+      const clanName = clanPrefix + clanSuffix;
+
+      const isFemale = Math.random() > 0.5;
+      const givenName = randomFrom(isFemale ? GIVEN_NAMES_F : GIVEN_NAMES_M);
+
+      const specialty = randomFrom(SPECIALTIES);
+      const trait = randomFrom(TRAITS);
+      const secret = randomFrom(SECRETS);
+      const status = randomFrom(STATUS_LEVELS);
+
+      return {
+        clanName,
+        fullName: `${clanName} ${givenName}`,
+        givenName,
+        isFemale,
+        specialty,
+        trait,
+        secret,
+        status
+      };
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       HISTORY MANAGER — separated from combat-calculator
+       ═══════════════════════════════════════════════════════ */
+
+    const HISTORY_KEY = 'espadas_quebradas_oracles';
+    const MAX_HISTORY = 50;
+
+    function loadHistory() {
+      try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+      catch { return []; }
+    }
+
+    function saveHistory(entries) {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(0, MAX_HISTORY)));
+    }
+
+    function addHistoryEntry(entry) {
+      const entries = loadHistory();
+      entries.unshift({
+        ...entry,
+        time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      });
+      saveHistory(entries);
+      renderHistory();
+    }
+
+    let _clearTimeout;
+    function clearHistory(e) {
+      const btn = e.target;
+      if (btn.dataset.confirming === 'true') {
+        localStorage.removeItem(HISTORY_KEY);
+        renderHistory();
+        btn.dataset.confirming = 'false';
+        btn.textContent = 'Limpar';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+        clearTimeout(_clearTimeout);
+      } else {
+        btn.dataset.confirming = 'true';
+        btn.textContent = 'Confirma?';
+        btn.style.borderColor = 'var(--red-accent)';
+        btn.style.color = 'var(--red-accent)';
+        _clearTimeout = setTimeout(() => {
+          btn.dataset.confirming = 'false';
+          btn.textContent = 'Limpar';
+          btn.style.borderColor = '';
+          btn.style.color = '';
+        }, 3000);
+      }
+    }
+
+    function renderHistory() {
+      const list = document.getElementById('history-list');
+      const entries = loadHistory();
+
+      if (entries.length === 0) {
+        list.innerHTML = '<p class="history__empty">Nenhuma ação registrada. Use os geradores para começar.</p>';
+        return;
+      }
+
+      list.innerHTML = entries.map(e => {
+        const cls = e.type || 'reacao';
+        const badgeText = e.action || e.type || '';
+        return `<div class="history__entry history__entry--${cls} anim-slide">
+      <span class="history__time">${e.time}</span>
+      ${badgeText ? `<span class="history__badge">${badgeText}</span>` : ''}
+      <span class="history__text">${e.detail || ''}</span>
+      ${e.resultText ? `<span class="history__text" style="font-weight:700; color:${e.color || 'var(--text-primary)'}">${e.resultText}</span>` : ''}
+    </div>`;
+      }).join('');
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       UI: DICE ANIMATION
+       ═══════════════════════════════════════════════════════ */
+
+    function animateDice(container, diceSelector, callback) {
+      container.classList.add('anim-rolling');
+      const diceEl = container.querySelector(diceSelector);
+
+      let count = 0;
+      const interval = setInterval(() => {
+        const fake = [
+          Math.floor(Math.random() * 6) + 1,
+          Math.floor(Math.random() * 6) + 1,
+          Math.floor(Math.random() * 6) + 1
+        ];
+        if (diceEl) diceEl.textContent = `[ ${fake[0]} + ${fake[1]} + ${fake[2]} = ${fake[0] + fake[1] + fake[2]} ]`;
+        count++;
+        if (count >= 8) {
+          clearInterval(interval);
+          container.classList.remove('anim-rolling');
+          callback();
+        }
+      }, 70);
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       EVENT HANDLERS
+       ═══════════════════════════════════════════════════════ */
+
+    // ── Reação Social ──
+    document.getElementById('btn-reacao').addEventListener('click', function () {
+      const modInput = document.getElementById('input-modificador');
+      const mod = parseInt(modInput.value) || 0;
+
+      const box = document.getElementById('result-reacao');
+      box.className = 'result-box';
+
+      animateDice(box, '#dice-reacao', () => {
+        const { dice, total } = roll3d6();
+        const finalResult = total + mod;
+        const tier = classifyReaction(finalResult);
+
+        document.getElementById('dice-reacao').textContent = `[ ${dice[0]} + ${dice[1]} + ${dice[2]} = ${total} ] ${mod >= 0 ? '+' : ''}${mod} = ${finalResult}`;
+        document.getElementById('level-reacao').textContent = tier.level;
+        document.getElementById('desc-reacao').textContent = tier.desc;
+        document.getElementById('kanji-reacao').textContent = tier.kanji;
+
+        box.className = `result-box result--${tier.css}`;
+        if (tier.css === 'excelente') box.classList.add('anim-glow');
+        if (tier.css === 'desastroso') box.classList.add('anim-shake');
+
+        addHistoryEntry({
+          type: 'reacao',
+          action: 'Reação',
+          detail: `3d6=[${dice.join(',')}]=${total} ${mod >= 0 ? '+' : ''}${mod} = ${finalResult}`,
+          resultText: tier.level,
+          color: tier.color
+        });
+      });
     });
-  });
-});
 
-// ── Oráculo de Trama ──
-document.getElementById('btn-oraculo').addEventListener('click', function() {
-  const resultBox = document.getElementById('result-oraculo');
-  resultBox.style.display = 'flex';
-  resultBox.classList.remove('anim-slide');
+    // ── Oráculo de Trama ──
+    document.getElementById('btn-oraculo').addEventListener('click', function () {
+      const resultBox = document.getElementById('result-oraculo');
+      resultBox.style.display = 'flex';
+      resultBox.classList.remove('anim-slide');
 
-  const actionRoll = rollD66();
-  const themeRoll = rollD66();
+      const actionRoll = rollD66();
+      const themeRoll = rollD66();
 
-  const action = ACTION_TABLE[actionRoll.key];
-  const theme = THEME_TABLE[themeRoll.key];
+      const action = ACTION_TABLE[actionRoll.key];
+      const theme = THEME_TABLE[themeRoll.key];
 
-  document.getElementById('dice-oraculo').textContent = `Ação d66=[${actionRoll.tens},${actionRoll.units}]=${actionRoll.key} | Tema d66=[${themeRoll.tens},${themeRoll.units}]=${themeRoll.key}`;
-  document.getElementById('action-oraculo').textContent = action;
-  document.getElementById('theme-oraculo').textContent = theme;
-  document.getElementById('prompt-oraculo').textContent = `"O que acontece quando alguém tenta ${action.toLowerCase()} algo relacionado a ${theme.toLowerCase()}?"`;
+      document.getElementById('dice-oraculo').textContent = `Ação d66=[${actionRoll.tens},${actionRoll.units}]=${actionRoll.key} | Tema d66=[${themeRoll.tens},${themeRoll.units}]=${themeRoll.key}`;
+      document.getElementById('action-oraculo').textContent = action;
+      document.getElementById('theme-oraculo').textContent = theme;
+      document.getElementById('prompt-oraculo').textContent = `"O que acontece quando alguém tenta ${action.toLowerCase()} algo relacionado a ${theme.toLowerCase()}?"`;
 
-  const twist = randomFrom(TWISTS);
-  document.getElementById('twist-oraculo').textContent = `Reviravolta: ${twist}`;
+      const twist = randomFrom(TWISTS);
+      document.getElementById('twist-oraculo').textContent = `Reviravolta: ${twist}`;
 
-  void resultBox.offsetWidth;
-  resultBox.classList.add('anim-slide');
+      void resultBox.offsetWidth;
+      resultBox.classList.add('anim-slide');
 
-  addHistoryEntry({
-    type: 'oraculo',
-    action: 'Oráculo',
-    detail: `d66: [${actionRoll.key}] + [${themeRoll.key}]`,
-    resultText: `${action} + ${theme}`,
-    color: '#D4A846'
-  });
-});
-
-// ── Gerador de NPC ──
-document.getElementById('btn-npc').addEventListener('click', function() {
-  const card = document.getElementById('result-npc');
-  card.style.display = 'flex';
-  card.classList.remove('anim-slide');
-
-  const npc = generateNPC();
-
-  document.getElementById('npc-clan').textContent = `Clã ${npc.clanName}`;
-  document.getElementById('npc-name').textContent = npc.fullName;
-  document.getElementById('npc-specialty').textContent = npc.specialty;
-  document.getElementById('npc-trait').textContent = npc.trait;
-  document.getElementById('npc-status').textContent = npc.status.label;
-  document.getElementById('npc-secret').textContent = `🔒 ${npc.secret}`;
-
-  void card.offsetWidth;
-  card.classList.add('anim-slide');
-
-  addHistoryEntry({
-    type: 'npc',
-    action: 'NPC',
-    detail: `${npc.fullName} (${npc.specialty})`,
-    resultText: npc.secret,
-    color: '#22C55E'
-  });
-});
-
-// ── Gerador de Clima ──
-document.getElementById('btn-clima').addEventListener('click', function() {
-  const estacao = document.getElementById('select-estacao').value;
-  const opcoes = CLIMA_EFEITOS[estacao];
-  const clima = randomFrom(opcoes);
-
-  const box = document.getElementById('result-jornada');
-  box.style.display = 'block';
-  box.classList.remove('anim-slide');
-  void box.offsetWidth;
-
-  document.getElementById('jornada-titulo').textContent = clima.titulo;
-  document.getElementById('jornada-efeito').textContent = clima.efeito;
-  box.classList.add('anim-slide');
-
-  addHistoryEntry({
-    type: 'oraculo',
-    action: 'Clima',
-    detail: estacao.toUpperCase(),
-    resultText: clima.titulo,
-    color: '#3B82F6'
-  });
-});
-
-// ── Encontro Casual ──
-document.getElementById('btn-encontro').addEventListener('click', function() {
-  const encontro = randomFrom(ENCONTROS);
-
-  const box = document.getElementById('result-jornada');
-  box.style.display = 'block';
-  box.classList.remove('anim-slide');
-  void box.offsetWidth;
-
-  document.getElementById('jornada-titulo').textContent = '⚔ Encontro na Estrada';
-  document.getElementById('jornada-efeito').textContent = encontro;
-  box.classList.add('anim-slide');
-
-  addHistoryEntry({
-    type: 'npc',
-    action: 'Encontro',
-    detail: 'Viajando',
-    resultText: encontro.substring(0, 30) + '...',
-    color: '#F59E0B'
-  });
-});
-
-// ── Oráculo da Mácula ──
-document.getElementById('btn-mutacao').addEventListener('click', function() {
-  const d6 = Math.floor(Math.random() * 6) + 1;
-  const mutacao = MUTACOES_KEGARE[d6 - 1];
-
-  const box = document.getElementById('result-mutacao');
-  box.style.display = 'block';
-  box.classList.remove('anim-slide');
-  
-  animateDice(box, '#mutacao-dice', () => {
-    document.getElementById('mutacao-dice').textContent = `[ 1d6 = ${d6} ]`;
-    document.getElementById('mutacao-titulo').textContent = mutacao.titulo;
-    document.getElementById('mutacao-desc').textContent = mutacao.desc;
-
-    addHistoryEntry({
-      type: 'oraculo',
-      action: 'Kegare',
-      detail: `[ 1d6 = ${d6} ]`,
-      resultText: mutacao.titulo,
-      color: '#C41E3A'
+      addHistoryEntry({
+        type: 'oraculo',
+        action: 'Oráculo',
+        detail: `d66: [${actionRoll.key}] + [${themeRoll.key}]`,
+        resultText: `${action} + ${theme}`,
+        color: '#D4A846'
+      });
     });
-  });
-});
 
-// ── Copy Buttons ──
-document.getElementById('btn-copy-oraculo').addEventListener('click', function() {
-  const action = document.getElementById('action-oraculo').textContent;
-  const theme = document.getElementById('theme-oraculo').textContent;
-  const twist = document.getElementById('twist-oraculo').textContent;
-  const text = `Oráculo: ${action} + ${theme} | ${twist}`;
-  copyToClipboard(text, this);
-});
+    // ── Gerador de NPC ──
+    document.getElementById('btn-npc').addEventListener('click', function () {
+      const card = document.getElementById('result-npc');
+      card.style.display = 'flex';
+      card.classList.remove('anim-slide');
 
-document.getElementById('btn-copy-npc').addEventListener('click', function() {
-  const name = document.getElementById('npc-name').textContent;
-  const clan = document.getElementById('npc-clan').textContent;
-  const spec = document.getElementById('npc-specialty').textContent;
-  const trait = document.getElementById('npc-trait').textContent;
-  const status = document.getElementById('npc-status').textContent;
-  const secret = document.getElementById('npc-secret').textContent;
-  const text = `${name} | ${clan} | ${spec} | ${trait} | ${status} | ${secret}`;
-  copyToClipboard(text, this);
-});
+      const npc = generateNPC();
 
-function copyToClipboard(text, btn) {
-  navigator.clipboard.writeText(text).then(() => {
-    btn.textContent = '✓ Copiado!';
-    btn.classList.add('copied');
-    setTimeout(() => {
-      btn.textContent = '📋 Copiar';
-      btn.classList.remove('copied');
-    }, 1500);
-  }).catch(() => {
-    btn.textContent = '✗ Erro';
-    setTimeout(() => { btn.textContent = '📋 Copiar'; }, 1500);
-  });
-}
+      document.getElementById('npc-clan').textContent = `Clã ${npc.clanName}`;
+      document.getElementById('npc-name').textContent = npc.fullName;
+      document.getElementById('npc-specialty').textContent = npc.specialty;
+      document.getElementById('npc-trait').textContent = npc.trait;
+      document.getElementById('npc-status').textContent = npc.status.label;
+      document.getElementById('npc-secret').textContent = `🔒 ${npc.secret}`;
 
-// ── Reset ──
-document.getElementById('btn-reset').addEventListener('click', function() {
-  document.getElementById('input-modificador').value = '0';
+      void card.offsetWidth;
+      card.classList.add('anim-slide');
 
-  const reacaoBox = document.getElementById('result-reacao');
-  reacaoBox.className = 'result-box';
-  document.getElementById('dice-reacao').textContent = '—';
-  document.getElementById('level-reacao').textContent = 'Aguardando...';
-  document.getElementById('desc-reacao').textContent = '';
-  document.getElementById('kanji-reacao').textContent = '';
+      addHistoryEntry({
+        type: 'npc',
+        action: 'NPC',
+        detail: `${npc.fullName} (${npc.specialty})`,
+        resultText: npc.secret,
+        color: '#22C55E'
+      });
+    });
 
-  document.getElementById('result-oraculo').style.display = 'none';
-  document.getElementById('result-npc').style.display = 'none';
-  document.getElementById('result-jornada').style.display = 'none';
-  document.getElementById('result-mutacao').style.display = 'none';
-});
+    // ── Gerador de Clima ──
+    document.getElementById('btn-clima').addEventListener('click', function () {
+      const estacao = document.getElementById('select-estacao').value;
+      const opcoes = CLIMA_EFEITOS[estacao];
+      const clima = randomFrom(opcoes);
 
-// ── Clear History ──
-document.getElementById('btn-limpar-historico').addEventListener('click', clearHistory);
+      const box = document.getElementById('result-jornada');
+      box.style.display = 'block';
+      box.classList.remove('anim-slide');
+      void box.offsetWidth;
 
-// ── Init ──
-renderHistory();
-</script>
-<script src="js/tactical-map.js"></script>
+      document.getElementById('jornada-titulo').textContent = clima.titulo;
+      document.getElementById('jornada-efeito').textContent = clima.efeito;
+      box.classList.add('anim-slide');
+
+      addHistoryEntry({
+        type: 'oraculo',
+        action: 'Clima',
+        detail: estacao.toUpperCase(),
+        resultText: clima.titulo,
+        color: '#3B82F6'
+      });
+    });
+
+    // ── Encontro Casual ──
+    document.getElementById('btn-encontro').addEventListener('click', function () {
+      const encontro = randomFrom(ENCONTROS);
+
+      const box = document.getElementById('result-jornada');
+      box.style.display = 'block';
+      box.classList.remove('anim-slide');
+      void box.offsetWidth;
+
+      document.getElementById('jornada-titulo').textContent = '⚔ Encontro na Estrada';
+      document.getElementById('jornada-efeito').textContent = encontro;
+      box.classList.add('anim-slide');
+
+      addHistoryEntry({
+        type: 'npc',
+        action: 'Encontro',
+        detail: 'Viajando',
+        resultText: encontro.substring(0, 30) + '...',
+        color: '#F59E0B'
+      });
+    });
+
+    // ── Oráculo da Mácula ──
+    document.getElementById('btn-mutacao').addEventListener('click', function () {
+      const d6 = Math.floor(Math.random() * 6) + 1;
+      const mutacao = MUTACOES_KEGARE[d6 - 1];
+
+      const box = document.getElementById('result-mutacao');
+      box.style.display = 'block';
+      box.classList.remove('anim-slide');
+
+      animateDice(box, '#mutacao-dice', () => {
+        document.getElementById('mutacao-dice').textContent = `[ 1d6 = ${d6} ]`;
+        document.getElementById('mutacao-titulo').textContent = mutacao.titulo;
+        document.getElementById('mutacao-desc').textContent = mutacao.desc;
+
+        addHistoryEntry({
+          type: 'oraculo',
+          action: 'Kegare',
+          detail: `[ 1d6 = ${d6} ]`,
+          resultText: mutacao.titulo,
+          color: '#C41E3A'
+        });
+      });
+    });
+
+    // ── Copy Buttons ──
+    document.getElementById('btn-copy-oraculo').addEventListener('click', function () {
+      const action = document.getElementById('action-oraculo').textContent;
+      const theme = document.getElementById('theme-oraculo').textContent;
+      const twist = document.getElementById('twist-oraculo').textContent;
+      const text = `Oráculo: ${action} + ${theme} | ${twist}`;
+      copyToClipboard(text, this);
+    });
+
+    document.getElementById('btn-copy-npc').addEventListener('click', function () {
+      const name = document.getElementById('npc-name').textContent;
+      const clan = document.getElementById('npc-clan').textContent;
+      const spec = document.getElementById('npc-specialty').textContent;
+      const trait = document.getElementById('npc-trait').textContent;
+      const status = document.getElementById('npc-status').textContent;
+      const secret = document.getElementById('npc-secret').textContent;
+      const text = `${name} | ${clan} | ${spec} | ${trait} | ${status} | ${secret}`;
+      copyToClipboard(text, this);
+    });
+
+    function copyToClipboard(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = '✓ Copiado!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = '📋 Copiar';
+          btn.classList.remove('copied');
+        }, 1500);
+      }).catch(() => {
+        btn.textContent = '✗ Erro';
+        setTimeout(() => { btn.textContent = '📋 Copiar'; }, 1500);
+      });
+    }
+
+
+
+    // ── Clear History ──
+    document.getElementById('btn-limpar-historico').addEventListener('click', clearHistory);
+
+    // ── Init ──
+    renderHistory();
+  </script>
+  <script src="js/tactical-map.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -1636,4 +2795,5 @@ renderHistory();
     }
   </script>
 </body>
+
 </html>
