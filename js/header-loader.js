@@ -81,7 +81,7 @@
     /* MOBILE DRAWER STYLES */
     .mobile-drawer-overlay {
       position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
+      top: 0; left: 0; width: 100%; height: 100vh;
       background: rgba(0,0,0,0.8);
       z-index: 2000;
       opacity: 0;
@@ -153,7 +153,7 @@
     /* === THEME DRAWER === */
     .theme-drawer {
       position: fixed;
-      top: 0; right: -360px; width: 340px; height: 100vh;
+      top: 0; right: -360px; width: 340px; max-width: 100%; height: 100vh;
       background: var(--bg-deep);
       border-left: 1px solid var(--border-panel);
       z-index: 3000;
@@ -219,7 +219,7 @@
     
     /* === FRIGHT DRAWER === */
     .fright-drawer {
-      position: fixed; top: 0; right: -360px; width: 340px; height: 100vh;
+      position: fixed; top: 0; right: -360px; width: 340px; max-width: 100%; height: 100vh;
       background: var(--bg-deep); border-left: 1px solid var(--border-panel);
       z-index: 3000; transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
       display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5);
