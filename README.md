@@ -4,73 +4,50 @@
 
 **Escudo do Daimyo** é um Companion App robusto e nativo da web, desenvolvido especialmente para Mestres de RPG que utilizam o sistema **GURPS 4ª Edição** em ambientações de Japão Feudal (como *A Era das Espadas Quebradas*). 
 
-Este aplicativo transforma o seu navegador em uma central de comando para o mestre, com automação de regras complexas, gestão de iniciativa e ferramentas narrativas, tudo funcionando de forma **totalmente offline**.
+Este aplicativo transforma o seu navegador em uma central de comando para o mestre, com automação de regras complexas, gestão de iniciativa e ferramentas narrativas, tudo funcionando de forma **totalmente offline e sincronizada**.
 
 ---
 
-## 🌟 Funcionalidades Principais
+## 🌟 Funcionalidades de Elite
 
-### 1. Rastreador de Iniciativa (Combat Tracker)
-Gestão dinâmica de turnos baseada em **Velocidade Básica** e **DX/IQ**. 
-- Adição rápida de combatentes e controle de HP/PF.
-- Aplicação automática de **Penalidades de Choque (-4)**, **Ferimentos Graves** e **Risco de Morte**.
-- Gestão de condições (Bleeding, Stun, etc).
+### 💎 O Cofre Infinito (IndexedDB)
+Migramos do antigo limite de 5MB do localStorage para o **IndexedDB**. 
+- **Capacidade Gigante**: Armazene gigabytes de fichas, notas e estados de mapa sem limites.
+- **Sincronização em Tempo Real**: Mantenha a Arena, o Mapa e a Biblioteca abertos em abas diferentes; qualquer mudança em uma é refletida instantaneamente na outra.
+- **Persistência Total**: Seus NPCs, itens customizados e relógios agora estão protegidos em um banco de dados interno resiliente.
 
-### 2. Calculadora de Dano GURPS 4e
-Automação completa do cálculo de ferimento:
-- Suporte a todos os tipos de dano (**cut, imp, cr, pi-, pi+, pi++**).
-- Multiplicadores por localização de hit (**Skull, Face, Torso, Vitals, Limbs**).
-- Integração de RD (Resistência a Dano) de armaduras.
+### 🎯 Arena de Combate (Iniciativa & Dano)
+Gestão dinâmica de turnos baseada em **Velocidade Básica**, **DX** e **IQ**. 
+- **Cálculo de Dano GURPS**: Automação total de multiplicadores de ferimento por localização (**Skull, Vitals, Limbs**) e tipos de dano (**cut, imp, pi, etc**).
+- **SSR & Ranged**: Tabela de Size/Speed/Range integrada para disparos de arcos e arremessos.
+- **Status Automáticos**: Gestão de PV/PF com alertas de Risco de Morte e Penalidades de Choque.
 
-### 3. Calculadora de Ataque à Distância (SSR Table) 📏
-Automação estratégica de disparos:
-- **Integração Total**: Agora presente como opção no painel de dano da `index.html` e como seção dedicada na `combat-calculator.html`.
-- **Tabela SSR**: Redutores automáticos por distância oficial (2m, 10m, 100m, etc).
-- **Mira Progressiva**: Soma de Precisão (Acc) e bônus por turnos extras.
-- **Modificadores Extras**: Apoio (Braced), Tamanho do Alvo (SM) e Ataque Determinado.
+### 🗺️ Mapa Tático de Guerra
+Um visualizador de mapa interativo com hierarquia de regiões.
+- **Pins Interativos**: Marque cidades, santuários e pontos de interesse.
+- **Navegação em Árvore**: Explore do mapa macro para vilas e rotas específicas.
+- **Design Imersivo**: Interface escura e estilizada focada na estética Sengoku.
 
-### 4. Gerador Procedural de Inimigos (IA/Regras) 🎲
-Criação instantânea de NPCs com um clique:
-- **Níveis de Ameaça**: Capanga, Elite e Mestre.
-- **Arsenal Dinâmico**: O gerador equipa automaticamente armas compatíveis do banco de dados `weaponsDB`.
-- **Nomes Japoneses**: Geração de nomes e sobrenomes autênticos.
-- **Oráculo Narrativo**: Cada inimigo vem com uma personalidade e motivação aleatória para improvisos rápidos.
+### 📚 Biblioteca Técnica & Arsenal
+Base de dados completa e centralizada de GURPS 4e:
+- **Técnicas de Budô**: Estilos de luta (Kenjutsu, Kusarijutsu) com manobras cinematográficas e realistas.
+- **Arquivos do Clã**: Vantagens, Desvantagens, Perícias e Regras de Kegare (Corrupção).
+- **Mercado e Forja**: Database de armas, armaduras e itens ninja com cálculo de custo e peso.
 
-### 5. Personalização Neon & Acessibilidade 🎨
-Sistema de estética dinâmica para o Mestre:
-- **Temas Predefinidos**: Escolha entre variações vibrantes como **Venenoso (Verde)**, **Dourado (Amarelo)** e **Sengoku (Vermelho)**.
-- **Acessibilidade de Fontes**: Alternância instantânea entre fontes com serifa (Tradicional) e **Sem Serifa (Inter)** para melhor legibilidade mobile.
-- **Persistência Local**: Suas preferências de tema são lembradas automaticamente em todos os dispositivos.
-
-### 6. Ferramentas de Narrativa (GM Tools)
-Exclusivo na página inicial para fácil acesso:
-- **Anotações do Mestre**: Notas que persistem localmente entre sessões.
-- **Relógios de Campanha (Progress Clocks)**: Gestão de eventos, progresso de vilões ou perigos ambientais.
-- **Combate em Massa**: Resolução rápida de guerras e escaramuças com **Grade Responsiva 2x2** para uso fluido em celulares.
-
-### 6. Biblioteca e Arsenal
-Base de dados completa e centralizada de:
-- **Arsenal**: Armas brancas, arcos, armaduras e itens ninja.
-- **Biblioteca**: Referência rápida para Vantagens, Desvantagens e Regras de Sistema (Kegare, O Véu, etc).
-- **Herdeiro/Legado**: Sistema para registrar mortes heroicas e herança de itens.
+### 📜 Registro de Bushido (Fichas Premium)
+Sistema de gerenciamento de personagens com design imersivo.
+- **Cálculo de Atributos**: Geração automática de Velocidade, Esquiva e Aparada.
+- **Gestão de Carga**: Cálculo de slots e penalidades de carga baseado em ST.
+- **Sistema de Legado**: Registre as mortes heroicas e mova seus samurais para o **Túmulo dos Ancestrais**.
 
 ---
 
-## 📱 PWA & Experiência Nativa
+## 📱 PWA & Experiência Offline
 
 O projeto foi construído como um **Progressive Web App**:
-- **Offline First**: Graças ao Service Worker (`sw.js`), o app funciona integralmente sem internet após o primeiro acesso comercial (Cache-First).
+- **Offline First**: Funciona integralmente sem internet após o primeiro acesso comercial através de Cache-First Strategy.
 - **Instalável**: Pode ser instalado no Android (via Chrome), iOS (via Safari), Windows e macOS como um aplicativo independente.
-- **Performance**: Sem telas de splash ou menus de navegação do browser, operando em modo *Standalone*.
-
----
-
-## 🛠️ Tecnologias Utilizadas
-
-- **Frontend**: HTML5, Vanilla CSS (Design Premium/Dark Mode).
-- **Lógica**: JavaScript Puro (ES6) - Sem dependências externas.
-- **Persistência**: LocalStorage (Sincronização entre abas e sessões).
-- **PWA**: Web App Manifest e Service Worker (Offline-First Strategy).
+- **Sincronização entre Abas**: Utiliza `BroadcastChannel` para manter todas as páginas do app alinhadas instantaneamente.
 
 ---
 
@@ -78,19 +55,22 @@ O projeto foi construído como um **Progressive Web App**:
 
 ```text
 /
-├── index.html              # Central de Combate e GM Tools
-├── library.html            # Biblioteca de Referência
-├── equipment-database.html # Arsenal e Catálogo
-├── time-management.html    # Relógios e Log de Legado
+├── index.html              # Arena de Combate e GM Tools
+├── combat-calculator.html  # Calculadora de Dano e SSR dedicada
+├── characters-sheet.html   # Editor de Fichas de Personagem
+├── library.html            # Biblioteca de Referência Técnica
+├── equipment-database.html # Arsenal, Mercado e Loot Oracle
+├── kegare-panico.html      # Gestão de Sanidade e Corrupção
+├── oracle-generators.html  # Gerador de Inimigos e Oráculo
+├── time-management.html    # Relógios de Campanha e Calendário
 ├── js/
-│   ├── header-loader.js    # Injeção de UI, Navegação e PWA
-│   ├── ranged-calc.js      # Motor de Cálculo de Distância (SSR)
-│   ├── weapons-data.js     # Banco de Dados de Itens
-│   ├── library-data.js     # Referência de Regras
-│   ├── enemy-generator.js  # Motor Procedural
-│   └── narrative-tools.js  # Lógica de Relógios e Notas
-├── sw.js                   # Service Worker (Motor Offline)
-└── manifest.json           # Manifesto PWA
+│   ├── daimyo-db.js        # O Cofre Infinito (IndexedDB Core)
+│   ├── tactical-map.js     # Motor do Mapa de Guerra
+│   ├── character-manager.js# Lógica de Fichas e Persistência
+│   ├── library-data.js     # Motor da Biblioteca GURPS
+│   └── header-loader.js    # Injeção de UI e Controle PWA
+├── Maps/                    # Assets de Imagens de Mapa
+└── sw.js                   # Service Worker (Motor Offline v9+)
 ```
 
 ---
@@ -98,7 +78,7 @@ O projeto foi construído como um **Progressive Web App**:
 ## ⛩️ Como Instalar
 1. Acesse: [richardfcs.github.io/antigravity-project-rpg/](https://richardfcs.github.io/antigravity-project-rpg/)
 2. No seu navegador, clique no ícone de instalação (barra de endereço no Desktop) ou selecione **"Compartilhar" > "Adicionar à Tela de Início"** no Mobile.
-3. Abra o **Escudo do Daimyo** diretamente do seu menu de aplicativos e use-o mesmo em modo avião!
+3. Abra o **Escudo do Daimyo** e sinta o poder do Xogunato na palma da sua mão!
 
 ---
 *Desenvolvido em parceria com Antigravity Kit — Elevando a experiência do mestre à era das espadas.*
