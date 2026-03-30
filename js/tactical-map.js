@@ -19,7 +19,9 @@
     cities: [
       { id: "kamamura.png", name: "Kamamura", parentId: "regiao-chugoku.png", source: "bundled" }
     ],
-    battles: []
+    battles: [
+      { id: "grid-battle.png", name: "Grid de Batalha", parentId: "kamamura.png", source: "bundled", hasGrid: true, gridSize: 48 }
+    ]
   };
 
   let mapTree = null;
@@ -100,20 +102,25 @@
   let startCamX = 0, startCamY = 0;
   let startTokenLeft = 0, startTokenTop = 0;
 
+  let isInitialized = false;
+
   // ── INIT ──
   async function init() {
     await loadData();
+    
+    // Global listeners setup only once
+    if (!isInitialized) {
+      document.addEventListener('click', hideContextMenu);
+      viewport.addEventListener('wheel', hideContextMenu);
+      isInitialized = true;
+    }
+
     setupControls();
     setupCameraEvents();
     setupContextMenu();
     setupModal();
     setupUploadZone();
     updateSelectors();
-
-    document.removeEventListener('click', hideContextMenu);
-    viewport.removeEventListener('wheel', hideContextMenu);
-    document.addEventListener('click', hideContextMenu);
-    viewport.addEventListener('wheel', hideContextMenu);
   }
 
   // ── DATA MANAGER ──
@@ -124,15 +131,49 @@
 
     try {
       const savedTree = await window.DaimyoDB.get(window.DaimyoDB.STORES.MAP_STATE, 'hierarchy');
-      mapTree = savedTree ? JSON.parse(JSON.stringify(savedTree)) : JSON.parse(JSON.stringify(defaultTree));
-      if (!mapTree.battles) mapTree.battles = [];
-      if (!mapTree || !mapTree.macro) mapTree = JSON.parse(JSON.stringify(defaultTree));
-    } catch { mapTree = JSON.parse(JSON.stringify(defaultTree)); }
+      const { merged, changed } = syncMapTree(savedTree, defaultTree);
+      mapTree = merged;
+      if (changed) {
+        console.log("⛩️ Porta do Daimyo: Sincronizando novos mapas padrão...");
+        await saveData();
+      }
+    } catch (err) { 
+      console.error("Falha ao sincronizar hierarquia, usando padrão:", err);
+      mapTree = JSON.parse(JSON.stringify(defaultTree)); 
+    }
 
     try {
       const savedTokens = await window.DaimyoDB.get(window.DaimyoDB.STORES.MAP_STATE, 'tokens');
       tokensState = savedTokens ? savedTokens : {};
     } catch { tokensState = {}; }
+  }
+
+  function syncMapTree(saved, defaults) {
+    if (!saved || !saved.macro) return { merged: JSON.parse(JSON.stringify(defaults)), changed: true };
+
+    const merged = JSON.parse(JSON.stringify(saved));
+    let changed = false;
+
+    // Ensure structure
+    if (!merged.regions) merged.regions = [];
+    if (!merged.cities) merged.cities = [];
+    if (!merged.battles) merged.battles = [];
+
+    const checkAndAdd = (listName, defaultList) => {
+      defaultList.forEach(defItem => {
+        const existing = merged[listName].find(item => item.id === defItem.id);
+        if (!existing) {
+          merged[listName].push(JSON.parse(JSON.stringify(defItem)));
+          changed = true;
+        }
+      });
+    };
+
+    checkAndAdd('regions', defaults.regions);
+    checkAndAdd('cities', defaults.cities);
+    checkAndAdd('battles', defaults.battles);
+
+    return { merged, changed };
   }
 
   async function saveData() {
@@ -157,46 +198,62 @@
   }
 
   // ── UI / TREE SELECTORS ──
+  // NAMED HANDLERS (for idempotency)
+  const onLevelChange = () => updateSelectors();
+  const onSpecificChange = (e) => {
+    currentMapId = e.target.value;
+    loadCurrentMap();
+  };
+  const onAddPlayer = () => {
+    if (!currentMapId) return;
+    const name = prompt('Nome do Grupo/Aliado:', 'Grupo');
+    if (name !== null) addToken('player', name);
+  };
+  const onAddEnemy = () => {
+    if (!currentMapId) return;
+    const name = prompt('Nome do Inimigo/Bando:', 'Inimigo');
+    if (name !== null) addToken('enemy', name);
+  };
+  const onClearMap = () => {
+    if (!currentMapId) return;
+    if (confirm('Limpar TODOS os pinos deste mapa?')) {
+      tokensState[currentMapId] = [];
+      saveData();
+      renderTokens();
+    }
+  };
+  const onToggleGrid = () => {
+    gridEnabled = !gridEnabled;
+    selGridSize.style.display = gridEnabled ? '' : 'none';
+    btnToggleGrid.style.color = gridEnabled ? 'var(--gold)' : '';
+    renderGrid();
+  };
+  const onGridSizeChange = () => {
+    gridSize = parseInt(selGridSize.value);
+    renderGrid();
+  };
+
   function setupControls() {
-    selLevel.addEventListener('change', updateSelectors);
-    selSpecific.addEventListener('change', (e) => {
-      currentMapId = e.target.value;
-      loadCurrentMap();
-    });
+    selLevel.removeEventListener('change', onLevelChange);
+    selLevel.addEventListener('change', onLevelChange);
 
-    btnAddPlayer.addEventListener('click', () => {
-      if (!currentMapId) return;
-      const name = prompt('Nome do Grupo/Aliado:', 'Grupo');
-      if (name !== null) addToken('player', name);
-    });
+    selSpecific.removeEventListener('change', onSpecificChange);
+    selSpecific.addEventListener('change', onSpecificChange);
 
-    btnAddEnemy.addEventListener('click', () => {
-      if (!currentMapId) return;
-      const name = prompt('Nome do Inimigo/Bando:', 'Inimigo');
-      if (name !== null) addToken('enemy', name);
-    });
+    btnAddPlayer.removeEventListener('click', onAddPlayer);
+    btnAddPlayer.addEventListener('click', onAddPlayer);
 
-    btnClearMap.addEventListener('click', () => {
-      if (!currentMapId) return;
-      if (confirm('Limpar TODOS os pinos deste mapa?')) {
-        tokensState[currentMapId] = [];
-        saveData();
-        renderTokens();
-      }
-    });
+    btnAddEnemy.removeEventListener('click', onAddEnemy);
+    btnAddEnemy.addEventListener('click', onAddEnemy);
 
-    // GRID
-    btnToggleGrid.addEventListener('click', () => {
-      gridEnabled = !gridEnabled;
-      selGridSize.style.display = gridEnabled ? '' : 'none';
-      btnToggleGrid.style.color = gridEnabled ? 'var(--gold)' : '';
-      renderGrid();
-    });
+    btnClearMap.removeEventListener('click', onClearMap);
+    btnClearMap.addEventListener('click', onClearMap);
 
-    selGridSize.addEventListener('change', () => {
-      gridSize = parseInt(selGridSize.value);
-      renderGrid();
-    });
+    btnToggleGrid.removeEventListener('click', onToggleGrid);
+    btnToggleGrid.addEventListener('click', onToggleGrid);
+
+    selGridSize.removeEventListener('change', onGridSizeChange);
+    selGridSize.addEventListener('change', onGridSizeChange);
   }
 
   function updateSelectors() {
@@ -438,52 +495,62 @@
     });
   }
 
-  // ── UPLOAD ZONE ──
-  function setupUploadZone() {
-    // Click to open file
-    uploadZone.addEventListener('click', (e) => {
-      if (e.target === btnRemoveUpload || e.target.closest('.upload-zone__remove')) return;
+  // UPLOAD HANDLERS
+  const onZoneClick = (e) => {
+    if (e.target === btnRemoveUpload || e.target.closest('.upload-zone__remove')) return;
+    regFileInput.click();
+  };
+  const onZoneKey = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
       regFileInput.click();
-    });
+    }
+  };
+  const onFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileUpload(e.target.files[0]);
+    }
+  };
+  const onZoneDragOver = (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('drag-over');
+  };
+  const onZoneDragLeave = () => {
+    uploadZone.classList.remove('drag-over');
+  };
+  const onZoneDrop = (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+  const onRemoveClick = (e) => {
+    e.stopPropagation();
+    clearUpload();
+  };
 
-    // Keyboard
-    uploadZone.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        regFileInput.click();
-      }
-    });
+  function setupUploadZone() {
+    uploadZone.removeEventListener('click', onZoneClick);
+    uploadZone.addEventListener('click', onZoneClick);
 
-    // File input change
-    regFileInput.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files[0]) {
-        handleFileUpload(e.target.files[0]);
-      }
-    });
+    uploadZone.removeEventListener('keydown', onZoneKey);
+    uploadZone.addEventListener('keydown', onZoneKey);
 
-    // Drag & Drop
-    uploadZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadZone.classList.add('drag-over');
-    });
+    regFileInput.removeEventListener('change', onFileChange);
+    regFileInput.addEventListener('change', onFileChange);
 
-    uploadZone.addEventListener('dragleave', () => {
-      uploadZone.classList.remove('drag-over');
-    });
+    uploadZone.removeEventListener('dragover', onZoneDragOver);
+    uploadZone.addEventListener('dragover', onZoneDragOver);
 
-    uploadZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadZone.classList.remove('drag-over');
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        handleFileUpload(e.dataTransfer.files[0]);
-      }
-    });
+    uploadZone.removeEventListener('dragleave', onZoneDragLeave);
+    uploadZone.addEventListener('dragleave', onZoneDragLeave);
 
-    // Remove upload
-    btnRemoveUpload.addEventListener('click', (e) => {
-      e.stopPropagation();
-      clearUpload();
-    });
+    uploadZone.removeEventListener('drop', onZoneDrop);
+    uploadZone.addEventListener('drop', onZoneDrop);
+
+    btnRemoveUpload.removeEventListener('click', onRemoveClick);
+    btnRemoveUpload.addEventListener('click', onRemoveClick);
   }
 
   function handleFileUpload(file) {
@@ -520,48 +587,55 @@
     validateForm();
   }
 
-  // ── MODAL ──
+  // MODAL HANDLERS
+  const onModalOpen = openModal;
+  const onModalClose = closeModal;
+  const onModalOverlay = (e) => { if (e.target === modalRegister) closeModal(); };
+  const onModalEsc = (e) => { if (e.key === 'Escape' && modalRegister.style.display !== 'none') closeModal(); };
+  const onGridCheck = () => { gridSizeRow.style.display = regHasGrid.checked ? 'flex' : 'none'; };
+  const onFormChange = () => validateForm();
+  const onSaveMap = () => saveNewMap();
+
   function setupModal() {
-    btnRegister.addEventListener('click', openModal);
-    btnRegCancel.addEventListener('click', closeModal);
-    btnRegCancelBottom.addEventListener('click', closeModal);
+    btnRegister.removeEventListener('click', onModalOpen);
+    btnRegister.addEventListener('click', onModalOpen);
 
-    // Close on overlay click
-    modalRegister.addEventListener('click', (e) => {
-      if (e.target === modalRegister) closeModal();
-    });
+    btnRegCancel.removeEventListener('click', onModalClose);
+    btnRegCancel.addEventListener('click', onModalClose);
 
-    // Close on Escape
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modalRegister.style.display !== 'none') {
-        closeModal();
-      }
-    });
+    btnRegCancelBottom.removeEventListener('click', onModalClose);
+    btnRegCancelBottom.addEventListener('click', onModalClose);
 
-    // Map type cards
+    modalRegister.removeEventListener('click', onModalOverlay);
+    modalRegister.addEventListener('click', onModalOverlay);
+
+    document.removeEventListener('keydown', onModalEsc);
+    document.addEventListener('keydown', onModalEsc);
+
     mapTypeCards.querySelectorAll('.map-type-card').forEach(card => {
-      card.addEventListener('click', () => {
+      const onCardClick = () => {
         mapTypeCards.querySelectorAll('.map-type-card').forEach(c => c.classList.remove('active'));
         card.classList.add('active');
         selectedMapType = card.dataset.level;
         updateModalFields();
         validateForm();
-      });
+      };
+      card.removeEventListener('click', card._handler);
+      card.addEventListener('click', onCardClick);
+      card._handler = onCardClick;
     });
 
-    // Grid checkbox
-    regHasGrid.addEventListener('change', () => {
-      gridSizeRow.style.display = regHasGrid.checked ? 'flex' : 'none';
-    });
+    regHasGrid.removeEventListener('change', onGridCheck);
+    regHasGrid.addEventListener('change', onGridCheck);
 
-    // Parent change
-    regParent.addEventListener('change', validateForm);
+    regParent.removeEventListener('change', onFormChange);
+    regParent.addEventListener('change', onFormChange);
 
-    // Name change
-    regName.addEventListener('input', validateForm);
+    regName.removeEventListener('input', onFormChange);
+    regName.addEventListener('input', onFormChange);
 
-    // Save
-    btnRegSave.addEventListener('click', saveNewMap);
+    btnRegSave.removeEventListener('click', onSaveMap);
+    btnRegSave.addEventListener('click', onSaveMap);
   }
 
   function openModal() {
@@ -693,32 +767,45 @@
     }
   }
 
-  // ── CAMERA & PAN ──
+  // CAMERA HANDLERS
+  const onCameraWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.001;
+    camScale += delta;
+    camScale = Math.min(Math.max(MIN_SCALE, camScale), MAX_SCALE);
+    applyCamera(false);
+  };
+  const onZoomIn = () => { camScale = Math.min(MAX_SCALE, camScale + 0.2); applyCamera(); };
+  const onZoomOut = () => { camScale = Math.max(MIN_SCALE, camScale - 0.2); applyCamera(); };
+  const onZoomReset = () => { camScale = 1; camX = 0; camY = 0; applyCamera(); };
+  const onCameraDown = (e) => {
+    if (e.target.closest('.tactical-token')) return;
+    dragMode = 'camera';
+    viewport.setPointerCapture(e.pointerId);
+    startClientX = e.clientX;
+    startClientY = e.clientY;
+    startCamX = camX;
+    startCamY = camY;
+    viewport.addEventListener('pointermove', onCameraMove);
+    viewport.addEventListener('pointerup', onCameraEnd);
+    viewport.addEventListener('pointercancel', onCameraEnd);
+  };
+
   function setupCameraEvents() {
-    viewport.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const delta = e.deltaY * -0.001;
-      camScale += delta;
-      camScale = Math.min(Math.max(MIN_SCALE, camScale), MAX_SCALE);
-      applyCamera(false);
-    }, { passive: false });
+    viewport.removeEventListener('wheel', onCameraWheel);
+    viewport.addEventListener('wheel', onCameraWheel, { passive: false });
 
-    btnZoomIn.addEventListener('click', () => { camScale = Math.min(MAX_SCALE, camScale + 0.2); applyCamera(); });
-    btnZoomOut.addEventListener('click', () => { camScale = Math.max(MIN_SCALE, camScale - 0.2); applyCamera(); });
-    btnZoomReset.addEventListener('click', () => { camScale = 1; camX = 0; camY = 0; applyCamera(); });
+    btnZoomIn.removeEventListener('click', onZoomIn);
+    btnZoomIn.addEventListener('click', onZoomIn);
 
-    viewport.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('.tactical-token')) return;
-      dragMode = 'camera';
-      viewport.setPointerCapture(e.pointerId);
-      startClientX = e.clientX;
-      startClientY = e.clientY;
-      startCamX = camX;
-      startCamY = camY;
-      viewport.addEventListener('pointermove', onCameraMove);
-      viewport.addEventListener('pointerup', onCameraEnd);
-      viewport.addEventListener('pointercancel', onCameraEnd);
-    });
+    btnZoomOut.removeEventListener('click', onZoomOut);
+    btnZoomOut.addEventListener('click', onZoomOut);
+
+    btnZoomReset.removeEventListener('click', onZoomReset);
+    btnZoomReset.addEventListener('click', onZoomReset);
+
+    viewport.removeEventListener('pointerdown', onCameraDown);
+    viewport.addEventListener('pointerdown', onCameraDown);
   }
 
   function onCameraMove(e) {
@@ -741,24 +828,31 @@
     content.style.transform = `translate(${camX}px, ${camY}px) scale(${camScale})`;
   }
 
-  // ── CONTEXT MENU ──
+  // CONTEXT MENU HANDLERS
+  const onDeleteCtx = () => {
+    if (contextTargetId) deleteToken(contextTargetId);
+    hideContextMenu();
+  };
+
   function setupContextMenu() {
     if (!contextMenu) return;
 
-    document.getElementById('ctx-delete-token').addEventListener('click', () => {
-      if (contextTargetId) deleteToken(contextTargetId);
-      hideContextMenu();
-    });
+    const btnDel = document.getElementById('ctx-delete-token');
+    btnDel.removeEventListener('click', onDeleteCtx);
+    btnDel.addEventListener('click', onDeleteCtx);
 
     contextMenu.querySelectorAll('.color-dot').forEach(dot => {
-      dot.addEventListener('click', () => {
+      const onColorClick = () => {
         updateTokenProperty(contextTargetId, 'color', dot.dataset.color);
         hideContextMenu();
-      });
+      };
+      dot.removeEventListener('click', dot._handler);
+      dot.addEventListener('click', onColorClick);
+      dot._handler = onColorClick;
     });
 
     contextMenu.querySelectorAll('.size-box').forEach(box => {
-      box.addEventListener('click', (e) => {
+      const onSizeClick = (e) => {
         e.stopPropagation();
         if (box.dataset.size) {
           updateTokenProperty(contextTargetId, 'size', box.dataset.size);
@@ -766,7 +860,10 @@
           updateTokenProperty(contextTargetId, 'shape', box.dataset.shape);
         }
         hideContextMenu();
-      });
+      };
+      box.removeEventListener('click', box._handler);
+      box.addEventListener('click', onSizeClick);
+      box._handler = onSizeClick;
     });
   }
 

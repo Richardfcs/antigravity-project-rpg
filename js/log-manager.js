@@ -6,6 +6,7 @@
 window.LogManager = (function() {
   const STORE = 'history';
   const KEY = 'session_log';
+  const MAX_ENTRIES = 200;
   let cache = [];
 
   // Initialize: Pre-load from IndexedDB to memory
@@ -36,6 +37,10 @@ window.LogManager = (function() {
 
     cache.unshift(entry);
 
+    // Circular buffer: Limitar a MAX_ENTRIES para performance
+    if (cache.length > MAX_ENTRIES) {
+      cache = cache.slice(0, MAX_ENTRIES);
+    }
     
     // Sem limite artificial de linhas (Cofre Infinito)
     if (window.DaimyoDB) {

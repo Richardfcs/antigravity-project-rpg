@@ -242,7 +242,7 @@ function injectMerchantUI() {
       justify-content: center;
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(0,0,0,0.8);
-      z-index: 1000;
+      z-index: 1105;
       transition: transform 0.2s ease, background 0.2s ease;
     }
     .merchant-fab:hover {
@@ -447,6 +447,9 @@ function injectMerchantUI() {
       .merchant-panel {
         width: 100%;
         right: -100%;
+      }
+      .merchant-panel.merchant-panel--open {
+        right: 0;
       }
     }
   `;

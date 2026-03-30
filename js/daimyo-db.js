@@ -134,51 +134,50 @@ window.DaimyoDB = (function() {
 
     console.log("🛠️ Iniciando Migração estratégica para o Cofre Infinito (v2)...");
     
+    const safeMigrate = async (lsKey, store, dbKey, isJSON = true) => {
+      try {
+        const raw = localStorage.getItem(lsKey);
+        if (raw) {
+          const val = isJSON ? JSON.parse(raw) : raw;
+          await put(store, dbKey, val);
+          console.log(`✅ Migrado: ${lsKey} -> ${store}:${dbKey}`);
+        }
+      } catch (e) {
+        console.warn(`⚠️ Falha ao migrar ${lsKey}:`, e);
+      }
+    };
+
     // Combat State & Kegare
-    const combatState = localStorage.getItem('daimyoShieldState');
-    if (combatState) await put(STORES.VAULT, 'combat_state', JSON.parse(combatState));
+    await safeMigrate('daimyoShieldState', STORES.VAULT, 'combat_state');
 
     // Characters
-    const characters = localStorage.getItem('daimyo_characters');
-    if (characters) await put(STORES.CHARACTERS, 'all', JSON.parse(characters));
+    await safeMigrate('daimyo_characters', STORES.CHARACTERS, 'all');
 
     // Tactical Map
-    const mapTokens = localStorage.getItem('daimyo_war_map_tokens');
-    if (mapTokens) await put(STORES.MAP_STATE, 'tokens', JSON.parse(mapTokens));
-    const mapHierarchy = localStorage.getItem('daimyo_map_hierarchy');
-    if (mapHierarchy) await put(STORES.MAP_STATE, 'hierarchy', JSON.parse(mapHierarchy));
+    await safeMigrate('daimyo_war_map_tokens', STORES.MAP_STATE, 'tokens');
+    await safeMigrate('daimyo_map_hierarchy', STORES.MAP_STATE, 'hierarchy');
 
     // Narrative Tools (Clocks & Notes)
-    const clocks = localStorage.getItem('daimyo_clocks') || localStorage.getItem('daimyo_faction_clocks');
-    if (clocks) await put(STORES.VAULT, 'clocks', JSON.parse(clocks));
-    const clocksHist = localStorage.getItem('daimyo_clocks_history');
-    if (clocksHist) await put(STORES.VAULT, 'clocks_history', JSON.parse(clocksHist));
-    const gmNotes = localStorage.getItem('daimyo_gm_notes') || localStorage.getItem('daimyo_notes');
-    if (gmNotes) {
-        try { 
-            const parsed = JSON.parse(gmNotes);
-            await put(STORES.VAULT, 'gm_notes', parsed);
-        } catch(e) { await put(STORES.VAULT, 'gm_notes', gmNotes); }
-    }
+    const clocksKey = localStorage.getItem('daimyo_clocks') ? 'daimyo_clocks' : 'daimyo_faction_clocks';
+    await safeMigrate(clocksKey, STORES.VAULT, 'clocks');
+    await safeMigrate('daimyo_clocks_history', STORES.VAULT, 'clocks_history');
+    
+    // Special handling for notes (fallback to raw if JSON fails)
+    const notesKey = localStorage.getItem('daimyo_gm_notes') ? 'daimyo_gm_notes' : 'daimyo_notes';
+    await safeMigrate(notesKey, STORES.VAULT, 'gm_notes');
 
     // Logs & History
-    const combatLog = localStorage.getItem('escudo_daimyo_history');
-    if (combatLog) await put(STORES.HISTORY, 'combat_log', JSON.parse(combatLog));
-    const crisisLog = localStorage.getItem('daimyo_crisis_log');
-    if (crisisLog) await put(STORES.HISTORY, 'crisis_log', JSON.parse(crisisLog));
-    const calcLog = localStorage.getItem('espadas_quebradas_history');
-    if (calcLog) await put(STORES.HISTORY, 'calc_history', JSON.parse(calcLog));
+    await safeMigrate('escudo_daimyo_history', STORES.HISTORY, 'combat_log');
+    await safeMigrate('daimyo_crisis_log', STORES.HISTORY, 'crisis_log');
+    await safeMigrate('espadas_quebradas_history', STORES.HISTORY, 'calc_history');
 
     // Library Data
-    const libData = localStorage.getItem('daimyo_library_data');
-    if (libData) await put(STORES.VAULT, 'library_data', JSON.parse(libData));
-    const libCats = localStorage.getItem('daimyo_library_categories');
-    if (libCats) await put(STORES.VAULT, 'library_categories', JSON.parse(libCats));
-    const libVer = localStorage.getItem('daimyo_data_version');
-    if (libVer) await put(STORES.VAULT, 'library_data_version', parseInt(libVer));
+    await safeMigrate('daimyo_library_data', STORES.VAULT, 'library_data');
+    await safeMigrate('daimyo_library_categories', STORES.VAULT, 'library_categories');
+    await safeMigrate('daimyo_data_version', STORES.VAULT, 'library_data_version');
 
     localStorage.setItem(migrationKey, 'true');
-    console.log("✅ Migração v2 concluída. Todos os subsistemas alinhados.");
+    console.log("⛩️ Migração v2 concluída.");
   }
 
   return {

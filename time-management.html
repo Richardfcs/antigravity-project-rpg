@@ -1538,12 +1538,18 @@
           meta: 'Hierarquia de mapas e tokens',
           storage: 'indexeddb', store: 'map_state', key: 'hierarchy',
           hasReset: true,
-          getResetData: () => ({ macro: { id: 'mapa-macro.png', name: 'Japão Macro' }, regions: [{ id: 'regiao-chugoku.png', name: 'Região de Chugoku' }], cities: [{ id: 'kamamura.png', name: 'Kamamura', parentId: 'regiao-chugoku.png' }] }),
+          getResetData: () => ({ 
+            macro: { id: 'mapa-macro.png', name: 'Japão Macro', source: 'bundled' }, 
+            regions: [{ id: 'regiao-chugoku.png', name: 'Região de Chugoku', source: 'bundled' }], 
+            cities: [{ id: 'kamamura.png', name: 'Kamamura', parentId: 'regiao-chugoku.png', source: 'bundled' }],
+            battles: [{ id: 'grid-battle.png', name: 'Grid de Batalha', parentId: 'kamamura.png', source: 'bundled', hasGrid: true, gridSize: 48 }]
+          }),
           getListFromData: (data) => {
             const list = [];
-            if (data && data.macro) list.push({ name: data.macro.name, sub: 'mapa-macro.png' });
-            if (data && data.regions) data.regions.forEach(r => list.push({ name: r.name, sub: 'Região' }));
-            if (data && data.cities) data.cities.forEach(c => list.push({ name: c.name, sub: 'Cidade' }));
+            if (data && data.macro) list.push({ name: data.macro.name, sub: '🗾 Macro' });
+            if (data && data.regions) data.regions.forEach(r => list.push({ name: r.name, sub: '🏔 Região' }));
+            if (data && data.cities) data.cities.forEach(c => list.push({ name: c.name, sub: '🏘 Cidade' }));
+            if (data && data.battles) data.battles.forEach(b => list.push({ name: b.name, sub: '⚔️ Batalha' }));
             return list;
           },
           getItemLabel: (item) => item.name,
@@ -1975,7 +1981,12 @@
             }
 
             // Map state
-            const defaultHierarchy = { macro: { id: 'mapa-macro.png', name: 'Japão Macro' }, regions: [{ id: 'regiao-chugoku.png', name: 'Região de Chugoku' }], cities: [{ id: 'kamamura.png', name: 'Kamamura', parentId: 'regiao-chugoku.png' }] };
+            const defaultHierarchy = { 
+              macro: { id: 'mapa-macro.png', name: 'Japão Macro', source: 'bundled' }, 
+              regions: [{ id: 'regiao-chugoku.png', name: 'Região de Chugoku', source: 'bundled' }], 
+              cities: [{ id: 'kamamura.png', name: 'Kamamura', parentId: 'regiao-chugoku.png', source: 'bundled' }],
+              battles: [{ id: 'grid-battle.png', name: 'Grid de Batalha', parentId: 'kamamura.png', source: 'bundled', hasGrid: true, gridSize: 48 }]
+            };
             await window.DaimyoDB.put('map_state', 'hierarchy', defaultHierarchy);
             await window.DaimyoDB.put('map_state', 'tokens', {});
 

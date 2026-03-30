@@ -183,9 +183,12 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
       gap: 16px;
-      padding: 16px;
+      padding: 20px;
       background: var(--bg-deep);
       overflow-y: auto;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
     }
 
     /* ═══════════════════════════════════════════
@@ -275,6 +278,7 @@
     .field__input[type=number] {
       -moz-appearance: textfield;
       appearance: textfield;
+      margin: 0;
     }
 
     .field__hint {
@@ -322,35 +326,27 @@
        RESPONSIVE MOBILE
        ═══════════════════════════════════════════ */
     @media (max-width: 900px) {
-
-      body,
-      html {
-        overflow: auto;
-        min-height: 100vh;
-      }
-
+      body, html { overflow: auto; height: auto; -webkit-overflow-scrolling: touch; }
       #app {
         height: auto;
-        min-height: 100vh;
-        grid-template-rows: auto 1fr;
         display: block;
         overflow: visible;
       }
-
       .main {
         grid-template-columns: 1fr;
         overflow-y: visible;
         height: auto;
-        padding: 10px;
+        padding: 12px;
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
         background: transparent;
       }
 
       .header {
         flex-wrap: wrap;
         gap: 10px;
+        padding: 12px 16px;
       }
 
       .header__meta {
@@ -378,6 +374,7 @@
         min-height: fit-content;
         border: 1px solid var(--border-panel);
         border-radius: var(--radius-lg);
+        padding: 16px;
       }
     }
 
@@ -675,10 +672,13 @@
       border-top: 1px solid var(--border-panel);
       display: flex;
       flex-direction: column;
-      height: 320px;
-      max-height: 40vh;
+      height: 350px;
+      max-height: 45vh;
       flex-shrink: 0;
       overflow: hidden;
+      width: 100%;
+      max-width: 1600px;
+      margin: 0 auto;
     }
 
     .history__header {

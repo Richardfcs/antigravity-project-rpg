@@ -459,14 +459,14 @@
        RESPONSIVE MOBILE
        ═══════════════════════════════════════════ */
     @media (max-width: 900px) {
-      body, html { overflow: auto; min-height: 100vh; }
-      #app { height: auto; min-height: 100vh; grid-template-rows: auto 1fr auto; display: block; overflow: visible; }
+      body, html { overflow: auto; height: auto; -webkit-overflow-scrolling: touch; }
+      #app { height: auto; grid-template-rows: auto auto auto; display: block; overflow: visible; }
       .main { grid-template-columns: 1fr; overflow-y: visible; height: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; background: transparent; }
-      .header { flex-wrap: wrap; gap: 10px; }
+      .header { flex-wrap: wrap; gap: 10px; padding: 12px 16px; }
       .header__actions { width: 100%; justify-content: space-between; border-top: 1px solid var(--border-panel); padding-top: 10px; }
       .tab-nav { margin-right: 0; width: 100%; overflow-x: auto; white-space: nowrap; flex-wrap: nowrap; border-bottom: 1px solid rgba(212,175,55,0.1); padding-bottom: 2px; }
       .tab-nav::-webkit-scrollbar { display: none; }
-      .panel { min-height: fit-content; border: 1px solid var(--border-panel); border-radius: var(--radius-lg); }
+      .panel { min-height: fit-content; border: 1px solid var(--border-panel); border-radius: var(--radius-lg); padding: 16px; }
     }
 
     .contest-side__dice {
@@ -662,24 +662,27 @@
        RESPONSIVE — < 1024px: stack vertical
        ═══════════════════════════════════════════ */
     @media (max-width: 1024px) {
-      html, body { overflow: auto; }
+      html, body { overflow: auto; height: auto; }
       #app {
         grid-template-rows: auto auto auto;
         height: auto;
-        min-height: 100vh;
+        display: block;
         overflow: visible;
       }
       .main {
         grid-template-columns: 1fr;
-        gap: 1px;
+        gap: 10px;
+        padding: 10px;
       }
       .panel {
         padding: 16px 20px;
+        min-height: auto;
       }
       .history {
         max-height: none;
         height: auto;
-        min-height: 150px;
+        min-height: 250px;
+        border-top: 1px solid var(--border-panel);
       }
     }
 
