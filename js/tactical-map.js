@@ -48,6 +48,10 @@
   let uploadedFileData = null;
   let selectedMapType = null;
 
+  // TOKEN MODAL STATE
+  let tokenModalType = null;
+  let tokenModalImage = null;
+
   // DOM Elements
   const tacticalBoard = document.getElementById('tactical-board');
   const mainView = document.querySelector('.main');
@@ -120,6 +124,7 @@
     setupContextMenu();
     setupModal();
     setupUploadZone();
+    setupTokenModal();
     updateSelectors();
   }
 
@@ -206,13 +211,11 @@
   };
   const onAddPlayer = () => {
     if (!currentMapId) return;
-    const name = prompt('Nome do Grupo/Aliado:', 'Grupo');
-    if (name !== null) addToken('player', name);
+    openAddTokenModal('player');
   };
   const onAddEnemy = () => {
     if (!currentMapId) return;
-    const name = prompt('Nome do Inimigo/Bando:', 'Inimigo');
-    if (name !== null) addToken('enemy', name);
+    openAddTokenModal('enemy');
   };
   const onClearMap = () => {
     if (!currentMapId) return;
@@ -461,15 +464,28 @@
       const py = token.y !== undefined ? token.y : 50;
       const sizeClass = `token-${token.size || 'md'}`;
       const colorClass = `token-${token.color || token.type}`;
-      const shapeClass = `token-shape-${token.shape || 'circle'}`;
+      const hasImage = !!token.image;
 
-      el.className = `tactical-token ${sizeClass} ${colorClass} ${shapeClass}`;
+      // Image tokens are always circular
+      const shapeClass = hasImage ? 'token-shape-circle' : `token-shape-${token.shape || 'circle'}`;
+      const imageClass = hasImage ? 'tactical-token--has-image' : '';
+
+      el.className = `tactical-token ${sizeClass} ${colorClass} ${shapeClass} ${imageClass}`.trim();
       el.dataset.id = token.id;
       el.style.left = `${px}%`;
       el.style.top = `${py}%`;
 
-      const init = (token.name || token.type).charAt(0).toUpperCase();
-      el.textContent = init;
+      if (hasImage) {
+        const img = document.createElement('img');
+        img.className = 'tactical-token__img';
+        img.src = token.image;
+        img.alt = token.name || token.type;
+        img.draggable = false;
+        el.appendChild(img);
+      } else {
+        const init = (token.name || token.type).charAt(0).toUpperCase();
+        el.textContent = init;
+      }
 
       if (token.name) {
         const label = document.createElement('div');
@@ -834,12 +850,55 @@
     hideContextMenu();
   };
 
+  const ctxImageFileInput = document.getElementById('ctx-image-file-input');
+
+  const onCtxChangeImage = () => {
+    if (!contextTargetId) return;
+    ctxImageFileInput.dataset.tokenId = contextTargetId;
+    ctxImageFileInput.click();
+    hideContextMenu();
+  };
+
+  const onCtxRemoveImage = () => {
+    if (contextTargetId) {
+      updateTokenProperty(contextTargetId, 'image', '');
+    }
+    hideContextMenu();
+  };
+
+  const onCtxImageFileChange = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    const tokenId = ctxImageFileInput.dataset.tokenId;
+    if (!file || !tokenId) return;
+    const resized = await resizeImageForToken(file);
+    if (resized) {
+      updateTokenProperty(tokenId, 'image', resized);
+    }
+    ctxImageFileInput.value = '';
+  };
+
   function setupContextMenu() {
     if (!contextMenu) return;
 
     const btnDel = document.getElementById('ctx-delete-token');
     btnDel.removeEventListener('click', onDeleteCtx);
     btnDel.addEventListener('click', onDeleteCtx);
+
+    const btnChangeImg = document.getElementById('ctx-change-image');
+    const btnRemoveImg = document.getElementById('ctx-remove-image');
+
+    if (btnChangeImg) {
+      btnChangeImg.removeEventListener('click', onCtxChangeImage);
+      btnChangeImg.addEventListener('click', onCtxChangeImage);
+    }
+    if (btnRemoveImg) {
+      btnRemoveImg.removeEventListener('click', onCtxRemoveImage);
+      btnRemoveImg.addEventListener('click', onCtxRemoveImage);
+    }
+    if (ctxImageFileInput) {
+      ctxImageFileInput.removeEventListener('change', onCtxImageFileChange);
+      ctxImageFileInput.addEventListener('change', onCtxImageFileChange);
+    }
 
     contextMenu.querySelectorAll('.color-dot').forEach(dot => {
       const onColorClick = () => {
@@ -947,7 +1006,7 @@
     activeToken = null;
   }
 
-  function addToken(type, name) {
+  function addToken(type, name, image) {
     if (!currentMapId) return;
     if (!tokensState[currentMapId]) tokensState[currentMapId] = [];
     tokensState[currentMapId].push({
@@ -957,11 +1016,218 @@
       size: 'md',
       color: type,
       shape: 'circle',
+      image: image || '',
       x: 50,
       y: 50
     });
     saveData();
     renderTokens();
+  }
+
+  // ── IMAGE RESIZE UTILITY ──
+  function resizeImageForToken(file, maxSize = 128) {
+    return new Promise((resolve) => {
+      if (!file || !file.type.startsWith('image/')) {
+        resolve(null);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = maxSize;
+          canvas.height = maxSize;
+          const ctx = canvas.getContext('2d');
+          // Center crop to square
+          const minDim = Math.min(img.width, img.height);
+          const sx = (img.width - minDim) / 2;
+          const sy = (img.height - minDim) / 2;
+          ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, maxSize, maxSize);
+          resolve(canvas.toDataURL('image/webp', 0.8));
+        };
+        img.onerror = () => resolve(null);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ── ADD TOKEN MODAL ──
+  const tokenModal = document.getElementById('modal-add-token');
+  const tokenCharSelect = document.getElementById('token-char-select');
+  const tokenNameInput = document.getElementById('token-name-input');
+  const tokenImgAvatar = document.getElementById('token-img-avatar');
+  const tokenImgPlaceholder = document.getElementById('token-img-placeholder');
+  const tokenImgFilename = document.getElementById('token-img-filename');
+  const tokenImgFileInput = document.getElementById('token-img-file-input');
+  const btnTokenUpload = document.getElementById('btn-token-upload');
+  const btnTokenClearImg = document.getElementById('btn-token-clear-img');
+  const btnTokenCreate = document.getElementById('btn-token-create');
+  const btnTokenCancel = document.getElementById('btn-token-cancel');
+  const btnTokenCancelBottom = document.getElementById('btn-token-cancel-bottom');
+  const tokenTypeBadge = document.getElementById('token-modal-type-badge');
+
+  async function openAddTokenModal(type) {
+    tokenModalType = type;
+    tokenModalImage = null;
+
+    // Reset fields
+    tokenNameInput.value = '';
+    clearTokenImagePreview();
+    tokenCharSelect.value = '';
+
+    // Set badge
+    if (type === 'player') {
+      tokenTypeBadge.textContent = '● Aliado / Grupo';
+      tokenTypeBadge.className = 'add-token-type-badge add-token-type-badge--player';
+    } else {
+      tokenTypeBadge.textContent = '● Inimigo';
+      tokenTypeBadge.className = 'add-token-type-badge add-token-type-badge--enemy';
+    }
+
+    // Load characters into dropdown
+    await populateCharacterDropdown();
+
+    validateTokenForm();
+    tokenModal.style.display = 'flex';
+    tokenNameInput.focus();
+  }
+
+  function closeAddTokenModal() {
+    tokenModal.style.display = 'none';
+    tokenModalType = null;
+    tokenModalImage = null;
+  }
+
+  async function populateCharacterDropdown() {
+    tokenCharSelect.innerHTML = '<option value="">— Nenhum (token genérico) —</option>';
+    try {
+      let characters = [];
+      if (window.CharacterManager) {
+        characters = await window.CharacterManager.loadAll();
+      } else if (window.DaimyoDB) {
+        characters = await window.DaimyoDB.get(window.DaimyoDB.STORES.CHARACTERS, 'all') || [];
+      }
+      characters.forEach(char => {
+        const opt = document.createElement('option');
+        opt.value = char.id;
+        opt.textContent = char.name + (char.clan ? ` (${char.clan})` : '');
+        opt.dataset.photo = char.photo || '';
+        opt.dataset.charName = char.name;
+        tokenCharSelect.appendChild(opt);
+      });
+    } catch (e) {
+      console.warn('⚠️ Erro ao carregar personagens para tokens:', e);
+    }
+  }
+
+  function onCharSelectChange() {
+    const opt = tokenCharSelect.selectedOptions[0];
+    if (!opt || !opt.value) {
+      // Reset if "none" selected
+      tokenNameInput.value = '';
+      clearTokenImagePreview();
+      validateTokenForm();
+      return;
+    }
+
+    // Auto-fill name
+    tokenNameInput.value = opt.dataset.charName || '';
+
+    // Auto-fill photo
+    const photo = opt.dataset.photo;
+    if (photo) {
+      tokenModalImage = photo;
+      showTokenImagePreview(photo, opt.dataset.charName || 'Personagem');
+    } else {
+      clearTokenImagePreview();
+    }
+    validateTokenForm();
+  }
+
+  function showTokenImagePreview(dataUrl, name) {
+    tokenImgAvatar.src = dataUrl;
+    tokenImgAvatar.style.display = '';
+    tokenImgPlaceholder.style.display = 'none';
+    tokenImgFilename.textContent = name || 'Imagem selecionada';
+    btnTokenClearImg.style.display = '';
+  }
+
+  function clearTokenImagePreview() {
+    tokenModalImage = null;
+    tokenImgAvatar.style.display = 'none';
+    tokenImgAvatar.src = '';
+    tokenImgPlaceholder.style.display = '';
+    tokenImgFilename.textContent = 'Nenhuma imagem';
+    btnTokenClearImg.style.display = 'none';
+    if (tokenImgFileInput) tokenImgFileInput.value = '';
+  }
+
+  function validateTokenForm() {
+    const hasName = tokenNameInput.value.trim().length > 0;
+    btnTokenCreate.disabled = !hasName;
+  }
+
+  async function onTokenImgFileChange(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const resized = await resizeImageForToken(file);
+    if (resized) {
+      tokenModalImage = resized;
+      showTokenImagePreview(resized, file.name);
+    }
+    tokenImgFileInput.value = '';
+  }
+
+  function onCreateToken() {
+    const name = tokenNameInput.value.trim();
+    if (!name) return;
+    addToken(tokenModalType || 'player', name, tokenModalImage || '');
+    closeAddTokenModal();
+  }
+
+  // Setup token modal events (idempotent)
+  function setupTokenModal() {
+    if (!tokenModal) return;
+
+    const close = () => closeAddTokenModal();
+
+    btnTokenCancel.removeEventListener('click', close);
+    btnTokenCancel.addEventListener('click', close);
+
+    btnTokenCancelBottom.removeEventListener('click', close);
+    btnTokenCancelBottom.addEventListener('click', close);
+
+    tokenModal.removeEventListener('click', tokenModal._overlayHandler);
+    tokenModal._overlayHandler = (e) => { if (e.target === tokenModal) close(); };
+    tokenModal.addEventListener('click', tokenModal._overlayHandler);
+
+    tokenCharSelect.removeEventListener('change', onCharSelectChange);
+    tokenCharSelect.addEventListener('change', onCharSelectChange);
+
+    tokenNameInput.removeEventListener('input', validateTokenForm);
+    tokenNameInput.addEventListener('input', validateTokenForm);
+
+    btnTokenUpload.removeEventListener('click', btnTokenUpload._handler);
+    btnTokenUpload._handler = () => tokenImgFileInput.click();
+    btnTokenUpload.addEventListener('click', btnTokenUpload._handler);
+
+    btnTokenClearImg.removeEventListener('click', btnTokenClearImg._handler);
+    btnTokenClearImg._handler = () => clearTokenImagePreview();
+    btnTokenClearImg.addEventListener('click', btnTokenClearImg._handler);
+
+    tokenImgFileInput.removeEventListener('change', onTokenImgFileChange);
+    tokenImgFileInput.addEventListener('change', onTokenImgFileChange);
+
+    btnTokenCreate.removeEventListener('click', onCreateToken);
+    btnTokenCreate.addEventListener('click', onCreateToken);
+
+    // Enter key on name field
+    tokenNameInput.removeEventListener('keydown', tokenNameInput._handler);
+    tokenNameInput._handler = (e) => { if (e.key === 'Enter' && !btnTokenCreate.disabled) onCreateToken(); };
+    tokenNameInput.addEventListener('keydown', tokenNameInput._handler);
   }
 
   function deleteToken(id) {

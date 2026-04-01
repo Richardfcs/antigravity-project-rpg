@@ -921,11 +921,11 @@
             reader.readAsDataURL(file);
         }
 
-        document.getElementById('btn-save').addEventListener('click', () => {
+        document.getElementById('btn-save').addEventListener('click', async () => {
             const state = getFormState();
             if (!state.name) return alert("O samurai precisa de um nome.");
 
-            const all = CharacterManager.loadAll() || [];
+            const all = await CharacterManager.loadAll() || [];
             let char;
 
             if (editingId) {
@@ -936,7 +936,7 @@
             }
 
             Object.assign(char, state);
-            CharacterManager.saveAll(all);
+            await CharacterManager.saveAll(all);
 
             // Fix: Update editingId to prevent multiple entries if clicked again
             if (!editingId) {
@@ -949,12 +949,12 @@
             }
         });
 
-        document.getElementById('btn-export').addEventListener('click', () => {
+        document.getElementById('btn-export').addEventListener('click', async () => {
             const name = document.getElementById('char-name').value;
             if (!name) return alert("O samurai precisa de um nome.");
 
             const state = getFormState();
-            const all = CharacterManager.loadAll() || [];
+            const all = await CharacterManager.loadAll() || [];
             let char;
             if (editingId) {
                 char = all.find(c => c.id === editingId);
@@ -963,9 +963,9 @@
                 all.push(char);
             }
             Object.assign(char, state);
-            CharacterManager.saveAll(all);
+            await CharacterManager.saveAll(all);
 
-            if (CharacterManager.portToCombat(char.id)) {
+            if (await CharacterManager.portToCombat(char.id)) {
                 alert("Samurai portado! Redirecionando para Arena...");
                 window.location.href = 'combat-calculator.html';
             }

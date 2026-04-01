@@ -25,6 +25,7 @@
   <script src="js/log-manager.js"></script>
   <script src="js/daimyo-seal.js"></script>
   <script src="js/kegare-manager.js"></script>
+  <script src="js/character-manager.js"></script>
   <script src="js/header-loader.js"></script>
 
   <script>
@@ -986,6 +987,163 @@
     .token-shape-star {
       border-radius: 0 !important;
       clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%) !important;
+    }
+
+    /* ── IMAGE TOKENS ── */
+    .tactical-token--has-image {
+      border-radius: 50% !important;
+      clip-path: none !important;
+      border-width: 3px;
+      padding: 0;
+      font-size: 0;
+    }
+
+    .tactical-token--has-image.token-sm { border-width: 2px; }
+    .tactical-token--has-image.token-lg { border-width: 4px; }
+
+    .tactical-token__img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      pointer-events: none;
+      display: block;
+    }
+
+    .tactical-token--has-image .token-label {
+      text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+    }
+
+    /* ── ADD TOKEN MODAL ── */
+    .add-token-modal .modal-panel {
+      max-width: 380px;
+    }
+
+    .add-token-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .add-token-type-badge--player {
+      background: rgba(59, 130, 246, 0.15);
+      color: #3B82F6;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .add-token-type-badge--enemy {
+      background: rgba(196, 30, 58, 0.15);
+      color: var(--red-accent);
+      border: 1px solid rgba(196, 30, 58, 0.3);
+    }
+
+    .token-char-select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-input);
+      color: var(--text-primary);
+      border: 1px solid var(--border-input);
+      border-radius: var(--radius);
+      font-size: 0.8rem;
+    }
+
+    .token-img-preview {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-panel);
+      border-radius: var(--radius);
+      min-height: 64px;
+    }
+
+    .token-img-preview__avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--border-panel);
+      flex-shrink: 0;
+      background: var(--bg-input);
+    }
+
+    .token-img-preview__placeholder {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 2px dashed var(--border-panel);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      background: var(--bg-input);
+    }
+
+    .token-img-preview__actions {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .token-img-preview__name {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .token-img-btn {
+      font-size: 0.7rem;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid var(--border-input);
+      background: var(--bg-input);
+      color: var(--text-secondary);
+      transition: background 0.2s, color 0.2s;
+      width: fit-content;
+    }
+
+    .token-img-btn:hover {
+      background: rgba(255,255,255,0.08);
+      color: var(--gold);
+    }
+
+    /* Context menu image option */
+    .ctx-img-row {
+      display: flex;
+      gap: 4px;
+      padding: 4px 8px;
+    }
+
+    .ctx-img-btn {
+      flex: 1;
+      padding: 6px 4px;
+      font-size: 0.65rem;
+      text-align: center;
+      background: var(--bg-input);
+      border: 1px solid var(--border-input);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .ctx-img-btn:hover {
+      background: rgba(255,255,255,0.08);
+      color: var(--gold);
     }
 
     /* Context Menu */
@@ -2221,6 +2379,15 @@
       <div class="context-menu__item" id="ctx-delete-token" style="color:var(--red-accent);">🗑 Remover Pino</div>
       <div class="context-menu__divider"></div>
 
+      <div style="padding: 4px 12px; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Imagem</div>
+      <div class="ctx-img-row">
+        <button class="ctx-img-btn" id="ctx-change-image">📷 Trocar</button>
+        <button class="ctx-img-btn" id="ctx-remove-image">🚫 Remover</button>
+      </div>
+      <input type="file" id="ctx-image-file-input" accept="image/*" style="display:none;">
+
+      <div class="context-menu__divider"></div>
+
       <div style="padding: 4px 12px; font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Cor do
         Tema</div>
       <div class="context-menu__submenu">
@@ -2261,6 +2428,59 @@
         <div class="size-box" data-size="sm">P</div>
         <div class="size-box" data-size="md">M</div>
         <div class="size-box" data-size="lg">G</div>
+      </div>
+    </div>
+
+    <!-- ════════ MODAL: ADICIONAR TOKEN ════════ -->
+    <div id="modal-add-token" class="modal-overlay add-token-modal" style="display:none;">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <h3 class="modal-header__title">Adicionar Token</h3>
+          <button class="btn btn-ghost modal-header__close" id="btn-token-cancel" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="modal-body">
+          <!-- Tipo -->
+          <div class="modal-section" style="align-items:center;">
+            <span class="add-token-type-badge" id="token-modal-type-badge">● Grupo</span>
+          </div>
+
+          <!-- Selecionar personagem -->
+          <div class="modal-section">
+            <label class="modal-section__label" for="token-char-select">Personagem (opcional)</label>
+            <select id="token-char-select" class="token-char-select">
+              <option value="">— Nenhum (token genérico) —</option>
+            </select>
+            <span class="field__hint" style="font-size:0.68rem;">Ao selecionar, o nome e a foto são preenchidos automaticamente.</span>
+          </div>
+
+          <!-- Nome -->
+          <div class="modal-section">
+            <label class="modal-section__label" for="token-name-input">Nome do Token</label>
+            <input type="text" id="token-name-input" class="field__input" placeholder="Ex: Akira, Bando de Oni..." autocomplete="off">
+          </div>
+
+          <!-- Imagem (preview) -->
+          <div class="modal-section">
+            <label class="modal-section__label">Imagem (opcional)</label>
+            <div class="token-img-preview" id="token-img-preview">
+              <div class="token-img-preview__placeholder" id="token-img-placeholder">🖼</div>
+              <img class="token-img-preview__avatar" id="token-img-avatar" style="display:none;" alt="Token preview">
+              <div class="token-img-preview__actions">
+                <span class="token-img-preview__name" id="token-img-filename">Nenhuma imagem</span>
+                <div style="display:flex; gap:6px;">
+                  <button type="button" class="token-img-btn" id="btn-token-upload">📁 Upload</button>
+                  <button type="button" class="token-img-btn" id="btn-token-clear-img" style="display:none;">✕ Limpar</button>
+                </div>
+              </div>
+            </div>
+            <input type="file" id="token-img-file-input" accept="image/*" style="display:none;">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-token-cancel-bottom" type="button">Cancelar</button>
+          <button class="btn btn-primary" id="btn-token-create" type="button" disabled>Criar Token</button>
+        </div>
       </div>
     </div>
 

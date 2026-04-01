@@ -19,6 +19,8 @@ const NarrativeTools = (function () {
   let gmNotes = []; // { id, title, content }
   let activePageId = null;
   let editingClockId = null;
+  let isExpanded = false;
+  let searchQuery = '';
 
   // --- PERSISTENCE ENGINE (Cofre Infinito) ---
   async function persistData() {
@@ -46,16 +48,6 @@ const NarrativeTools = (function () {
   }
 
   // --- GM NOTES (MULTI-PAGE) ---
-  function addNotePage() {
-    const title = prompt("Nome da nova página:", "Nova Anotação");
-    if (!title) return;
-    const newId = 'note_' + Date.now();
-    gmNotes.push({ id: newId, title: title, content: '' });
-    activePageId = newId;
-    persistData();
-    renderNotesUI();
-  }
-
   function addNotePage() {
     const title = prompt("Nome da nova página:", "Nova Anotação");
     if (!title) return;
@@ -96,82 +88,218 @@ const NarrativeTools = (function () {
       note.content = content;
       persistData();
 
-      
-      const status = document.getElementById('gm-notes-status');
-      if (status) {
-        status.textContent = 'Salvando...';
-        clearTimeout(window._gmSaveTimeout);
-        window._gmSaveTimeout = setTimeout(() => {
-          status.textContent = 'Sincronizado ✓';
-        }, 500);
-      }
+      // Update status indicators
+      ['gm-notes-status', 'gm-exp-status'].forEach(sid => {
+        const status = document.getElementById(sid);
+        if (status) {
+          status.textContent = 'Salvando...';
+          status.style.color = 'var(--gold)';
+        }
+      });
+      clearTimeout(window._gmSaveTimeout);
+      window._gmSaveTimeout = setTimeout(() => {
+        ['gm-notes-status', 'gm-exp-status'].forEach(sid => {
+          const s = document.getElementById(sid);
+          if (s) { s.textContent = 'Sincronizado ✓'; s.style.color = ''; }
+        });
+      }, 500);
+
+      updateWordCount(content);
     }
   }
 
-  // Simple Markdown Parser
   function parseMarkdown(text) {
     if (!text) return '';
     return text
-      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
       .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
       .replace(/^\- (.*$)/gim, '<li>$1</li>')
-      .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-      .replace(/\*(.*)\*/gim, '<em>$1</em>')
+      .replace(/\*\*([^*]+)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/gim, '<em>$1</em>')
+      .replace(/`([^`]+)`/gim, '<code>$1</code>')
       .replace(/\n/gim, '<br>');
   }
 
-  // Helper: Escape HTML to avoid XSS
   function escapeHtml(text) {
     if (!text) return "";
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.toString().replace(/[&<>"']/g, function (m) { return map[m]; });
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.toString().replace(/[&<>"']/g, m => map[m]);
   }
 
-  function renderNotesUI() {
-    const nav = document.getElementById('gm-notes-nav');
-    const editor = document.getElementById('gm-notes-editor');
-    const preview = document.getElementById('gm-notes-preview');
-    if (!nav || !editor) return;
+  // --- WORD COUNTER ---
+  function updateWordCount(text) {
+    const el = document.getElementById('gm-word-count');
+    if (!el) return;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const chars = text.length;
+    el.textContent = `${words} palavras · ${chars} caracteres`;
+  }
 
-    // Render Tabs
-    nav.innerHTML = gmNotes.map(n => `
-      <div class="note-tab ${n.id === activePageId ? 'active' : ''}" onclick="NarrativeTools.switchNotePage('${escapeHtml(n.id)}')">
-        <span>${n.id === activePageId ? '👁️' : ''} ${escapeHtml(n.title)}</span>
-        ${n.id !== 'default' ? `<button onclick="event.stopPropagation(); NarrativeTools.renameNotePage('${escapeHtml(n.id)}')">✏️</button>` : ''}
-        ${n.id !== 'default' ? `<button onclick="event.stopPropagation(); NarrativeTools.deleteNotePage('${escapeHtml(n.id)}')">✕</button>` : ''}
-      </div>
-    `).join('') + `<button class="btn-ghost btn-sm" onclick="NarrativeTools.addNotePage()">＋ Nova</button>`;
+  // --- FORMATTING TOOLBAR ---
+  function insertMarkdown(prefix, suffix) {
+    const editorId = isExpanded ? 'gm-exp-editor' : 'gm-notes-editor';
+    const editor = document.getElementById(editorId);
+    if (!editor) return;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selected = editor.value.substring(start, end);
+    const replacement = prefix + (selected || 'texto') + (suffix || '');
+    editor.setRangeText(replacement, start, end, 'select');
+    editor.focus();
+    updateActiveNoteContent(editor.value);
+  }
 
-    // Update Content
-    const activeNote = gmNotes.find(n => n.id === activePageId) || gmNotes[0];
-    if (editor) editor.value = activeNote.content;
-    
-    if (preview && preview.style.display !== 'none') {
-        preview.innerHTML = parseMarkdown(activeNote.content);
+  function insertLinePrefix(prefix) {
+    const editorId = isExpanded ? 'gm-exp-editor' : 'gm-notes-editor';
+    const editor = document.getElementById(editorId);
+    if (!editor) return;
+    const start = editor.selectionStart;
+    const lineStart = editor.value.lastIndexOf('\n', start - 1) + 1;
+    editor.setRangeText(prefix, lineStart, lineStart, 'end');
+    editor.focus();
+    updateActiveNoteContent(editor.value);
+  }
+
+  // --- KEYBOARD SHORTCUTS ---
+  function handleEditorKeydown(e) {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'b') { e.preventDefault(); insertMarkdown('**', '**'); }
+      else if (e.key === 'i') { e.preventDefault(); insertMarkdown('*', '*'); }
+      else if (e.key === 'e') { e.preventDefault(); toggleNotesExpand(); }
     }
   }
 
-  function toggleNotesPreview() {
+  // --- EXPORT NOTE AS .TXT ---
+  function exportNote() {
+    const note = gmNotes.find(n => n.id === activePageId);
+    if (!note) return;
+    const blob = new Blob([note.content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (note.title || 'nota') + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // --- DUPLICATE NOTE ---
+  function duplicateNote() {
+    const note = gmNotes.find(n => n.id === activePageId);
+    if (!note) return;
+    const newId = 'note_' + Date.now();
+    gmNotes.push({ id: newId, title: note.title + ' (Cópia)', content: note.content });
+    activePageId = newId;
+    persistData();
+    renderNotesUI();
+  }
+
+  // --- SEARCH / FILTER ---
+  function setSearchQuery(q) {
+    searchQuery = q.toLowerCase();
+    renderNotesUI();
+  }
+
+  // --- EXPANDED OVERLAY MODE ---
+  function toggleNotesExpand() {
+    isExpanded = !isExpanded;
+    const overlay = document.getElementById('gm-notes-overlay');
+    if (!overlay) return;
+
+    if (isExpanded) {
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      renderNotesUI();
+      setTimeout(() => {
+        const editor = document.getElementById('gm-exp-editor');
+        if (editor) editor.focus();
+      }, 350);
+    } else {
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+      renderNotesUI();
+    }
+  }
+
+  function renderNotesUI() {
+    // --- DRAWER (compact) ---
+    const nav = document.getElementById('gm-notes-nav');
     const editor = document.getElementById('gm-notes-editor');
     const preview = document.getElementById('gm-notes-preview');
-    const btn = document.getElementById('btn-toggle-preview');
+
+    const activeNote = gmNotes.find(n => n.id === activePageId) || gmNotes[0];
+    if (!activeNote) return;
+
+    // Filter notes by search
+    const filtered = searchQuery
+      ? gmNotes.filter(n => n.title.toLowerCase().includes(searchQuery) || n.content.toLowerCase().includes(searchQuery))
+      : gmNotes;
+
+    if (nav) {
+      nav.innerHTML = filtered.map(n => `
+        <div class="note-tab ${n.id === activePageId ? 'active' : ''}" onclick="NarrativeTools.switchNotePage('${escapeHtml(n.id)}')">
+          <span>${n.id === activePageId ? '📝' : '📄'} ${escapeHtml(n.title)}</span>
+          ${n.id !== 'default' ? `<button onclick="event.stopPropagation(); NarrativeTools.renameNotePage('${escapeHtml(n.id)}')">✏️</button>` : ''}
+          ${n.id !== 'default' ? `<button onclick="event.stopPropagation(); NarrativeTools.deleteNotePage('${escapeHtml(n.id)}')">✕</button>` : ''}
+        </div>
+      `).join('') + `<button class="btn-ghost btn-sm" onclick="NarrativeTools.addNotePage()">＋ Nova</button>`;
+    }
+
+    if (editor) editor.value = activeNote.content;
+    if (preview && preview.style.display !== 'none') {
+      preview.innerHTML = parseMarkdown(activeNote.content);
+    }
+
+    // --- EXPANDED OVERLAY ---
+    const expNav = document.getElementById('gm-exp-nav');
+    const expEditor = document.getElementById('gm-exp-editor');
+    const expPreview = document.getElementById('gm-exp-preview');
+
+    if (expNav) {
+      expNav.innerHTML = filtered.map(n => `
+        <div class="exp-note-item ${n.id === activePageId ? 'active' : ''}" onclick="NarrativeTools.switchNotePage('${escapeHtml(n.id)}')">
+          <span class="exp-note-title">${escapeHtml(n.title)}</span>
+          <div class="exp-note-actions">
+            <button onclick="event.stopPropagation(); NarrativeTools.renameNotePage('${escapeHtml(n.id)}')" title="Renomear">✏️</button>
+            ${n.id !== 'default' ? `<button onclick="event.stopPropagation(); NarrativeTools.deleteNotePage('${escapeHtml(n.id)}')" title="Excluir">✕</button>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    if (expEditor) expEditor.value = activeNote.content;
+    if (expPreview && expPreview.style.display !== 'none') {
+      expPreview.innerHTML = parseMarkdown(activeNote.content);
+    }
+
+    // Title display
+    const titleEl = document.getElementById('gm-exp-active-title');
+    if (titleEl) titleEl.textContent = activeNote.title;
+
+    updateWordCount(activeNote.content);
+  }
+
+  function toggleNotesPreview() {
+    const useExpanded = isExpanded;
+    const editorId = useExpanded ? 'gm-exp-editor' : 'gm-notes-editor';
+    const previewId = useExpanded ? 'gm-exp-preview' : 'gm-notes-preview';
+    const btnId = useExpanded ? 'btn-exp-preview' : 'btn-toggle-preview';
+
+    const editor = document.getElementById(editorId);
+    const preview = document.getElementById(previewId);
+    const btn = document.getElementById(btnId);
+    if (!editor || !preview) return;
     
     if (preview.style.display === 'none') {
         preview.innerHTML = parseMarkdown(editor.value);
         preview.style.display = 'block';
         editor.style.display = 'none';
-        btn.textContent = '✏️ Editar';
+        if (btn) btn.textContent = '✏️ Editar';
     } else {
         preview.style.display = 'none';
         editor.style.display = 'block';
-        btn.textContent = '👁️ Preview';
+        if (btn) btn.textContent = '👁️ Preview';
     }
   }
 
@@ -577,7 +705,9 @@ const NarrativeTools = (function () {
     toggleDrawer, toggleModal, addClock, deleteClock, tickClock, setClock, resolveMassCombat,
     addNotePage, deleteNotePage, renameNotePage, switchNotePage, updateActiveNoteContent, toggleNotesPreview,
     rollAllClocks, toggleGlobalRoll, updateStepLabel, reorderClock, renderStepInputs, clearClocksHistory,
-    enterEditClock, cancelEditClock, saveClockEdit
+    enterEditClock, cancelEditClock, saveClockEdit,
+    toggleNotesExpand, insertMarkdown, insertLinePrefix, handleEditorKeydown,
+    exportNote, duplicateNote, setSearchQuery
   };
 
 })();

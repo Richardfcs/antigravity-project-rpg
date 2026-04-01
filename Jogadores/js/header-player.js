@@ -8,7 +8,17 @@
       z-index: 1000;
     }
 
-    /* @view-transition { navigation: auto; } */
+    /* === A DANÇA DAS LÂMINAS (View Transitions) === */
+    @view-transition { navigation: auto; }
+
+    ::view-transition-old(root) {
+      animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both fade-out;
+    }
+    ::view-transition-new(root) {
+      animation: 400ms cubic-bezier(0.4, 0, 0.2, 1) both fade-in;
+    }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(5px); } }
+    @keyframes fade-out { to { opacity: 0; transform: translateY(-5px); } }
 
     .new-header {
       display: flex;
@@ -334,6 +344,13 @@
   // Escuta mudanças de personagem para atualizar o cabeçalho em tempo real
   window.addEventListener('daimyoActiveCharacterChanged', () => {
     if (window.initPlayerHeader) window.initPlayerHeader();
+  });
+
+  // --- SILENCIADOR DE ERROS (View Transitions) ---
+  window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason && event.reason.name === 'AbortError' && (event.reason.message.includes('Transition') || event.reason.message.includes('skipped'))) {
+      event.preventDefault();
+    }
   });
 
 })();
