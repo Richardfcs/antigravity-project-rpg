@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <script src="js/daimyo-db.js"></script>
+  <script src="js/daimyo-seal.js"></script>
   <script src="js/theme-manager.js"></script>
   <script src="js/character-manager.js"></script>
   <script src="js/header-player.js"></script>
@@ -181,12 +182,19 @@
 
       <div style="display:flex; flex-wrap:wrap; gap:12px;">
         <button class="btn btn-gold" onclick="exportPlayerData()">📤 Exportar Destino</button>
-        <button class="btn btn-ghost" onclick="document.getElementById('import-input').click()">📥 Importar Backup</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('merge-input').click()" style="border-color: rgba(212,168,70,0.4); color: var(--gold);">🔀 Mesclar Backup</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('import-input').click()">📥 Importar (Sobrescrever)</button>
         <input type="file" id="import-input" style="display:none;" accept=".json" onchange="importPlayerData(this.files[0])">
+        <input type="file" id="merge-input" style="display:none;" accept=".json" onchange="mergePlayerData(this.files[0])">
+      </div>
+
+      <div style="margin-top:20px; padding:15px; border-radius: var(--radius); background: rgba(212,168,70,0.06); border: 1px solid rgba(212,168,70,0.2); font-size:0.8rem; line-height:1.5; color: var(--text-secondary);">
+        <strong style="color:var(--gold);">🔀 Mesclar:</strong> Adiciona personagens e notas do backup <strong>sem apagar</strong> os dados atuais. Ideal para transferir do celular para o PC.<br>
+        <strong style="color:var(--text-muted);">📥 Importar:</strong> Substitui <strong>todos</strong> os dados atuais pelo conteúdo do backup.
       </div>
 
       <div class="alert-box">
-        <strong>⚠️ Atenção:</strong> A importação irá substituir permanentemente todos os seus personagens e notas atuais. Recomendamos exportar o estado atual antes de importar um novo.
+        <strong>⚠️ Atenção:</strong> A importação (sobrescrever) irá substituir permanentemente todos os seus personagens e notas atuais. Use "Mesclar" se quiser apenas adicionar dados de outro dispositivo.
       </div>
     </div>
 
@@ -205,108 +213,27 @@
     }
 
     async function exportPlayerData() {
-        const db = await ensureDB();
-        if (!db) {
-            alert("Database not ready.");
-            return;
+        if (window.DaimyoSeal) {
+            window.DaimyoSeal.exportCampaign();
+        } else {
+            alert('A engrenagem do DaimyoSeal não foi encontrada.');
         }
-        
-        const data = {
-            version: "2.0",
-            timestamp: new Date().toISOString(),
-            localStorage: {},
-            indexedDB: {}
-        };
-
-        // 1. Collect LocalStorage
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key.startsWith('daimyo')) {
-                data.localStorage[key] = localStorage.getItem(key);
-            }
-        }
-
-        // 2. Collect IndexedDB Stores
-        try {
-            const stores = Object.values(window.DaimyoDB.STORES);
-            for (const storeName of stores) {
-                // Simplified backup: get all entries
-                // Note: This loses specific keys for stores that don't use IDs inside values,
-                // but for our current schema (characters have .id, vault entries are objects), it works.
-                data.indexedDB[storeName] = await window.DaimyoDB.getAll(storeName);
-            }
-        } catch (err) {
-            console.error("Export error:", err);
-        }
-
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const filename = `daimyo_player_backup_${new Date().toISOString().split('T')[0]}.json`;
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
     }
 
     async function importPlayerData(file) {
-        if (!file) return;
-        if (!confirm("Deseja substituir todos os dados atuais pelo backup? Isso não pode ser desfeito.")) return;
+        if (window.DaimyoSeal) {
+            window.DaimyoSeal.importCampaign(file);
+        } else {
+            alert('A engrenagem do DaimyoSeal não foi encontrada.');
+        }
+    }
 
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-            try {
-                const data = JSON.parse(e.target.result);
-                const db = await ensureDB();
-                if (!db) throw new Error("DB fail");
-
-                // Restore LocalStorage
-                if (data.localStorage) {
-                    for (const key in data.localStorage) {
-                        localStorage.setItem(key, data.localStorage[key]);
-                    }
-                }
-
-                // Restore IndexedDB
-                if (data.indexedDB) {
-                    for (const storeName in data.indexedDB) {
-                        const items = data.indexedDB[storeName];
-                        if (!Array.isArray(items)) continue;
-
-                        await window.DaimyoDB.clearStore(storeName);
-                        for (const item of items) {
-                            // Detect key automatically based on store
-                            let key = item.id || item.key;
-                            
-                            // Specific logic for vault items that are stored by name but don't have id property
-                            if (storeName === 'vault' && !key) {
-                                // This is tricky. In vault, we usually store 'clocks', 'gm_notes', etc.
-                                // If they were exported as an array without context, we might lose them.
-                                // But modern export puts them in an array. 
-                                // We'll just put them back if we can identify them.
-                            }
-
-                            if (key) {
-                                await window.DaimyoDB.put(storeName, key, item);
-                            } else {
-                                // If no key, we might have to use some other strategy or just put it
-                                // For simplicity in this project's current state:
-                                console.warn(`Item in ${storeName} skipped - no key found.`);
-                            }
-                        }
-                    }
-                }
-
-                alert("Destino restaurado com sucesso! Reiniciando...");
-                window.location.reload();
-            } catch (err) {
-                console.error(err);
-                alert("Erro catastrófico ao importar backup. Verifique o console.");
-            }
-        };
-        reader.readAsText(file);
+    async function mergePlayerData(file) {
+        if (window.DaimyoSeal) {
+            window.DaimyoSeal.mergeCampaign(file);
+        } else {
+            alert('A engrenagem do DaimyoSeal não foi encontrada.');
+        }
     }
 
     async function clearAllPlayerData() {

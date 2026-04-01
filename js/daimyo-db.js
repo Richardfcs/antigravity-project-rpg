@@ -113,6 +113,27 @@ window.DaimyoDB = (function() {
     });
   }
 
+  async function getAllWithKeys(storeName) {
+    if (!db) await init();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([storeName], 'readonly');
+      const store = transaction.objectStore(storeName);
+      const request = store.openCursor();
+      const results = [];
+
+      request.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          results.push({ key: cursor.key, value: cursor.value });
+          cursor.continue();
+        } else {
+          resolve(results);
+        }
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   async function clearStore(storeName) {
     if (!db) await init();
     return new Promise((resolve, reject) => {

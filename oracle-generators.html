@@ -887,16 +887,7 @@
     /* ═══════════════════════════════════════════
        TACTICAL MAP ENHANCEMENTS
        ═══════════════════════════════════════════ */
-    .tactical-token {
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-      user-select: none;
-    }
 
-    .tactical-token.dragging {
-      transform: scale(1.1);
-      box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
-      z-index: 1000;
-    }
 
     /* Sizes (High Specificity to override base class) */
     .tactical-token.token-sm {
@@ -1968,7 +1959,6 @@
       border-radius: 50%;
       transform: translate(-50%, -50%);
       cursor: pointer;
-      /* Change to pointer to prevent overlapping grab logic too awkwardly when zoomed */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1978,13 +1968,14 @@
       font-size: 0.8rem;
       user-select: none;
       z-index: 100;
-      transition: box-shadow 0.2s, background-color 0.2s;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s;
     }
 
     .tactical-token:active,
     .tactical-token.dragging {
       cursor: grabbing;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.9), inset 0 0 0 2px rgba(255, 255, 255, 0.4);
+      transform: translate(-50%, -50%) scale(1.1);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.9), 0 0 20px rgba(255, 255, 255, 0.4), inset 0 0 0 2px rgba(255, 255, 255, 0.4);
       z-index: 1000;
     }
 
@@ -2274,7 +2265,7 @@
         <div class="modal-body">
           <!-- PASSO 1: Tipo Hierárquico -->
           <div class="modal-section">
-            <label class="modal-section__label">1. Tipo de Mapa</label>
+            <div class="modal-section__label">1. Tipo de Mapa</div>
             <div class="map-type-cards" id="map-type-cards">
               <button class="map-type-card" data-level="region" type="button">
                 <span class="map-type-card__icon">🏔</span>
@@ -2312,9 +2303,9 @@
 
           <!-- PASSO 4: Upload de Imagem -->
           <div class="modal-section">
-            <label class="modal-section__label">
+            <div class="modal-section__label">
               <span id="label-file-step">3</span>. Imagem do Mapa
-            </label>
+            </div>
             <div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Arraste uma imagem ou clique para selecionar">
               <input type="file" id="reg-map-file-input" accept="image/*" class="upload-zone__input" aria-hidden="true">
               <div class="upload-zone__content" id="upload-zone-content">
@@ -2332,7 +2323,7 @@
 
           <!-- PASSO 5: Grid de Batalha (opcional, só para mapas de batalha) -->
           <div class="modal-section" id="battle-grid-options" style="display:none;">
-            <label class="modal-section__label">Grid de Batalha</label>
+            <div class="modal-section__label">Grid de Batalha</div>
             <div class="grid-options">
               <label class="grid-option">
                 <input type="checkbox" id="reg-has-grid" class="grid-option__check">
@@ -2461,7 +2452,7 @@
 
           <!-- Imagem (preview) -->
           <div class="modal-section">
-            <label class="modal-section__label">Imagem (opcional)</label>
+            <div class="modal-section__label">Imagem (opcional)</div>
             <div class="token-img-preview" id="token-img-preview">
               <div class="token-img-preview__placeholder" id="token-img-placeholder">🖼</div>
               <img class="token-img-preview__avatar" id="token-img-avatar" style="display:none;" alt="Token preview">

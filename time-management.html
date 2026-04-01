@@ -1114,9 +1114,12 @@
       <div class="dm-toolbar">
         <button class="btn-sm" onclick="DataManager.refresh()">🔄 Atualizar</button>
         <button class="btn-sm" onclick="DataManager.exportBackup()">📤 Backup</button>
+        <button class="btn-sm" onclick="document.getElementById('dm-merge-file').click()" style="border-color: rgba(212,168,70,0.4); color: var(--gold);">🔀 Mesclar</button>
         <button class="btn-sm" onclick="document.getElementById('dm-import-file').click()">📥 Restaurar</button>
         <input type="file" id="dm-import-file" accept=".json" style="display:none"
           onchange="DataManager.importBackup(this.files[0])">
+        <input type="file" id="dm-merge-file" accept=".json" style="display:none"
+          onchange="DataManager.mergeBackup(this.files[0])">
         <div style="display:flex; flex-direction:column; gap:2px;">
           <button class="btn-sm btn-sm--wake" id="dm-wakelock-btn" onclick="DataManager.toggleWakeLock()"
             title="Impedir a tela de apagar">🏮 Tocha Apagada</button>
@@ -2030,6 +2033,14 @@
         }
       }
 
+      function mergeBackup(file) {
+        if (window.DaimyoSeal) {
+          window.DaimyoSeal.mergeCampaign(file);
+        } else {
+          showToast('Erro: DaimyoSeal não disponível.');
+        }
+      }
+
       async function resetLibrary() {
         if (window.LibraryManager && typeof window.LibraryManager.resetToDefaults === 'function') {
           await window.LibraryManager.resetToDefaults();
@@ -2126,7 +2137,7 @@
         toggleDetail, clearCategory, resetCategory,
         deleteItem, deleteCustomItem, deleteSelected,
         selectAll, deselectAll, nukeAll, factoryReset,
-        exportBackup, importBackup, toggleWakeLock
+        exportBackup, importBackup, mergeBackup, toggleWakeLock
       };
     })();
     window.DataManager = DataManager;
