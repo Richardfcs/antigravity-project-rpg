@@ -21,7 +21,6 @@
       --font-display: 'Noto Serif JP', serif;
       --font-body: 'Inter', sans-serif;
       --transition: 0.2s ease-out;
-      --green-success: #22c55e;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -181,15 +180,16 @@
     }
   </style>
   <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+  <link rel="icon" href="icons/app-icon-192.png">
   
   <!-- CORE INFRASTRUCTURE (Explicit Loading) -->
   <script src="js/daimyo-db.js"></script>
+  <script src="js/character-manager.js"></script>
   <script src="js/theme-manager.js"></script>
   <script src="js/log-manager.js"></script>
   <script src="js/daimyo-seal.js"></script>
-  <script src="js/header-loader.js"></script>
+  <script src="js/header-player.js"></script>
   <script>
-    if (localStorage.getItem('daimyo_auth') !== 'true') { window.location.href = 'index.html'; }
     if (window.DaimyoDB) {
       window.DaimyoDB.init().then(() => {
         window.DaimyoDB.migrateFromLocalStorage();
@@ -218,62 +218,6 @@
 
   </main>
 
-  <!-- MODAL: ADD ITEM -->
-  <div id="modal-add-item" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; justify-content:center; align-items:center;">
-    <div style="background:var(--bg-panel); padding:30px; border-radius:var(--radius-lg); width:95%; max-width:600px; border:1px solid var(--gold); box-shadow:0 0 30px rgba(212,168,70,0.2);">
-      <h2 style="font-family:var(--font-display); color:var(--gold); margin-bottom:20px; border-bottom:1px solid var(--gold-dim); padding-bottom:10px;">🆕 Adicionar Conteúdo</h2>
-      <div style="display:grid; gap:15px;">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
-          <div>
-            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Nome</label>
-            <input type="text" id="lib-new-name" class="search-input" style="padding:10px; font-size:0.9rem;" placeholder="Ex: Grito de Batalha">
-          </div>
-          <div>
-            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Categoria</label>
-            <select id="lib-new-cat" class="search-input" style="padding:10px; font-size:0.9rem;"></select>
-          </div>
-        </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
-          <div>
-            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Custo / Tipo</label>
-            <input type="text" id="lib-new-cust" class="search-input" style="padding:10px; font-size:0.9rem;" placeholder="Ex: 5 pts, Estilo, Elite">
-          </div>
-          <div>
-            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Tags (Separe por vírgula)</label>
-            <input type="text" id="lib-new-tags" class="search-input" style="padding:10px; font-size:0.9rem;" placeholder="Ex: Combate, Social">
-          </div>
-        </div>
-        <div>
-          <label style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Descrição / Efeito</label>
-          <textarea id="lib-new-desc" class="search-input" style="padding:10px; font-size:0.9rem; min-height:100px; resize:vertical;" placeholder="Descreva o conteúdo..."></textarea>
-        </div>
-        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
-          <button class="btn-ghost" onclick="toggleModal('modal-add-item', false)">Cancelar</button>
-          <button class="btn-ghost" style="background:var(--gold); color:#000; border-color:var(--gold);" onclick="saveNewItem()">Salvar Registro</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: MANAGE CATEGORIES -->
-  <div id="modal-manage-cats" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; justify-content:center; align-items:center;">
-    <div style="background:var(--bg-panel); padding:30px; border-radius:var(--radius-lg); width:95%; max-width:500px; border:1px solid var(--gold); box-shadow:0 0 30px rgba(0,0,0,0.5); display:flex; flex-direction:column; max-height:80vh;">
-      <h2 style="font-family:var(--font-display); color:var(--gold); margin-bottom:20px; border-bottom:1px solid var(--gold-dim); padding-bottom:10px;">⚙️ Gerenciar Categorias</h2>
-      <div id="cats-editor-list" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
-      <div style="display:flex; gap:10px; border-top:1px solid var(--border-panel); padding-top:15px;">
-        <input type="text" id="cat-new-name" class="search-input" placeholder="Nova Categoria" style="padding:8px; font-size:0.8rem; flex:1;">
-        <button class="btn-ghost" style="background:var(--gold); color:#000; border-color:var(--gold); padding:8px 15px;" onclick="addNewCategory()">Adicionar</button>
-      </div>
-      <div style="display:flex; justify-content:flex-end; margin-top:20px;">
-        <button class="btn-ghost" onclick="toggleModal('modal-manage-cats', false)">Fechar</button>
-      </div>
-    </div>
-  </div>
-
-  <div style="position:fixed; bottom:30px; right:30px; display:flex; flex-direction:column; gap:10px;">
-    <button class="btn-ghost" style="background:var(--gold); color:#000; border-color:var(--gold); font-size:1.2rem; width:50px; height:50px; border-radius:25px; box-shadow:0 4px 15px rgba(0,0,0,0.5);" title="Adicionar Novo Item" onclick="toggleModal('modal-add-item', true)">＋</button>
-    <button class="btn-ghost" style="background:var(--bg-panel); font-size:1.2rem; width:50px; height:50px; border-radius:25px; box-shadow:0 4px 15px rgba(0,0,0,0.5);" title="Gerenciar Categorias" onclick="openCatManager()">⚙️</button>
-  </div>
 
   <script src="js/library-data.js"></script>
   <script>
@@ -339,9 +283,6 @@
           </button>`;
       });
       sidebar.innerHTML = html;
-
-      const select = document.getElementById('lib-new-cat');
-      select.innerHTML = cats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
     }
 
     function renderSubChips() {
@@ -553,7 +494,6 @@
           <div style="display:flex; align-items:center; gap:10px;">
             ${fonteHtml}
             <div class="lib-card__cost">${item.cust}</div>
-            <button class="btn-ghost btn-sm" onclick="event.stopPropagation(); deleteLibItem('${item.id}')" style="border:none; color:var(--text-muted); padding:4px;">🗑️</button>
             <span style="font-size:1.2rem; transition:transform 0.2s;">＋</span>
           </div>
         </div>
@@ -615,62 +555,6 @@
       </div>`;
     }
 
-    // --- MODAL HELPERS ---
-    function toggleModal(id, show) {
-      document.getElementById(id).style.display = show ? 'flex' : 'none';
-    }
-
-    function saveNewItem() {
-      const name = document.getElementById('lib-new-name').value;
-      const cat = document.getElementById('lib-new-cat').value;
-      const cust = document.getElementById('lib-new-cust').value;
-      const tagsRaw = document.getElementById('lib-new-tags').value;
-      const desc = document.getElementById('lib-new-desc').value;
-      if (!name || !desc) return alert('Pelo menos Nome e Descrição são obrigatórios.');
-      const tags = tagsRaw.split(',').map(t => t.trim()).filter(t => t !== '');
-      LibraryManager.addItem({ nome: name, cat: cat, cust: cust, desc: desc, tags: tags });
-      document.getElementById('lib-new-name').value = '';
-      document.getElementById('lib-new-tags').value = '';
-      document.getElementById('lib-new-desc').value = '';
-      toggleModal('modal-add-item', false);
-      renderAll();
-    }
-
-    function deleteLibItem(id) {
-      if (!confirm('Deseja excluir este item permanentemente?')) return;
-      LibraryManager.removeItem(id);
-      renderAll();
-    }
-
-    function openCatManager() {
-      renderCatManagerList();
-      toggleModal('modal-manage-cats', true);
-    }
-
-    function renderCatManagerList() {
-      const list = document.getElementById('cats-editor-list');
-      const cats = LibraryManager.getCategories();
-      list.innerHTML = cats.map(c => `
-        <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.03); border-radius:var(--radius); border:1px solid var(--border-panel);">
-          <span style="font-size:1rem; min-width:25px;">${c.icon || '🔹'}</span>
-          <span style="flex:1; font-weight:700; color:var(--gold);">${c.name}</span>
-          <div style="display:flex; gap:4px;">
-            <button class="btn-ghost btn-sm" onclick="LibraryManager.reorderCategory('${c.id}', -1); renderCatManagerList(); renderAll();">↑</button>
-            <button class="btn-ghost btn-sm" onclick="LibraryManager.reorderCategory('${c.id}', 1); renderCatManagerList(); renderAll();">↓</button>
-            <button class="btn-ghost btn-sm" onclick="if(confirm('Apagar categoria?')) { LibraryManager.removeCategory('${c.id}'); renderCatManagerList(); renderAll(); }" style="color:var(--red-accent);">✕</button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function addNewCategory() {
-      const name = document.getElementById('cat-new-name').value;
-      if (!name) return;
-      LibraryManager.addCategory({ name: name, icon: '🔹', tags: [] });
-      document.getElementById('cat-new-name').value = '';
-      renderCatManagerList();
-      renderAll();
-    }
   </script>
   <script>
     if ('serviceWorker' in navigator) {

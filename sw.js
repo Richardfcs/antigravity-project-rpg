@@ -1,7 +1,8 @@
-const CACHE_NAME = 'daimyo-cache-v12';
+const CACHE_NAME = 'daimyo-cache-v13';
 const ASSETS = [
   './',
   './index.html',
+  './master-hub.html',
   './library.html',
   './equipment-database.html',
   './time-management.html',
@@ -9,6 +10,14 @@ const ASSETS = [
   './kegare-panico.html',
   './combat-calculator.html',
   './characters-sheet.html',
+  // Player Interface
+  './Jogadores/index.html',
+  './Jogadores/characters-sheet.html',
+  './Jogadores/equipment-database.html',
+  './Jogadores/library.html',
+  './Jogadores/notes.html',
+  './Jogadores/settings.html',
+  // Infrastructure
   './js/daimyo-db.js',
   './js/header-loader.js',
   './js/theme-manager.js',
@@ -98,7 +107,7 @@ self.addEventListener('fetch', event => {
 
           // Fallback final apenas para navegações que não estão no cache e rede falhou
           if (event.request.mode === 'navigate') {
-            return caches.match('./index.html') || caches.match('index.html');
+            return caches.match('./master-hub.html') || caches.match('./index.html') || caches.match('index.html');
           }
           return new Response('Offline and content not available', { status: 503, statusText: 'Service Unavailable' });
         });

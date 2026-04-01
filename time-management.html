@@ -25,6 +25,7 @@
   <script src="js/daimyo-seal.js"></script>
   <script src="js/header-loader.js"></script>
   <script>
+    if (localStorage.getItem('daimyo_auth') !== 'true') { window.location.href = 'index.html'; }
     if (window.DaimyoDB) {
       window.DaimyoDB.init().then(() => {
         window.DaimyoDB.migrateFromLocalStorage();

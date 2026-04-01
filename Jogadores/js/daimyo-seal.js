@@ -1,8 +1,3 @@
-/**
- * O SELO DO DAIMYO - Sistema de Backup e Sincronização
- * Permite exportar e importar todo o estado do localStorage da aplicação.
- */
-
 window.DaimyoSeal = (function() {
   
   /**

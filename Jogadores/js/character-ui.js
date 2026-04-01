@@ -18,141 +18,34 @@ const CharacterUI = {
             .replace(/'/g, '&#39;');
     },
 
-    async init() {
+    init() {
         console.log("📜 CharacterUI - Iniciado");
         window.toggleCharacterDrawer = this.toggleDrawer.bind(this);
-        this.addStyles();
-        this.initPhotoHandler();
-        await this.render();
+        this.render();
     },
 
-    addStyles() {
-        const id = 'char-ui-photo-styles';
-        if (document.getElementById(id)) return;
-        const style = document.createElement('style');
-        style.id = id;
-        style.innerHTML = `
-            .char-card {
-                display: grid;
-                grid-template-columns: 50px 1fr;
-                gap: 12px;
-                align-items: flex-start;
-            }
-            .char-card__photo {
-                width: 50px;
-                height: 66px; /* 3x4 aspect ratio */
-                background: var(--bg-deep);
-                border: 1px solid var(--border-panel);
-                border-radius: 4px;
-                object-fit: cover;
-                background-size: cover;
-                background-position: center;
-                flex-shrink: 0;
-            }
-            .char-card__content {
-                display: flex;
-                flex-direction: column;
-                min-width: 0;
-            }
-            .char-card__photo--empty {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 0.8rem;
-                color: var(--text-muted);
-            }
-            .photo-upload-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 10px;
-                margin-top: 5px;
-                margin-bottom: 15px;
-            }
-            .photo-preview-large {
-                width: 90px;
-                height: 120px;
-                background: var(--bg-deep);
-                border: 2px dashed var(--border-panel);
-                border-radius: var(--radius);
-                object-fit: cover;
-                cursor: pointer;
-                transition: all var(--transition);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                overflow: hidden;
-            }
-            .photo-preview-large:hover {
-                border-color: var(--gold);
-            }
-            .photo-preview-large img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-            }
-        `;
-        document.head.appendChild(style);
-    },
-
-    initPhotoHandler() {
-        // Create hidden input
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.id = 'char-photo-input';
-        input.accept = 'image/*';
-        input.style.display = 'none';
-        document.body.appendChild(input);
-
-        input.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const base64 = event.target.result;
-                const preview = document.getElementById('char-photo-preview-img');
-                const placeholder = document.getElementById('char-photo-preview-empty');
-                
-                if (preview) {
-                    preview.src = base64;
-                    preview.style.display = 'block';
-                }
-                if (placeholder) placeholder.style.display = 'none';
-                
-                // Store temporarily on the preview element for saveChar to pick up
-                document.getElementById('char-photo-preview-box').dataset.photo = base64;
-            };
-            reader.readAsDataURL(file);
-        });
-    },
-
-    triggerPhotoUpload() {
-        document.getElementById('char-photo-input').click();
-    },
-
-    async toggleDrawer() {
+    toggleDrawer() {
         const drawer = document.getElementById('character-drawer');
         if (!drawer) return;
         drawer.classList.toggle('open');
         if (drawer.classList.contains('open')) {
             this.state.view = 'list';
-            await this.render();
+            this.render();
         }
     },
 
-    async render() {
+    render() {
         const container = document.getElementById('character-drawer-content');
         if (!container) return;
 
-        const allChars = await CharacterManager.loadAll() || [];
+        const allChars = CharacterManager.loadAll() || [];
         const actives = allChars.filter(c => !c.isLegacy);
         const ancestors = allChars.filter(c => c.isLegacy);
 
         if (this.state.view === 'list') {
             this.renderList(container, actives, ancestors.length);
         } else if (this.state.view === 'create' || this.state.view === 'edit') {
-            this.renderForm(container, allChars);
+            this.renderForm(container);
         } else if (this.state.view === 'ancestors') {
             this.renderAncestors(container, ancestors);
         }
@@ -199,33 +92,30 @@ const CharacterUI = {
 
         return `
             <div class="char-card">
-                ${c.photo ? `<img src="${c.photo}" class="char-card__photo" alt="Foto">` : `<div class="char-card__photo char-card__photo--empty">⛩️</div>`}
-                <div class="char-card__content">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span class="char-card__name">${this.escapeHtml(c.name)}</span>
-                        <span style="font-size:0.65rem; color:var(--text-muted); opacity:0.8;">${this.escapeHtml(c.clan) || 'Ronin'}</span>
-                    </div>
-                    <!-- 8 STATS GRID -->
-                    <div class="char-card__stats" style="grid-template-columns: repeat(4, 1fr); row-gap: 10px;">
-                        <div><span style="display:block; opacity:0.6; font-size:0.6rem;">ST</span><strong>${attrs.st || 10}</strong></div>
-                        <div><span style="display:block; opacity:0.6; font-size:0.6rem;">DX</span><strong>${attrs.dx || 10}</strong></div>
-                        <div><span style="display:block; opacity:0.6; font-size:0.6rem;">IQ</span><strong>${attrs.iq || 10}</strong></div>
-                        <div><span style="display:block; opacity:0.6; font-size:0.6rem;">HT</span><strong>${attrs.ht || 10}</strong></div>
-                        
-                        <div><span style="display:block; opacity:0.6; font-size:0.6rem;">PV</span><strong style="color:var(--red-accent)">${attrs.hp || 10}</strong></div>
-                        <div><span style="display:block; opacity:0.6; font-size:0.6rem;">PF</span><strong style="color:var(--gold)">${attrs.fp || 10}</strong></div>
-                        <div><span style="display:block; opacity:0.6; font-size:0.6rem;">ESQ</span><strong style="color:var(--text-primary)">${esq}</strong></div>
-                        <div><span style="display:block; opacity:0.6; font-size:0.6rem;">APR</span><strong style="color:var(--text-primary)">${apr}</strong></div>
-                    </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span class="char-card__name">${this.escapeHtml(c.name)}</span>
+                    <span style="font-size:0.65rem; color:var(--text-muted); opacity:0.8;">${this.escapeHtml(c.clan) || 'Ronin'}</span>
+                </div>
+                <!-- 8 STATS GRID -->
+                <div class="char-card__stats" style="grid-template-columns: repeat(4, 1fr); row-gap: 10px;">
+                    <div><span style="display:block; opacity:0.6; font-size:0.6rem;">ST</span><strong>${attrs.st || 10}</strong></div>
+                    <div><span style="display:block; opacity:0.6; font-size:0.6rem;">DX</span><strong>${attrs.dx || 10}</strong></div>
+                    <div><span style="display:block; opacity:0.6; font-size:0.6rem;">IQ</span><strong>${attrs.iq || 10}</strong></div>
+                    <div><span style="display:block; opacity:0.6; font-size:0.6rem;">HT</span><strong>${attrs.ht || 10}</strong></div>
+                    
+                    <div><span style="display:block; opacity:0.6; font-size:0.6rem;">PV</span><strong style="color:var(--red-accent)">${attrs.hp || 10}</strong></div>
+                    <div><span style="display:block; opacity:0.6; font-size:0.6rem;">PF</span><strong style="color:var(--gold)">${attrs.fp || 10}</strong></div>
+                    <div><span style="display:block; opacity:0.6; font-size:0.6rem;">ESQ</span><strong style="color:var(--text-primary)">${esq}</strong></div>
+                    <div><span style="display:block; opacity:0.6; font-size:0.6rem;">APR</span><strong style="color:var(--text-primary)">${apr}</strong></div>
+                </div>
 
-                    <div style="font-size:0.65rem; color:var(--text-secondary); margin-top:12px; border-top:1px solid rgba(255,255,255,0.05); padding-top:6px; display:flex; align-items:center; gap:5px;">
-                        <span style="opacity:0.5;">Equip:</span> ${c.equippedWeapon ? (typeof weaponsDB !== 'undefined' ? this.escapeHtml(weaponsDB.find(w=>w.id===c.equippedWeapon)?.nome || c.equippedWeapon) : this.escapeHtml(c.equippedWeapon)) : 'Mãos Nuas'}
-                    </div>
-                    <div class="char-card__actions" style="margin-top:10px;">
-                        <button class="btn btn-ghost" style="flex:1; font-size:0.6rem; padding:6px; border-color:var(--gold-glow); color:var(--gold);" onclick="CharacterUI.portToCombat('${c.id}')">⚔ Portar</button>
-                        <button class="btn btn-ghost" style="flex:0.6; font-size:0.6rem; padding:6px;" onclick="CharacterUI.editChar('${c.id}')">📝 Editar</button>
-                        <button class="btn btn-ghost" style="color:var(--red-accent); border-color:rgba(196,30,58,0.2); flex:0.4; font-size:0.6rem; padding:6px;" onclick="CharacterUI.markLegacy('${c.id}')">💀</button>
-                    </div>
+                <div style="font-size:0.65rem; color:var(--text-secondary); margin-top:12px; border-top:1px solid rgba(255,255,255,0.05); padding-top:6px; display:flex; align-items:center; gap:5px;">
+                    <span style="opacity:0.5;">Equip:</span> ${c.equippedWeapon ? (typeof weaponsDB !== 'undefined' ? this.escapeHtml(weaponsDB.find(w=>w.id===c.equippedWeapon)?.nome || c.equippedWeapon) : this.escapeHtml(c.equippedWeapon)) : 'Mãos Nuas'}
+                </div>
+                <div class="char-card__actions">
+                    <button class="btn btn-ghost" style="flex:1; font-size:0.6rem; padding:6px; border-color:var(--gold-glow); color:var(--gold);" onclick="CharacterUI.portToCombat('${c.id}')">⚔ Portar</button>
+                    <button class="btn btn-ghost" style="flex:0.6; font-size:0.6rem; padding:6px;" onclick="CharacterUI.editChar('${c.id}')">📝 Editar</button>
+                    <button class="btn btn-ghost" style="color:var(--red-accent); border-color:rgba(196,30,58,0.2); flex:0.4; font-size:0.6rem; padding:6px;" onclick="CharacterUI.markLegacy('${c.id}')">💀</button>
                 </div>
             </div>
         `;
@@ -253,8 +143,8 @@ const CharacterUI = {
         `;
     },
 
-    renderForm(container, allChars) {
-        const char = this.state.view === 'edit' ? allChars.find(c => c.id === this.state.editingId) : null;
+    renderForm(container) {
+        const char = this.state.view === 'edit' ? CharacterManager.loadAll().find(c => c.id === this.state.editingId) : null;
         
         let weaponOptions = '<option value="">— Mãos Nuas —</option>';
         if (typeof weaponsDB !== 'undefined') {
@@ -265,20 +155,6 @@ const CharacterUI = {
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
                 <button class="btn btn-ghost" onclick="CharacterUI.setView('list')" style="padding:5px 10px;">⬅</button>
                 <h3 class="field__label" style="color:var(--gold)">${char ? 'Refinar Bushi' : 'Novo Samurai (Rápido)'}</h3>
-            </div>
-            
-            <!-- PHOTO UPLOAD SECTION -->
-            <div class="photo-upload-container">
-                <div class="photo-preview-large" id="char-photo-preview-box" onclick="CharacterUI.triggerPhotoUpload()" data-photo="${char ? (char.photo || '') : ''}">
-                    ${char && char.photo ? `<img src="${char.photo}" id="char-photo-preview-img">` : `
-                        <div id="char-photo-preview-empty" style="text-align:center;">
-                            <span style="font-size:2rem; display:block;">👤</span>
-                            <span style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">3x4</span>
-                        </div>
-                        <img src="" id="char-photo-preview-img" style="display:none;">
-                    `}
-                </div>
-                <button class="btn btn-ghost btn-sm" onclick="CharacterUI.triggerPhotoUpload()">Carregar Foto</button>
             </div>
             
             <div class="field">
@@ -334,19 +210,19 @@ const CharacterUI = {
         `;
     },
 
-    async setView(v) {
+    setView(v) {
         this.state.view = v;
         if (v !== 'edit') this.state.editingId = null;
-        await this.render();
+        this.render();
     },
 
-    async editChar(id) {
+    editChar(id) {
         this.state.view = 'edit';
         this.state.editingId = id;
-        await this.render();
+        this.render();
     },
 
-    async saveChar() {
+    saveChar() {
         const name = document.getElementById('ui-char-name').value;
         const st = parseInt(document.getElementById('ui-char-st').value) || 10;
         const dx = parseInt(document.getElementById('ui-char-dx').value) || 10;
@@ -358,7 +234,7 @@ const CharacterUI = {
 
         if (!name) return alert("Ronin sem nome não tem honra.");
 
-        const allChars = await CharacterManager.loadAll() || [];
+        const allChars = CharacterManager.loadAll() || [];
         let char;
 
         if (this.state.editingId) {
@@ -376,7 +252,6 @@ const CharacterUI = {
         char.attributes.hp = hp;
         char.attributes.fp = fp;
         char.equippedWeapon = weaponId;
-        char.photo = document.getElementById('char-photo-preview-box').dataset.photo || '';
         
         // Calcular defesas base se não existirem
         if (!char.defenses) {
@@ -387,46 +262,45 @@ const CharacterUI = {
             };
         }
 
-        CharacterManager.saveAll(allChars).then(() => {
-            this.setView('list');
-        });
+        CharacterManager.saveAll(allChars);
+        this.setView('list');
     },
 
-    async markLegacy(id) {
+    markLegacy(id) {
         if (!confirm("Este samurai deixará o campo de batalha e se tornará um Ancestral (Legado). Continuar?")) return;
-        const allChars = await CharacterManager.loadAll();
+        const allChars = CharacterManager.loadAll();
         const char = allChars.find(c => c.id === id);
         if (char) {
             char.isLegacy = true;
-            await CharacterManager.saveAll(allChars);
+            CharacterManager.saveAll(allChars);
             this.render();
         }
     },
 
-    async recover(id) {
-        const allChars = await CharacterManager.loadAll();
+    recover(id) {
+        const allChars = CharacterManager.loadAll();
         const char = allChars.find(c => c.id === id);
         if (char) {
             char.isLegacy = false;
-            await CharacterManager.saveAll(allChars);
-            this.setView('list');
+            CharacterManager.saveAll(allChars);
+            CharacterUI.setView('list');
             alert(`${char.name} foi restaurado para os samurais ativos!`);
         } else {
             alert("Samurai não encontrado nos registros.");
         }
     },
 
-    async deleteChar(id) {
+    deleteChar(id) {
         if (!confirm("Apagar permanentemente este registro dos arquivos do Clã? Isso não pode ser desfeito.")) return;
-        const allChars = (await CharacterManager.loadAll()).filter(c => c.id !== id);
-        await CharacterManager.saveAll(allChars);
+        const allChars = CharacterManager.loadAll().filter(c => c.id !== id);
+        CharacterManager.saveAll(allChars);
         this.render();
     },
 
     async portToCombat(id) {
         if (await CharacterManager.portToCombat(id)) {
             // Sincronizar stats com a calculadora se estivermos nela
-            const char = (await CharacterManager.loadAll()).find(c => c.id === id);
+            const char = CharacterManager.loadAll().find(c => c.id === id);
             
             // Tentar injetar automaticamente no Atacante da Calculadora
             const selAtk = document.getElementById('select-attacker-calc');

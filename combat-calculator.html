@@ -18,6 +18,7 @@
   <script src="js/header-loader.js"></script>
   
   <script>
+    if (localStorage.getItem('daimyo_auth') !== 'true') { window.location.href = 'index.html'; }
     // Initialize Database & Migration before page logic
     if (window.DaimyoDB) {
       window.DaimyoDB.init().then(() => {

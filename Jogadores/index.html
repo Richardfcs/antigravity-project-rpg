@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal do Viajante — Escudo do Daimyo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+  <link rel="icon" href="icons/app-icon-192.png">
+  <link rel="icon" href="icons/app-icon-192.png">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- CORE INFRASTRUCTURE -->
+  <script src="js/daimyo-db.js"></script>
+  <script src="js/theme-manager.js"></script>
+  <script src="js/character-manager.js"></script>
+  <script src="js/header-player.js"></script>
+
+  <script>
+    if (window.DaimyoDB) {
+      window.DaimyoDB.init().then(() => {
+        console.log("⛩️ Portal do Jogador: Banco de dados ativo.");
+        renderPlayerCharacters();
+      }).catch(err => console.error("Falha na inicialização do Cofre:", err));
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-deep: #0A0A0A;
+      --bg-panel: #111;
+      --bg-card: #181818;
+      --border-panel: #2A2A2A;
+      --gold: #D4A846;
+      --gold-glow: rgba(212, 168, 70, 0.4);
+      --red-accent: #C41E3A;
+      --text-primary: #F5F0E8;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+      --font-display: 'Noto Serif JP', serif;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --radius-lg: 12px;
+      --transition: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body {
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      margin: 0;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .hero-section {
+      text-align: center;
+      margin-bottom: 50px;
+      animation: fadeIn Down 0.8s ease;
+    }
+
+    .hero-section h1 {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      color: var(--gold);
+      margin-bottom: 10px;
+    }
+
+    .hero-section p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .char-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 25px;
+    }
+
+    .char-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-panel);
+      border-radius: var(--radius-lg);
+      padding: 25px;
+      transition: all var(--transition);
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      overflow: hidden;
+      text-decoration: none !important;
+      color: inherit !important;
+    }
+
+    .char-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 4px;
+      background: var(--border-panel);
+      transition: background var(--transition);
+    }
+
+    .char-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--gold);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .char-card:hover::before {
+      background: var(--gold);
+    }
+
+    .char-card.active {
+      border-color: var(--gold);
+      box-shadow: 0 0 20px var(--gold-glow);
+    }
+
+    .char-card.active::before {
+      background: var(--gold);
+    }
+
+    .char-card__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .char-card__name {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .char-card__pts {
+      font-size: 0.7rem;
+      font-weight: 900;
+      color: var(--gold);
+      background: rgba(212, 168, 70, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .char-card__details {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .char-card__stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 5px;
+    }
+    .char-card__photo {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--border-panel);
+      background: var(--bg-deep);
+    }
+    .char-card__photo--empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      color: var(--text-muted);
+    }
+
+    .stat-item {
+      text-align: center;
+      background: rgba(0,0,0,0.3);
+      padding: 6px;
+      border-radius: 6px;
+    }
+
+    .stat-label {
+      display: block;
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .stat-val {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 900;
+      color: var(--gold);
+    }
+
+    .char-card__actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: auto;
+    }
+
+    .btn {
+      padding: 10px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-select {
+      background: var(--gold);
+      color: #000;
+      border: none;
+    }
+
+    .btn-select:hover {
+      background: #E5B959;
+    }
+
+    .btn-sheet {
+      background: transparent;
+      border: 1px solid var(--border-panel);
+      color: var(--text-secondary);
+    }
+
+    .btn-sheet:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 100px 20px;
+      grid-column: 1 / -1;
+    }
+
+    .badge-active {
+      display: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--gold);
+      color: #000;
+      font-size: 0.6rem;
+      font-weight: 900;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .active .badge-active {
+      display: block;
+    }
+
+    /* NEW CHAR CARD STYLES — PREMIUM DESIGN */
+    .char-card--new {
+      border: 2px dashed var(--border-panel);
+      background: linear-gradient(145deg, rgba(20,20,20,0.8), rgba(10,10,10,0.9));
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      min-height: 250px;
+      transition: all 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none !important;
+      color: var(--text-primary) !important;
+    }
+    .char-card--new:hover {
+      border-style: solid;
+      border-color: var(--gold);
+      background: linear-gradient(135deg, rgba(212, 168, 70, 0.05), rgba(139, 105, 20, 0.1));
+      transform: scale(1.02) translateY(-5px);
+      box-shadow: 0 15px 40px rgba(212, 168, 70, 0.15);
+    }
+    .char-card--new i { 
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: rgba(212, 168, 70, 0.1);
+      font-size: 2.2rem; 
+      color: var(--gold); 
+      margin-bottom: 20px; 
+      font-style: normal;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(212, 168, 70, 0.2);
+    }
+    .char-card--new:hover i {
+      background: var(--gold);
+      color: #000;
+      transform: rotate(90deg);
+    }
+    .char-card--new span { 
+      font-weight: 800; 
+      color: var(--text-primary); 
+      text-transform: uppercase; 
+      font-size: 0.85rem; 
+      letter-spacing: 0.2em; 
+      font-family: var(--font-display);
+    }
+
+    /* LEGACY STYLES */
+    .legacy-section {
+      margin-top: 80px;
+      padding-top: 40px;
+      border-top: 1px dashed var(--border-panel);
+    }
+    .legacy-section h2 {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 30px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .legacy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+      opacity: 0.7;
+    }
+    .char-card--legacy {
+      padding: 15px;
+      background: rgba(0,0,0,0.2);
+    }
+    .char-card--legacy .char-card__name { font-size: 1rem; color: var(--text-muted); }
+    .char-card--legacy .char-card__stats { display: none; }
+    
+    .btn-legacy-action {
+      background: transparent;
+      border: 1px solid var(--border-panel);
+      color: var(--text-muted);
+      font-size: 0.6rem;
+      padding: 5px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-legacy-action:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+    .btn-delete {
+        color: var(--red-accent) !important;
+    }
+    .btn-delete:hover {
+        border-color: var(--red-accent) !important;
+        background: rgba(196, 30, 58, 0.1);
+    }
+    
+    .btn-archive {
+        background: rgba(0,0,0,0.4);
+        border: 1px solid var(--border-panel);
+        color: var(--text-muted);
+        font-size: 0.65rem;
+        padding: 8px;
+        border-radius: 6px;
+        grid-column: 1 / -1; /* Ocupa linha inteira no grid de ações */
+        font-weight: 700;
+        text-transform: uppercase;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+    .btn-archive:hover { border-color: var(--gold); color: var(--gold); background: rgba(212, 168, 70, 0.1); }
+    .btn-archive:hover { border-color: var(--gold); background: var(--gold); color: #000; }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="daimyo-header"></div>
+
+  <main class="container">
+    <section class="hero-section">
+      <h1>Santuário do Viajante</h1>
+      <p>Escolha seu personagem para carregar sua jornada pela Era das Espadas Quebradas.</p>
+    </section>
+
+    <div class="char-grid" id="char-grid">
+      <!-- Personagens carregados via JS -->
+      <div class="loading-state" style="grid-column: 1 / -1; text-align: center; color: var(--text-muted);">
+        Carregando pergaminhos do destino...
+      </div>
+    </div>
+
+    <section class="legacy-section" id="legacy-section" style="display: none;">
+      <h2>🕯️ Cofre de Legendas</h2>
+      <div class="legacy-grid" id="legacy-grid"></div>
+    </section>
+  </main>
+
+  <script>
+    async function renderPlayerCharacters() {
+      const grid = document.getElementById('char-grid');
+      const legacyGrid = document.getElementById('legacy-grid');
+      const legacySection = document.getElementById('legacy-section');
+      
+      const allCharacters = await CharacterManager.loadAll();
+      const activeId = CharacterManager.getActiveCharacterId();
+
+      const characters = allCharacters.filter(c => !c.isLegacy);
+      const legacy = allCharacters.filter(c => c.isLegacy);
+
+      grid.innerHTML = '';
+      
+      // Adicionar Card Criar Novo
+      const newCard = document.createElement('a');
+      newCard.href = 'characters-sheet.html?new=1';
+      newCard.className = 'char-card char-card--new';
+      newCard.innerHTML = `
+        <i>＋</i>
+        <span>Criar Novo Registro</span>
+      `;
+      grid.appendChild(newCard);
+
+      if (!characters || characters.length === 0) {
+        // Continue rendering or do something if empty, though newCard is always there
+      }
+        characters.sort((a, b) => {
+          if (a.id === activeId) return -1;
+          if (b.id === activeId) return 1;
+          return (b.updatedAt || 0) - (a.updatedAt || 0);
+        });
+
+        characters.forEach(char => {
+          const isActive = char.id === activeId;
+          const card = document.createElement('div');
+          card.className = `char-card ${isActive ? 'active' : ''}`;
+          card.onclick = () => selectCharacter(char.id);
+
+          card.innerHTML = `
+            <div class="badge-active">ATIVO</div>
+            ${char.photo ? `<img src="${char.photo}" class="char-card__photo" alt="Foto">` : `<div class="char-card__photo char-card__photo--empty">⛩️</div>`}
+            <div class="char-card__header">
+              <h3 class="char-card__name">${char.name}</h3>
+              <span class="char-card__pts">${char.totalPoints || 150} PTS</span>
+            </div>
+            <div class="char-card__details">
+              <span style="display:block; font-weight:700; color:var(--text-muted); text-transform:uppercase; font-size:0.65rem; margin-bottom:5px;">Conceito / Clã</span>
+              ${char.concept || 'Ronin Errante'} ${char.clan ? '• ' + char.clan : ''}
+            </div>
+            <div class="char-card__stats">
+              <div class="stat-item"><span class="stat-label">ST</span><span class="stat-val">${char.attributes.st}</span></div>
+              <div class="stat-item"><span class="stat-label">DX</span><span class="stat-val">${char.attributes.dx}</span></div>
+              <div class="stat-item"><span class="stat-label">IQ</span><span class="stat-val">${char.attributes.iq}</span></div>
+              <div class="stat-item"><span class="stat-label">HT</span><span class="stat-val">${char.attributes.ht}</span></div>
+            </div>
+            <div class="char-card__actions">
+              <button class="btn btn-select">${isActive ? 'Continuar' : 'Selecionar'}</button>
+              <a href="characters-sheet.html?id=${char.id}" class="btn btn-sheet" onclick="event.stopPropagation()">Ver Ficha</a>
+              <button class="btn-archive" onclick="event.stopPropagation(); archiveCharacter('${char.id}')">⚖️ Mover ao Legado</button>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+
+      // Render Legacy
+      if (legacy.length > 0) {
+        legacySection.style.display = 'block';
+        legacyGrid.innerHTML = '';
+        legacy.forEach(char => {
+            const card = document.createElement('div');
+            card.className = 'char-card char-card--legacy';
+            card.innerHTML = `
+                <div style="display:flex; gap:15px; align-items:center;">
+                    ${char.photo ? `<img src="${char.photo}" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover;">` : `<div style="width: 40px; height: 40px; border-radius: 4px; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; font-size: 1.2rem;">⛩️</div>`}
+                    <div style="flex:1;">
+                        <h3 class="char-card__name" style="margin:0;">${char.name}</h3>
+                    </div>
+                </div>
+                <div style="display:flex; gap:5px; margin-top:10px;">
+                    <button class="btn-legacy-action" onclick="archiveCharacter('${char.id}')">Restaurar</button>
+                    <button class="btn-legacy-action btn-delete" onclick="deleteCharacterPermanent('${char.id}', '${char.name}')">Apagar</button>
+                </div>
+            `;
+            legacyGrid.appendChild(card);
+        });
+      } else {
+        legacySection.style.display = 'none';
+      }
+    }
+
+    async function archiveCharacter(id) {
+        await CharacterManager.toggleLegacy(id);
+        renderPlayerCharacters();
+        if(window.initPlayerHeader) window.initPlayerHeader();
+    }
+
+    async function deleteCharacterPermanent(id, name) {
+        if (confirm(`Tem certeza que deseja apagar permanentemente o registro de ${name}? Esta ação não pode ser desfeita.`)) {
+            await CharacterManager.deleteCharacter(id);
+            renderPlayerCharacters();
+            if(window.initPlayerHeader) window.initPlayerHeader();
+        }
+    }
+
+    function selectCharacter(id) {
+      CharacterManager.setActiveCharacter(id);
+      window.location.href = 'characters-sheet.html';
+    }
+
+    // Refresh header active char box if it changes
+    window.addEventListener('daimyoActiveCharacterChanged', () => {
+        if(window.initPlayerHeader) window.initPlayerHeader();
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('🛡️ Daimyo Viajante: PWA Ativo via Core.'))
+          .catch(err => console.error('❌ PWA Error:', err));
+      });
+    }
+  </script>
+</body>
+</html>

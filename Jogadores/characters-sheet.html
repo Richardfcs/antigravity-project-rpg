@@ -11,18 +11,18 @@
         href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="icon" type="image/png" href="icons/app-icon-192.png">
+    <link rel="icon" href="icons/app-icon-192.png">
     <meta name="description"
         content="Gerenciador de fichas de personagens para GURPS 4e. Crie, edite e acompanhe o Santuário de Heróis na Era das Espadas Quebradas.">
 
     <!-- CORE INFRASTRUCTURE (Explicit Loading) -->
     <script src="js/daimyo-db.js"></script>
+    <script src="js/character-manager.js"></script>
     <script src="js/theme-manager.js"></script>
-    <script src="js/log-manager.js"></script>
     <script src="js/daimyo-seal.js"></script>
-    <script src="js/header-loader.js"></script>
+    <script src="js/header-player.js"></script>
     <script src="js/archetypes-db.js"></script>
     <script>
-        if (localStorage.getItem('daimyo_auth') !== 'true') { window.location.href = 'index.html'; }
         if (window.DaimyoDB) {
             window.DaimyoDB.init().then(() => {
                 window.DaimyoDB.migrateFromLocalStorage();
@@ -327,27 +327,22 @@
             opacity: 1;
         }
 
-        /* ═══════════════════════════════════════════
-           ARCHETYPE LIBRARY MODAL
-           ═══════════════════════════════════════════ */
+        /* ARCHETYPE MODAL STYLES */
         .modal-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            z-index: 10000;
             display: none;
             justify-content: center;
             align-items: center;
-            z-index: 10000;
-            backdrop-filter: blur(8px);
+            padding: 20px;
         }
-
         .modal-content {
             background: var(--bg-panel);
-            width: 95%;
-            max-width: 650px;
+            width: 100%;
+            max-width: 900px;
             max-height: 85vh;
             border: 1px solid var(--gold);
             border-radius: var(--radius-lg);
@@ -356,7 +351,6 @@
             position: relative;
             box-shadow: 0 0 50px rgba(212, 168, 70, 0.2);
         }
-
         .modal-header {
             display: flex;
             justify-content: space-between;
@@ -365,13 +359,11 @@
             border-bottom: 1px solid var(--border-panel);
             padding-bottom: 15px;
         }
-
         .archetype-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 15px;
         }
-
         .archetype-card {
             background: var(--bg-card);
             border: 1px solid var(--border-panel);
@@ -383,27 +375,23 @@
             flex-direction: column;
             gap: 5px;
         }
-
         .archetype-card:hover {
             border-color: var(--gold);
             transform: translateY(-3px);
             background: rgba(212, 168, 70, 0.05);
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
-
         .archetype-card__name {
             font-family: var(--font-display);
             color: var(--gold);
             font-size: 1.1rem;
             margin-bottom: 2px;
         }
-
         .archetype-card__desc {
             font-size: 0.75rem;
             color: var(--text-secondary);
             line-height: 1.4;
         }
-
         .btn-archetype {
             background: transparent;
             border: 1px solid var(--gold);
@@ -421,11 +409,82 @@
             gap: 10px;
             border-radius: var(--radius);
         }
-
         .btn-archetype:hover {
             background: var(--gold);
             color: black;
             box-shadow: 0 0 15px var(--gold-glow);
+        }
+
+        /* Modal Scrollbar Styling */
+        .modal-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .modal-content::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+        .modal-content::-webkit-scrollbar-thumb {
+            background: var(--border-panel);
+            border-radius: 10px;
+            border: 2px solid var(--bg-panel);
+        }
+        .modal-content::-webkit-scrollbar-thumb:hover {
+            background: var(--gold);
+        }
+
+        /* 📊 STATUS PANEL STYLES */
+        .status-panel {
+            background: linear-gradient(145deg, rgba(20,20,20,0.8), rgba(10,10,10,0.6));
+            border: 1px solid var(--gold-glow);
+            border-radius: var(--radius-lg);
+            padding: 25px;
+            margin-bottom: 35px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .status-item { display: flex; flex-direction: column; gap: 12px; }
+        .status-header { display: flex; justify-content: space-between; align-items: flex-end; }
+        .status-title { font-family: var(--font-display); font-size: 0.9rem; color: var(--gold); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
+        .status-values { font-family: var(--font-display); font-size: 2.2rem; font-weight: 900; line-height: 1; }
+        .current-val { color: var(--text-primary); text-shadow: 0 0 20px rgba(255,255,255,0.15); }
+        .max-val { color: var(--text-muted); font-size: 1.3rem; opacity: 0.5; }
+        
+        .progress-container {
+            height: 14px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 7px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .progress-bar {
+            height: 100%;
+            width: 100%;
+            transition: width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.4s;
+        }
+        .hp-bar { background: linear-gradient(90deg, #16a34a, #22c55e); box-shadow: 0 0 15px rgba(34,197,94,0.4); }
+        .fp-bar { background: linear-gradient(90deg, #2563eb, #3b82f6); box-shadow: 0 0 15px rgba(59,130,246,0.4); }
+        
+        .status-controls { display: flex; gap: 8px; margin-top: 8px; }
+        .btn-status {
+            flex: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border-panel);
+            color: var(--text-secondary);
+            padding: 10px 5px;
+            border-radius: var(--radius);
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+        .btn-status:hover { border-color: var(--gold); background: rgba(255,255,255,0.05); }
+        .btn-status:active { transform: scale(0.95); }
+        
+        @media (max-width: 500px) {
+            .status-panel { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -433,8 +492,6 @@
 <body>
     <div id="daimyo-header"></div>
     <script src="js/weapons-data.js"></script>
-    <script src="js/character-manager.js"></script>
-    <script src="js/kegare-manager.js"></script>
 
     <div class="sheet-container">
         <!-- HEADER SECTION -->
@@ -446,7 +503,7 @@
                     Registro de Bushido Premium</h1>
                 <p style="font-size:0.75rem; color:var(--text-muted); font-weight: 500;">FORJA DE LEGENDAS — A ERA DAS
                     ESPADAS QUEBRADAS</p>
-                <button id="btn-archetype-library" class="btn-archetype" onclick="toggleArchetypeLibrary()">
+                <button id="btn-archetype-library" class="btn-archetype" onclick="toggleArchetypeLibrary()" type="button">
                     <span>📚</span> Biblioteca de Arquétipos
                 </button>
             </div>
@@ -495,6 +552,47 @@
                 </div>
             </div>
         </section>
+
+        <!-- STATUS ATUAL (INTERATIVO) -->
+        <div class="status-panel">
+            <div class="status-item">
+                <div class="status-header">
+                    <span class="status-title">Vida do Ronin (PV)</span>
+                    <div class="status-values">
+                        <span id="hp-cur-display" class="current-val">12</span>
+                        <span class="max-val">/ <span id="hp-max-display">12</span></span>
+                    </div>
+                </div>
+                <div class="progress-container">
+                    <div id="hp-bar" class="progress-bar hp-bar"></div>
+                </div>
+                <div class="status-controls">
+                    <button type="button" class="btn-status" onclick="adjustStatus('hp', -1)">-1</button>
+                    <button type="button" class="btn-status" onclick="adjustStatus('hp', -5)">-5</button>
+                    <button type="button" class="btn-status" onclick="adjustStatus('hp', 1)">+1</button>
+                    <button type="button" class="btn-status" style="color: var(--gold)" onclick="resetStatus('hp')">MAX</button>
+                </div>
+            </div>
+
+            <div class="status-item">
+                <div class="status-header">
+                    <span class="status-title">Energia / Fadiga (PF)</span>
+                    <div class="status-values">
+                        <span id="fp-cur-display" class="current-val">10</span>
+                        <span class="max-val">/ <span id="fp-max-display">10</span></span>
+                    </div>
+                </div>
+                <div class="progress-container">
+                    <div id="fp-bar" class="progress-bar fp-bar"></div>
+                </div>
+                <div class="status-controls">
+                    <button type="button" class="btn-status" onclick="adjustStatus('fp', -1)">-1</button>
+                    <button type="button" class="btn-status" onclick="adjustStatus('fp', -3)">-3</button>
+                    <button type="button" class="btn-status" onclick="adjustStatus('fp', 1)">+1</button>
+                    <button type="button" class="btn-status" style="color: #3b82f6" onclick="resetStatus('fp')">MAX</button>
+                </div>
+            </div>
+        </div>
 
         <!-- ATTRIBUTES -->
         <section style="margin-top:30px;">
@@ -673,7 +771,7 @@
                 <label class="field__label">Inventário e Suprimentos</label>
                 <textarea id="char-equipment" class="field__textarea"
                     placeholder="Ex: Armadura de Bambu (RD 2), Rações de Viagem, Kit de Primeiros Socorros..."
-                    style="min-height:100px; resize: vertical;"></textarea>
+                    style="height:100px; resize: vertical;"></textarea>
             </div>
         </section>
 
@@ -685,14 +783,14 @@
                 <label class="field__label">Vantagens e Qualidades</label>
                 <textarea id="char-advantages" class="field__textarea auto-grow"
                     placeholder="Ex: Reflexos em Combate [15], Sentido Aguçado (Visão) [2]..."
-                    style="min-height:100px; resize: vertical;"></textarea>
+                    style="min-height:80px; resize: vertical;"></textarea>
             </div>
 
             <div class="field">
                 <label class="field__label">Desvantagens e Peculiaridades</label>
                 <textarea id="char-disadvantages" class="field__textarea auto-grow"
                     placeholder="Ex: Senso de Dever (Grupo) [-5], Código de Honra [-10]..."
-                    style="min-height:100px; resize: vertical;"></textarea>
+                    style="min-height:80px; resize: vertical;"></textarea>
             </div>
 
             <div class="field">
@@ -703,7 +801,7 @@
             </div>
 
             <div class="field">
-                <label class="field__label">História e Anotações do Mestre</label>
+                <label class="field__label">História e Anotações no Mestre</label>
                 <textarea id="char-history" class="field__textarea auto-grow"
                     placeholder="Descreva o passado, motivações e segredos do seu samurai..."
                     style="min-height:120px; resize: vertical;"></textarea>
@@ -711,12 +809,10 @@
         </section>
 
         <!-- ACTIONS -->
-        <div
-            style="margin-top:50px; display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:15px; padding-bottom: 20px;">
+        <div style="margin-top:50px; display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:15px; padding-bottom: 20px;">
             <button class="btn btn-gold" id="btn-save" style="border: 1px solid var(--gold);">💾 Selar Registro</button>
-            <button class="btn btn-ghost" id="btn-import-json" style="border: 1px solid var(--border-panel);">📥 Importar JSON</button>
-            <button class="btn btn-primary" id="btn-export">⚔ Portar p/ Arena</button>
-            <button class="btn btn-ghost" id="btn-cancel">⬅ Voltar p/ Arena</button>
+            <button class="btn btn-ghost" id="btn-export-json" style="border: 1px solid var(--border-panel);">📤 Exportar JSON</button>
+            <button class="btn btn-ghost" id="btn-cancel">⬅ Voltar p/ Início</button>
         </div>
     </div>
 
@@ -725,6 +821,10 @@
         const editingId = urlParams.get('id');
 
         document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URL(window.location.href).searchParams;
+            const editingId = urlParams.get('id');
+            const isNew = urlParams.get('new');
+
             loadWeaponSelector();
 
             // Aguarda inicialização do banco e do cache de personagens
@@ -732,15 +832,29 @@
             if (window.CharacterManager && window.CharacterManager.init) await window.CharacterManager.init();
 
             const archetypeBtn = document.getElementById('btn-archetype-library');
+
             if (editingId) {
+                // EDITAR FICHA ESPECÍFICA
                 await loadCharacter(editingId);
                 if (archetypeBtn) archetypeBtn.style.display = 'none';
-            } else {
+            } else if (isNew) {
+                // CRIAR NOVO - Limpar campos para garantir ficha vazia
+                clearForm();
                 if (archetypeBtn) archetypeBtn.style.display = 'inline-flex';
+            } else {
+                // VER ATIVO (Default behavior when clicking selecting in hub)
+                const activeId = CharacterManager.getActiveCharacterId();
+                if (activeId) {
+                    await loadCharacter(activeId);
+                    if (archetypeBtn) archetypeBtn.style.display = 'none';
+                } else {
+                    clearForm();
+                    if (archetypeBtn) archetypeBtn.style.display = 'inline-flex';
+                }
             }
 
             // Listeners de atributos para cálculos em tempo real
-            ['attr-st', 'attr-dx', 'attr-ht', 'slots-used'].forEach(id => {
+            ['attr-st', 'attr-dx', 'attr-ht', 'attr-hp', 'attr-fp', 'slots-used'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('input', updateCalculations);
             });
@@ -753,6 +867,42 @@
                 });
             });
         });
+
+        function clearForm() {
+            const fields = [
+                'char-name', 'char-concept', 'char-clan', 'pts-count',
+                'attr-st', 'attr-dx', 'attr-iq', 'attr-ht',
+                'attr-hp', 'attr-fp', 'attr-will', 'attr-per',
+                'attr-speed', 'slots-used', 'maneuver-1', 'maneuver-2', 'maneuver-3',
+                'attr-dodge', 'attr-parry', 'attr-block', 'char-dr', 'char-weapon',
+                'char-equipment', 'char-history', 'char-advantages', 'char-disadvantages', 'char-skills'
+            ];
+            
+            fields.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = el.defaultValue === undefined ? '' : el.defaultValue;
+                    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+                }
+            });
+
+            // Reset photo
+            const photoPreview = document.getElementById('photo-preview');
+            if (photoPreview) {
+                photoPreview.innerHTML = `<div class="photo-section__empty"><span style="font-size:2.5rem; display:block;">👤</span><span style="font-size:0.7rem; text-transform:uppercase;">3x4</span></div><div class="photo-section__label">Trocar Foto</div>`;
+                photoPreview.dataset.photo = '';
+            }
+
+            // Reset pts-count to default
+            document.getElementById('pts-count').value = 150;
+
+            updateCalculations();
+            
+            // Reset current status to max
+            window.currentHP = parseInt(document.getElementById('attr-hp').value) || 12;
+            window.currentFP = parseInt(document.getElementById('attr-fp').value) || 10;
+            updateStatusUI();
+        }
 
         function loadWeaponSelector() {
             const sel = document.getElementById('char-weapon');
@@ -792,6 +942,13 @@
 
             document.getElementById('attr-hp').value = char.attributes.hp;
             document.getElementById('attr-fp').value = char.attributes.fp;
+            
+            // Set current HP/FP from data or fallback to max
+            window.currentHP = char.hpCur !== undefined ? char.hpCur : char.attributes.hp;
+            window.currentFP = char.fpCur !== undefined ? char.fpCur : char.attributes.fp;
+            
+            updateStatusUI();
+
             document.getElementById('attr-will').value = char.attributes.will || 10;
             document.getElementById('attr-per').value = char.attributes.per || 10;
 
@@ -899,9 +1056,91 @@
                 history: document.getElementById('char-history').value,
                 advantages: document.getElementById('char-advantages').value.split(',').map(n => ({ name: n.trim() })).filter(a => a.name),
                 disadvantages: document.getElementById('char-disadvantages').value.split(',').map(n => ({ name: n.trim() })).filter(d => d.name),
-                skills: document.getElementById('char-skills').value.split(',').map(n => ({ name: n.trim() })).filter(s => s.name)
+                skills: document.getElementById('char-skills').value.split(',').map(n => ({ name: n.trim() })).filter(s => s.name),
+                hpCur: window.currentHP,
+                fpCur: window.currentFP
             };
         }
+
+        // --- STATUS PANEL LOGIC ---
+        window.currentHP = 12;
+        window.currentFP = 10;
+
+        function adjustStatus(type, delta) {
+            if (type === 'hp') {
+                window.currentHP += delta;
+                // GURPS allows negative HP down to -5xHP, but we'll cap at -20 for common play or just no cap
+            } else {
+                window.currentFP = Math.max(-5, window.currentFP + delta); // Fatigue usually doesn't go very negative
+            }
+            updateStatusUI();
+        }
+
+        function resetStatus(type) {
+            if (type === 'hp') {
+                window.currentHP = parseInt(document.getElementById('attr-hp').value) || 10;
+            } else {
+                window.currentFP = parseInt(document.getElementById('attr-fp').value) || 10;
+            }
+            updateStatusUI();
+        }
+
+        function updateStatusUI() {
+            const maxHP = parseInt(document.getElementById('attr-hp').value) || 10;
+            const maxFP = parseInt(document.getElementById('attr-fp').value) || 10;
+
+            // Arredondar para evitar bugs de dtypes
+            window.currentHP = Math.floor(window.currentHP);
+            window.currentFP = Math.floor(window.currentFP);
+
+            // Update Displays
+            const hpDisplay = document.getElementById('hp-cur-display');
+            const fpDisplay = document.getElementById('fp-cur-display');
+            
+            hpDisplay.textContent = window.currentHP;
+            document.getElementById('hp-max-display').textContent = maxHP;
+            fpDisplay.textContent = window.currentFP;
+            document.getElementById('fp-max-display').textContent = maxFP;
+
+            // Update Bars
+            const hpPct = Math.max(0, Math.min(100, (window.currentHP / maxHP) * 100));
+            const fpPct = Math.max(0, Math.min(100, (window.currentFP / maxFP) * 100));
+
+            const hpBar = document.getElementById('hp-bar');
+            const fpBar = document.getElementById('fp-bar');
+
+            hpBar.style.width = hpPct + '%';
+            fpBar.style.width = fpPct + '%';
+
+            // HP Color Status & Effects
+            if (window.currentHP <= 0) {
+                hpBar.style.background = 'linear-gradient(90deg, #7f1d1d, #b91c1c)';
+                hpDisplay.style.color = 'var(--red-accent)';
+                hpDisplay.style.filter = 'drop-shadow(0 0 8px var(--red-glow))';
+            } else if (window.currentHP <= (maxHP / 3)) {
+                hpBar.style.background = 'linear-gradient(90deg, #a16207, #eab308)';
+                hpDisplay.style.color = '#facc15';
+                hpDisplay.style.filter = 'none';
+            } else {
+                hpBar.style.background = 'linear-gradient(90deg, #16a34a, #22c55e)';
+                hpDisplay.style.color = 'var(--text-primary)';
+                hpDisplay.style.filter = 'none';
+            }
+            
+            // Fatigue Effects
+            if (window.currentFP <= 0) {
+                fpDisplay.style.color = '#60a5fa';
+            } else {
+                fpDisplay.style.color = 'var(--text-primary)';
+            }
+        }
+
+        // Hook updateStatusUI into calculations to react to attr-hp/fp changes
+        const originalUpdateCalculations = updateCalculations;
+        updateCalculations = function() {
+            originalUpdateCalculations();
+            updateStatusUI();
+        };
 
         function triggerPhotoUpload() {
             document.getElementById('photo-input').click();
@@ -921,11 +1160,11 @@
             reader.readAsDataURL(file);
         }
 
-        document.getElementById('btn-save').addEventListener('click', () => {
+        document.getElementById('btn-save').addEventListener('click', async () => {
             const state = getFormState();
-            if (!state.name) return alert("O samurai precisa de um nome.");
+            if (!state.name) return alert("O personagem precisa de um nome.");
 
-            const all = CharacterManager.loadAll() || [];
+            const all = await CharacterManager.loadAll() || [];
             let char;
 
             if (editingId) {
@@ -938,78 +1177,37 @@
             Object.assign(char, state);
             CharacterManager.saveAll(all);
 
-            // Fix: Update editingId to prevent multiple entries if clicked again
             if (!editingId) {
                 window.history.replaceState(null, "", "?id=" + char.id);
-                // We can't easily update a 'const' from URL, it's safer to just set a local var or redirect
-                alert("Registro selado com sucesso! Agora você está editando este personagem.");
-                window.location.href = "characters-sheet.html?id=" + char.id;
+                alert("Registro selado com sucesso!");
+                window.location.replace("characters-sheet.html?id=" + char.id);
             } else {
                 alert("Registro selado com sucesso!");
             }
         });
 
-        document.getElementById('btn-export').addEventListener('click', () => {
-            const name = document.getElementById('char-name').value;
-            if (!name) return alert("O samurai precisa de um nome.");
-
-            const state = getFormState();
-            const all = CharacterManager.loadAll() || [];
-            let char;
-            if (editingId) {
-                char = all.find(c => c.id === editingId);
-            } else {
-                char = CharacterManager.createNewCharacter();
-                all.push(char);
-            }
-            Object.assign(char, state);
-            CharacterManager.saveAll(all);
-
-            if (CharacterManager.portToCombat(char.id)) {
-                alert("Samurai portado! Redirecionando para Arena...");
-                window.location.href = 'combat-calculator.html';
-            }
-        });
-
         document.getElementById('btn-cancel').addEventListener('click', () => {
-            window.location.href = 'combat-calculator.html';
+            window.location.href = 'index.html';
         });
 
-        document.getElementById('btn-import-json').addEventListener('click', () => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-            input.onchange = e => {
-                const file = e.target.files[0];
-                const reader = new FileReader();
-                reader.readAsText(file, "UTF-8");
-                reader.onload = async readerEvent => {
-                    try {
-                        const content = JSON.parse(readerEvent.target.result);
-                        if (!content.name) throw new Error("Formato de ficha inválido.");
-                        
-                        // Preparar novo personagem
-                        const newChar = CharacterManager.createNewCharacter();
-                        const { id, exportType, version, exportedAt, ...dataToImport } = content;
-                        
-                        Object.assign(newChar, dataToImport);
-                        newChar.id = 'ronin_' + Date.now() + '_' + Math.floor(Math.random() * 1000); // ID único robusto
-                        
-                        const all = await CharacterManager.loadAll() || [];
-                        all.push(newChar);
-                        await CharacterManager.saveAll(all);
-                        
-                        alert(`Sucesso! ${newChar.name} adicionado à lista do Mestre.`);
-                        if (window.LogManager) window.LogManager.add(`Personagem ${newChar.name} importado com sucesso.`, 'success');
-                        
-                        // Opcional: Carregar o personagem importado imediatamente
-                        window.location.href = "characters-sheet.html?id=" + newChar.id;
-                    } catch (err) {
-                        alert("Erro ao importar: " + err.message);
-                    }
-                };
-            };
-            input.click();
+        document.getElementById('btn-export-json').addEventListener('click', () => {
+            const state = getFormState();
+            if (!state.name) return alert("Dê um nome ao personagem antes de exportar.");
+            
+            // Adicionar metadados
+            state.exportType = "DAIMYO_CHARACTER_SHEET";
+            state.version = "1.0";
+            state.exportedAt = new Date().toISOString();
+            
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href",     dataStr);
+            downloadAnchorNode.setAttribute("download", `Character_${state.name.replace(/\s+/g, '_')}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            
+            if (window.LogManager) window.LogManager.add(`Ficha de ${state.name} exportada com sucesso.`, 'success');
         });
     </script>
     <script>
@@ -1103,10 +1301,11 @@
             }
 
             if (arch.basicSpeed) {
-                document.getElementById('attr-speed').value = arch.basicSpeed;
+                document.getElementById('attr-speed').value = arch.basicSpeed.toFixed(2);
             }
 
             // Narrative fields
+            // Players sheet has Advantages, Disadvantages and Skills as separate fields now!
             document.getElementById('char-advantages').value = (arch.advantages || []).join(', ');
             document.getElementById('char-disadvantages').value = (arch.disadvantages || []).join(', ');
             document.getElementById('char-skills').value = (arch.skills || []).join(', ');

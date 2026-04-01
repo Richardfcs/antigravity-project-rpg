@@ -89,33 +89,6 @@
       align-items: center;
       gap: 6px;
     }
-
-    .btn-portal {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-panel);
-      border-radius: var(--radius);
-      color: var(--text-secondary);
-      font-family: var(--font-body);
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-decoration: none;
-      text-transform: uppercase;
-      transition: all var(--transition);
-      white-space: nowrap;
-    }
-    .btn-portal:hover {
-      background: rgba(139, 30, 58, 0.1);
-      border-color: var(--red-accent);
-      color: var(--text-primary);
-    }
-    @media (max-width: 600px) {
-      .btn-portal span { display: none; }
-      .btn-portal { padding: 10px; }
-    }
     
     /* MOBILE DRAWER STYLES */
     .mobile-drawer-overlay {
@@ -307,7 +280,7 @@
 
   // Define Links Mapping
   const pages = [
-    { url: 'master-hub.html', icon: '⚔', label: 'Combate' },
+    { url: 'index.html', icon: '⚔', label: 'Combate' },
     { url: 'kegare-panico.html', icon: '🧠', label: 'Sanidade' },
     { url: 'combat-calculator.html', icon: '🎲', label: 'Dano' },
     { url: 'equipment-database.html', icon: '📦', label: 'Arsenal' },
@@ -316,7 +289,7 @@
     { url: 'oracle-generators.html', icon: '🔮', label: 'Oráculo' }
   ];
 
-  const currentPage = window.location.pathname.split('/').pop() || 'master-hub.html';
+  const currentPage = window.location.pathname.split('/').pop() || 'index.html';
 
   function renderDesktopNav() {
     let tabs = pages.map(p => `
@@ -335,7 +308,7 @@
             <button class="btn btn-ghost" onclick="window.toggleCharacterDrawer && window.toggleCharacterDrawer()" title="Lista de Personagens" style="min-height:44px; padding:0 15px; color: var(--text-primary); border: 1px solid var(--border-panel); display: flex; align-items: center; gap: 6px;">👥 Lista</button>
           </div>
           ` : ''}
-          ${currentPage === 'master-hub.html' ? `
+          ${currentPage === 'index.html' ? `
           <button class="btn btn-ghost" onclick="ThemeManager.openDrawer()" title="Customizar Tema" style="min-height:44px; padding:0 15px;">🎨 Customizar</button>
           <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleDrawer('gm-notes-drawer')" title="Anotações" style="min-height:44px; padding:0 15px;">📝 Notas</button>
           <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleDrawer('clocks-drawer')" title="Ameaças" style="min-height:44px; padding:0 15px;">⏱ Ameaças</button>
@@ -375,7 +348,7 @@
           
           <div class="mobile-drawer__section">Ferramentas de Mestre</div>
           <div class="mobile-drawer__links">
-            ${currentPage === 'master-hub.html' ? `
+            ${currentPage === 'index.html' ? `
             <button onclick="window.closeMobileNav(); ThemeManager.openDrawer()">🎨 Customizar Cores</button>
             <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleDrawer('gm-notes-drawer')">📝 Anotações do Mestre</button>
             <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleDrawer('clocks-drawer')">⏱ Relógios de Facção</button>
@@ -568,19 +541,15 @@
   document.head.appendChild(style);
 
   // Script injection logic removed. Moved to explicit declaraction in HTML for better reliability.
+
   const headerHtml = `
     <header class="new-header">
-      <div style="display:flex; align-items:center; gap: 10px;">
-        <a href="master-hub.html" class="new-header__title">⚔ Escudo do <span>Daimyo</span></a>
+      <div style="display:flex; align-items:center;">
+        <a href="index.html" class="new-header__title">⚔ Escudo do <span>Daimyo</span></a>
         ${currentPage === 'kegare-panico.html' ? renderKegareMini() : ''}
       </div>
       ${renderDesktopNav()}
-      <div class="new-header__tools">
-        ${currentPage === 'library.html' ? `
-        <a href="index.html" class="btn-portal" title="Sair / Portal">⛩️ <span>Santuário</span></a>
-        ` : ''}
-        <button class="mobile-menu-btn" id="mobile-menu-open">☰</button>
-      </div>
+      <button class="mobile-menu-btn" id="mobile-menu-open">☰</button>
     </header>
     ${renderMobileDrawer()}
     ${renderThemeDrawer()}

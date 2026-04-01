@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anotações do Viajante — Escudo do Daimyo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script src="js/daimyo-db.js"></script>
+  <script src="js/theme-manager.js"></script>
+  <script src="js/character-manager.js"></script>
+  <script src="js/header-player.js"></script>
+  <script src="js/player-notes.js"></script>
+  
+  <style>
+    :root {
+      --bg-deep: #0A0A0A;
+      --bg-panel: #111;
+      --bg-card: #181818;
+      --border-panel: #2A2A2A;
+      --gold: #D4A846;
+      --gold-glow: rgba(212, 168, 70, 0.4);
+      --text-primary: #F5F0E8;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+      --font-display: 'Noto Serif JP', serif;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --radius: 8px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    #daimyo-header { flex-shrink: 0; width: 100%; }
+
+    .notes-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      width: 100%;
+      position: relative;
+    }
+
+    /* SIDEBAR */
+    .notes-sidebar {
+      width: 280px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border-panel);
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      gap: 20px;
+      flex-shrink: 0;
+    }
+
+    .notes-sidebar h2 {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      color: var(--gold);
+      margin: 0;
+    }
+
+    .notes-nav {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .note-tab {
+      padding: 12px 15px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.02);
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .note-tab:hover { background: rgba(255,255,255,0.05); }
+    .note-tab.active {
+      background: rgba(212, 168, 70, 0.1);
+      border-color: var(--gold);
+    }
+    .note-tab span { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    
+    .note-tab-actions { display: none; gap: 5px; flex-shrink: 0; }
+    .note-tab.active .note-tab-actions, .note-tab:hover .note-tab-actions { display: flex; }
+    .note-tab-actions button {
+      background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 4px; border-radius: 4px;
+    }
+    .note-tab-actions button:hover { background: rgba(0,0,0,0.3); }
+
+    .btn-new-note {
+      padding: 12px;
+      background: transparent;
+      border: 1px dashed var(--border-panel);
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .btn-new-note:hover { border-color: var(--gold); color: var(--gold); background: rgba(212,168,70,0.05); }
+
+    /* EDITOR AREA */
+    .notes-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-deep);
+      min-width: 0; /* Prevents flex items from overflowing */
+    }
+
+    .notes-toolbar {
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border-panel);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-panel);
+      width: 100%;
+    }
+
+    .notes-status { font-size: 0.7rem; color: var(--text-muted); font-style: italic; }
+
+    .btn-tool {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border-panel);
+      color: var(--text-primary);
+      padding: 8px 15px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-weight: 600;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn-tool:hover { border-color: var(--gold); color: var(--gold); }
+
+    .btn-back {
+      display: none;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border-panel);
+      color: var(--gold);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .editor-wrapper {
+      flex: 1;
+      position: relative;
+      display: flex;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    #notes-editor {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      padding: 30px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 1rem;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+    }
+
+    #notes-preview {
+      width: 100%;
+      height: 100%;
+      padding: 30px 60px;
+      overflow-y: auto;
+      display: none;
+      line-height: 1.6;
+      color: var(--text-primary);
+    }
+
+    #notes-preview h1 { font-family: var(--font-display); color: var(--gold); border-bottom: 1px solid var(--border-panel); padding-bottom: 10px; }
+    #notes-preview h2 { font-family: var(--font-display); color: var(--text-primary); margin-top: 1.5em; }
+    #notes-preview strong { color: var(--gold); }
+    #notes-preview li { margin-bottom: 8px; }
+
+    /* MOBILE OVERRIDES */
+    @media (max-width: 768px) {
+      body { height: 100svh; overflow: hidden; background: var(--bg-deep); width: 100%; position: fixed; }
+      
+      .notes-container {
+        position: relative;
+        height: calc(100svh - 60px); 
+        width: 100%;
+        margin: 0;
+      }
+
+      .notes-sidebar { 
+        width: 100%; 
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 10;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 15px;
+        background: var(--bg-panel);
+        border-right: none;
+      }
+      
+      .notes-main {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 5;
+        background: var(--bg-deep);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .btn-back { display: flex; align-items: center; gap: 4px; }
+      
+      /* View States */
+      .notes-container.view-editor .notes-sidebar { transform: translateX(-100%); pointer-events: none; }
+      .notes-container:not(.view-editor) .notes-main { visibility: hidden; pointer-events: none; }
+
+      #notes-editor, #notes-preview { 
+        padding: 15px; 
+        font-size: 1rem; 
+        height: calc(100% - 50px);
+        width: 100%;
+      }
+      
+      #notes-preview { padding: 20px; } /* Reduced padding for mobile */
+
+      .notes-toolbar { 
+        padding: 10px 15px; 
+        background: var(--bg-panel);
+        width: 100%;
+      }
+
+      .note-tab { padding: 18px 15px; border-bottom: 1px solid var(--border-panel); width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="daimyo-header"></div>
+  
+  <div class="notes-container" id="notes-container">
+    <aside class="notes-sidebar">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>📓 Anotações</h2>
+        <button class="btn-new-note" style="padding: 5px 10px;" onclick="PlayerNotes.addNotePage()">＋ Nova</button>
+      </div>
+      <nav class="notes-nav" id="notes-nav">
+        <!-- List of notes -->
+      </nav>
+    </aside>
+
+    <main class="notes-main">
+      <div class="notes-toolbar">
+        <button class="btn-back" onclick="document.getElementById('notes-container').classList.remove('view-editor')">❮ Voltar</button>
+        <div class="notes-status" id="notes-status">Sincronizado ✓</div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn-tool" id="btn-toggle-preview" onclick="PlayerNotes.togglePreview()">👁️ Preview</button>
+        </div>
+      </div>
+      <div class="editor-wrapper">
+        <textarea id="notes-editor" placeholder="# Comece a escrever... (Suporta Markdown simples)" oninput="PlayerNotes.updateActiveNoteContent(this.value)"></textarea>
+        <div id="notes-preview"></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Prevent default scroll behaviors on mobile if needed
+    document.addEventListener('touchmove', function(e) {
+      if (e.target.id === 'notes-editor' || e.target.id === 'notes-preview' || e.target.classList.contains('notes-nav')) {
+          e.stopPropagation();
+      }
+    }, { passive: true });
+  </script>
+</body>
+</html>

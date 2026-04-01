@@ -28,6 +28,7 @@
   <script src="js/header-loader.js"></script>
 
   <script>
+    if (localStorage.getItem('daimyo_auth') !== 'true') { window.location.href = 'index.html'; }
     // Initialize Database & Migration before page logic
     if (window.DaimyoDB) {
       window.DaimyoDB.init().then(() => {
@@ -1870,8 +1871,7 @@
   <div id="app">
 
     <!-- ════════ HEADER ════════ -->
-    <!-- daimyo-header-mount será injetado pelo script -->
-    <script src="js/header-loader.js"></script>
+    <!-- daimyo-header-mount será injetado pelo header-loader.js (carregado no <head>) -->
 
     <!-- ════════ MAIN: 3 COLUMNS ════════ -->
     <main class="main">

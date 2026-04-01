@@ -7,16 +7,28 @@ const CharacterManager = (function() {
     const KEY = 'all';
     let cache = [];
 
+    let initPromise = null;
+
     // Initialize: Pre-load from IndexedDB to memory
-    const init = async () => {
-        if (!window.DaimyoDB) return;
-        try {
-            const data = await window.DaimyoDB.get(window.DaimyoDB.STORES.CHARACTERS, KEY);
-            if (data) cache = data;
-            console.log(`🛡️ DaimyoDB: ${cache.length} personagens carregados no cache.`);
-        } catch (e) {
-            console.error("Erro ao inicializar cache de personagens", e);
-        }
+    const init = () => {
+        if (initPromise) return initPromise;
+        
+        initPromise = (async () => {
+            if (!window.DaimyoDB) return;
+            try {
+                const data = await window.DaimyoDB.get(window.DaimyoDB.STORES.CHARACTERS, KEY);
+                if (data) cache = data;
+                console.log(`🛡️ DaimyoDB: ${cache.length} personagens carregados no cache.`);
+                
+                // Notificar que o sistema está pronto e o personagem ativo pode ser buscado no cache
+                window.dispatchEvent(new CustomEvent('daimyoActiveCharacterChanged', { 
+                    detail: { id: localStorage.getItem('daimyo_active_pc_id') } 
+                }));
+            } catch (e) {
+                console.error("Erro ao inicializar cache de personagens", e);
+            }
+        })();
+        return initPromise;
     };
 
     const loadAll = async () => {
@@ -46,6 +58,8 @@ const CharacterManager = (function() {
                 st: 10, dx: 10, iq: 10, ht: 10,
                 hp: 10, fp: 10, will: 10, per: 10
             },
+            hpCur: 10,
+            fpCur: 10,
             basicSpeed: 5.0,
             slotsUsed: 0,
             equippedManeuvers: [],
@@ -114,6 +128,61 @@ const CharacterManager = (function() {
         }
     };
 
+    /**
+     * 🆔 Ativa um personagem para a sessão do jogador
+     */
+    const setActiveCharacter = (id) => {
+        if (!id) localStorage.removeItem('daimyo_active_pc_id');
+        else localStorage.setItem('daimyo_active_pc_id', id);
+        
+        window.dispatchEvent(new CustomEvent('daimyoActiveCharacterChanged', { detail: { id } }));
+        console.log(`👤 Personagem ativo definido: ${id}`);
+    };
+
+    /**
+     * 🔍 Obtém o ID do personagem ativo no momento
+     */
+    const getActiveCharacterId = () => {
+        return localStorage.getItem('daimyo_active_pc_id');
+    };
+
+    /**
+     * 🎭 Obtém o objeto completo do personagem ativo
+     */
+    const getActiveCharacter = () => {
+        const id = getActiveCharacterId();
+        if (!id) return null;
+        return cache.find(c => c.id === id) || null;
+    };
+
+    const toggleLegacy = async (id) => {
+        const chars = await loadAll();
+        const char = chars.find(c => c.id === id);
+        if (!char) return;
+
+        char.isLegacy = !char.isLegacy;
+        char.updatedAt = Date.now();
+
+        // Se o personagem movido para o legado for o ativo, desativá-lo
+        if (char.isLegacy && getActiveCharacterId() === id) {
+            setActiveCharacter(null);
+        }
+
+        saveAll(chars);
+        return char.isLegacy;
+    };
+
+    const deleteCharacter = async (id) => {
+        let chars = await loadAll();
+        chars = chars.filter(c => c.id !== id);
+
+        if (getActiveCharacterId() === id) {
+            setActiveCharacter(null);
+        }
+
+        saveAll(chars);
+    };
+
     // Auto-init connection attempt
     if (document.readyState === 'complete') init();
     else window.addEventListener('load', init);
@@ -123,6 +192,11 @@ const CharacterManager = (function() {
         loadAll,
         saveAll,
         createNewCharacter,
-        portToCombat
+        portToCombat,
+        setActiveCharacter,
+        getActiveCharacterId,
+        getActiveCharacter,
+        toggleLegacy,
+        deleteCharacter
     };
 })();
