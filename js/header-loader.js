@@ -333,6 +333,7 @@
           <div style="display:flex; gap:8px;">
             <a href="characters-sheet.html" class="btn btn-ghost" title="Gerenciamento de Fichas" style="min-height:44px; padding:0 15px; color: var(--gold); border: 1px solid rgba(212, 168, 70, 0.3); display: flex; align-items: center; gap: 6px; text-decoration: none;">📜 Fichas</a>
             <button class="btn btn-ghost" onclick="window.toggleCharacterDrawer && window.toggleCharacterDrawer()" title="Lista de Personagens" style="min-height:44px; padding:0 15px; color: var(--text-primary); border: 1px solid var(--border-panel); display: flex; align-items: center; gap: 6px;">👥 Lista</button>
+            <button class="btn btn-ghost" onclick="BestiaryManager && BestiaryManager.openModal()" title="Bestiário Tático" style="min-height:44px; padding:0 15px; color: var(--green-success); border: 1px solid rgba(34, 197, 94, 0.3); display: flex; align-items: center; gap: 6px;">🐲 Bestiário</button>
           </div>
           ` : ''}
           ${currentPage === 'master-hub.html' ? `
@@ -384,6 +385,7 @@
             ${currentPage === 'combat-calculator.html' ? `
             <a href="characters-sheet.html" onclick="window.closeMobileNav()">📜 Fichas de Personagem</a>
             <button onclick="window.closeMobileNav(); window.toggleCharacterDrawer && window.toggleCharacterDrawer()">👥 Lista de Personagens</button>
+            <button onclick="window.closeMobileNav(); BestiaryManager && BestiaryManager.openModal()">🐲 Bestiário Tático</button>
             ` : ''}
             ${currentPage === 'kegare-panico.html' ? `
             <button onclick="window.closeMobileNav(); toggleFrightDrawer()">🎲 Teste de Pânico</button>

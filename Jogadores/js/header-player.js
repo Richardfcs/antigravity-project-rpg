@@ -346,6 +346,17 @@
     if (window.initPlayerHeader) window.initPlayerHeader();
   });
 
+  // --- PWA SERVICE WORKER (Botão Instalar) ---
+  if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+    window.addEventListener('load', () => {
+      // Registrar sempre da raiz para escopo total
+      const swPath = window.location.pathname.includes('/Jogadores/') ? '../sw.js' : 'sw.js';
+      navigator.serviceWorker.register(swPath)
+        .then(reg => console.log('🛡️ Daimyo Shield: PWA Ativo via Header Jogador.'))
+        .catch(err => console.warn('PWA Error:', err));
+    });
+  }
+
   // --- SILENCIADOR DE ERROS (View Transitions) ---
   window.addEventListener('unhandledrejection', (event) => {
     if (event.reason && event.reason.name === 'AbortError' && (event.reason.message.includes('Transition') || event.reason.message.includes('skipped'))) {

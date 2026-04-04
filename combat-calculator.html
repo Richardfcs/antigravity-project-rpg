@@ -1410,6 +1410,7 @@ window.RangedCalc = RangedCalc;
 </script>
   <script src="js/character-manager.js"></script>
   <script src="js/character-ui.js"></script>
+  <script src="js/bestiary-logic.js"></script>
   
   <div id="character-drawer" class="theme-drawer" style="overflow-y:auto; scrollbar-width:thin;">
     <div class="rc-header" style="display:flex; justify-content:space-between; align-items:center; padding:15px; border-bottom:1px solid var(--border-panel);">
@@ -1450,6 +1451,116 @@ window.RangedCalc = RangedCalc;
           .catch(err => console.error('❌ PWA: Erro ao registrar Service Worker:', err));
       });
     }
+  </script>
+  </script>
+
+  <!-- BESTIARY MODAL -->
+  <style>
+    .bestiary-modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+      background: rgba(0,0,0,0.85); z-index: 5000;
+      opacity: 0; visibility: hidden; transition: all 0.3s ease;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .bestiary-modal-overlay.visible { opacity: 1; visibility: visible; }
+    
+    .bestiary-modal {
+      background: var(--bg-deep); border: 1px solid var(--border-panel);
+      width: 100%; max-width: 900px; max-height: 90vh; border-radius: var(--radius-lg);
+      display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      transform: translateY(20px); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .bestiary-modal-overlay.visible .bestiary-modal { transform: translateY(0); }
+    
+    .bestiary-header {
+      padding: 15px 20px; border-bottom: 1px solid var(--border-panel);
+      display: flex; justify-content: space-between; align-items: center; background: var(--bg-panel);
+    }
+    .bestiary-title { font-family: var(--font-display); font-size: 1.2rem; color: var(--gold); }
+    
+    .bestiary-body {
+      padding: 20px; overflow-y: auto; flex: 1;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .bestiary-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;
+    }
+    
+    .bestiary-card {
+      background: var(--bg-panel); border: 1px solid var(--border-panel);
+      border-radius: var(--radius); padding: 15px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .bestiary-card__header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .bestiary-card__header strong { color: var(--text-primary); font-size: 1.1rem; line-height: 1.2; }
+    .bestiary-card__stats { display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.75rem; color: var(--text-muted); background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; }
+    .bestiary-card__stats span { background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    
+    .bestiary-card__attacks { font-size: 0.8rem; color: var(--red-accent); font-weight: 600; display:flex; flex-direction:column; gap:4px; }
+    
+    .bestiary-creator {
+       background: rgba(212, 168, 70, 0.05); border: 1px dashed var(--gold); padding: 15px; border-radius: var(--radius);
+    }
+    .bestiary-creator h3 { color: var(--gold); font-size: 0.9rem; margin-bottom: 10px; text-transform: uppercase; }
+    .bestiary-creator .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 10px; }
+  </style>
+
+  <div id="bestiary-modal" class="bestiary-modal-overlay">
+    <div class="bestiary-modal">
+      <div class="bestiary-header">
+        <h2 class="bestiary-title">🐲 Bestiário Tático</h2>
+        <button class="btn btn--ghost" onclick="BestiaryManager.closeModal()" style="font-size:1.5rem; padding:0 10px;">✕</button>
+      </div>
+      <div class="bestiary-body">
+        
+        <!-- Creator Form -->
+        <div class="bestiary-creator">
+           <h3>Novo Inimigo Rápido</h3>
+           <div class="grid-inputs">
+             <input type="text" id="bm-name" class="field__input" placeholder="Nome" style="grid-column: 1 / -1;">
+             <input type="number" id="bm-hp" class="field__input" placeholder="PV Max">
+             <input type="number" id="bm-fp" class="field__input" placeholder="PF Max">
+             <input type="number" id="bm-ht" class="field__input" placeholder="HT">
+             <input type="number" id="bm-dodge" class="field__input" placeholder="Esquiva">
+             <input type="number" id="bm-rd" class="field__input" placeholder="RD">
+             <input type="text" id="bm-type" class="field__input" placeholder="Tipo (Tag)">
+           </div>
+           <div class="grid-inputs">
+             <input type="text" id="bm-atk1" class="field__input" placeholder="Ataque 1 (ex: Espada - GdP 1d)" style="grid-column: 1 / -1">
+             <input type="text" id="bm-atk2" class="field__input" placeholder="Ataque 2 (ex: Lança - GdP 2d)" style="grid-column: 1 / -1">
+           </div>
+           <button class="btn btn--gold" style="width: 100%; padding: 10px;" onclick="addMookFromUI()">+ Adicionar ao Códex</button>
+        </div>
+
+        <!-- Roster Grid -->
+        <div id="bestiary-grid" class="bestiary-grid">
+           <!-- Loaded via JS -->
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+     function addMookFromUI() {
+        const data = {
+           name: document.getElementById('bm-name').value,
+           hpMax: document.getElementById('bm-hp').value,
+           fpMax: document.getElementById('bm-fp').value,
+           ht: document.getElementById('bm-ht').value,
+           dodge: document.getElementById('bm-dodge').value,
+           rd: document.getElementById('bm-rd').value,
+           type: document.getElementById('bm-type').value,
+           attack1: document.getElementById('bm-atk1').value,
+           attack2: document.getElementById('bm-atk2').value
+        };
+        if(!data.name) return alert("Dê um nome ao inimigo.");
+        BestiaryManager.createMook(data).then(() => {
+           // clear
+           ['name','hp','fp','ht','dodge','rd','type','atk1','atk2'].forEach(k => document.getElementById('bm-'+k).value='');
+        });
+     }
   </script>
 </body>
 </html>
