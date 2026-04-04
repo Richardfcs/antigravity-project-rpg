@@ -207,6 +207,7 @@ window.DaimyoDB = (function() {
     get,
     remove,
     getAll,
+    getAllWithKeys,
     clearStore,
     migrateFromLocalStorage,
     STORES,

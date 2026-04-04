@@ -107,11 +107,8 @@ function addToCart(item) {
     refCusto: item.custo
   });
   
-  if (!merchantState.isOpen) {
-    toggleMerchantPanel(true);
-  } else {
-    updateCartUI();
-  }
+  updateCartUI();
+
 
   // Efeito visual no FAB
   const fab = document.getElementById('merchant-fab');
@@ -218,6 +215,11 @@ function toggleMerchantPanel(forceOpen) {
   }
   
   panel.classList.toggle('merchant-panel--open', merchantState.isOpen);
+  
+  const fab = document.getElementById('merchant-fab');
+  if (fab) {
+    fab.classList.toggle('merchant-fab--shifted', merchantState.isOpen);
+  }
 }
 
 // ════════════ INJEÇÃO DA UI & EVENTOS ════════════
@@ -243,7 +245,7 @@ function injectMerchantUI() {
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(0,0,0,0.8);
       z-index: 1105;
-      transition: transform 0.2s ease, background 0.2s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .merchant-fab:hover {
       background: var(--bg-card-hover);
@@ -251,6 +253,17 @@ function injectMerchantUI() {
     }
     .merchant-fab.pop {
       transform: scale(1.2);
+    }
+    .merchant-fab--shifted {
+      right: 350px;
+    }
+    @media (max-width: 768px) {
+      .merchant-fab--shifted {
+        right: 24px;
+        opacity: 0;
+        pointer-events: none;
+        transform: scale(0) rotate(-90deg);
+      }
     }
     .merchant-badge {
       position: absolute;

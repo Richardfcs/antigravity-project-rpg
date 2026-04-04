@@ -1154,15 +1154,17 @@
     const STATE_KEY = 'daimyoShieldState';
     const TIME_LOG_KEY = 'daimyoShieldTimeLog';
 
-    function loadState() {
+    async function loadState() {
       try {
+        if (window.DaimyoDB) return await window.DaimyoDB.get('vault', 'combat_state');
         const raw = localStorage.getItem(STATE_KEY);
         return raw ? JSON.parse(raw) : null;
       } catch (e) { return null; }
     }
 
-    function saveState(state) {
-      localStorage.setItem(STATE_KEY, JSON.stringify(state));
+    async function saveState(state) {
+      if (window.DaimyoDB) await window.DaimyoDB.put('vault', 'combat_state', state);
+      else localStorage.setItem(STATE_KEY, JSON.stringify(state));
     }
 
     function loadTimeLog() {
@@ -1192,8 +1194,8 @@
 
     // ══════ FUNCTIONS ══════
 
-    function handleBleedingRolls() {
-      const state = loadState();
+    async function handleBleedingRolls() {
+      const state = await loadState();
       if (!state || !state.combatants.length) return;
 
       let checksCount = 0;
@@ -1222,12 +1224,12 @@
         addTimeLog('time', "Avançado 1 minuto. Ninguém sangrando.");
       }
 
-      saveState(state);
-      renderCombatants();
+      await saveState(state);
+      await renderCombatants();
     }
 
-    function handleRest() {
-      const state = loadState();
+    async function handleRest() {
+      const state = await loadState();
       if (!state || !state.combatants.length) return;
 
       let units = 0;
@@ -1240,12 +1242,12 @@
 
       addTimeLog('rest', `Descanso de 10 min concluído. ${units} personagem(ns) recuperaram +1 PF.`);
 
-      saveState(state);
-      renderCombatants();
+      await saveState(state);
+      await renderCombatants();
     }
 
-    function handleLongRest() {
-      const state = loadState();
+    async function handleLongRest() {
+      const state = await loadState();
       if (!state || !state.combatants.length) return;
 
       if (!confirm('Deseja rolar cura natural e restaurar todo o Ki para todo o grupo?')) return;
@@ -1275,12 +1277,12 @@
 
       addTimeLog('rest', `Descanso Longo Concluído. PF restaurado integralmente. PVs recuperados passivamente.`);
 
-      saveState(state);
-      renderCombatants();
+      await saveState(state);
+      await renderCombatants();
     }
 
-    function handleHeal(isFirstAid = false) {
-      const state = loadState();
+    async function handleHeal(isFirstAid = false) {
+      const state = await loadState();
       if (!state || !state.combatants.length) return;
 
       const targetId = document.getElementById('select-heal-target').value;
@@ -1330,14 +1332,14 @@
 
       if (state.history.length > 50) state.history = state.history.slice(0, 50);
 
-      saveState(state);
-      renderCombatants();
+      await saveState(state);
+      await renderCombatants();
     }
 
     // ══════ RENDER ══════
 
-    function renderCombatants() {
-      const state = loadState();
+    async function renderCombatants() {
+      const state = await loadState();
       const container = document.getElementById('combatant-list');
       const countSpan = document.getElementById('combatant-count');
 
@@ -1414,8 +1416,8 @@
   `).join('');
     }
 
-    function renderLegacy() {
-      const state = loadState();
+    async function renderLegacy() {
+      const state = await loadState();
       const container = document.getElementById('legacy-list');
       if (!state || !state.legacyLog || state.legacyLog.length === 0) {
         container.innerHTML = '<div class="history__empty">Nenhum herói tombou ainda. As lendas aguardam.</div>';
@@ -1432,12 +1434,12 @@
     }
 
     // ── Clear Legacy ──
-    function clearLegacy() {
+    async function clearLegacy() {
       if (confirm('Deseja apagar as crônicas de legado?')) {
-        const state = loadState();
-        state.legacyLog = [];
-        saveState(state);
-        renderLegacy();
+        const state = await loadState();
+        if (state) state.legacyLog = [];
+        await saveState(state);
+        await renderLegacy();
       }
     }
 
@@ -1464,9 +1466,12 @@
       renderCombatants();
     });
 
-    renderCombatants();
-    renderLog();
-    renderLegacy();
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (window.DaimyoDB) await window.DaimyoDB.init();
+      await renderCombatants();
+      renderLog();
+      await renderLegacy();
+    });
 
     /* ═══════════════════════════════════════════
        DATA MANAGER — Gerenciamento de Dados

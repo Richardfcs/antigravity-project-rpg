@@ -754,23 +754,48 @@
         <!-- EQUIPMENT & ARSENAL -->
         <section style="margin-top:40px;">
             <h3 class="section-title">⚔ Arsenal e Equipamento</h3>
+            
+            <div class="attr-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
+                <div class="attr-box" style="border-color: var(--red-accent);">
+                    <span class="attr-box__label">GdP (Golpe de Perfuração)</span>
+                    <input type="text" id="char-gdp" class="attr-box__value" readonly tabindex="-1" style="font-size:1rem; cursor: default;">
+                </div>
+                <div class="attr-box" style="border-color: var(--gold);">
+                    <span class="attr-box__label">GeB (Golpe de Balanço)</span>
+                    <input type="text" id="char-geb" class="attr-box__value" readonly tabindex="-1" style="font-size:1rem; cursor: default;">
+                </div>
+            </div>
+
             <div class="field-row"
                 style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
                 <div class="field">
-                    <label class="field__label">Arma Equipada (Consultar Arsenal)</label>
-                    <select id="char-weapon" class="field__select">
-                        <option value="">-- Selecionar do weaponsDB --</option>
-                    </select>
+                    <label class="field__label">Armas (Nome, Qualidade, Dano, Mods)</label>
+                    <input type="text" id="char-weapon-1" class="field__input" placeholder="Arma 1" style="margin-bottom: 8px;">
+                    <input type="text" id="char-weapon-2" class="field__input" placeholder="Arma 2" style="margin-bottom: 8px;">
+                    <input type="text" id="char-weapon-3" class="field__input" placeholder="Arma 3">
                 </div>
                 <div class="field">
                     <label class="field__label">RD (Resistência a Dano)</label>
-                    <input type="number" id="char-dr" class="field__input" value="0" placeholder="Ex: 3">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="min-width: 60px; font-size: 0.8rem; color: var(--text-secondary);">Em cima</span>
+                            <input type="number" id="char-dr-top" class="field__input" value="0" placeholder="RD Cabeça/Ombros" style="flex:1;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="min-width: 60px; font-size: 0.8rem; color: var(--text-secondary);">Meio</span>
+                            <input type="number" id="char-dr-middle" class="field__input" value="0" placeholder="RD Tronco/Braços" style="flex:1;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="min-width: 60px; font-size: 0.8rem; color: var(--text-secondary);">Abaixo</span>
+                            <input type="number" id="char-dr-bottom" class="field__input" value="0" placeholder="RD Pernas/Pés" style="flex:1;">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="field" style="margin-top: 15px;">
                 <label class="field__label">Inventário e Suprimentos</label>
                 <textarea id="char-equipment" class="field__textarea"
-                    placeholder="Ex: Armadura de Bambu (RD 2), Rações de Viagem, Kit de Primeiros Socorros..."
+                    placeholder="Ex: Armadura de Bambu, Rações de Viagem, Kit de Primeiros Socorros..."
                     style="height:100px; resize: vertical;"></textarea>
             </div>
         </section>
@@ -825,8 +850,6 @@
             const editingId = urlParams.get('id');
             const isNew = urlParams.get('new');
 
-            loadWeaponSelector();
-
             // Aguarda inicialização do banco e do cache de personagens
             if (window.DaimyoDB) await window.DaimyoDB.init();
             if (window.CharacterManager && window.CharacterManager.init) await window.CharacterManager.init();
@@ -874,7 +897,8 @@
                 'attr-st', 'attr-dx', 'attr-iq', 'attr-ht',
                 'attr-hp', 'attr-fp', 'attr-will', 'attr-per',
                 'attr-speed', 'slots-used', 'maneuver-1', 'maneuver-2', 'maneuver-3',
-                'attr-dodge', 'attr-parry', 'attr-block', 'char-dr', 'char-weapon',
+                'attr-dodge', 'attr-parry', 'attr-block', 'char-dr-top', 'char-dr-middle', 'char-dr-bottom',
+                'char-weapon-1', 'char-weapon-2', 'char-weapon-3', 'char-gdp', 'char-geb',
                 'char-equipment', 'char-history', 'char-advantages', 'char-disadvantages', 'char-skills'
             ];
             
@@ -904,17 +928,6 @@
             updateStatusUI();
         }
 
-        function loadWeaponSelector() {
-            const sel = document.getElementById('char-weapon');
-            if (typeof weaponsDB !== 'undefined') {
-                weaponsDB.forEach(w => {
-                    const opt = document.createElement('option');
-                    opt.value = w.id;
-                    opt.textContent = `${w.nome} (Dano: ${w.dano})`;
-                    sel.appendChild(opt);
-                });
-            }
-        }
 
         async function loadCharacter(id) {
             const all = await CharacterManager.loadAll();
@@ -964,7 +977,17 @@
             document.getElementById('attr-dodge').value = char.defenses?.dodge || 8;
             document.getElementById('attr-parry').value = char.defenses?.parry || 8;
             document.getElementById('attr-block').value = char.defenses?.block || 0;
-            document.getElementById('char-dr').value = char.dr || 0;
+            
+            document.getElementById('char-dr-top').value = char.drTop || char.dr || 0;
+            document.getElementById('char-dr-middle').value = char.drMiddle || char.dr || 0;
+            document.getElementById('char-dr-bottom').value = char.drBottom || char.dr || 0;
+
+            document.getElementById('char-weapon-1').value = char.weapon1 || char.equippedWeapon || '';
+            document.getElementById('char-weapon-2').value = char.weapon2 || '';
+            document.getElementById('char-weapon-3').value = char.weapon3 || '';
+            document.getElementById('char-gdp').value = char.gdp || '';
+            document.getElementById('char-geb').value = char.geb || '';
+
             document.getElementById('char-equipment').value = char.equipmentText || '';
             document.getElementById('char-history').value = char.history || '';
 
@@ -972,7 +995,6 @@
             document.getElementById('char-advantages').value = (char.advantages || []).map(a => a.name).join(', ');
             document.getElementById('char-disadvantages').value = (char.disadvantages || []).map(d => d.name).join(', ');
             document.getElementById('char-skills').value = (char.skills || []).map(s => s.name).join(', ');
-            document.getElementById('char-weapon').value = char.equippedWeapon || '';
 
             // Trigger initial auto-grow
             document.querySelectorAll('.auto-grow').forEach(el => {
@@ -983,11 +1005,34 @@
             updateCalculations();
         }
 
+        function getGURPSDamage(st) {
+            const table = {
+                1: ['1d-6', '1d-5'], 2: ['1d-6', '1d-5'], 3: ['1d-5', '1d-4'], 4: ['1d-5', '1d-4'],
+                5: ['1d-4', '1d-3'], 6: ['1d-4', '1d-3'], 7: ['1d-3', '1d-2'], 8: ['1d-3', '1d-2'],
+                9: ['1d-2', '1d-1'], 10: ['1d-2', '1d'], 11: ['1d-1', '1d+1'], 12: ['1d-1', '1d+2'],
+                13: ['1d', '2d-1'], 14: ['1d', '2d'], 15: ['1d+1', '2d+1'], 16: ['1d+1', '2d+2'],
+                17: ['1d+2', '3d-1'], 18: ['1d+2', '3d'], 19: ['2d-1', '3d+1'], 20: ['2d-1', '3d+2']
+            };
+            if (st < 1) return { geb: '1d-6', gdp: '1d-5' };
+            if (st > 20) {
+                const dice = Math.floor(st / 10);
+                return { geb: `${dice}d`, gdp: `${dice + 2}d` }; 
+            }
+            return { geb: table[st][0], gdp: table[st][1] };
+        }
+
         function updateCalculations() {
             const st = parseInt(document.getElementById('attr-st').value) || 10;
             const dx = parseInt(document.getElementById('attr-dx').value) || 10;
             const ht = parseInt(document.getElementById('attr-ht').value) || 10;
             const slotsUsed = parseInt(document.getElementById('slots-used').value) || 0;
+
+            const dmg = getGURPSDamage(st);
+            const gdpEl = document.getElementById('char-gdp');
+            const gebEl = document.getElementById('char-geb');
+            if (gdpEl) gdpEl.value = dmg.gdp;
+            if (gebEl) gebEl.value = dmg.geb;
+
 
             const speed = (dx + ht) / 4;
             document.getElementById('attr-speed').value = speed.toFixed(2);
@@ -1050,8 +1095,14 @@
                     parry: parseInt(document.getElementById('attr-parry').value) || 8,
                     block: parseInt(document.getElementById('attr-block').value) || 0
                 },
-                dr: parseInt(document.getElementById('char-dr').value) || 0,
-                equippedWeapon: document.getElementById('char-weapon').value,
+                drTop: parseInt(document.getElementById('char-dr-top').value) || 0,
+                drMiddle: parseInt(document.getElementById('char-dr-middle').value) || 0,
+                drBottom: parseInt(document.getElementById('char-dr-bottom').value) || 0,
+                weapon1: document.getElementById('char-weapon-1').value,
+                weapon2: document.getElementById('char-weapon-2').value,
+                weapon3: document.getElementById('char-weapon-3').value,
+                gdp: document.getElementById('char-gdp').value,
+                geb: document.getElementById('char-geb').value,
                 equipmentText: document.getElementById('char-equipment').value,
                 history: document.getElementById('char-history').value,
                 advantages: document.getElementById('char-advantages').value.split(',').map(n => ({ name: n.trim() })).filter(a => a.name),
@@ -1092,6 +1143,10 @@
             // Arredondar para evitar bugs de dtypes
             window.currentHP = Math.floor(window.currentHP);
             window.currentFP = Math.floor(window.currentFP);
+
+            // Cap no max para adequação caso o Max diminua
+            window.currentHP = Math.min(window.currentHP, maxHP);
+            window.currentFP = Math.min(window.currentFP, maxFP);
 
             // Update Displays
             const hpDisplay = document.getElementById('hp-cur-display');
@@ -1340,7 +1395,10 @@
             });
         }
 
-        document.addEventListener('DOMContentLoaded', initAutoGrow);
+        document.addEventListener('DOMContentLoaded', () => {
+            initAutoGrow();
+            if (typeof updateCalculations === 'function') updateCalculations();
+        });
     </script>
 </body>
 
