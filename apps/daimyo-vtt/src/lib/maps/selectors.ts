@@ -1,0 +1,72 @@
+import type { SessionAssetRecord } from "@/types/asset";
+import type { SessionCharacterRecord } from "@/types/character";
+import type { MapTokenRecord, SessionMapRecord } from "@/types/map";
+
+export interface TacticalStageToken {
+  token: MapTokenRecord;
+  character: SessionCharacterRecord | null;
+  asset: SessionAssetRecord | null;
+  label: string;
+  ownerParticipantId: string | null;
+}
+
+export function sortMaps(maps: SessionMapRecord[]) {
+  return [...maps].sort((left, right) =>
+    left.createdAt.localeCompare(right.createdAt)
+  );
+}
+
+export function sortMapTokens(tokens: MapTokenRecord[]) {
+  return [...tokens].sort((left, right) => {
+    if (left.mapId !== right.mapId) {
+      return left.mapId.localeCompare(right.mapId);
+    }
+
+    return left.createdAt.localeCompare(right.createdAt);
+  });
+}
+
+export function findActiveMap(maps: SessionMapRecord[], activeMapId?: string | null) {
+  const orderedMaps = sortMaps(maps);
+
+  if (activeMapId) {
+    const activeMap = orderedMaps.find((map) => map.id === activeMapId);
+
+    if (activeMap) {
+      return activeMap;
+    }
+  }
+
+  return orderedMaps.find((map) => map.isActive) ?? orderedMaps[0] ?? null;
+}
+
+export function listMapStageTokens(
+  mapId: string,
+  mapTokens: MapTokenRecord[],
+  characters: SessionCharacterRecord[],
+  assets: SessionAssetRecord[]
+) {
+  const characterById = new Map(
+    characters.map((character) => [character.id, character] as const)
+  );
+  const assetById = new Map(assets.map((asset) => [asset.id, asset] as const));
+
+  return sortMapTokens(mapTokens.filter((token) => token.mapId === mapId))
+    .map((token) => {
+      const character = token.characterId ? (characterById.get(token.characterId) ?? null) : null;
+
+      const asset =
+        (token.assetId ? assetById.get(token.assetId) : null) ??
+        (character?.assetId ? assetById.get(character.assetId) : null) ??
+        null;
+
+      return {
+        token,
+        character,
+        asset,
+        label: token.label || character?.name || "Token",
+        ownerParticipantId: character?.ownerParticipantId ?? null
+      } satisfies TacticalStageToken;
+    })
+    .filter(Boolean) as TacticalStageToken[];
+}

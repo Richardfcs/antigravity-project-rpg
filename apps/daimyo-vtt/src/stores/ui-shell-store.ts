@@ -1,0 +1,179 @@
+"use client";
+
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+
+import type {
+  DockTab,
+  ExplorerSection
+} from "@/types/session";
+
+const DEFAULT_MASTER_COLUMNS = {
+  explorer: 24,
+  center: 52,
+  inspector: 24
+} as const;
+
+const DEFAULT_MASTER_ROWS = {
+  stage: 72,
+  dock: 28
+} as const;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeMasterColumns(
+  sizes?: Partial<Record<keyof typeof DEFAULT_MASTER_COLUMNS, number>>
+) {
+  if (!sizes) {
+    return DEFAULT_MASTER_COLUMNS;
+  }
+
+  const explorer = clamp(
+    Number.isFinite(sizes.explorer) ? Number(sizes.explorer) : DEFAULT_MASTER_COLUMNS.explorer,
+    18,
+    30
+  );
+  const inspector = clamp(
+    Number.isFinite(sizes.inspector) ? Number(sizes.inspector) : DEFAULT_MASTER_COLUMNS.inspector,
+    18,
+    30
+  );
+  const center = 100 - explorer - inspector;
+
+  if (center < 40) {
+    return DEFAULT_MASTER_COLUMNS;
+  }
+
+  return {
+    explorer,
+    center,
+    inspector
+  };
+}
+
+function normalizeMasterRows(
+  sizes?: Partial<Record<keyof typeof DEFAULT_MASTER_ROWS, number>>
+) {
+  if (!sizes) {
+    return DEFAULT_MASTER_ROWS;
+  }
+
+  const stage = clamp(
+    Number.isFinite(sizes.stage) ? Number(sizes.stage) : DEFAULT_MASTER_ROWS.stage,
+    56,
+    82
+  );
+  const dock = 100 - stage;
+
+  if (dock < 18) {
+    return DEFAULT_MASTER_ROWS;
+  }
+
+  return {
+    stage,
+    dock
+  };
+}
+
+function normalizeDockTab(tab?: string): DockTab {
+  if (tab === "chat" || tab === "dice" || tab === "audio") {
+    return tab;
+  }
+
+  return "chat";
+}
+
+type PersistedUiShellState = Partial<{
+  activeSection: ExplorerSection;
+  activeDockTab: DockTab;
+  followMaster: boolean;
+  leftCollapsed: boolean;
+  rightCollapsed: boolean;
+  bottomCollapsed: boolean;
+  masterColumns: Partial<Record<keyof typeof DEFAULT_MASTER_COLUMNS, number>>;
+  masterRows: Partial<Record<keyof typeof DEFAULT_MASTER_ROWS, number>>;
+}>;
+
+interface UiShellState {
+  activeSection: ExplorerSection;
+  activeDockTab: DockTab;
+  followMaster: boolean;
+  leftCollapsed: boolean;
+  rightCollapsed: boolean;
+  bottomCollapsed: boolean;
+  masterColumns: Record<string, number>;
+  masterRows: Record<string, number>;
+  setActiveSection: (section: ExplorerSection) => void;
+  setActiveDockTab: (tab: DockTab) => void;
+  setFollowMaster: (followMaster: boolean) => void;
+  toggleLeft: () => void;
+  toggleRight: () => void;
+  toggleBottom: () => void;
+  setMasterColumns: (sizes: Record<string, number>) => void;
+  setMasterRows: (sizes: Record<string, number>) => void;
+  resetMasterLayout: () => void;
+}
+
+export const useUiShellStore = create<UiShellState>()(
+  persist(
+    (set) => ({
+      activeSection: "scenes",
+      activeDockTab: "chat",
+      followMaster: true,
+      leftCollapsed: false,
+      rightCollapsed: false,
+      bottomCollapsed: false,
+      masterColumns: DEFAULT_MASTER_COLUMNS,
+      masterRows: DEFAULT_MASTER_ROWS,
+      setActiveSection: (section) => set({ activeSection: section }),
+      setActiveDockTab: (tab) => set({ activeDockTab: normalizeDockTab(tab) }),
+      setFollowMaster: (followMaster) => set({ followMaster }),
+      toggleLeft: () => set((state) => ({ leftCollapsed: !state.leftCollapsed })),
+      toggleRight: () =>
+        set((state) => ({ rightCollapsed: !state.rightCollapsed })),
+      toggleBottom: () =>
+        set((state) => ({ bottomCollapsed: !state.bottomCollapsed })),
+      setMasterColumns: (sizes) =>
+        set({
+          masterColumns: normalizeMasterColumns(
+            sizes as Partial<Record<keyof typeof DEFAULT_MASTER_COLUMNS, number>>
+          )
+        }),
+      setMasterRows: (sizes) =>
+        set({
+          masterRows: normalizeMasterRows(
+            sizes as Partial<Record<keyof typeof DEFAULT_MASTER_ROWS, number>>
+          )
+        }),
+      resetMasterLayout: () =>
+        set({
+          leftCollapsed: false,
+          rightCollapsed: false,
+          bottomCollapsed: false,
+          masterColumns: DEFAULT_MASTER_COLUMNS,
+          masterRows: DEFAULT_MASTER_ROWS
+        })
+    }),
+    {
+      name: "daimyo-vtt-ui-shell",
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState) => {
+        const state = (persistedState ?? {}) as PersistedUiShellState;
+
+        return {
+          activeSection: state.activeSection ?? "scenes",
+          activeDockTab: normalizeDockTab(state.activeDockTab),
+          followMaster: state.followMaster ?? true,
+          leftCollapsed: state.leftCollapsed ?? false,
+          rightCollapsed: state.rightCollapsed ?? false,
+          bottomCollapsed: state.bottomCollapsed ?? false,
+          masterColumns: normalizeMasterColumns(state.masterColumns),
+          masterRows: normalizeMasterRows(state.masterRows)
+        };
+      }
+    }
+  )
+);

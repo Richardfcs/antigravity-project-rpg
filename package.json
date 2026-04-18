@@ -1,0 +1,14 @@
+{
+  "name": "antigravity-project",
+  "private": true,
+  "packageManager": "npm@11.6.2",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:vtt": "npm run dev --workspace apps/daimyo-vtt",
+    "build:vtt": "npm run build --workspace apps/daimyo-vtt",
+    "lint:vtt": "npm run lint --workspace apps/daimyo-vtt",
+    "typecheck:vtt": "npm run typecheck --workspace apps/daimyo-vtt"
+  }
+}

@@ -1,0 +1,332 @@
+@import "tailwindcss";
+
+:root {
+  --bg-deep: #050505;
+  --bg-panel: #111111;
+  --bg-card: #181818;
+  --bg-input: #0f0f0f;
+  --border-panel: #2a2a2a;
+  --border-input: #333333;
+  --border-focus: #8b0000;
+  --text-primary: #f5f0e8;
+  --text-secondary: #b7ab9a;
+  --text-muted: #7c7267;
+  --red-blood: #8b0000;
+  --red-accent: #c41e3a;
+  --red-glow: rgba(196, 30, 58, 0.32);
+  --gold: #d4a846;
+  --gold-dim: #8b6914;
+  --mist: rgba(245, 240, 232, 0.05);
+  --paper: #f3ecdf;
+  --font-body: var(--font-noto-serif);
+  --font-display: var(--font-noto-serif);
+  --font-mono: var(--font-mono);
+
+  /* aliases temporários para o VTT antigo */
+  --bg-app: var(--bg-deep);
+  --bg-app-2: #0b0907;
+  --bg-panel-strong: var(--bg-panel);
+  --bg-elevated: var(--bg-card);
+  --line: rgba(212, 168, 70, 0.12);
+  --line-strong: rgba(212, 168, 70, 0.26);
+  --ink-1: var(--text-primary);
+  --ink-2: var(--text-secondary);
+  --ink-3: var(--text-muted);
+  --accent: var(--gold);
+  --accent-2: var(--red-accent);
+  --accent-3: #a16207;
+  --danger: #dc2626;
+  --success: #22c55e;
+}
+
+html {
+  color-scheme: dark;
+  background: var(--bg-deep);
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(212, 168, 70, 0.12), transparent 24%),
+    radial-gradient(circle at 88% 12%, rgba(196, 30, 58, 0.1), transparent 20%),
+    radial-gradient(circle at 50% 100%, rgba(255, 244, 214, 0.05), transparent 26%),
+    linear-gradient(180deg, #050505, #0b0907 52%, #120a08);
+  color: var(--text-primary);
+  font-family: var(--font-body), serif;
+  transition:
+    background-color 240ms ease,
+    color 240ms ease,
+    font-size 180ms ease;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(243, 236, 223, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(243, 236, 223, 0.012) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(circle at center, black, transparent 80%);
+  opacity: 0.18;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.04), transparent 20%),
+    radial-gradient(circle at 70% 70%, rgba(212, 168, 70, 0.05), transparent 24%);
+  mix-blend-mode: screen;
+  opacity: 0.45;
+}
+
+@keyframes daimyo-shake {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  20% {
+    transform: translate3d(-6px, 2px, 0);
+  }
+
+  40% {
+    transform: translate3d(5px, -3px, 0);
+  }
+
+  60% {
+    transform: translate3d(-4px, -1px, 0);
+  }
+
+  80% {
+    transform: translate3d(4px, 3px, 0);
+  }
+}
+
+@keyframes daimyo-weather-drift {
+  0% {
+    transform: translate3d(0, -8%, 0);
+  }
+
+  100% {
+    transform: translate3d(-6%, 12%, 0);
+  }
+}
+
+@keyframes daimyo-weather-rise {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(4%, -10%, 0);
+  }
+}
+
+@keyframes daimyo-lightning-pulse {
+  0%,
+  100% {
+    opacity: 0.12;
+  }
+
+  48% {
+    opacity: 0.12;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+
+  52% {
+    opacity: 0.18;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border-panel);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), serif;
+    letter-spacing: 0.01em;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  input,
+  select,
+  textarea {
+    color: var(--text-primary);
+  }
+
+  ::selection {
+    background: rgba(212, 168, 70, 0.28);
+    color: var(--text-primary);
+  }
+
+  select {
+    color-scheme: dark;
+  }
+
+  select option {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+  }
+}
+
+@layer components {
+  .surface-panel {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.01)),
+      var(--bg-panel);
+    @apply rounded-[24px] border shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl;
+    border-color: color-mix(in srgb, var(--border-panel) 82%, white 18%);
+  }
+
+  .surface-panel-strong {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.02)),
+      var(--bg-panel);
+    @apply rounded-[28px] border shadow-[0_28px_90px_rgba(0,0,0,0.42)] backdrop-blur-xl;
+    border-color: color-mix(in srgb, var(--border-panel) 74%, var(--gold) 26%);
+  }
+
+  .hud-chip {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em];
+    border-color: color-mix(in srgb, var(--gold) 26%, var(--border-panel) 74%);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+  }
+
+  .section-label {
+    @apply text-[10px] font-semibold uppercase tracking-[0.26em];
+    color: color-mix(in srgb, var(--gold) 48%, var(--text-muted) 52%);
+  }
+
+  .rail-button {
+    @apply flex h-11 w-11 items-center justify-center rounded-2xl border transition;
+    border-color: color-mix(in srgb, var(--border-panel) 84%, white 16%);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+  }
+
+  .rail-button:hover {
+    border-color: color-mix(in srgb, var(--gold) 52%, var(--border-panel) 48%);
+    background: rgba(212, 168, 70, 0.1);
+    color: var(--text-primary);
+  }
+
+  .mobile-shell-tabs {
+    @apply rounded-[16px] border p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.28)] backdrop-blur-xl;
+    background: rgba(8, 6, 5, 0.88);
+    border-color: color-mix(in srgb, var(--gold) 18%, var(--border-panel) 82%);
+  }
+
+  .mobile-shell-tab {
+    @apply inline-flex min-h-[36px] w-full items-center justify-center gap-1.5 rounded-xl border px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition;
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+  }
+
+  .mobile-shell-tab:hover {
+    border-color: color-mix(in srgb, var(--gold) 48%, var(--border-panel) 52%);
+    background: rgba(212, 168, 70, 0.08);
+    color: var(--text-primary);
+  }
+
+  .stat-card {
+    @apply rounded-[20px] border p-4;
+    border-color: rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
+      rgba(0, 0, 0, 0.14);
+  }
+
+  .ghost-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(212, 168, 70, 0.35) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(212, 168, 70, 0.35);
+    border-radius: 999px;
+  }
+
+  .daimyo-rain {
+    background-image: linear-gradient(
+      115deg,
+      transparent 0 44%,
+      rgba(191, 219, 254, 0.42) 45%,
+      transparent 47%,
+      transparent 56%,
+      rgba(191, 219, 254, 0.3) 57%,
+      transparent 59%
+    );
+    background-size: 26px 26px;
+    animation: daimyo-weather-drift 900ms linear infinite;
+  }
+
+  .daimyo-snow {
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 1px, transparent 1.5px);
+    background-size: 28px 28px;
+    animation: daimyo-weather-rise 8s linear infinite;
+  }
+
+  .daimyo-sakura {
+    background-image: radial-gradient(circle, rgba(251, 207, 232, 0.9) 0 1.3px, transparent 1.8px);
+    background-size: 32px 32px;
+    animation: daimyo-weather-rise 7s linear infinite;
+  }
+
+  .daimyo-sand {
+    background-image: radial-gradient(circle, rgba(251, 191, 36, 0.6) 0 1px, transparent 1.6px);
+    background-size: 20px 20px;
+    animation: daimyo-weather-drift 4s linear infinite;
+  }
+
+  .daimyo-kegare {
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(74, 222, 128, 0.15), transparent 16%),
+      radial-gradient(circle at 70% 60%, rgba(20, 184, 166, 0.12), transparent 18%),
+      radial-gradient(circle at 40% 80%, rgba(15, 23, 42, 0.35), transparent 24%);
+    animation: daimyo-weather-drift 12s linear infinite;
+  }
+
+  .daimyo-silhouette {
+    background:
+      radial-gradient(circle at 84% 62%, rgba(255, 255, 255, 0.08), transparent 12%),
+      radial-gradient(ellipse at 82% 72%, rgba(2, 6, 23, 0.58), transparent 18%);
+    animation: daimyo-lightning-pulse 9s ease-in-out infinite;
+  }
+
+  .daimyo-lightning {
+    background: radial-gradient(circle at 50% 15%, rgba(255, 255, 255, 0.7), transparent 12%);
+    animation: daimyo-lightning-pulse 4.5s ease-in-out infinite;
+  }
+}
