@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Inter, JetBrains_Mono, Noto_Serif_JP } from "next/font/google";
 
@@ -27,10 +27,29 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Daimyo VTT",
   description: "Mesa narrativa em tempo real para A Era das Espadas Quebradas.",
+  manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.ico"
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png"
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Daimyo VTT"
+  },
+  other: {
+    "mobile-web-app-capable": "yes"
   }
 };
+
+export const viewport: Viewport = {
+  themeColor: "#050505",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover"
+};
+
 
 export default function RootLayout({
   children
