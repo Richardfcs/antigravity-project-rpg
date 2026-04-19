@@ -1,0 +1,1 @@
+export const SESSION_MESSAGE_WINDOW = 120;

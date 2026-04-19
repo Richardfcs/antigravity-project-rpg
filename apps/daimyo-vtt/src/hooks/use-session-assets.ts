@@ -72,6 +72,8 @@ export function useSessionAssets({
     return subscribeToSlice({
       client,
       channelName: `assets:${sessionId}`,
+      pollMs: 7000,
+      maxPollMs: 16000,
       reconcile: async () => {
         const { data, error } = await client
           .from("assets")

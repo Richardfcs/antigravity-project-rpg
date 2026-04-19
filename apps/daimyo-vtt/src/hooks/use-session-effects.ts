@@ -101,6 +101,8 @@ export function useSessionEffects({
     return subscribeToSlice({
       client,
       channelName: `session-effects:${sessionId}`,
+      pollMs: 4000,
+      maxPollMs: 10000,
       reconcile: async () => {
         const result = await client
           .from("session_effect_layers")

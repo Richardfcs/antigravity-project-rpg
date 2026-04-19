@@ -2,10 +2,13 @@
 
 import { create } from "zustand";
 
+import { SESSION_MESSAGE_WINDOW } from "@/lib/chat/window";
 import type { SessionMessageRecord } from "@/types/message";
 
 function sortMessages(messages: SessionMessageRecord[]) {
-  return [...messages].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+  return [...messages]
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+    .slice(-SESSION_MESSAGE_WINDOW);
 }
 
 interface ChatState {

@@ -139,6 +139,8 @@ export function useSessionAtlas({
     return subscribeToSlice({
       client,
       channelName: `session-atlas:${sessionId}`,
+      pollMs: 4500,
+      maxPollMs: 12000,
       reconcile: async () => {
         const [mapsResult, pinsResult, linksResult] = await Promise.all([
           client

@@ -107,6 +107,8 @@ export function useSessionAudio({
     return subscribeToSlice({
       client,
       channelName: `session-audio:${sessionId}`,
+      pollMs: 3000,
+      maxPollMs: 9000,
       reconcile: async () => {
         const [tracksResult, stateResult] = await Promise.all([
           client

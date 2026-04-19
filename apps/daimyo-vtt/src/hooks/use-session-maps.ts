@@ -120,6 +120,8 @@ export function useSessionMaps({
     return subscribeToSlice({
       client,
       channelName: `session-maps:${sessionId}`,
+      pollMs: 4500,
+      maxPollMs: 12000,
       reconcile: async () => {
         const [mapsResult, tokensResult] = await Promise.all([
           client

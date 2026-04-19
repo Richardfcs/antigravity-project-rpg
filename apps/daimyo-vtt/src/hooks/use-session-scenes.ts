@@ -102,6 +102,8 @@ export function useSessionScenes({
     return subscribeToSlice({
       client,
       channelName: `session-scenes:${sessionId}`,
+      pollMs: 4500,
+      maxPollMs: 12000,
       reconcile: async () => {
         const [scenesResult, sceneCastResult] = await Promise.all([
           client

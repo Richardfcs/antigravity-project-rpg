@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { SESSION_MESSAGE_WINDOW } from "@/lib/chat/window";
 import type { SessionMessageKind, SessionMessageRecord } from "@/types/message";
 
 interface MessageRow {
@@ -43,11 +44,14 @@ function isMissingRelationError(error: { code?: string; message?: string } | nul
   );
 }
 
-export async function listSessionMessages(sessionId: string, limit = 80) {
+export async function listSessionMessages(
+  sessionId: string,
+  limit = SESSION_MESSAGE_WINDOW
+) {
   const { data, error } = await getMessageTable()
     .select("*")
     .eq("session_id", sessionId)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(limit)
     .returns<MessageRow[]>();
 
@@ -59,7 +63,7 @@ export async function listSessionMessages(sessionId: string, limit = 80) {
     throw error;
   }
 
-  return (data ?? []).map(mapMessageRow);
+  return (data ?? []).map(mapMessageRow).reverse();
 }
 
 export async function createSessionMessage(input: {

@@ -11,6 +11,8 @@ interface SubscribeToSliceOptions {
   reconcile?: () => Promise<void> | void;
   onHealthChange?: (health: SliceHealth) => void;
   pollMs?: number;
+  maxPollMs?: number;
+  backoffFactor?: number;
 }
 
 export function subscribeToSlice({
@@ -19,12 +21,15 @@ export function subscribeToSlice({
   register,
   reconcile,
   onHealthChange,
-  pollMs = 2000
+  pollMs = 3000,
+  maxPollMs = 12000,
+  backoffFactor = 1.7
 }: SubscribeToSliceOptions) {
   let cancelled = false;
   let health: SliceHealth = "degraded";
   let reconcileInFlight = false;
   let pollTimer: number | null = null;
+  let currentPollMs = pollMs;
 
   const runReconcile = async () => {
     if (!reconcile || cancelled || reconcileInFlight) {
@@ -44,9 +49,25 @@ export function subscribeToSlice({
 
   const stopPolling = () => {
     if (pollTimer != null) {
-      window.clearInterval(pollTimer);
+      window.clearTimeout(pollTimer);
       pollTimer = null;
     }
+  };
+
+  const scheduleNextPoll = () => {
+    if (cancelled || pollTimer != null) {
+      return;
+    }
+
+    pollTimer = window.setTimeout(() => {
+      pollTimer = null;
+      void runReconcile();
+      currentPollMs = Math.min(
+        maxPollMs,
+        Math.round(currentPollMs * backoffFactor)
+      );
+      scheduleNextPoll();
+    }, currentPollMs);
   };
 
   const startPolling = () => {
@@ -55,9 +76,7 @@ export function subscribeToSlice({
     }
 
     void runReconcile();
-    pollTimer = window.setInterval(() => {
-      void runReconcile();
-    }, pollMs);
+    scheduleNextPoll();
   };
 
   const setHealth = (nextHealth: SliceHealth) => {
@@ -68,10 +87,12 @@ export function subscribeToSlice({
 
     if (nextHealth === "live") {
       stopPolling();
+      currentPollMs = pollMs;
       void runReconcile();
       return;
     }
 
+    currentPollMs = pollMs;
     startPolling();
   };
 

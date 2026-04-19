@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState, useTransition } from "react";
 import {
   AudioLines,
@@ -23,10 +24,6 @@ import { moveMapTokenAction } from "@/app/actions/map-actions";
 import { AudioSyncLayer } from "@/components/audio/audio-sync-layer";
 import { AuthSessionBridge } from "@/components/auth/auth-session-bridge";
 import { SessionEffectOverlays } from "@/components/effects/session-effect-overlays";
-import { BottomDock } from "@/components/panels/bottom-dock";
-import { ChatPanel } from "@/components/panels/chat-panel";
-import { ExplorerPanel } from "@/components/panels/explorer-panel";
-import { SessionStatusDrawer } from "@/components/panels/session-status-drawer";
 import { StagePanel } from "@/components/panels/stage-panel";
 import { AtlasStage } from "@/components/stage/atlas-stage";
 import { TacticalMapStage } from "@/components/stage/tactical-map-stage";
@@ -56,6 +53,7 @@ import { usePresenceStore } from "@/stores/presence-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useUiShellStore } from "@/stores/ui-shell-store";
+import { useShallow } from "zustand/react/shallow";
 import type { SessionAssetRecord } from "@/types/asset";
 import type {
   SessionAtlasMapRecord,
@@ -117,6 +115,26 @@ const masterSections: Array<{
   { id: "audio", label: "Trilhas", icon: AudioLines },
   { id: "chat", label: "Conversa", icon: MessagesSquare }
 ];
+
+const ExplorerPanel = dynamic(
+  () => import("@/components/panels/explorer-panel").then((mod) => mod.ExplorerPanel),
+  { ssr: false }
+);
+const BottomDock = dynamic(
+  () => import("@/components/panels/bottom-dock").then((mod) => mod.BottomDock),
+  { ssr: false }
+);
+const SessionStatusDrawer = dynamic(
+  () =>
+    import("@/components/panels/session-status-drawer").then(
+      (mod) => mod.SessionStatusDrawer
+    ),
+  { ssr: false }
+);
+const ChatPanel = dynamic(
+  () => import("@/components/panels/chat-panel").then((mod) => mod.ChatPanel),
+  { ssr: false }
+);
 
 function SectionTabs({
   activeSection,
@@ -182,25 +200,46 @@ export function MasterShell({
   const [sessionFeedback, setSessionFeedback] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const isMobile = useMobile();
-  const activeSection = useUiShellStore((state) => state.activeSection);
-  const setActiveSection = useUiShellStore((state) => state.setActiveSection);
-  const activeDockTab = useUiShellStore((state) => state.activeDockTab);
-  const setActiveDockTab = useUiShellStore((state) => state.setActiveDockTab);
+  const { activeSection, setActiveSection, activeDockTab, setActiveDockTab } =
+    useUiShellStore(
+      useShallow((state) => ({
+        activeSection: state.activeSection,
+        setActiveSection: state.setActiveSection,
+        activeDockTab: state.activeDockTab,
+        setActiveDockTab: state.setActiveDockTab
+      }))
+    );
 
-  const storedSnapshot = useSessionStore((state) => state.snapshot);
-  const setStageMode = useSessionStore((state) => state.setStageMode);
-  const setPresentationMode = useSessionStore((state) => state.setPresentationMode);
+  const { storedSnapshot, setStageMode, setPresentationMode } = useSessionStore(
+    useShallow((state) => ({
+      storedSnapshot: state.snapshot,
+      setStageMode: state.setStageMode,
+      setPresentationMode: state.setPresentationMode
+    }))
+  );
   const members = usePresenceStore((state) => state.members);
   const storedAssets = useAssetStore((state) => state.assets);
   const storedCharacters = useCharacterStore((state) => state.characters);
-  const storedScenes = useSceneStore((state) => state.scenes);
-  const storedSceneCast = useSceneStore((state) => state.sceneCast);
-  const storedMaps = useMapStore((state) => state.maps);
-  const storedMapTokens = useMapStore((state) => state.mapTokens);
-  const upsertMapToken = useMapStore((state) => state.upsertMapToken);
-  const storedAtlasMaps = useAtlasStore((state) => state.atlasMaps);
-  const storedAtlasPins = useAtlasStore((state) => state.atlasPins);
-  const storedAtlasPinCharacters = useAtlasStore((state) => state.atlasPinCharacters);
+  const { storedScenes, storedSceneCast } = useSceneStore(
+    useShallow((state) => ({
+      storedScenes: state.scenes,
+      storedSceneCast: state.sceneCast
+    }))
+  );
+  const { storedMaps, storedMapTokens, upsertMapToken } = useMapStore(
+    useShallow((state) => ({
+      storedMaps: state.maps,
+      storedMapTokens: state.mapTokens,
+      upsertMapToken: state.upsertMapToken
+    }))
+  );
+  const { storedAtlasMaps, storedAtlasPins, storedAtlasPinCharacters } = useAtlasStore(
+    useShallow((state) => ({
+      storedAtlasMaps: state.atlasMaps,
+      storedAtlasPins: state.atlasPins,
+      storedAtlasPinCharacters: state.atlasPinCharacters
+    }))
+  );
 
   useSessionBootstrap({
     snapshot,
@@ -310,11 +349,13 @@ export function MasterShell({
     liveAtlasMaps,
     session.activeAtlasMapId
   );
+  const navigatedAtlasMapId =
+    atlasNavigation?.sourceAtlasMapId === session.activeAtlasMapId
+      ? atlasNavigation?.targetAtlasMapId ?? null
+      : session.activeAtlasMapId;
   const displayedAtlasMap = findActiveAtlasMap(
     liveAtlasMaps,
-    atlasNavigation?.sourceAtlasMapId === session.activeAtlasMapId
-      ? atlasNavigation.targetAtlasMapId
-      : session.activeAtlasMapId
+    navigatedAtlasMapId
   );
   const activeAtlasPins = displayedAtlasMap
     ? listAtlasStagePins(
@@ -412,11 +453,7 @@ export function MasterShell({
       atlasPins={liveAtlasPins}
       atlasPinCharacters={liveAtlasPinCharacters}
       viewer={viewer}
-      atlasMapIdOverride={
-        atlasNavigation?.sourceAtlasMapId === session.activeAtlasMapId
-          ? atlasNavigation.targetAtlasMapId
-          : null
-      }
+      atlasMapIdOverride={navigatedAtlasMapId !== session.activeAtlasMapId ? navigatedAtlasMapId : null}
       onAtlasMapNavigate={(atlasMapId) =>
         setAtlasNavigation(
           atlasMapId
@@ -500,7 +537,7 @@ export function MasterShell({
           onResetNavigation={() => setAtlasNavigation(null)}
           navigatingSubmap={Boolean(
             atlasNavigation?.targetAtlasMapId &&
-              atlasNavigation.sourceAtlasMapId === session.activeAtlasMapId
+              atlasNavigation?.sourceAtlasMapId === session.activeAtlasMapId
           )}
           viewMode="focus"
         />

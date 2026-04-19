@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { SESSION_MESSAGE_WINDOW } from "@/lib/chat/window";
 import { subscribeToSlice } from "@/lib/realtime/subscribe";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { useChatStore } from "@/stores/chat-store";
@@ -66,15 +67,18 @@ export function useSessionChat({
     return subscribeToSlice({
       client,
       channelName: `session-chat:${sessionId}`,
+      pollMs: 5000,
+      maxPollMs: 12000,
       reconcile: async () => {
         const { data, error } = await client
           .from("session_messages")
           .select("id,session_id,participant_id,display_name,kind,body,payload,created_at")
           .eq("session_id", sessionId)
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: false })
+          .limit(SESSION_MESSAGE_WINDOW);
 
         if (!error && data) {
-          setMessages((data as MessageRowPayload[]).map(mapMessagePayload));
+          setMessages((data as MessageRowPayload[]).map(mapMessagePayload).reverse());
         }
       },
       register: (channel) =>

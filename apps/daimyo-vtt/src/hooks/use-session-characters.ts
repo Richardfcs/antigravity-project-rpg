@@ -76,6 +76,8 @@ export function useSessionCharacters({
     return subscribeToSlice({
       client,
       channelName: `session-characters:${sessionId}`,
+      pollMs: 7000,
+      maxPollMs: 16000,
       reconcile: async () => {
         const { data, error } = await client
           .from("session_characters")

@@ -89,6 +89,8 @@ export function useSessionSnapshot({
     return subscribeToSlice({
       client,
       channelName: `session-snapshot:${sessionId}`,
+      pollMs: 2500,
+      maxPollMs: 7000,
       onHealthChange: (health) => {
         setSyncState(health === "live" ? "connected" : "degraded");
       },

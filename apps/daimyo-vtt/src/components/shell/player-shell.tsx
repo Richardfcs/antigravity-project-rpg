@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   BellRing,
@@ -25,9 +26,6 @@ import { AuthSessionBridge } from "@/components/auth/auth-session-bridge";
 import { ImmersiveOverlays } from "@/components/effects/immersive-overlays";
 import { SessionEffectOverlays } from "@/components/effects/session-effect-overlays";
 import { AssetAvatar } from "@/components/media/asset-avatar";
-import { BottomDock } from "@/components/panels/bottom-dock";
-import { ChatPanel } from "@/components/panels/chat-panel";
-import { SessionStatusDrawer } from "@/components/panels/session-status-drawer";
 import { AtlasStage } from "@/components/stage/atlas-stage";
 import { TacticalMapStage } from "@/components/stage/tactical-map-stage";
 import { TheaterStage } from "@/components/stage/theater-stage";
@@ -69,6 +67,7 @@ import { usePresenceStore } from "@/stores/presence-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useUiShellStore } from "@/stores/ui-shell-store";
+import { useShallow } from "zustand/react/shallow";
 import type { SessionAssetRecord } from "@/types/asset";
 import type {
   SessionAtlasMapRecord,
@@ -115,6 +114,22 @@ interface PlayerShellProps {
   viewer: SessionViewerIdentity | null;
 }
 
+const BottomDock = dynamic(
+  () => import("@/components/panels/bottom-dock").then((mod) => mod.BottomDock),
+  { ssr: false }
+);
+const ChatPanel = dynamic(
+  () => import("@/components/panels/chat-panel").then((mod) => mod.ChatPanel),
+  { ssr: false }
+);
+const SessionStatusDrawer = dynamic(
+  () =>
+    import("@/components/panels/session-status-drawer").then(
+      (mod) => mod.SessionStatusDrawer
+    ),
+  { ssr: false }
+);
+
 export function PlayerShell({
   snapshot,
   participants,
@@ -138,26 +153,57 @@ export function PlayerShell({
   const storedSnapshot = useSessionStore((state) => state.snapshot);
   const members = usePresenceStore((state) => state.members);
   const storedAssets = useAssetStore((state) => state.assets);
-  const storedCharacters = useCharacterStore((state) => state.characters);
-  const storedScenes = useSceneStore((state) => state.scenes);
-  const storedSceneCast = useSceneStore((state) => state.sceneCast);
-  const storedMaps = useMapStore((state) => state.maps);
-  const storedMapTokens = useMapStore((state) => state.mapTokens);
-  const storedAtlasMaps = useAtlasStore((state) => state.atlasMaps);
-  const storedAtlasPins = useAtlasStore((state) => state.atlasPins);
-  const storedAtlasPinCharacters = useAtlasStore((state) => state.atlasPinCharacters);
-  const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
-  const upsertMapToken = useMapStore((state) => state.upsertMapToken);
-  const activeDockTab = useUiShellStore((state) => state.activeDockTab);
-  const setActiveDockTab = useUiShellStore((state) => state.setActiveDockTab);
-  const followMaster = useUiShellStore((state) => state.followMaster);
-  const setFollowMaster = useUiShellStore((state) => state.setFollowMaster);
+  const { storedCharacters, upsertCharacter } = useCharacterStore(
+    useShallow((state) => ({
+      storedCharacters: state.characters,
+      upsertCharacter: state.upsertCharacter
+    }))
+  );
+  const { storedScenes, storedSceneCast } = useSceneStore(
+    useShallow((state) => ({
+      storedScenes: state.scenes,
+      storedSceneCast: state.sceneCast
+    }))
+  );
+  const { storedMaps, storedMapTokens, upsertMapToken } = useMapStore(
+    useShallow((state) => ({
+      storedMaps: state.maps,
+      storedMapTokens: state.mapTokens,
+      upsertMapToken: state.upsertMapToken
+    }))
+  );
+  const { storedAtlasMaps, storedAtlasPins, storedAtlasPinCharacters } = useAtlasStore(
+    useShallow((state) => ({
+      storedAtlasMaps: state.atlasMaps,
+      storedAtlasPins: state.atlasPins,
+      storedAtlasPinCharacters: state.atlasPinCharacters
+    }))
+  );
+  const { activeDockTab, setActiveDockTab, followMaster, setFollowMaster } =
+    useUiShellStore(
+      useShallow((state) => ({
+        activeDockTab: state.activeDockTab,
+        setActiveDockTab: state.setActiveDockTab,
+        followMaster: state.followMaster,
+        setFollowMaster: state.setFollowMaster
+      }))
+    );
   const pendingPrivateEvents = useImmersiveEventStore((state) => state.events);
-  const storedTracks = useAudioStore((state) => state.tracks);
-  const storedPlayback = useAudioStore((state) => state.playback);
-  const audioUnlockRequired = useAudioStore((state) => state.unlockRequired);
-  const audioRuntimeError = useAudioStore((state) => state.runtimeError);
-  const requestAudioUnlock = useAudioStore((state) => state.requestUnlock);
+  const {
+    storedTracks,
+    storedPlayback,
+    audioUnlockRequired,
+    audioRuntimeError,
+    requestAudioUnlock
+  } = useAudioStore(
+    useShallow((state) => ({
+      storedTracks: state.tracks,
+      storedPlayback: state.playback,
+      audioUnlockRequired: state.unlockRequired,
+      audioRuntimeError: state.runtimeError,
+      requestAudioUnlock: state.requestUnlock
+    }))
+  );
 
   const [feedback, setFeedback] = useState<string | null>(null);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
