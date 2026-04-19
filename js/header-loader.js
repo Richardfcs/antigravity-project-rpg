@@ -1,52 +1,4 @@
-﻿(function() {
-  const themeContract =
-    window.DaimyoThemeContract ||
-    (window.ThemeManager && window.ThemeManager.getContract
-      ? window.ThemeManager.getContract()
-      : null);
-
-  function buildSharedThemeCss() {
-    if (!themeContract) {
-      return "";
-    }
-
-    return themeContract.themeOrder
-      .map((themeId) => {
-        const theme = themeContract.themes[themeId];
-        const tokens = Object.entries(theme.tokens)
-          .map(([token, value]) => `      ${token}: ${value};`)
-          .join("\n");
-
-        return `
-    html[data-theme="${theme.id}"] {
-${tokens}
-    }`;
-      })
-      .join("\n");
-  }
-
-  function renderThemeOption(theme, activeTheme) {
-    return `
-      <button
-        type="button"
-        class="theme-option ${activeTheme === theme.id ? "active" : ""}"
-        data-daimyo-theme-option
-        data-theme-id="${theme.id}"
-        onclick="ThemeManager.apply('${theme.id}')"
-      >
-        <div class="theme-preview">
-          ${theme.preview
-            .map((color) => `<div class="theme-color" style="background:${color}"></div>`)
-            .join("")}
-        </div>
-        <div class="theme-name" style="font-size:0.84rem;">${theme.label}</div>
-        <p style="margin:0; font-size:0.68rem; line-height:1.5; color:var(--text-muted);">
-          ${theme.tone}
-        </p>
-      </button>
-    `;
-  }
-
+(function() {
   const css = `
     /* === MOBILE-FIRST HEADER === */
     #daimyo-header {
@@ -56,7 +8,7 @@ ${tokens}
       z-index: 1000;
     }
 
-    /* === A DANÃ‡A DAS LÃ‚MINAS (View Transitions) === */
+    /* === A DANÇA DAS LÂMINAS (View Transitions) === */
     @view-transition { navigation: auto; }
 
     ::view-transition-old(root) {
@@ -274,7 +226,49 @@ ${tokens}
     .theme-preview { display: flex; gap: 4px; }
     .theme-color { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); }
     
-${buildSharedThemeCss()}
+    /* LIGHT THEME OVERRIDES (Washi) */
+    html[data-theme="light"] {
+      --bg-deep: #F8F9FA; --bg-panel: #FFFFFF; --bg-card: #FFFFFF; --bg-input: #F8F9FA;
+      --border-panel: #E2E8F0; --border-input: #CBD5E1; --border-focus: #C41E3A;
+      --text-primary: #1E293B; --text-secondary: #475569; --text-muted: #64748B;
+      --red-blood: #991B1B; --red-accent: #B91C1C; --gold: #A16207;
+      --red-glow: rgba(185, 28, 28, 0.15);
+    }
+    
+    /* SAKURA THEME (Pastel Suave) */
+    html[data-theme="sakura"] {
+      --bg-deep: #FFF7F9; --bg-panel: #FDF2F4; --bg-card: #FFFFFF; --bg-input: #FFFFFF;
+      --border-panel: #FADADD; --border-input: #FFD1DC; --border-focus: #E91E63;
+      --text-primary: #5D4037; --text-secondary: #8D6E63; --text-muted: #BCAAA4;
+      --red-blood: #C2185B; --red-accent: #E91E63; --gold: #FFB7C5;
+      --red-glow: rgba(233, 30, 99, 0.2);
+    }
+
+    /* STONE THEME (Cinza Azulado) */
+    html[data-theme="stone"] {
+      --bg-deep: #0F172A; --bg-panel: #1E293B; --bg-card: #334155; --bg-input: #0F172A;
+      --border-panel: #475569; --border-input: #64748B; --border-focus: #38BDF8;
+      --text-primary: #F8FAFC; --text-secondary: #94A3B8; --text-muted: #64748B;
+      --red-blood: #0EA5E9; --red-accent: #38BDF8; --gold: #94A3B8;
+      --red-glow: rgba(56, 189, 248, 0.2);
+    }
+    
+    /* NEON THEMES */
+    html[data-theme="neon-green"] {
+      --bg-deep: #050805; --bg-panel: #0A120A; --border-panel: #1A3A1A;
+      --red-accent: #39FF14; --gold: #CCFF00; --text-primary: #E0FFE0;
+      --red-blood: #00FF41; --gold-glow: rgba(57, 255, 20, 0.4);
+    }
+    html[data-theme="neon-yellow"] {
+      --bg-deep: #080802; --bg-panel: #121205; --border-panel: #3A3A1A;
+      --red-accent: #FFFF00; --gold: #FFD700; --text-primary: #FFFFE0;
+      --red-blood: #FFEA00; --gold-glow: rgba(255, 215, 0, 0.4);
+    }
+    html[data-theme="neon-red"] {
+      --bg-deep: #0A0202; --bg-panel: #1A0505; --border-panel: #4A1A1A;
+      --red-accent: #FF003C; --gold: #FF4D00; --text-primary: #FFE0E5;
+      --red-blood: #8B0000; --gold-glow: rgba(255, 0, 60, 0.4);
+    }
 
     /* === KEGARE CLOCK HEADER === */
     .kegare-mini-clock {
@@ -313,13 +307,13 @@ ${buildSharedThemeCss()}
 
   // Define Links Mapping
   const pages = [
-    { url: 'master-hub.html', icon: 'âš”', label: 'Combate' },
-    { url: 'kegare-panico.html', icon: 'ðŸ§ ', label: 'Sanidade' },
-    { url: 'combat-calculator.html', icon: 'ðŸŽ²', label: 'Dano' },
-    { url: 'equipment-database.html', icon: 'ðŸ“¦', label: 'Arsenal' },
-    { url: 'library.html', icon: 'ðŸ“š', label: 'Biblioteca' },
-    { url: 'time-management.html', icon: 'â±', label: 'Tempo' },
-    { url: 'oracle-generators.html', icon: 'ðŸ”®', label: 'OrÃ¡culo' }
+    { url: 'master-hub.html', icon: '⚔', label: 'Combate' },
+    { url: 'kegare-panico.html', icon: '🧠', label: 'Sanidade' },
+    { url: 'combat-calculator.html', icon: '🎲', label: 'Dano' },
+    { url: 'equipment-database.html', icon: '📦', label: 'Arsenal' },
+    { url: 'library.html', icon: '📚', label: 'Biblioteca' },
+    { url: 'time-management.html', icon: '⏱', label: 'Tempo' },
+    { url: 'oracle-generators.html', icon: '🔮', label: 'Oráculo' }
   ];
 
   const currentPage = window.location.pathname.split('/').pop() || 'master-hub.html';
@@ -337,25 +331,25 @@ ${buildSharedThemeCss()}
         <div class="new-header__tools">
           ${currentPage === 'combat-calculator.html' ? `
           <div style="display:flex; gap:8px;">
-            <a href="characters-sheet.html" class="btn btn-ghost" title="Gerenciamento de Fichas" style="min-height:44px; padding:0 15px; color: var(--gold); border: 1px solid rgba(212, 168, 70, 0.3); display: flex; align-items: center; gap: 6px; text-decoration: none;">ðŸ“œ Fichas</a>
-            <button class="btn btn-ghost" onclick="window.toggleCharacterDrawer && window.toggleCharacterDrawer()" title="Lista de Personagens" style="min-height:44px; padding:0 15px; color: var(--text-primary); border: 1px solid var(--border-panel); display: flex; align-items: center; gap: 6px;">ðŸ‘¥ Lista</button>
-            <button class="btn btn-ghost" onclick="BestiaryManager && BestiaryManager.openModal()" title="BestiÃ¡rio TÃ¡tico" style="min-height:44px; padding:0 15px; color: var(--green-success); border: 1px solid rgba(34, 197, 94, 0.3); display: flex; align-items: center; gap: 6px;">ðŸ² BestiÃ¡rio</button>
+            <a href="characters-sheet.html" class="btn btn-ghost" title="Gerenciamento de Fichas" style="min-height:44px; padding:0 15px; color: var(--gold); border: 1px solid rgba(212, 168, 70, 0.3); display: flex; align-items: center; gap: 6px; text-decoration: none;">📜 Fichas</a>
+            <button class="btn btn-ghost" onclick="window.toggleCharacterDrawer && window.toggleCharacterDrawer()" title="Lista de Personagens" style="min-height:44px; padding:0 15px; color: var(--text-primary); border: 1px solid var(--border-panel); display: flex; align-items: center; gap: 6px;">👥 Lista</button>
+            <button class="btn btn-ghost" onclick="BestiaryManager && BestiaryManager.openModal()" title="Bestiário Tático" style="min-height:44px; padding:0 15px; color: var(--green-success); border: 1px solid rgba(34, 197, 94, 0.3); display: flex; align-items: center; gap: 6px;">🐲 Bestiário</button>
           </div>
           ` : ''}
           ${currentPage === 'master-hub.html' ? `
-          <button class="btn btn-ghost" onclick="ThemeManager.openDrawer()" title="Customizar Tema" style="min-height:44px; padding:0 15px;">ðŸŽ¨ Customizar</button>
-          <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleDrawer('gm-notes-drawer')" title="AnotaÃ§Ãµes" style="min-height:44px; padding:0 15px;">ðŸ“ Notas</button>
-          <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleDrawer('clocks-drawer')" title="AmeaÃ§as" style="min-height:44px; padding:0 15px;">â± AmeaÃ§as</button>
-          <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleModal('combat-mass-overlay')" title="Guerra" style="min-height:44px; padding:0 15px;">âš” Guerra</button>
+          <button class="btn btn-ghost" onclick="ThemeManager.openDrawer()" title="Customizar Tema" style="min-height:44px; padding:0 15px;">🎨 Customizar</button>
+          <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleDrawer('gm-notes-drawer')" title="Anotações" style="min-height:44px; padding:0 15px;">📝 Notas</button>
+          <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleDrawer('clocks-drawer')" title="Ameaças" style="min-height:44px; padding:0 15px;">⏱ Ameaças</button>
+          <button class="btn btn-ghost" onclick="NarrativeTools && NarrativeTools.toggleModal('combat-mass-overlay')" title="Guerra" style="min-height:44px; padding:0 15px;">⚔ Guerra</button>
           ` : ''}
           ${currentPage === 'kegare-panico.html' ? `
-          <button class="btn btn-ghost" onclick="window.toggleFrightDrawer()" title="Teste de PÃ¢nico" style="min-height:44px; padding:0 15px;">ðŸŽ² PÃ¢nico</button>
+          <button class="btn btn-ghost" onclick="window.toggleFrightDrawer()" title="Teste de Pânico" style="min-height:44px; padding:0 15px;">🎲 Pânico</button>
           ` : ''}
           ${currentPage === 'oracle-generators.html' ? `
-          <button class="btn btn-ghost" onclick="window.toggleTacticalMap && window.toggleTacticalMap()" title="Mesa TÃ¡tica" style="min-height:44px; padding:0 15px; color: var(--gold); border: 1px solid rgba(212, 168, 70, 0.3);">ðŸ—º Mapa de Guerra</button>
+          <button class="btn btn-ghost" onclick="window.toggleTacticalMap && window.toggleTacticalMap()" title="Mesa Tática" style="min-height:44px; padding:0 15px; color: var(--gold); border: 1px solid rgba(212, 168, 70, 0.3);">🗺 Mapa de Guerra</button>
           ` : ''}
           ${currentPage === 'time-management.html' ? `
-          <button class="btn btn-ghost" onclick="window.DataManager && window.DataManager.open()" title="Gerenciamento de Dados" style="min-height:44px; padding:0 15px; color: var(--gold); border: 1px solid rgba(212, 168, 70, 0.3);">âš™ï¸ Dados</button>
+          <button class="btn btn-ghost" onclick="window.DataManager && window.DataManager.open()" title="Gerenciamento de Dados" style="min-height:44px; padding:0 15px; color: var(--gold); border: 1px solid rgba(212, 168, 70, 0.3);">⚙️ Dados</button>
           ` : ''}
         </div>
       </div>
@@ -371,11 +365,11 @@ ${buildSharedThemeCss()}
       <div class="mobile-drawer-overlay" id="mobile-nav-overlay">
         <div class="mobile-drawer">
           <div class="mobile-drawer__header">
-            <h2 class="new-header__title">âš” Escudo do <span>Daimyo</span></h2>
-            <button class="mobile-drawer__close" id="mobile-nav-close">âœ•</button>
+            <h2 class="new-header__title">⚔ Escudo do <span>Daimyo</span></h2>
+            <button class="mobile-drawer__close" id="mobile-nav-close">✕</button>
           </div>
           
-          <div class="mobile-drawer__section">PÃ¡ginas de Consulta</div>
+          <div class="mobile-drawer__section">Páginas de Consulta</div>
           <div class="mobile-drawer__links">
             ${links}
           </div>
@@ -383,27 +377,27 @@ ${buildSharedThemeCss()}
           <div class="mobile-drawer__section">Ferramentas de Mestre</div>
           <div class="mobile-drawer__links">
             ${currentPage === 'master-hub.html' ? `
-            <button onclick="window.closeMobileNav(); ThemeManager.openDrawer()">ðŸŽ¨ Customizar Cores</button>
-            <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleDrawer('gm-notes-drawer')">ðŸ“ AnotaÃ§Ãµes do Mestre</button>
-            <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleDrawer('clocks-drawer')">â± RelÃ³gios de FacÃ§Ã£o</button>
-            <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleModal('combat-mass-overlay')">âš” Combate em Massa</button>
+            <button onclick="window.closeMobileNav(); ThemeManager.openDrawer()">🎨 Customizar Cores</button>
+            <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleDrawer('gm-notes-drawer')">📝 Anotações do Mestre</button>
+            <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleDrawer('clocks-drawer')">⏱ Relógios de Facção</button>
+            <button onclick="window.closeMobileNav(); NarrativeTools && NarrativeTools.toggleModal('combat-mass-overlay')">⚔ Combate em Massa</button>
             ` : ''}
             ${currentPage === 'combat-calculator.html' ? `
-            <a href="characters-sheet.html" onclick="window.closeMobileNav()">ðŸ“œ Fichas de Personagem</a>
-            <button onclick="window.closeMobileNav(); window.toggleCharacterDrawer && window.toggleCharacterDrawer()">ðŸ‘¥ Lista de Personagens</button>
-            <button onclick="window.closeMobileNav(); BestiaryManager && BestiaryManager.openModal()">ðŸ² BestiÃ¡rio TÃ¡tico</button>
+            <a href="characters-sheet.html" onclick="window.closeMobileNav()">📜 Fichas de Personagem</a>
+            <button onclick="window.closeMobileNav(); window.toggleCharacterDrawer && window.toggleCharacterDrawer()">👥 Lista de Personagens</button>
+            <button onclick="window.closeMobileNav(); BestiaryManager && BestiaryManager.openModal()">🐲 Bestiário Tático</button>
             ` : ''}
             ${currentPage === 'kegare-panico.html' ? `
-            <button onclick="window.closeMobileNav(); toggleFrightDrawer()">ðŸŽ² Teste de PÃ¢nico</button>
+            <button onclick="window.closeMobileNav(); toggleFrightDrawer()">🎲 Teste de Pânico</button>
             ` : ''}
             ${currentPage === 'oracle-generators.html' ? `
-            <button onclick="window.closeMobileNav(); window.toggleTacticalMap && window.toggleTacticalMap()" style="color: var(--gold);">ðŸ—º Mesa TÃ¡tica de Guerra</button>
+            <button onclick="window.closeMobileNav(); window.toggleTacticalMap && window.toggleTacticalMap()" style="color: var(--gold);">🗺 Mesa Tática de Guerra</button>
             ` : ''}
             ${currentPage === 'time-management.html' ? `
-            <button onclick="window.closeMobileNav(); window.DataManager && window.DataManager.open()" style="color: var(--gold);">âš™ï¸ Gerenciamento de Dados</button>
+            <button onclick="window.closeMobileNav(); window.DataManager && window.DataManager.open()" style="color: var(--gold);">⚙️ Gerenciamento de Dados</button>
             ` : ''}
           </div>
-          <div class="mobile-drawer__section">Sistema âš”ï¸</div>
+          <div class="mobile-drawer__section">Sistema ⚔️</div>
         <div style="padding: 10px 20px;">
           <div id="db-status-card" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-panel); padding: 12px; border-radius: 8px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
@@ -411,9 +405,9 @@ ${buildSharedThemeCss()}
               <span id="db-status-badge" style="background: var(--green-success); color: #000; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; font-weight: 900;">ATIVO</span>
             </div>
             <p style="font-size: 0.65rem; color: var(--text-muted); line-height: 1.4;">
-              Seu clÃ£ agora utiliza <strong>IndexedDB</strong>. 
+              Seu clã agora utiliza <strong>IndexedDB</strong>. 
               Capacidade: <span style="color:var(--text-primary)">~1GB (Giga)</span>.
-              <br>SÃ­ncrono com a Arena e Registros.
+              <br>Síncrono com a Arena e Registros.
             </p>
           </div>
         </div>
@@ -426,103 +420,92 @@ ${buildSharedThemeCss()}
   }
 
   function renderThemeDrawer() {
-    const activeTheme =
-      window.ThemeManager && window.ThemeManager.getSettings
-        ? window.ThemeManager.getSettings().theme
-        : themeContract
-          ? themeContract.defaultTheme
-          : "dark";
-    const classicThemes = themeContract
-      ? themeContract.themeOrder
-          .map((themeId) => themeContract.themes[themeId])
-          .filter((theme) => theme.group === "classic")
-      : [];
-    const experimentalThemes = themeContract
-      ? themeContract.themeOrder
-          .map((themeId) => themeContract.themes[themeId])
-          .filter((theme) => theme.group === "experimental")
-      : [];
-    const textColors = themeContract ? themeContract.textColors : [];
-    const fontFamilies = themeContract
-      ? Object.values(themeContract.fontFamilies)
-      : [];
-
     return `
       <div id="theme-drawer" class="theme-drawer" style="overflow-y:auto; scrollbar-width:thin;">
         <div class="rc-header">
-          <h2 class="new-header__title">Leitura da <span>Mesa</span></h2>
+          <h2 class="new-header__title">🎨 Personalizar <span>Estética</span></h2>
           <button class="mobile-drawer__close" onclick="ThemeManager.closeDrawer()">✕</button>
         </div>
-
-        <div class="mobile-drawer__section">Paletas da corte</div>
+        
+        <div class="mobile-drawer__section">Paletas Clássicas</div>
         <div class="theme-grid" style="grid-template-columns: 1fr 1fr; padding: 10px 20px;">
-          ${classicThemes.map((theme) => renderThemeOption(theme, activeTheme)).join("")}
+          <div class="theme-option" onclick="ThemeManager.apply('dark')">
+            <div class="theme-name" style="font-size:0.8rem;">Sumi-e (Escuro)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#0A0A0A"></div><div class="theme-color" style="background:#C41E3A"></div></div>
+          </div>
+          <div class="theme-option" onclick="ThemeManager.apply('light')">
+            <div class="theme-name" style="font-size:0.8rem;">Washi (Claro)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#F2F2EB"></div><div class="theme-color" style="background:#8B0000"></div></div>
+          </div>
+          <div class="theme-option" onclick="ThemeManager.apply('sakura')">
+            <div class="theme-name" style="font-size:0.8rem;">Sakura (Pastel)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#FADADD"></div><div class="theme-color" style="background:#D81B60"></div></div>
+          </div>
+          <div class="theme-option" onclick="ThemeManager.apply('stone')">
+            <div class="theme-name" style="font-size:0.8rem;">Stone (Azulado)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#1E293B"></div><div class="theme-color" style="background:#38BDF8"></div></div>
+          </div>
         </div>
 
-        <div class="mobile-drawer__section">Paletas experimentais</div>
+        <div class="mobile-drawer__section">Paletas Neon (Vibrantes)</div>
         <div class="theme-grid" style="grid-template-columns: 1fr 1fr; padding: 10px 20px;">
-          ${experimentalThemes.map((theme) => renderThemeOption(theme, activeTheme)).join("")}
+          <div class="theme-option" onclick="ThemeManager.apply('neon-green')">
+            <div class="theme-name" style="font-size:0.8rem;">Venenoso (Kegare)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#050805"></div><div class="theme-color" style="background:#39FF14"></div></div>
+          </div>
+          <div class="theme-option" onclick="ThemeManager.apply('neon-yellow')">
+            <div class="theme-name" style="font-size:0.8rem;">Dourado (Tempo)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#080802"></div><div class="theme-color" style="background:#FFFF00"></div></div>
+          </div>
+          <div class="theme-option" onclick="ThemeManager.apply('neon-red')">
+            <div class="theme-name" style="font-size:0.8rem;">Sengoku (Escudo)</div>
+            <div class="theme-preview"><div class="theme-color" style="background:#0A0202"></div><div class="theme-color" style="background:#FF003C"></div></div>
+          </div>
         </div>
 
-        <div class="mobile-drawer__section">Traco e leitura</div>
+        <div class="mobile-drawer__section">Acessibilidade e Texto</div>
         <div style="padding: 10px 20px; display:flex; flex-direction:column; gap:12px;">
           <div class="field">
-            <label class="field__label" style="font-size:0.65rem;">Cor principal do texto</label>
-            <div style="display:flex; flex-wrap:wrap; gap:8px;">
-              ${textColors
-                .map(
-                  (color) => `
-                    <button
-                      type="button"
-                      onclick="ThemeManager.setTextColor('${color.value}')"
-                      style="display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border-panel); background:var(--bg-panel); color:var(--text-primary); border-radius:999px; padding:6px 10px; cursor:pointer;"
-                    >
-                      <span style="width:18px; height:18px; background:${color.value || "#9ca3af"}; border-radius:999px; border:1px solid rgba(0,0,0,0.15); display:inline-block;"></span>
-                      <span style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;">${color.label}</span>
-                    </button>
-                  `
-                )
-                .join("")}
-            </div>
-          </div>
-          <div class="field">
-            <label class="field__label" style="font-size:0.65rem;">Estilo da escrita</label>
+            <label class="field__label" style="font-size:0.65rem;">Cor de Texto Primária</label>
             <div style="display:flex; gap:8px;">
-              ${fontFamilies
-                .map(
-                  (fontFamily) => `
-                    <button class="btn btn-ghost" onclick="ThemeManager.setFontFamily('${fontFamily.id}')" style="flex:1; font-size:0.68rem; padding:8px 10px;">
-                      ${fontFamily.label}
-                    </button>
-                  `
-                )
-                .join("")}
+               <div onclick="ThemeManager.setTextColor('#F5F0E8')" style="width:24px; height:24px; background:#F5F0E8; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
+               <div onclick="ThemeManager.setTextColor('#FFFFFF')" style="width:24px; height:24px; background:#FFFFFF; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
+               <div onclick="ThemeManager.setTextColor('#E0FFE0')" style="width:24px; height:24px; background:#E0FFE0; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
+               <div onclick="ThemeManager.setTextColor('#FFFFE0')" style="width:24px; height:24px; background:#FFFFE0; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
+               <div onclick="ThemeManager.setTextColor('')" style="width:24px; height:24px; background:#aaa; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; color:#000;">✕</div>
             </div>
           </div>
           <div class="field">
-            <label class="field__label" style="font-size:0.65rem;">Tamanho do texto</label>
+            <label class="field__label" style="font-size:0.65rem;">Estilo de Fonte</label>
+            <div style="display:flex; gap:8px;">
+               <button class="btn btn-ghost" onclick="ThemeManager.setFontFamily('serif')" style="flex:1; font-size:0.65rem; padding:5px;">Com Serifa (JP)</button>
+               <button class="btn btn-ghost" onclick="ThemeManager.setFontFamily('sans')" style="flex:1; font-size:0.65rem; padding:5px;">Sem Serifa (Inter)</button>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field__label" style="font-size:0.65rem;">Tamanho do Texto</label>
             <div style="display:flex; align-items:center; gap:12px; background:var(--bg-panel); border:1px solid var(--border-panel); padding:8px; border-radius:var(--radius);">
-              <button id="btn-font-dec" class="btn btn-ghost" style="width:44px; height:44px; font-size:1.2rem;">-</button>
-              <div id="font-size-display" data-daimyo-font-size-display style="flex:1; text-align:center; font-weight:700; font-family:monospace; font-size:1rem; min-width:60px;">100%</div>
-              <button id="btn-font-inc" class="btn btn-ghost" style="width:44px; height:44px; font-size:1.2rem;">+</button>
-              <button id="btn-font-reset" class="btn btn-sm btn-ghost" style="padding:4px 8px; font-size:0.6rem;">Reset</button>
+               <button id="btn-font-dec" class="btn btn-ghost" style="width:44px; height:44px; font-size:1.2rem;">-</button>
+               <div id="font-size-display" style="flex:1; text-align:center; font-weight:700; font-family:monospace; font-size:1rem; min-width:60px;">100%</div>
+               <button id="btn-font-inc" class="btn btn-ghost" style="width:44px; height:44px; font-size:1.2rem;">+</button>
+               <button id="btn-font-reset" class="btn btn-sm btn-ghost" style="padding:4px 8px; font-size:0.6rem;">Reset</button>
             </div>
           </div>
         </div>
-        <div class="mobile-drawer__section">Selo do Daimyo</div>
+        <div class="mobile-drawer__section">📜 O Selo do Daimyo</div>
         <div style="padding: 10px 20px; display:flex; flex-direction:column; gap:8px;">
-          <p style="font-size:0.65rem; color:var(--text-muted); margin-bottom:4px;">Backup e sincronizacao da campanha (JSON)</p>
-          <button class="btn btn-gold" onclick="DaimyoSeal.exportCampaign()" style="font-size:0.75rem; padding:12px;">Exportar campanha</button>
-
+          <p style="font-size:0.65rem; color:var(--text-muted); margin-bottom:4px;">Backup e Sincronização da Campanha (JSON)</p>
+          <button class="btn btn-gold" onclick="DaimyoSeal.exportCampaign()" style="font-size:0.75rem; padding:12px;">📤 Exportar Campanha</button>
+          
           <div style="position:relative;">
-            <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()" style="width:100%; font-size:0.75rem; padding:12px;">Importar backup</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()" style="width:100%; font-size:0.75rem; padding:12px;">📥 Importar Backup</button>
             <input type="file" id="import-file-input" style="display:none;" accept=".json" onchange="DaimyoSeal.importCampaign(this.files[0])">
           </div>
-          <p style="font-size:0.6rem; color:var(--red-accent); font-style:italic; text-align:center;">Aviso: a importacao sobrescreve os dados atuais.</p>
+          <p style="font-size:0.6rem; color:var(--red-accent); font-style:italic; text-align:center;">Aviso: A importação sobrescreve todos os dados atuais.</p>
         </div>
 
         <div style="padding:20px; font-size:0.7rem; color:var(--text-muted); text-align:center; border-top:1px solid var(--border-panel); margin-top:auto;">
-          O tom da interface acompanha o mesmo contrato visual do VTT, mas continua salvo separadamente neste app.
+          A estética selecionada será aplicada em todas as páginas e lembrada na sua próxima sessão.
         </div>
       </div>
     `;
@@ -532,14 +515,14 @@ ${buildSharedThemeCss()}
     return `
       <div id="fright-drawer" class="fright-drawer">
         <div class="rc-header">
-          <h2 class="new-header__title">ðŸŽ² Teste de <span>PÃ¢nico</span></h2>
-          <button class="mobile-drawer__close" onclick="window.toggleFrightDrawer()">âœ•</button>
+          <h2 class="new-header__title">🎲 Teste de <span>Pânico</span></h2>
+          <button class="mobile-drawer__close" onclick="window.toggleFrightDrawer()">✕</button>
         </div>
         
-        <div class="mobile-drawer__section">ParÃ¢metros do Samurai</div>
+        <div class="mobile-drawer__section">Parâmetros do Samurai</div>
         <div style="padding: 15px 20px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-panel);">
           <div id="fright-drawer-kegare-status" style="font-size: 0.8rem; font-weight: 700; color: var(--gold); display: flex; justify-content: space-between;">
-            <span>MÃ¡cula: <span id="fd-kegare-label">Puro</span></span>
+            <span>Mácula: <span id="fd-kegare-label">Puro</span></span>
             <span id="fd-kegare-mod">Von +2</span>
           </div>
         </div>
@@ -552,7 +535,7 @@ ${buildSharedThemeCss()}
             <label class="field__label">Mod. Medo/Monstro</label>
             <input type="number" id="fright-mod" class="field__input" value="0">
           </div>
-          <button class="btn btn-primary" onclick="window.executeFrightCheck()" style="margin-top:10px;">Rolar 3d6 PÃ¢nico</button>
+          <button class="btn btn-primary" onclick="window.executeFrightCheck()" style="margin-top:10px;">Rolar 3d6 Pânico</button>
         </div>
 
         <div id="fright-result-container" class="fright-result-box">
@@ -567,7 +550,7 @@ ${buildSharedThemeCss()}
         </div>
 
         <div style="padding:20px; font-size:0.7rem; color:var(--text-muted); text-align:center; border-top:1px solid var(--border-panel); margin-top:auto;">
-          O teste considera automaticamente o Modificador de MÃ¡cula do RelÃ³gio Global.
+          O teste considera automaticamente o Modificador de Mácula do Relógio Global.
         </div>
       </div>
     `;
@@ -576,7 +559,7 @@ ${buildSharedThemeCss()}
   function renderKegareMini() {
     let dots = '';
     for(let i=1; i<=6; i++) {
-        dots += `<div class="kegare-dot" data-lv="${i}" onclick="window.setGlobalKegare(${i})" title="NÃ­vel ${i}"></div>`;
+        dots += `<div class="kegare-dot" data-lv="${i}" onclick="window.setGlobalKegare(${i})" title="Nível ${i}"></div>`;
     }
     return `<div class="kegare-mini-clock" id="kegare-header-clock">${dots}</div>`;
   }
@@ -590,15 +573,15 @@ ${buildSharedThemeCss()}
   const headerHtml = `
     <header class="new-header">
       <div style="display:flex; align-items:center; gap: 10px;">
-        <a href="master-hub.html" class="new-header__title">âš” Escudo do <span>Daimyo</span></a>
+        <a href="master-hub.html" class="new-header__title">⚔ Escudo do <span>Daimyo</span></a>
         ${currentPage === 'kegare-panico.html' ? renderKegareMini() : ''}
       </div>
       ${renderDesktopNav()}
       <div class="new-header__tools">
         ${currentPage === 'library.html' ? `
-        <a href="index.html" class="btn-portal" title="Sair / Portal">â›©ï¸ <span>SantuÃ¡rio</span></a>
+        <a href="index.html" class="btn-portal" title="Sair / Portal">⛩️ <span>Santuário</span></a>
         ` : ''}
-        <button class="mobile-menu-btn" id="mobile-menu-open">â˜°</button>
+        <button class="mobile-menu-btn" id="mobile-menu-open">☰</button>
       </div>
     </header>
     ${renderMobileDrawer()}
@@ -708,14 +691,14 @@ ${buildSharedThemeCss()}
         
         if (result.success) {
             if (verdictEl) {
-                verdictEl.textContent = 'âœ… SUCESSO';
+                verdictEl.textContent = '✅ SUCESSO';
                 verdictEl.style.color = '#22c55e';
             }
-            if (mofEl) mofEl.textContent = `Vontade ${result.will} + Mod ${result.monsterMod} + MÃ¡cula ${result.kegareMod >= 0 ? '+' : ''}${result.kegareMod} = Alvo ${result.target}`;
+            if (mofEl) mofEl.textContent = `Vontade ${result.will} + Mod ${result.monsterMod} + Mácula ${result.kegareMod >= 0 ? '+' : ''}${result.kegareMod} = Alvo ${result.target}`;
             if (tableSection) tableSection.style.display = 'none';
         } else {
             if (verdictEl) {
-                verdictEl.textContent = 'âŒ FALHA';
+                verdictEl.textContent = '❌ FALHA';
                 verdictEl.style.color = '#c41e3a';
             }
             if (mofEl) mofEl.textContent = `Alvo ${result.target} | Margem de Falha: ${result.mof}`;
@@ -724,7 +707,7 @@ ${buildSharedThemeCss()}
             // Roll 2
             const roll2El = document.getElementById('fright-roll-2');
             if (roll2El) {
-                roll2El.innerHTML = `<span style="font-size:0.7rem; color:var(--text-muted); margin-right:5px;">3d6 + MoF + MÃ¡cula:</span>` +
+                roll2El.innerHTML = `<span style="font-size:0.7rem; color:var(--text-muted); margin-right:5px;">3d6 + MoF + Mácula:</span>` +
                   result.roll2.dice.map(d => `<div class="dice-icon" style="width:24px; height:24px; font-size:0.8rem;">${d}</div>`).join('') +
                   `<span style="margin-left:5px; font-weight:900;">+ ${result.mof} + ${result.kegareLevel} = ${result.finalScore}</span>`;
             }
@@ -752,12 +735,12 @@ ${buildSharedThemeCss()}
   if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js')
-        .then(reg => console.log('âœ¨ PWA Service Worker registrado:', reg.scope))
+        .then(reg => console.log('✨ PWA Service Worker registrado:', reg.scope))
         .catch(err => console.warn('PWA Error:', err));
     });
   }
 
-  /* === WAKE LOCK MANAGER (A TOCHA INEXTINGUÃVEL) === */
+  /* === WAKE LOCK MANAGER (A TOCHA INEXTINGUÍVEL) === */
   window.WakeLockManager = (function() {
     let wakeLock = null;
     const STORAGE_KEY = 'daimyo-wake-lock-active';
@@ -767,7 +750,7 @@ ${buildSharedThemeCss()}
     const updateUI = () => {
       const active = localStorage.getItem(STORAGE_KEY) === 'true';
       
-      // NotificaÃ§Ã£o para outros componentes (como o DataManager)
+      // Notificação para outros componentes (como o DataManager)
       window.dispatchEvent(new CustomEvent('wakeLockStateChanged', { detail: { active } }));
     };
 
@@ -776,11 +759,11 @@ ${buildSharedThemeCss()}
       try {
         if (wakeLock) await wakeLock.release();
         wakeLock = await navigator.wakeLock.request('screen');
-        if (!silent) console.log('â›©ï¸ Tocha InextinguÃ­vel: Acesa.');
+        if (!silent) console.log('⛩️ Tocha Inextinguível: Acesa.');
         updateUI();
         return true;
       } catch (err) {
-        console.error('â›©ï¸ Tocha: Erro ao solicitar lock:', err);
+        console.error('⛩️ Tocha: Erro ao solicitar lock:', err);
         return false;
       }
     };
@@ -790,7 +773,7 @@ ${buildSharedThemeCss()}
         await wakeLock.release();
         wakeLock = null;
       }
-      console.log('â›©ï¸ Tocha InextinguÃ­vel: Apagada.');
+      console.log('⛩️ Tocha Inextinguível: Apagada.');
       updateUI();
     };
 
@@ -810,7 +793,7 @@ ${buildSharedThemeCss()}
     const init = async () => {
       if (!isSupported()) return;
       
-      // Auto-ativa se estava ligado na sessÃ£o anterior
+      // Auto-ativa se estava ligado na sessão anterior
       if (localStorage.getItem(STORAGE_KEY) === 'true') {
         await request(true);
       }
@@ -828,7 +811,7 @@ ${buildSharedThemeCss()}
     return { init, toggle, isActive: () => localStorage.getItem(STORAGE_KEY) === 'true' };
   })();
 
-  // InicializaÃ§Ã£o AutomÃ¡tica
+  // Inicialização Automática
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => window.WakeLockManager.init());
   } else {
@@ -836,13 +819,12 @@ ${buildSharedThemeCss()}
   }
 
   // --- SILENCIADOR DE ERROS (View Transitions) ---
-  // Captura o AbortError disparado pelo navegador quando uma transiÃ§Ã£o MPA Ã© interrompida.
+  // Captura o AbortError disparado pelo navegador quando uma transição MPA é interrompida.
   window.addEventListener('unhandledrejection', (event) => {
     if (event.reason && event.reason.name === 'AbortError' && (event.reason.message.includes('Transition') || event.reason.message.includes('skipped'))) {
       event.preventDefault(); // Silencia o erro no console
-      console.warn('âœ¨ TransiÃ§Ã£o suavizada: O navegador decidiu pular a animaÃ§Ã£o (comum em navegaÃ§Ãµes rÃ¡pidas).');
+      console.warn('✨ Transição suavizada: O navegador decidiu pular a animação (comum em navegações rápidas).');
     }
   });
 
 })();
-
