@@ -80,7 +80,7 @@ export function StagePanel({
 }: StagePanelProps) {
   const upsertMapToken = useMapStore((state) => state.upsertMapToken);
   const storedAtlasPinCharacters = useAtlasStore((state) => state.atlasPinCharacters);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const activeScene = useMemo(
     () => findActiveScene(scenes, snapshot.activeSceneId),
@@ -163,7 +163,7 @@ export function StagePanel({
     <section className="flex h-full min-h-0 flex-col gap-4 rounded-[24px] border border-white/10 bg-[var(--bg-panel-strong)] p-4">
       <header className="flex flex-col gap-4 border-b border-white/8 pb-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <p className="section-label">Stage Core</p>
+          <p className="section-label">Palco central</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">{stageTitle}</h2>
           <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">{stageBlurb}</p>
         </div>

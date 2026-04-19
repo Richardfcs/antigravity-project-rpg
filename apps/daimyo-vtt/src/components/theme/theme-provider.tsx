@@ -353,17 +353,10 @@ function ThemeSettingsDrawer({
 export function ThemeProvider({
   children
 }: Readonly<{ children: React.ReactNode }>) {
-  const [settings, setSettings] = useState<DaimyoThemeSettings>(
-    daimyoThemeContract.defaultSettings
+  const [settings, setSettings] = useState<DaimyoThemeSettings>(() =>
+    readStoredSettings()
   );
   const [isOpen, setIsOpen] = useState(false);
-
-  // Hydrate from localStorage after mount to avoid SSR/client mismatch
-  useEffect(() => {
-    const stored = readStoredSettings();
-    setSettings(stored);
-    applyThemeSettings(stored);
-  }, []);
 
   useEffect(() => {
     applyThemeSettings(settings);

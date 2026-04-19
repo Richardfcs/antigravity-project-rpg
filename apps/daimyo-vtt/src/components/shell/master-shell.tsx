@@ -179,6 +179,7 @@ export function MasterShell({
   } | null>(null);
   const [isImmersiveChatOpen, setIsImmersiveChatOpen] = useState(false);
   const [isImmersiveMinimized, setIsImmersiveMinimized] = useState(false);
+  const [sessionFeedback, setSessionFeedback] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const isMobile = useMobile();
   const activeSection = useUiShellStore((state) => state.activeSection);
@@ -335,18 +336,36 @@ export function MasterShell({
       : activeScene?.name ?? session.activeScene;
 
   const handleStageModeChange = (mode: StageMode) => {
+    const previousStageMode = session.stageMode;
     setStageMode(mode);
     setIsImmersiveChatOpen(false);
+    setSessionFeedback(null);
+
     startTransition(async () => {
-      await setSessionStageModeAction({
+      const result = await setSessionStageModeAction({
         sessionCode: session.code,
         stageMode: mode
       });
+
+      if (!result.ok) {
+        setStageMode(previousStageMode);
+        setSessionFeedback(
+          result.message ?? "Falha ao sincronizar a troca de palco com a mesa."
+        );
+        return;
+      }
+
+      setStageMode(result.stageMode ?? mode);
     });
   };
 
   const handlePresentationModeChange = (mode: PresentationMode) => {
+    const previousPresentationMode = session.presentationMode;
+    const previousImmersiveMinimized = isImmersiveMinimized;
+    const previousImmersiveChatOpen = isImmersiveChatOpen;
+
     setPresentationMode(mode);
+    setSessionFeedback(null);
 
     if (mode === "immersive") {
       setIsImmersiveMinimized(false);
@@ -356,10 +375,22 @@ export function MasterShell({
     }
 
     startTransition(async () => {
-      await setSessionPresentationModeAction({
+      const result = await setSessionPresentationModeAction({
         sessionCode: session.code,
         presentationMode: mode
       });
+
+      if (!result.ok) {
+        setPresentationMode(previousPresentationMode);
+        setIsImmersiveMinimized(previousImmersiveMinimized);
+        setIsImmersiveChatOpen(previousImmersiveChatOpen);
+        setSessionFeedback(
+          result.message ?? "Falha ao sincronizar o modo de apresentacao."
+        );
+        return;
+      }
+
+      setPresentationMode(result.presentationMode ?? mode);
     });
   };
 
@@ -607,6 +638,12 @@ export function MasterShell({
         {!viewer && (
           <div className="mb-4 rounded-[20px] border border-amber-300/20 bg-amber-300/8 px-4 py-3 text-sm text-amber-50">
             Este navegador ainda nao esta vinculado como mestre desta sala. Entre pelo lobby ou use sua conta para restaurar o controle.
+          </div>
+        )}
+
+        {sessionFeedback && (
+          <div className="mb-4 rounded-[20px] border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-50">
+            {sessionFeedback}
           </div>
         )}
 

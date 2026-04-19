@@ -19,7 +19,6 @@ interface AssetCleanupRow {
 
 interface AudioCleanupRow {
   source_public_id: string;
-  cloudinary_resource_type: "video" | null;
 }
 
 function getAdmin() {
@@ -27,27 +26,29 @@ function getAdmin() {
 }
 
 function isMissingRelationError(error: { code?: string; message?: string } | null) {
+  const message = error?.message?.toLowerCase() ?? "";
+
   return (
     error?.code === "PGRST205" ||
-    error?.message?.toLowerCase().includes("could not find the table") === true ||
-    error?.message?.toLowerCase().includes("relation") === true
+    message.includes("could not find the table") ||
+    message.includes("relation")
   );
 }
 
-async function safeDeleteBySession(table: string, sessionId: string) {
-  const { error } = await getAdmin().from(table).delete().eq("session_id", sessionId);
+function isMissingFunctionError(error: { code?: string; message?: string } | null) {
+  const message = error?.message?.toLowerCase() ?? "";
 
-  if (error && !isMissingRelationError(error)) {
-    throw error;
-  }
+  return (
+    error?.code === "PGRST202" ||
+    message.includes("function public.reset_session_dataset_tx") ||
+    message.includes("function public.reset_session_content_tx")
+  );
 }
 
-async function updateSessionAfterCleanup(sessionId: string, patch: Record<string, unknown>) {
-  const { error } = await getAdmin().from("sessions").update(patch).eq("id", sessionId);
-
-  if (error) {
-    throw error;
-  }
+function buildTransactionalResetError() {
+  return new Error(
+    "A migration de reset transacional ainda nao foi aplicada no Supabase."
+  );
 }
 
 async function safeDestroyCloudinary(publicIds: string[], resourceType: "image" | "video") {
@@ -73,119 +74,101 @@ async function safeDestroyCloudinary(publicIds: string[], resourceType: "image" 
   );
 }
 
-async function clearMaps(sessionId: string) {
-  await safeDeleteBySession("map_tokens", sessionId);
-  await safeDeleteBySession("session_maps", sessionId);
-  await updateSessionAfterCleanup(sessionId, {
-    active_map_id: null
-  });
-}
-
-async function clearScenes(sessionId: string) {
-  await safeDeleteBySession("scene_cast", sessionId);
-  await safeDeleteBySession("session_scenes", sessionId);
-  await updateSessionAfterCleanup(sessionId, {
-    active_scene: "Sem palco ativo",
-    active_scene_id: null,
-    scene_mood: "aguardando preparacao"
-  });
-}
-
-async function clearAtlas(sessionId: string) {
-  await safeDeleteBySession("session_atlas_pin_characters", sessionId);
-  await safeDeleteBySession("session_atlas_pins", sessionId);
-  await safeDeleteBySession("session_atlas_maps", sessionId);
-  await updateSessionAfterCleanup(sessionId, {
-    active_atlas_map_id: null
-  });
-}
-
-async function clearCharacters(sessionId: string) {
-  await safeDeleteBySession("session_characters", sessionId);
-}
-
-async function clearAssets(sessionId: string) {
+async function fetchAssetPublicIds(sessionId: string) {
   const { data, error } = await getAdmin()
     .from("assets")
     .select("public_id")
     .eq("session_id", sessionId)
     .returns<AssetCleanupRow[]>();
 
-  if (error && !isMissingRelationError(error)) {
+  if (error) {
+    if (isMissingRelationError(error)) {
+      return [] as string[];
+    }
+
     throw error;
   }
 
-  await safeDestroyCloudinary((data ?? []).map((asset) => asset.public_id), "image");
-  await safeDeleteBySession("assets", sessionId);
+  return (data ?? []).map((asset) => asset.public_id).filter(Boolean);
 }
 
-async function clearAudio(sessionId: string) {
+async function fetchAudioPublicIds(sessionId: string) {
   const { data, error } = await getAdmin()
     .from("session_audio_tracks")
-    .select("source_public_id,cloudinary_resource_type")
+    .select("source_public_id")
     .eq("session_id", sessionId)
     .returns<AudioCleanupRow[]>();
 
-  if (error && !isMissingRelationError(error)) {
+  if (error) {
+    if (isMissingRelationError(error)) {
+      return [] as string[];
+    }
+
     throw error;
   }
 
-  const videoPublicIds = (data ?? [])
-    .filter((track) => track.source_public_id)
-    .map((track) => track.source_public_id);
-
-  await safeDestroyCloudinary(videoPublicIds, "video");
-  await safeDeleteBySession("session_audio_state", sessionId);
-  await safeDeleteBySession("session_audio_tracks", sessionId);
+  return (data ?? []).map((track) => track.source_public_id).filter(Boolean);
 }
 
-async function clearChat(sessionId: string) {
-  await safeDeleteBySession("session_messages", sessionId);
+async function runDatasetResetTransaction(
+  sessionId: string,
+  dataset: ResettableSessionDataset
+) {
+  const { error } = await getAdmin().rpc("reset_session_dataset_tx", {
+    p_session_id: sessionId,
+    p_dataset: dataset
+  });
+
+  if (error) {
+    if (isMissingFunctionError(error)) {
+      throw buildTransactionalResetError();
+    }
+
+    throw error;
+  }
 }
 
-async function clearEffects(sessionId: string) {
-  await safeDeleteBySession("session_effect_layers", sessionId);
-  await safeDeleteBySession("session_private_events", sessionId);
+async function runFullResetTransaction(sessionId: string) {
+  const { error } = await getAdmin().rpc("reset_session_content_tx", {
+    p_session_id: sessionId
+  });
+
+  if (error) {
+    if (isMissingFunctionError(error)) {
+      throw buildTransactionalResetError();
+    }
+
+    throw error;
+  }
 }
 
-const datasetHandlers: Record<ResettableSessionDataset, (sessionId: string) => Promise<void>> = {
-  maps: clearMaps,
-  scenes: clearScenes,
-  atlas: clearAtlas,
-  characters: clearCharacters,
-  assets: clearAssets,
-  audio: clearAudio,
-  chat: clearChat,
-  effects: clearEffects
-};
+export async function resetSessionDataset(
+  sessionId: string,
+  dataset: ResettableSessionDataset
+) {
+  const [imagePublicIds, audioPublicIds] = await Promise.all([
+    dataset === "assets" ? fetchAssetPublicIds(sessionId) : Promise.resolve([] as string[]),
+    dataset === "audio" ? fetchAudioPublicIds(sessionId) : Promise.resolve([] as string[])
+  ]);
 
-export async function resetSessionDataset(sessionId: string, dataset: ResettableSessionDataset) {
-  await datasetHandlers[dataset](sessionId);
+  await runDatasetResetTransaction(sessionId, dataset);
+
+  await Promise.all([
+    safeDestroyCloudinary(imagePublicIds, "image"),
+    safeDestroyCloudinary(audioPublicIds, "video")
+  ]);
 }
 
 export async function resetSessionContent(sessionId: string) {
-  const orderedDatasets: ResettableSessionDataset[] = [
-    "effects",
-    "chat",
-    "audio",
-    "atlas",
-    "maps",
-    "scenes",
-    "characters",
-    "assets"
-  ];
+  const [imagePublicIds, audioPublicIds] = await Promise.all([
+    fetchAssetPublicIds(sessionId),
+    fetchAudioPublicIds(sessionId)
+  ]);
 
-  for (const dataset of orderedDatasets) {
-    await datasetHandlers[dataset](sessionId);
-  }
+  await runFullResetTransaction(sessionId);
 
-  await updateSessionAfterCleanup(sessionId, {
-    active_scene: "Sem palco ativo",
-    active_scene_id: null,
-    active_map_id: null,
-    active_atlas_map_id: null,
-    active_stage_mode: "theater",
-    presentation_mode: "standard",
-    scene_mood: "aguardando preparacao"
-  });
+  await Promise.all([
+    safeDestroyCloudinary(imagePublicIds, "image"),
+    safeDestroyCloudinary(audioPublicIds, "video")
+  ]);
 }
