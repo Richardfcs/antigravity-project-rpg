@@ -1,4 +1,52 @@
 (function() {
+  const themeContract =
+    window.DaimyoThemeContract ||
+    (window.ThemeManager && window.ThemeManager.getContract
+      ? window.ThemeManager.getContract()
+      : null);
+
+  function buildSharedThemeCss() {
+    if (!themeContract) {
+      return "";
+    }
+
+    return themeContract.themeOrder
+      .map((themeId) => {
+        const theme = themeContract.themes[themeId];
+        const tokens = Object.entries(theme.tokens)
+          .map(([token, value]) => `      ${token}: ${value};`)
+          .join("\n");
+
+        return `
+    html[data-theme="${theme.id}"] {
+${tokens}
+    }`;
+      })
+      .join("\n");
+  }
+
+  function renderThemeOption(theme, activeTheme) {
+    return `
+      <button
+        type="button"
+        class="theme-option ${activeTheme === theme.id ? "active" : ""}"
+        data-daimyo-theme-option
+        data-theme-id="${theme.id}"
+        onclick="ThemeManager.apply('${theme.id}')"
+      >
+        <div class="theme-preview">
+          ${theme.preview
+            .map((color) => `<div class="theme-color" style="background:${color}"></div>`)
+            .join("")}
+        </div>
+        <div class="theme-name" style="font-size:0.84rem;">${theme.label}</div>
+        <p style="margin:0; font-size:0.68rem; line-height:1.5; color:var(--text-muted);">
+          ${theme.tone}
+        </p>
+      </button>
+    `;
+  }
+
   const css = `
     /* === MOBILE-FIRST HEADER === */
     #daimyo-header {
@@ -226,49 +274,7 @@
     .theme-preview { display: flex; gap: 4px; }
     .theme-color { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); }
     
-    /* LIGHT THEME OVERRIDES (Washi) */
-    html[data-theme="light"] {
-      --bg-deep: #F8F9FA; --bg-panel: #FFFFFF; --bg-card: #FFFFFF; --bg-input: #F8F9FA;
-      --border-panel: #E2E8F0; --border-input: #CBD5E1; --border-focus: #C41E3A;
-      --text-primary: #1E293B; --text-secondary: #475569; --text-muted: #64748B;
-      --red-blood: #991B1B; --red-accent: #B91C1C; --gold: #A16207;
-      --red-glow: rgba(185, 28, 28, 0.15);
-    }
-    
-    /* SAKURA THEME (Pastel Suave) */
-    html[data-theme="sakura"] {
-      --bg-deep: #FFF7F9; --bg-panel: #FDF2F4; --bg-card: #FFFFFF; --bg-input: #FFFFFF;
-      --border-panel: #FADADD; --border-input: #FFD1DC; --border-focus: #E91E63;
-      --text-primary: #5D4037; --text-secondary: #8D6E63; --text-muted: #BCAAA4;
-      --red-blood: #C2185B; --red-accent: #E91E63; --gold: #FFB7C5;
-      --red-glow: rgba(233, 30, 99, 0.2);
-    }
-
-    /* STONE THEME (Cinza Azulado) */
-    html[data-theme="stone"] {
-      --bg-deep: #0F172A; --bg-panel: #1E293B; --bg-card: #334155; --bg-input: #0F172A;
-      --border-panel: #475569; --border-input: #64748B; --border-focus: #38BDF8;
-      --text-primary: #F8FAFC; --text-secondary: #94A3B8; --text-muted: #64748B;
-      --red-blood: #0EA5E9; --red-accent: #38BDF8; --gold: #94A3B8;
-      --red-glow: rgba(56, 189, 248, 0.2);
-    }
-    
-    /* NEON THEMES */
-    html[data-theme="neon-green"] {
-      --bg-deep: #050805; --bg-panel: #0A120A; --border-panel: #1A3A1A;
-      --red-accent: #39FF14; --gold: #CCFF00; --text-primary: #E0FFE0;
-      --red-blood: #00FF41; --gold-glow: rgba(57, 255, 20, 0.4);
-    }
-    html[data-theme="neon-yellow"] {
-      --bg-deep: #080802; --bg-panel: #121205; --border-panel: #3A3A1A;
-      --red-accent: #FFFF00; --gold: #FFD700; --text-primary: #FFFFE0;
-      --red-blood: #FFEA00; --gold-glow: rgba(255, 215, 0, 0.4);
-    }
-    html[data-theme="neon-red"] {
-      --bg-deep: #0A0202; --bg-panel: #1A0505; --border-panel: #4A1A1A;
-      --red-accent: #FF003C; --gold: #FF4D00; --text-primary: #FFE0E5;
-      --red-blood: #8B0000; --gold-glow: rgba(255, 0, 60, 0.4);
-    }
+${buildSharedThemeCss()}
 
     /* === KEGARE CLOCK HEADER === */
     .kegare-mini-clock {
@@ -420,92 +426,103 @@
   }
 
   function renderThemeDrawer() {
+    const activeTheme =
+      window.ThemeManager && window.ThemeManager.getSettings
+        ? window.ThemeManager.getSettings().theme
+        : themeContract
+          ? themeContract.defaultTheme
+          : "dark";
+    const classicThemes = themeContract
+      ? themeContract.themeOrder
+          .map((themeId) => themeContract.themes[themeId])
+          .filter((theme) => theme.group === "classic")
+      : [];
+    const experimentalThemes = themeContract
+      ? themeContract.themeOrder
+          .map((themeId) => themeContract.themes[themeId])
+          .filter((theme) => theme.group === "experimental")
+      : [];
+    const textColors = themeContract ? themeContract.textColors : [];
+    const fontFamilies = themeContract
+      ? Object.values(themeContract.fontFamilies)
+      : [];
+
     return `
       <div id="theme-drawer" class="theme-drawer" style="overflow-y:auto; scrollbar-width:thin;">
         <div class="rc-header">
-          <h2 class="new-header__title">🎨 Personalizar <span>Estética</span></h2>
+          <h2 class="new-header__title">Leitura da <span>Mesa</span></h2>
           <button class="mobile-drawer__close" onclick="ThemeManager.closeDrawer()">✕</button>
         </div>
-        
-        <div class="mobile-drawer__section">Paletas Clássicas</div>
+
+        <div class="mobile-drawer__section">Paletas da corte</div>
         <div class="theme-grid" style="grid-template-columns: 1fr 1fr; padding: 10px 20px;">
-          <div class="theme-option" onclick="ThemeManager.apply('dark')">
-            <div class="theme-name" style="font-size:0.8rem;">Sumi-e (Escuro)</div>
-            <div class="theme-preview"><div class="theme-color" style="background:#0A0A0A"></div><div class="theme-color" style="background:#C41E3A"></div></div>
-          </div>
-          <div class="theme-option" onclick="ThemeManager.apply('light')">
-            <div class="theme-name" style="font-size:0.8rem;">Washi (Claro)</div>
-            <div class="theme-preview"><div class="theme-color" style="background:#F2F2EB"></div><div class="theme-color" style="background:#8B0000"></div></div>
-          </div>
-          <div class="theme-option" onclick="ThemeManager.apply('sakura')">
-            <div class="theme-name" style="font-size:0.8rem;">Sakura (Pastel)</div>
-            <div class="theme-preview"><div class="theme-color" style="background:#FADADD"></div><div class="theme-color" style="background:#D81B60"></div></div>
-          </div>
-          <div class="theme-option" onclick="ThemeManager.apply('stone')">
-            <div class="theme-name" style="font-size:0.8rem;">Stone (Azulado)</div>
-            <div class="theme-preview"><div class="theme-color" style="background:#1E293B"></div><div class="theme-color" style="background:#38BDF8"></div></div>
-          </div>
+          ${classicThemes.map((theme) => renderThemeOption(theme, activeTheme)).join("")}
         </div>
 
-        <div class="mobile-drawer__section">Paletas Neon (Vibrantes)</div>
+        <div class="mobile-drawer__section">Paletas experimentais</div>
         <div class="theme-grid" style="grid-template-columns: 1fr 1fr; padding: 10px 20px;">
-          <div class="theme-option" onclick="ThemeManager.apply('neon-green')">
-            <div class="theme-name" style="font-size:0.8rem;">Venenoso (Kegare)</div>
-            <div class="theme-preview"><div class="theme-color" style="background:#050805"></div><div class="theme-color" style="background:#39FF14"></div></div>
-          </div>
-          <div class="theme-option" onclick="ThemeManager.apply('neon-yellow')">
-            <div class="theme-name" style="font-size:0.8rem;">Dourado (Tempo)</div>
-            <div class="theme-preview"><div class="theme-color" style="background:#080802"></div><div class="theme-color" style="background:#FFFF00"></div></div>
-          </div>
-          <div class="theme-option" onclick="ThemeManager.apply('neon-red')">
-            <div class="theme-name" style="font-size:0.8rem;">Sengoku (Escudo)</div>
-            <div class="theme-preview"><div class="theme-color" style="background:#0A0202"></div><div class="theme-color" style="background:#FF003C"></div></div>
-          </div>
+          ${experimentalThemes.map((theme) => renderThemeOption(theme, activeTheme)).join("")}
         </div>
 
-        <div class="mobile-drawer__section">Acessibilidade e Texto</div>
+        <div class="mobile-drawer__section">Traço e leitura</div>
         <div style="padding: 10px 20px; display:flex; flex-direction:column; gap:12px;">
           <div class="field">
-            <label class="field__label" style="font-size:0.65rem;">Cor de Texto Primária</label>
-            <div style="display:flex; gap:8px;">
-               <div onclick="ThemeManager.setTextColor('#F5F0E8')" style="width:24px; height:24px; background:#F5F0E8; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
-               <div onclick="ThemeManager.setTextColor('#FFFFFF')" style="width:24px; height:24px; background:#FFFFFF; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
-               <div onclick="ThemeManager.setTextColor('#E0FFE0')" style="width:24px; height:24px; background:#E0FFE0; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
-               <div onclick="ThemeManager.setTextColor('#FFFFE0')" style="width:24px; height:24px; background:#FFFFE0; border-radius:50%; cursor:pointer; border:1px solid #666;"></div>
-               <div onclick="ThemeManager.setTextColor('')" style="width:24px; height:24px; background:#aaa; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; color:#000;">✕</div>
+            <label class="field__label" style="font-size:0.65rem;">Cor principal do texto</label>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+              ${textColors
+                .map(
+                  (color) => `
+                    <button
+                      type="button"
+                      onclick="ThemeManager.setTextColor('${color.value}')"
+                      style="display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border-panel); background:var(--bg-panel); color:var(--text-primary); border-radius:999px; padding:6px 10px; cursor:pointer;"
+                    >
+                      <span style="width:18px; height:18px; background:${color.value || "#9ca3af"}; border-radius:999px; border:1px solid rgba(0,0,0,0.15); display:inline-block;"></span>
+                      <span style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;">${color.label}</span>
+                    </button>
+                  `
+                )
+                .join("")}
             </div>
           </div>
           <div class="field">
-            <label class="field__label" style="font-size:0.65rem;">Estilo de Fonte</label>
+            <label class="field__label" style="font-size:0.65rem;">Estilo da escrita</label>
             <div style="display:flex; gap:8px;">
-               <button class="btn btn-ghost" onclick="ThemeManager.setFontFamily('serif')" style="flex:1; font-size:0.65rem; padding:5px;">Com Serifa (JP)</button>
-               <button class="btn btn-ghost" onclick="ThemeManager.setFontFamily('sans')" style="flex:1; font-size:0.65rem; padding:5px;">Sem Serifa (Inter)</button>
+              ${fontFamilies
+                .map(
+                  (fontFamily) => `
+                    <button class="btn btn-ghost" onclick="ThemeManager.setFontFamily('${fontFamily.id}')" style="flex:1; font-size:0.68rem; padding:8px 10px;">
+                      ${fontFamily.label}
+                    </button>
+                  `
+                )
+                .join("")}
             </div>
           </div>
           <div class="field">
-            <label class="field__label" style="font-size:0.65rem;">Tamanho do Texto</label>
+            <label class="field__label" style="font-size:0.65rem;">Tamanho do texto</label>
             <div style="display:flex; align-items:center; gap:12px; background:var(--bg-panel); border:1px solid var(--border-panel); padding:8px; border-radius:var(--radius);">
-               <button id="btn-font-dec" class="btn btn-ghost" style="width:44px; height:44px; font-size:1.2rem;">-</button>
-               <div id="font-size-display" style="flex:1; text-align:center; font-weight:700; font-family:monospace; font-size:1rem; min-width:60px;">100%</div>
-               <button id="btn-font-inc" class="btn btn-ghost" style="width:44px; height:44px; font-size:1.2rem;">+</button>
-               <button id="btn-font-reset" class="btn btn-sm btn-ghost" style="padding:4px 8px; font-size:0.6rem;">Reset</button>
+              <button id="btn-font-dec" class="btn btn-ghost" style="width:44px; height:44px; font-size:1.2rem;">-</button>
+              <div id="font-size-display" data-daimyo-font-size-display style="flex:1; text-align:center; font-weight:700; font-family:monospace; font-size:1rem; min-width:60px;">100%</div>
+              <button id="btn-font-inc" class="btn btn-ghost" style="width:44px; height:44px; font-size:1.2rem;">+</button>
+              <button id="btn-font-reset" class="btn btn-sm btn-ghost" style="padding:4px 8px; font-size:0.6rem;">Reset</button>
             </div>
           </div>
         </div>
-        <div class="mobile-drawer__section">📜 O Selo do Daimyo</div>
+        <div class="mobile-drawer__section">Selo do Daimyo</div>
         <div style="padding: 10px 20px; display:flex; flex-direction:column; gap:8px;">
-          <p style="font-size:0.65rem; color:var(--text-muted); margin-bottom:4px;">Backup e Sincronização da Campanha (JSON)</p>
-          <button class="btn btn-gold" onclick="DaimyoSeal.exportCampaign()" style="font-size:0.75rem; padding:12px;">📤 Exportar Campanha</button>
-          
+          <p style="font-size:0.65rem; color:var(--text-muted); margin-bottom:4px;">Backup e sincronização da campanha (JSON)</p>
+          <button class="btn btn-gold" onclick="DaimyoSeal.exportCampaign()" style="font-size:0.75rem; padding:12px;">Exportar campanha</button>
+
           <div style="position:relative;">
-            <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()" style="width:100%; font-size:0.75rem; padding:12px;">📥 Importar Backup</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()" style="width:100%; font-size:0.75rem; padding:12px;">Importar backup</button>
             <input type="file" id="import-file-input" style="display:none;" accept=".json" onchange="DaimyoSeal.importCampaign(this.files[0])">
           </div>
-          <p style="font-size:0.6rem; color:var(--red-accent); font-style:italic; text-align:center;">Aviso: A importação sobrescreve todos os dados atuais.</p>
+          <p style="font-size:0.6rem; color:var(--red-accent); font-style:italic; text-align:center;">Aviso: a importação sobrescreve os dados atuais.</p>
         </div>
 
         <div style="padding:20px; font-size:0.7rem; color:var(--text-muted); text-align:center; border-top:1px solid var(--border-panel); margin-top:auto;">
-          A estética selecionada será aplicada em todas as páginas e lembrada na sua próxima sessão.
+          O tom da interface acompanha o mesmo contrato visual do VTT, mas continua salvo separadamente neste app.
         </div>
       </div>
     `;
