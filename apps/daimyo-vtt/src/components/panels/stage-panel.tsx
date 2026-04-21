@@ -12,7 +12,11 @@ import { moveMapTokenAction } from "@/app/actions/map-actions";
 import { AtlasStage } from "@/components/stage/atlas-stage";
 import { TacticalMapStage } from "@/components/stage/tactical-map-stage";
 import { TheaterStage } from "@/components/stage/theater-stage";
-import { findActiveAtlasMap, listAtlasStagePins } from "@/lib/atlas/selectors";
+import {
+  filterAtlasPinsForViewer,
+  findActiveAtlasMap,
+  listAtlasStagePins
+} from "@/lib/atlas/selectors";
 import { findActiveMap, listMapStageTokens } from "@/lib/maps/selectors";
 import {
   findActiveScene,
@@ -113,18 +117,22 @@ export function StagePanel({
   );
   const liveAtlasPinCharacters =
     storedAtlasPinCharacters.length > 0 ? storedAtlasPinCharacters : atlasPinCharacters;
+  const visibleAtlasPins = filterAtlasPinsForViewer(
+    atlasPins,
+    viewer?.role === "gm"
+  );
   const activeAtlasPins = useMemo(
     () =>
       activeAtlasMap
         ? listAtlasStagePins(
             activeAtlasMap.id,
-            atlasPins,
+            visibleAtlasPins,
             assets,
             liveAtlasPinCharacters,
             characters
           )
         : [],
-    [activeAtlasMap, assets, atlasPins, characters, liveAtlasPinCharacters]
+    [activeAtlasMap, assets, visibleAtlasPins, characters, liveAtlasPinCharacters]
   );
   const activeAtlasBackground = activeAtlasMap
     ? assets.find((asset) => asset.id === activeAtlasMap.assetId) ?? null

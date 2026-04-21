@@ -30,6 +30,7 @@ interface AtlasActionResult {
 }
 
 const atlasAssetKinds = new Set(["map"]);
+const atlasPaintingKinds = new Set(["background"]);
 
 function buildInfraError(): AtlasActionResult {
   return {
@@ -132,6 +133,9 @@ export async function createAtlasPinAction(input: {
   atlasMapId: string;
   title: string;
   description?: string;
+  isVisibleToPlayers?: boolean;
+  isNameVisibleToPlayers?: boolean;
+  isQuestMarked?: boolean;
   x: number;
   y: number;
   imageAssetId?: string | null;
@@ -155,6 +159,10 @@ export async function createAtlasPinAction(input: {
 
       if (!imageAsset || imageAsset.sessionId !== session.id) {
         throw new Error("A imagem do local nao pertence a esta sessao.");
+      }
+
+      if (!atlasPaintingKinds.has(imageAsset.kind)) {
+        throw new Error("Use apenas pinturas do tipo background para ilustrar o local.");
       }
     }
 
@@ -185,6 +193,9 @@ export async function createAtlasPinAction(input: {
       atlasMapId: input.atlasMapId,
       title: input.title,
       description: input.description,
+      isVisibleToPlayers: input.isVisibleToPlayers ?? false,
+      isNameVisibleToPlayers: input.isNameVisibleToPlayers ?? false,
+      isQuestMarked: input.isQuestMarked ?? false,
       x: input.x,
       y: input.y,
       imageAssetId: input.imageAssetId ?? null,
@@ -260,6 +271,9 @@ export async function updateAtlasPinDetailsAction(input: {
   pinId: string;
   title?: string;
   description?: string;
+  isVisibleToPlayers?: boolean;
+  isNameVisibleToPlayers?: boolean;
+  isQuestMarked?: boolean;
   imageAssetId?: string | null;
   submapAssetId?: string | null;
   characterIds?: string[];
@@ -281,6 +295,10 @@ export async function updateAtlasPinDetailsAction(input: {
 
       if (!imageAsset || imageAsset.sessionId !== session.id) {
         throw new Error("A imagem do pin nao pertence a esta sessao.");
+      }
+
+      if (!atlasPaintingKinds.has(imageAsset.kind)) {
+        throw new Error("Use apenas pinturas do tipo background para ilustrar o local.");
       }
     }
 
@@ -311,6 +329,9 @@ export async function updateAtlasPinDetailsAction(input: {
       pinId: input.pinId,
       title: input.title,
       description: input.description,
+      isVisibleToPlayers: input.isVisibleToPlayers,
+      isNameVisibleToPlayers: input.isNameVisibleToPlayers,
+      isQuestMarked: input.isQuestMarked,
       imageAssetId: input.imageAssetId,
       submapAssetId: input.submapAssetId,
       characterIds: input.characterIds

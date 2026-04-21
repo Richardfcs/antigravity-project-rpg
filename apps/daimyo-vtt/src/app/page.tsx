@@ -23,10 +23,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const presetCode = params.code ?? "";
 
   return (
-    <main className="relative min-h-screen overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col gap-6">
+    <main className="daimyo-shell-bg relative min-h-screen overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col gap-5 sm:gap-6">
         <section className="surface-panel-strong relative overflow-hidden p-6 sm:p-8 lg:p-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(212,168,70,0.16),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(196,30,58,0.14),transparent_34%)]" />
+          <div className="daimyo-hero-wash absolute inset-0" />
 
           <div className="relative space-y-6">
             <div className="space-y-4">
@@ -39,7 +39,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               </div>
 
               <div className="space-y-3">
-                <h1 className="max-w-4xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                <h1 className="max-w-4xl text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl">
                   Guarde sua mesa, retome sua campanha e volte ao salao sem perder nada
                 </h1>
                 <p className="max-w-3xl text-base leading-7 text-[color:var(--ink-2)] sm:text-lg">
@@ -60,7 +60,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         </section>
 
-        <section className="surface-panel p-6 sm:p-8">
+        <section id="campaign-actions" className="surface-panel p-6 sm:p-8">
           <div className="mb-6 space-y-2">
             <p className="section-label">Campanhas e entrada</p>
             <h2 className="text-3xl font-semibold text-white">

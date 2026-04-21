@@ -22,6 +22,7 @@ export interface SessionAudioStateRecord {
   trackId: string | null;
   status: AudioPlaybackStatus;
   volume: number;
+  loopEnabled: boolean;
   startedAt: string | null;
   positionSeconds: number;
   updatedAt: string;

@@ -27,6 +27,9 @@ interface AtlasPinRowPayload {
   atlas_map_id: string;
   title: string;
   description: string;
+  is_visible_to_players?: boolean | null;
+  is_name_visible_to_players?: boolean | null;
+  is_quest_marked?: boolean | null;
   x: number;
   y: number;
   image_asset_id: string | null;
@@ -71,6 +74,9 @@ function mapAtlasPinPayload(row: AtlasPinRowPayload): SessionAtlasPinRecord {
     atlasMapId: row.atlas_map_id,
     title: row.title,
     description: row.description,
+    isVisibleToPlayers: Boolean(row.is_visible_to_players),
+    isNameVisibleToPlayers: Boolean(row.is_name_visible_to_players),
+    isQuestMarked: Boolean(row.is_quest_marked),
     x: Number(row.x),
     y: Number(row.y),
     imageAssetId: row.image_asset_id,
@@ -91,6 +97,53 @@ function mapAtlasPinCharacterPayload(
     sortOrder: row.sort_order,
     createdAt: row.created_at
   };
+}
+
+const atlasPinSelectWithVisibility =
+  "id,session_id,atlas_map_id,title,description,is_visible_to_players,is_name_visible_to_players,is_quest_marked,x,y,image_asset_id,submap_asset_id,created_at,updated_at";
+const atlasPinSelectLegacy =
+  "id,session_id,atlas_map_id,title,description,x,y,image_asset_id,submap_asset_id,created_at,updated_at";
+
+function isMissingAtlasVisibilityColumns(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const details = [
+    "message" in error ? error.message : "",
+    "details" in error ? error.details : "",
+    "hint" in error ? error.hint : ""
+  ]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    details.includes("is_visible_to_players") ||
+    details.includes("is_name_visible_to_players") ||
+    details.includes("is_quest_marked")
+  );
+}
+
+async function fetchAtlasPinsWithFallback(
+  client: ReturnType<typeof createBrowserSupabaseClient>,
+  sessionId: string
+) {
+  const result = await client
+    .from("session_atlas_pins")
+    .select(atlasPinSelectWithVisibility)
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: true });
+
+  if (!result.error || !isMissingAtlasVisibilityColumns(result.error)) {
+    return result;
+  }
+
+  return client
+    .from("session_atlas_pins")
+    .select(atlasPinSelectLegacy)
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: true });
 }
 
 export function useSessionAtlas({
@@ -148,13 +201,7 @@ export function useSessionAtlas({
             .select("id,session_id,name,asset_id,is_active,created_at,updated_at")
             .eq("session_id", sessionId)
             .order("created_at", { ascending: true }),
-          client
-            .from("session_atlas_pins")
-            .select(
-              "id,session_id,atlas_map_id,title,description,x,y,image_asset_id,submap_asset_id,created_at,updated_at"
-            )
-            .eq("session_id", sessionId)
-            .order("created_at", { ascending: true }),
+          fetchAtlasPinsWithFallback(client, sessionId),
           client
             .from("session_atlas_pin_characters")
             .select("id,session_id,pin_id,character_id,sort_order,created_at")

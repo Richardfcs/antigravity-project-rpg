@@ -32,6 +32,7 @@ import { TheaterStage } from "@/components/stage/theater-stage";
 import { ThemeSettingsButton } from "@/components/theme/theme-provider";
 import { findActiveAudioTrack } from "@/lib/audio/selectors";
 import {
+  filterAtlasPinsForViewer,
   findActiveAtlasMap,
   listAtlasStagePins
 } from "@/lib/atlas/selectors";
@@ -374,10 +375,11 @@ export function PlayerShell({
       ? atlasNavigation.targetAtlasMapId
       : session.activeAtlasMapId
   );
+  const playerVisibleAtlasPins = filterAtlasPinsForViewer(liveAtlasPins, false);
   const activeAtlasPins = displayedAtlasMap
     ? listAtlasStagePins(
         displayedAtlasMap.id,
-        liveAtlasPins,
+        playerVisibleAtlasPins,
         liveAssets,
         liveAtlasPinCharacters,
         liveCharacters
@@ -690,7 +692,7 @@ export function PlayerShell({
     effectivePresentationMode !== "immersive" || resolvedImmersiveMinimized;
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(212,168,70,0.09),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(196,30,58,0.08),transparent_22%),linear-gradient(180deg,#050505,#0b0907_48%,#120a08)] px-4 py-5 sm:px-6">
+    <main className="daimyo-shell-bg min-h-screen px-4 py-5 sm:px-6">
       <AudioSyncLayer />
       <SessionEffectOverlays viewerParticipantId={viewer?.participantId} />
       <ImmersiveOverlays sessionCode={session.code} />

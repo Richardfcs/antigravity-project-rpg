@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   Compass,
+  Eye,
+  EyeOff,
   LoaderCircle,
   MapPinned,
   Minus,
   Plus,
+  ScrollText,
   Sparkles,
   Trash2
 } from "lucide-react";
@@ -58,6 +61,9 @@ interface EditorState {
   y: number;
   title: string;
   description: string;
+  isVisibleToPlayers: boolean;
+  isNameVisibleToPlayers: boolean;
+  isQuestMarked: boolean;
   imageAssetId: string;
   submapAssetId: string;
   characterIds: string[];
@@ -201,7 +207,10 @@ export function AtlasStage({
     };
   }, [atlasMap, canEdit, dragState, sessionCode, startTransition, upsertAtlasPin, zoom]);
 
-  const imageAssetOptions = useMemo(() => assetOptions, [assetOptions]);
+  const imageAssetOptions = useMemo(
+    () => assetOptions.filter((asset) => asset.kind === "background"),
+    [assetOptions]
+  );
   const submapAssetOptions = useMemo(
     () => assetOptions.filter((asset) => asset.kind === "map"),
     [assetOptions]
@@ -248,6 +257,9 @@ export function AtlasStage({
       y: Number(y.toFixed(3)),
       title: "",
       description: "",
+      isVisibleToPlayers: false,
+      isNameVisibleToPlayers: false,
+      isQuestMarked: false,
       imageAssetId: "",
       submapAssetId: "",
       characterIds: []
@@ -265,6 +277,9 @@ export function AtlasStage({
         y: entry.pin.y,
         title: entry.pin.title,
         description: entry.pin.description,
+        isVisibleToPlayers: entry.pin.isVisibleToPlayers,
+        isNameVisibleToPlayers: entry.pin.isNameVisibleToPlayers,
+        isQuestMarked: entry.pin.isQuestMarked,
         imageAssetId: entry.pin.imageAssetId ?? "",
         submapAssetId: entry.pin.submapAssetId ?? "",
         characterIds: (pinCharacterLinks ?? [])
@@ -288,6 +303,9 @@ export function AtlasStage({
       y: selectedPin.pin.y,
       title: selectedPin.pin.title,
       description: selectedPin.pin.description,
+      isVisibleToPlayers: selectedPin.pin.isVisibleToPlayers,
+      isNameVisibleToPlayers: selectedPin.pin.isNameVisibleToPlayers,
+      isQuestMarked: selectedPin.pin.isQuestMarked,
       imageAssetId: selectedPin.pin.imageAssetId ?? "",
       submapAssetId: selectedPin.pin.submapAssetId ?? "",
       characterIds: selectedPin.linkedCharacters.map((character) => character.id)
@@ -308,6 +326,9 @@ export function AtlasStage({
           atlasMapId: atlasMap.id,
           title: editor.title,
           description: editor.description,
+          isVisibleToPlayers: editor.isVisibleToPlayers,
+          isNameVisibleToPlayers: editor.isNameVisibleToPlayers,
+          isQuestMarked: editor.isQuestMarked,
           x: editor.x,
           y: editor.y,
           imageAssetId: editor.imageAssetId || null,
@@ -329,6 +350,9 @@ export function AtlasStage({
           pinId: editor.pinId,
           title: editor.title,
           description: editor.description,
+          isVisibleToPlayers: editor.isVisibleToPlayers,
+          isNameVisibleToPlayers: editor.isNameVisibleToPlayers,
+          isQuestMarked: editor.isQuestMarked,
           imageAssetId: editor.imageAssetId || null,
           submapAssetId: editor.submapAssetId || null,
           characterIds: editor.characterIds
@@ -340,6 +364,35 @@ export function AtlasStage({
           upsertAtlasPin(result.pin);
           replaceAtlasPinCharacters(result.pin.id, result.pinCharacters ?? []);
         }
+      }
+
+      setPendingKey(null);
+    });
+  };
+
+  const handleQuickPinReveal = (pinId: string, patch: {
+    isVisibleToPlayers?: boolean;
+    isNameVisibleToPlayers?: boolean;
+    isQuestMarked?: boolean;
+  }) => {
+    if (!sessionCode || !canEdit) {
+      return;
+    }
+
+    setPendingKey(`reveal-pin:${pinId}`);
+    setFeedback(null);
+    startTransition(async () => {
+      const result = await updateAtlasPinDetailsAction({
+        sessionCode,
+        pinId,
+        ...patch
+      });
+
+      if (!result.ok || !result.pin) {
+        setFeedback(result.message || "Falha ao atualizar a revelacao do local.");
+      } else {
+        upsertAtlasPin(result.pin);
+        replaceAtlasPinCharacters(result.pin.id, result.pinCharacters ?? []);
       }
 
       setPendingKey(null);
@@ -385,6 +438,15 @@ export function AtlasStage({
 
   const renderedWidth = Math.round(worldWidth * zoom);
   const renderedHeight = Math.round(worldHeight * zoom);
+  const canSeeSelectedPinName = Boolean(
+    selectedPin &&
+      (canEdit ||
+        selectedPin.pin.isVisibleToPlayers ||
+        selectedPin.pin.isNameVisibleToPlayers)
+  );
+  const canSeeSelectedPinDetails = Boolean(
+    selectedPin && (canEdit || selectedPin.pin.isVisibleToPlayers)
+  );
   const detailPanel = (
     <div className="stat-card max-h-full overflow-auto">
       <p className="section-label">{editor ? "Editor do pin" : "Local em foco"}</p>
@@ -412,6 +474,63 @@ export function AtlasStage({
             className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
             placeholder="Descricao curta do local."
           />
+          <div className="grid gap-2 rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3">
+            <label className="flex items-center gap-2 text-sm text-white">
+              <input
+                type="checkbox"
+                checked={editor.isNameVisibleToPlayers}
+                onChange={(event) =>
+                  setEditor((current) =>
+                    current
+                      ? {
+                          ...current,
+                          isNameVisibleToPlayers: event.target.checked
+                        }
+                      : current
+                  )
+                }
+              />
+              revelar apenas o nome aos jogadores
+            </label>
+            <label className="flex items-center gap-2 text-sm text-white">
+              <input
+                type="checkbox"
+                checked={editor.isVisibleToPlayers}
+                onChange={(event) =>
+                  setEditor((current) =>
+                    current
+                      ? {
+                          ...current,
+                          isVisibleToPlayers: event.target.checked,
+                          isNameVisibleToPlayers:
+                            event.target.checked || current.isNameVisibleToPlayers
+                        }
+                      : current
+                  )
+                }
+              />
+              mostrar detalhes, pintura e descricao
+            </label>
+            <label className="flex items-center gap-2 text-sm text-white">
+              <input
+                type="checkbox"
+                checked={editor.isQuestMarked}
+                onChange={(event) =>
+                  setEditor((current) =>
+                    current
+                      ? {
+                          ...current,
+                          isQuestMarked: event.target.checked,
+                          isNameVisibleToPlayers:
+                            event.target.checked || current.isNameVisibleToPlayers
+                        }
+                      : current
+                  )
+                }
+              />
+              marcar como pista ou objetivo em destaque
+            </label>
+          </div>
           <select
             value={editor.imageAssetId}
             onChange={(event) =>
@@ -421,7 +540,7 @@ export function AtlasStage({
             }
             className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
           >
-            <option value="">sem imagem do local</option>
+            <option value="">sem pintura do local</option>
             {imageAssetOptions.map((asset) => (
               <option key={asset.id} value={asset.id}>
                 {asset.label}
@@ -446,6 +565,9 @@ export function AtlasStage({
           </select>
           <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3">
             <p className="section-label">Personagens relacionados</p>
+            <p className="mt-2 text-xs text-[color:var(--ink-3)]">
+              Nenhum, um ou vários personagens podem ser ligados a este local.
+            </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {characterOptions.length === 0 && (
                 <p className="text-sm text-[color:var(--ink-3)]">
@@ -518,9 +640,13 @@ export function AtlasStage({
       ) : selectedPin ? (
         <div className="mt-3 space-y-3">
           <div>
-            <h3 className="text-lg font-semibold text-white">{selectedPin.pin.title}</h3>
+            <h3 className="text-lg font-semibold text-white">
+              {canSeeSelectedPinName ? selectedPin.pin.title : "Local oculto"}
+            </h3>
             <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-              {selectedPin.pin.description || "Sem descricao registrada para este local."}
+              {canSeeSelectedPinDetails
+                ? selectedPin.pin.description || "Sem descricao registrada para este local."
+                : "O mestre ainda nao revelou os detalhes deste local."}
             </p>
           </div>
           {canEdit && (
@@ -546,9 +672,77 @@ export function AtlasStage({
                 )}
                 excluir
               </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickPinReveal(selectedPin.pin.id, {
+                    isNameVisibleToPlayers: !selectedPin.pin.isNameVisibleToPlayers
+                  })
+                }
+                disabled={isPending}
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
+              >
+                <ScrollText size={15} />
+                {selectedPin.pin.isNameVisibleToPlayers ? "ocultar nome" : "revelar nome"}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickPinReveal(selectedPin.pin.id, {
+                    isVisibleToPlayers: !selectedPin.pin.isVisibleToPlayers,
+                    isNameVisibleToPlayers:
+                      !selectedPin.pin.isVisibleToPlayers || selectedPin.pin.isNameVisibleToPlayers
+                  })
+                }
+                disabled={isPending}
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
+              >
+                {selectedPin.pin.isVisibleToPlayers ? <EyeOff size={15} /> : <Eye size={15} />}
+                {selectedPin.pin.isVisibleToPlayers ? "ocultar detalhes" : "mostrar local"}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickPinReveal(selectedPin.pin.id, {
+                    isQuestMarked: !selectedPin.pin.isQuestMarked,
+                    isNameVisibleToPlayers:
+                      !selectedPin.pin.isQuestMarked || selectedPin.pin.isNameVisibleToPlayers
+                  })
+                }
+                disabled={isPending}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition disabled:opacity-60",
+                  selectedPin.pin.isQuestMarked
+                    ? "border-amber-300/28 bg-amber-300/10 text-amber-50"
+                    : "border-white/10 bg-white/[0.04] text-white hover:border-white/20"
+                )}
+              >
+                <Sparkles size={15} />
+                {selectedPin.pin.isQuestMarked ? "remover pista" : "marcar pista"}
+              </button>
             </div>
           )}
-          {selectedPin.imageAsset?.secureUrl && (
+          {!canEdit && selectedPin.pin.isQuestMarked && !canSeeSelectedPinDetails && (
+            <div className="rounded-[18px] border border-amber-300/18 bg-amber-300/10 px-4 py-3 text-sm text-amber-50 animate-pulse">
+              Uma pista sobre este local acaba de ser revelada.
+            </div>
+          )}
+          {canEdit && (
+            <div className="flex flex-wrap gap-2 text-xs text-[color:var(--ink-3)]">
+              <span className={cn("hud-chip", selectedPin.pin.isNameVisibleToPlayers ? "border-amber-300/20 bg-amber-300/10 text-amber-100" : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]")}>
+                nome {selectedPin.pin.isNameVisibleToPlayers ? "revelado" : "oculto"}
+              </span>
+              <span className={cn("hud-chip", selectedPin.pin.isVisibleToPlayers ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-100" : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]")}>
+                detalhes {selectedPin.pin.isVisibleToPlayers ? "visiveis" : "ocultos"}
+              </span>
+              {selectedPin.pin.isQuestMarked && (
+                <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100 animate-pulse">
+                  pista ativa
+                </span>
+              )}
+            </div>
+          )}
+          {canSeeSelectedPinDetails && selectedPin.imageAsset?.secureUrl && (
             <div
               className="h-40 rounded-[20px] border border-white/10 bg-center bg-cover"
               style={{
@@ -556,7 +750,7 @@ export function AtlasStage({
               }}
             />
           )}
-          {selectedPin.submapAsset && (
+          {canSeeSelectedPinDetails && selectedPin.submapAsset && (
             <div className="rounded-[18px] border border-amber-300/18 bg-amber-300/10 px-4 py-3">
               <p className="text-sm font-semibold text-white">Submapa vinculado</p>
               <p className="mt-1 text-xs text-[color:var(--ink-2)]">
@@ -591,24 +785,29 @@ export function AtlasStage({
               </p>
             </div>
           )}
-          {selectedPin.linkedCharacters.length > 0 && (
+          {canSeeSelectedPinDetails && selectedPin.linkedCharacters.length > 0 && (
             <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3">
-              <p className="text-sm font-semibold text-white">Relacionados</p>
-              <div className="mt-3 grid grid-cols-2 gap-3">
+              <p className="text-sm font-semibold text-white">Figuras e personagens ligados</p>
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {selectedPin.linkedCharacters.map((character, index) => (
                   <div
                     key={character.id}
-                    className="rounded-[18px] border border-white/10 bg-black/18 p-3"
+                    className="flex items-center gap-3 rounded-[18px] border border-white/10 bg-black/18 p-3"
                   >
                     <AssetAvatar
                       imageUrl={selectedPin.linkedCharacterAssets[index]?.secureUrl}
                       label={character.name}
                       kind={selectedPin.linkedCharacterAssets[index]?.kind}
-                      className="h-32 w-full rounded-[18px]"
+                      className="h-16 w-12 shrink-0 rounded-[14px]"
                     />
-                    <p className="mt-2 text-sm font-semibold text-white">
-                      {character.name}
-                    </p>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {character.name}
+                      </p>
+                      <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[color:var(--ink-3)]">
+                        {character.type === "npc" ? "figura" : "protagonista"}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -766,19 +965,29 @@ export function AtlasStage({
                     handleSelectPin(entry);
                     setDragState({ pinId: entry.pin.id, x: entry.x, y: entry.y });
                   }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2"
+                  className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
                   style={{ left: `${entry.x}%`, top: `${entry.y}%` }}
                 >
                   <div
                     className={cn(
                       "flex h-11 w-11 items-center justify-center rounded-full border shadow-[0_10px_24px_rgba(2,6,23,0.45)] transition",
-                      isSelected
-                        ? "border-amber-300/40 bg-amber-300/16 text-amber-50"
-                        : "border-white/14 bg-black/55 text-white hover:border-amber-300/25"
+                      canEdit && !entry.pin.isVisibleToPlayers && !entry.pin.isNameVisibleToPlayers
+                        ? "border-white/12 border-dashed bg-black/40 text-[color:var(--ink-3)]"
+                        : isSelected
+                          ? "border-amber-300/40 bg-amber-300/16 text-amber-50"
+                          : "border-white/14 bg-black/55 text-white hover:border-amber-300/25",
+                      entry.pin.isQuestMarked && "animate-pulse"
                     )}
                   >
                     <MapPinned size={18} />
                   </div>
+                  {(canEdit || entry.pin.isVisibleToPlayers || entry.pin.isNameVisibleToPlayers) && (
+                    <div className="mt-2 min-w-[96px] rounded-full border border-white/10 bg-black/60 px-3 py-1 text-[11px] font-semibold tracking-[0.08em] text-white shadow-[0_8px_18px_rgba(2,6,23,0.35)]">
+                      <span className="block truncate">
+                        {entry.pin.title}
+                      </span>
+                    </div>
+                  )}
                 </button>
               );
             })}

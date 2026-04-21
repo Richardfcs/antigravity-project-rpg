@@ -50,6 +50,18 @@ function formatFriendlyAuthError(message: string) {
   return message;
 }
 
+function scrollToCampaignActions() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    document
+      .getElementById("campaign-actions")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
 export function AuthPanel() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -181,6 +193,7 @@ export function AuthPanel() {
         setFeedback(
           "Conta conectada. Suas mesas vinculadas apareceram logo abaixo."
         );
+        scrollToCampaignActions();
       }
 
       setPendingKey(null);
@@ -245,10 +258,10 @@ export function AuthPanel() {
 
   return (
     <section className="rounded-[28px] border border-white/10 bg-black/20 p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="section-label">Acesso do cla</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">
+          <h2 className="mt-2 text-xl font-semibold text-white sm:text-2xl lg:text-3xl">
             Entre com email e senha sem cerimonia extra
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--ink-2)]">
@@ -262,7 +275,7 @@ export function AuthPanel() {
             type="button"
             onClick={handleLogout}
             disabled={isPending}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:border-white/20 disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:border-white/20 disabled:opacity-60 sm:w-auto"
           >
             {pendingKey === "logout" ? (
               <LoaderCircle size={14} className="animate-spin" />
@@ -323,12 +336,12 @@ export function AuthPanel() {
 
           <div className="mt-4 rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-[color:var(--ink-2)]">
             {authEmail ? (
-              <span className="inline-flex items-center gap-2 text-emerald-100">
+              <span className="inline-flex min-w-0 items-center gap-2 break-all text-emerald-100">
                 <ShieldCheck size={16} />
                 conectado como {authEmail}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-2">
+              <span className="inline-flex items-start gap-2">
                 <KeyRound size={16} className="text-amber-100" />
                 Se a conta nao existir ainda, ela e aberta na hora com este mesmo email e senha.
               </span>
@@ -337,8 +350,8 @@ export function AuthPanel() {
         </div>
 
         <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <p className="section-label">Minhas mesas</p>
               <p className="mt-1 text-sm text-[color:var(--ink-2)]">
                 {authEmail
@@ -346,7 +359,7 @@ export function AuthPanel() {
                   : "Depois do acesso, seus saloes vinculados aparecem aqui automaticamente."}
               </p>
             </div>
-            <span className="hud-chip border-white/10 bg-black/18 text-[color:var(--ink-2)]">
+            <span className="hud-chip w-fit border-white/10 bg-black/18 text-[color:var(--ink-2)]">
               {linkedSessions.length} saloes
             </span>
           </div>
@@ -387,7 +400,7 @@ export function AuthPanel() {
                     type="button"
                     onClick={() => handleRestore(item)}
                     disabled={isPending}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-rose-300/24 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-50 transition hover:border-rose-300/40 disabled:opacity-60"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-300/24 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-50 transition hover:border-rose-300/40 disabled:opacity-60 sm:w-auto"
                   >
                     {pendingKey === `restore:${item.participantId}` ? (
                       <LoaderCircle size={16} className="animate-spin" />

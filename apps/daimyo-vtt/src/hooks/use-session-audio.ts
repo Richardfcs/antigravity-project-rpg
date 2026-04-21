@@ -33,6 +33,7 @@ interface AudioStateRowPayload {
   track_id: string | null;
   status: AudioPlaybackStatus;
   volume: number;
+  loop_enabled?: boolean | null;
   started_at: string | null;
   position_seconds: number;
   updated_at: string;
@@ -69,6 +70,7 @@ function mapPlaybackPayload(row: AudioStateRowPayload): SessionAudioStateRecord 
     trackId: row.track_id,
     status: row.status,
     volume: Number(row.volume),
+    loopEnabled: Boolean(row.loop_enabled),
     startedAt: row.started_at,
     positionSeconds: Number(row.position_seconds),
     updatedAt: row.updated_at
@@ -123,7 +125,7 @@ export function useSessionAudio({
           client
             .from("session_audio_state")
             .select(
-              "session_id,track_id,status,volume,started_at,position_seconds,updated_at"
+              "session_id,track_id,status,volume,loop_enabled,started_at,position_seconds,updated_at"
             )
             .eq("session_id", sessionId)
             .maybeSingle()

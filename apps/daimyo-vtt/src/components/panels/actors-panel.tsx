@@ -1,10 +1,30 @@
 ﻿"use client";
 
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
-import { HeartPulse, LoaderCircle, MoonStar, Plus, RadioTower, Shield, UploadCloud } from "lucide-react";
+import {
+  HeartPulse,
+  LoaderCircle,
+  MoonStar,
+  PencilLine,
+  Plus,
+  RadioTower,
+  Save,
+  Shield,
+  Trash2,
+  UploadCloud
+} from "lucide-react";
 
-import { registerUploadedAssetAction } from "@/app/actions/asset-actions";
-import { adjustCharacterInitiativeAction, adjustCharacterResourceAction, createCharacterAction } from "@/app/actions/character-actions";
+import {
+  deleteAssetAction,
+  registerUploadedAssetAction,
+  updateAssetMetadataAction
+} from "@/app/actions/asset-actions";
+import {
+  adjustCharacterInitiativeAction,
+  adjustCharacterResourceAction,
+  createCharacterAction,
+  updateCharacterProfileAction
+} from "@/app/actions/character-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
 import { findCharacterByViewer, resolveCharacterAsset, sortCharactersByInitiative } from "@/lib/characters/selectors";
 import { cn } from "@/lib/utils";
@@ -23,7 +43,14 @@ interface ActorsPanelProps {
   cloudinaryReady: boolean;
 }
 
-const assetKinds: AssetKind[] = ["portrait", "token", "npc", "background", "map"];
+const assetKinds: AssetKind[] = [
+  "portrait",
+  "token",
+  "npc",
+  "background",
+  "map",
+  "grid"
+];
 
 function assetKindLabel(kind: AssetKind) {
   switch (kind) {
@@ -37,6 +64,8 @@ function assetKindLabel(kind: AssetKind) {
       return "pintura";
     case "map":
       return "mapa";
+    case "grid":
+      return "grade tatica";
     default:
       return kind;
   }
@@ -57,6 +86,9 @@ function CharacterCard({
   isOnline,
   canAdjust,
   canManageInitiative,
+  canManageProfile,
+  participantOptions,
+  assetOptions,
   sessionCode
 }: {
   character: SessionCharacterRecord;
@@ -65,11 +97,29 @@ function CharacterCard({
   isOnline: boolean;
   canAdjust: boolean;
   canManageInitiative: boolean;
+  canManageProfile: boolean;
+  participantOptions: SessionParticipantRecord[];
+  assetOptions: SessionAssetRecord[];
   sessionCode: string;
 }) {
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [draftName, setDraftName] = useState(character.name);
+  const [draftType, setDraftType] = useState<CharacterType>(character.type);
+  const [draftOwnerParticipantId, setDraftOwnerParticipantId] = useState(
+    character.ownerParticipantId ?? ""
+  );
+  const [draftAssetId, setDraftAssetId] = useState(character.assetId ?? "");
+
+  const resetProfileDraft = () => {
+    setDraftName(character.name);
+    setDraftType(character.type);
+    setDraftOwnerParticipantId(character.ownerParticipantId ?? "");
+    setDraftAssetId(character.assetId ?? "");
+    setIsEditingProfile(false);
+  };
 
   const updateResource = (resource: "hp" | "fp", delta: number) => {
     setPendingKey(`${resource}:${delta}`);
@@ -93,6 +143,31 @@ function CharacterCard({
     });
   };
 
+  const saveProfile = () => {
+    setPendingKey("profile:save");
+    startTransition(async () => {
+      const result = await updateCharacterProfileAction({
+        sessionCode,
+        characterId: character.id,
+        name: draftName,
+        type: draftType,
+        ownerParticipantId: draftType === "player" ? draftOwnerParticipantId || null : null,
+        assetId: draftAssetId || null
+      });
+
+      if (result.ok && result.character) {
+        upsertCharacter(result.character);
+        setDraftName(result.character.name);
+        setDraftType(result.character.type);
+        setDraftOwnerParticipantId(result.character.ownerParticipantId ?? "");
+        setDraftAssetId(result.character.assetId ?? "");
+        setIsEditingProfile(false);
+      }
+
+      setPendingKey(null);
+    });
+  };
+
   return (
     <article className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
       <div className="flex items-start gap-3">
@@ -107,6 +182,108 @@ function CharacterCard({
           </p>
         </div>
       </div>
+
+      {canManageProfile && (
+        <div className="mt-4 rounded-[18px] border border-white/10 bg-black/18 px-3 py-3">
+          {isEditingProfile ? (
+            <div className="space-y-3">
+              <input
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                placeholder="Nome da ficha"
+              />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <select
+                  value={draftType}
+                  onChange={(event) =>
+                    setDraftType(event.target.value as CharacterType)
+                  }
+                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                >
+                  <option value="player">protagonista</option>
+                  <option value="npc">figura</option>
+                </select>
+                <select
+                  value={draftOwnerParticipantId}
+                  onChange={(event) => setDraftOwnerParticipantId(event.target.value)}
+                  disabled={draftType !== "player"}
+                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition disabled:opacity-50 focus:border-amber-300/35"
+                >
+                  <option value="">sem vinculo</option>
+                  {participantOptions.map((participant) => (
+                    <option key={participant.id} value={participant.id}>
+                      {participant.displayName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <select
+                value={draftAssetId}
+                onChange={(event) => setDraftAssetId(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              >
+                <option value="">sem retrato</option>
+                {assetOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={saveProfile}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-2 rounded-xl border border-amber-300/28 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:opacity-60"
+                >
+                  {pendingKey === "profile:save" ? (
+                    <LoaderCircle size={14} className="animate-spin" />
+                  ) : (
+                    <Save size={14} />
+                  )}
+                  salvar ficha
+                </button>
+                <button
+                  type="button"
+                  onClick={resetProfileDraft}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
+                >
+                  cancelar
+                </button>
+              </div>
+              <p className="text-xs text-[color:var(--ink-3)]">
+                Você pode criar sem vínculo e decidir depois se a ficha vira figura ou protagonista.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="section-label">Alocação da ficha</p>
+                <p className="mt-1 text-xs text-[color:var(--ink-3)]">
+                  {character.type === "player"
+                    ? ownerName ?? "protagonista sem jogador vinculado"
+                    : "figura livre para a mesa"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftName(character.name);
+                  setDraftType(character.type);
+                  setDraftOwnerParticipantId(character.ownerParticipantId ?? "");
+                  setDraftAssetId(character.assetId ?? "");
+                  setIsEditingProfile(true);
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
+              >
+                <PencilLine size={14} />
+                editar ficha
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         {[
@@ -155,12 +332,16 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
   const assets = useAssetStore((state) => state.assets);
   const characters = useCharacterStore((state) => state.characters);
   const upsertAsset = useAssetStore((state) => state.upsertAsset);
+  const removeAsset = useAssetStore((state) => state.removeAsset);
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
 
   const [assetLabel, setAssetLabel] = useState("");
   const [assetKind, setAssetKind] = useState<AssetKind>("token");
   const [assetFile, setAssetFile] = useState<File | null>(null);
   const [assetFeedback, setAssetFeedback] = useState<string | null>(null);
+  const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
+  const [editingAssetLabel, setEditingAssetLabel] = useState("");
+  const [editingAssetKind, setEditingAssetKind] = useState<AssetKind>("token");
   const [characterName, setCharacterName] = useState("");
   const [characterType, setCharacterType] = useState<CharacterType>("player");
   const [ownerParticipantId, setOwnerParticipantId] = useState("");
@@ -287,11 +468,6 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
       setCharacterFeedback("Informe o nome do personagem.");
       return;
     }
-    if (characterType === "player" && !ownerParticipantId) {
-      setCharacterFeedback("Escolha qual jogador recebera essa ficha.");
-      return;
-    }
-
     startCharacterTransition(async () => {
       const result = await createCharacterAction({
         sessionCode,
@@ -311,8 +487,71 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
 
       upsertCharacter(result.character);
       setCharacterName("");
+      setOwnerParticipantId("");
       setSelectedAssetId("");
       setCharacterFeedback("Ficha criada e sincronizada.");
+    });
+  };
+
+  const beginAssetEdit = (asset: SessionAssetRecord) => {
+    setEditingAssetId(asset.id);
+    setEditingAssetLabel(asset.label);
+    setEditingAssetKind(asset.kind);
+    setAssetFeedback(null);
+  };
+
+  const handleAssetEditSave = () => {
+    if (!canManage || !editingAssetId) {
+      return;
+    }
+
+    if (!editingAssetLabel.trim()) {
+      setAssetFeedback("Informe um nome valido para o recurso.");
+      return;
+    }
+
+    startAssetTransition(async () => {
+      const result = await updateAssetMetadataAction({
+        sessionCode,
+        assetId: editingAssetId,
+        label: editingAssetLabel.trim(),
+        kind: editingAssetKind
+      });
+
+      if (!result.ok || !result.asset) {
+        setAssetFeedback(result.message || "Falha ao atualizar o recurso.");
+        return;
+      }
+
+      upsertAsset(result.asset);
+      setEditingAssetId(null);
+      setAssetFeedback("Recurso atualizado.");
+    });
+  };
+
+  const handleAssetDelete = (assetId: string) => {
+    if (!canManage) {
+      return;
+    }
+
+    startAssetTransition(async () => {
+      const result = await deleteAssetAction({
+        sessionCode,
+        assetId
+      });
+
+      if (!result.ok || !result.asset) {
+        setAssetFeedback(result.message || "Falha ao excluir o recurso.");
+        return;
+      }
+
+      removeAsset(result.asset.id);
+
+      if (editingAssetId === result.asset.id) {
+        setEditingAssetId(null);
+      }
+
+      setAssetFeedback("Recurso removido.");
     });
   };
 
@@ -352,10 +591,13 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
                   <option value="player">protagonista</option><option value="npc">figura</option>
                 </select>
                 <select value={ownerParticipantId} onChange={(event) => setOwnerParticipantId(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35">
-                  <option value="">sem vinculo</option>
+                  <option value="">sem vinculo por enquanto</option>
                   {playerParticipants.map((participant) => <option key={participant.id} value={participant.id}>{participant.displayName}</option>)}
                 </select>
               </div>
+              <p className="text-xs text-[color:var(--ink-3)]">
+                Você pode criar a ficha agora e decidir depois se ela fica com um jogador ou vira uma figura da mesa.
+              </p>
               <div className="space-y-3">
                 <label className="block">
                   <span className="section-label">Retrato ou emblema</span>
@@ -403,8 +645,80 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filteredAssets.slice(0, visibleAssetCount).map((asset) => (
             <article key={asset.id} className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3">
-              <AssetAvatar imageUrl={asset.secureUrl} label={asset.label} kind={asset.kind} className={asset.kind === "background" || asset.kind === "map" ? "h-28 w-full" : "aspect-[3/4] w-full"} />
-              <div className="mt-3"><p className="text-sm font-semibold text-white">{asset.label}</p><p className="mt-1 text-xs text-[color:var(--ink-3)]">{assetKindLabel(asset.kind)}</p></div>
+              <AssetAvatar imageUrl={asset.secureUrl} label={asset.label} kind={asset.kind} className={asset.kind === "background" || asset.kind === "map" || asset.kind === "grid" ? "h-28 w-full" : "aspect-[3/4] w-full"} />
+              <div className="mt-3 space-y-3">
+                {editingAssetId === asset.id ? (
+                  <>
+                    <input
+                      value={editingAssetLabel}
+                      onChange={(event) => setEditingAssetLabel(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                      placeholder="Nome do recurso"
+                    />
+                    <select
+                      value={editingAssetKind}
+                      onChange={(event) => setEditingAssetKind(event.target.value as AssetKind)}
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                    >
+                      {assetKinds.map((kind) => (
+                        <option key={kind} value={kind}>
+                          {assetKindLabel(kind)}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleAssetEditSave}
+                        disabled={isAssetPending}
+                        className="inline-flex items-center gap-2 rounded-xl border border-amber-300/28 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:opacity-60"
+                      >
+                        {isAssetPending ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}
+                        salvar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingAssetId(null)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
+                      >
+                        cancelar
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-sm font-semibold text-white">{asset.label}</p>
+                      <p className="mt-1 text-xs text-[color:var(--ink-3)]">{assetKindLabel(asset.kind)}</p>
+                    </div>
+                    {canManage && (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => beginAssetEdit(asset)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
+                        >
+                          <PencilLine size={14} />
+                          editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAssetDelete(asset.id)}
+                          disabled={isAssetPending}
+                          className="inline-flex items-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-xs font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
+                        >
+                          {isAssetPending && editingAssetId === asset.id ? (
+                            <LoaderCircle size={14} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
+                          excluir
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </article>
           ))}
         </div>
@@ -432,6 +746,9 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
               isOnline={character.ownerParticipantId ? onlineParticipantIds.has(character.ownerParticipantId) : false}
               canAdjust={viewer?.role === "gm" || viewer?.participantId === character.ownerParticipantId}
               canManageInitiative={viewer?.role === "gm"}
+              canManageProfile={viewer?.role === "gm"}
+              participantOptions={playerParticipants}
+              assetOptions={assets}
               sessionCode={sessionCode}
             />
           ))}

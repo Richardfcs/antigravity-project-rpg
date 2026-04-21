@@ -2,7 +2,11 @@
 
 import { useEffect, useRef } from "react";
 
-import { findActiveAudioTrack, getExpectedPlaybackPosition } from "@/lib/audio/selectors";
+import {
+  clampPlaybackPosition,
+  findActiveAudioTrack,
+  getExpectedPlaybackPosition
+} from "@/lib/audio/selectors";
 import { useAudioStore } from "@/stores/audio-store";
 
 export function AudioSyncLayer() {
@@ -15,6 +19,8 @@ export function AudioSyncLayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingPositionRef = useRef<number | null>(null);
   const pendingStatusRef = useRef<string | null>(null);
+  const lastTransportKeyRef = useRef<string | null>(null);
+  const lastUnlockNonceRef = useRef<number>(0);
   const activeTrack = findActiveAudioTrack(tracks, playback);
 
   useEffect(() => {
@@ -30,7 +36,10 @@ export function AudioSyncLayer() {
 
     const handleLoadedMetadata = () => {
       if (pendingPositionRef.current != null && Number.isFinite(pendingPositionRef.current)) {
-        audio.currentTime = pendingPositionRef.current;
+        audio.currentTime = clampPlaybackPosition(
+          pendingPositionRef.current,
+          Number.isFinite(audio.duration) ? audio.duration : null
+        );
       }
 
       if (pendingStatusRef.current === "paused" || pendingStatusRef.current === "stopped") {
@@ -40,12 +49,18 @@ export function AudioSyncLayer() {
       setRuntimePosition(audio.currentTime);
     };
 
+    const handleEnded = () => {
+      setRuntimePosition(Number.isFinite(audio.duration) ? audio.duration : audio.currentTime);
+    };
+
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("ended", handleEnded);
 
     return () => {
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("ended", handleEnded);
     };
   }, [setRuntimePosition]);
 
@@ -60,6 +75,7 @@ export function AudioSyncLayer() {
       audio.pause();
       pendingPositionRef.current = 0;
       pendingStatusRef.current = "stopped";
+      lastTransportKeyRef.current = null;
       if (audio.currentTime !== 0) {
         audio.currentTime = 0;
       }
@@ -71,6 +87,7 @@ export function AudioSyncLayer() {
     setRuntimeError(null);
 
     if (audio.src !== activeTrack.sourceUrl) {
+      lastTransportKeyRef.current = null;
       audio.src = activeTrack.sourceUrl;
       audio.load();
     }
@@ -84,45 +101,69 @@ export function AudioSyncLayer() {
     }
 
     audio.volume = playback.volume;
-
+    audio.loop = playback.loopEnabled;
+    const durationSeconds =
+      activeTrack?.durationSeconds ??
+      (Number.isFinite(audio.duration) ? audio.duration : null);
     const targetPosition =
-      playback.status === "stopped" ? 0 : getExpectedPlaybackPosition(playback);
+      playback.status === "stopped"
+        ? 0
+        : getExpectedPlaybackPosition(playback, durationSeconds);
+    const transportKey = [
+      playback.trackId ?? "none",
+      playback.status,
+      playback.positionSeconds.toFixed(3),
+      playback.startedAt ?? "nostart"
+    ].join("|");
+    const transportChanged = transportKey !== lastTransportKeyRef.current;
+    const unlockRequested = unlockNonce !== lastUnlockNonceRef.current;
 
     pendingPositionRef.current = targetPosition;
     pendingStatusRef.current = playback.status;
 
     if (
+      transportChanged &&
       audio.readyState >= 1 &&
       Number.isFinite(targetPosition) &&
-      Math.abs(audio.currentTime - targetPosition) > 0.2
+      Math.abs(audio.currentTime - targetPosition) > 0.35
     ) {
       audio.currentTime = targetPosition;
+      setRuntimePosition(audio.currentTime);
     }
 
     if (!activeTrack || activeTrack.sourceType !== "upload") {
       audio.pause();
+      lastTransportKeyRef.current = transportKey;
+      lastUnlockNonceRef.current = unlockNonce;
       return;
     }
 
     if (playback.status === "playing") {
-      void audio.play().then(
-        () => {
-          setUnlockRequired(false);
-          setRuntimeError(null);
-        },
-        () => {
-          setUnlockRequired(true);
-          setRuntimeError(
-            "O navegador bloqueou o audio nesta aba. Use 'Ativar audio' para sincronizar a trilha."
-          );
-        }
-      );
+      if (transportChanged || unlockRequested || audio.paused) {
+        void audio.play().then(
+          () => {
+            setUnlockRequired(false);
+            setRuntimeError(null);
+          },
+          () => {
+            setUnlockRequired(true);
+            setRuntimeError(
+              "O navegador bloqueou o audio nesta aba. Use 'Ativar audio' para sincronizar a trilha."
+            );
+          }
+        );
+      }
+
+      lastTransportKeyRef.current = transportKey;
+      lastUnlockNonceRef.current = unlockNonce;
       return;
     }
 
     if (playback.status === "paused") {
       audio.pause();
       setUnlockRequired(false);
+      lastTransportKeyRef.current = transportKey;
+      lastUnlockNonceRef.current = unlockNonce;
       return;
     }
 
@@ -132,10 +173,13 @@ export function AudioSyncLayer() {
     if (audio.readyState >= 1 && audio.currentTime !== 0) {
       audio.currentTime = 0;
     }
+
+    lastTransportKeyRef.current = transportKey;
+    lastUnlockNonceRef.current = unlockNonce;
   }, [
     activeTrack,
     playback,
-    playback?.updatedAt,
+    setRuntimePosition,
     setRuntimeError,
     setUnlockRequired,
     unlockNonce

@@ -30,6 +30,34 @@ function buildInfraError(): AudioActionResult {
   };
 }
 
+function normalizeActionPosition(value: number, durationSeconds?: number | null) {
+  const normalized = Number.isFinite(value) ? Math.max(0, Number(value)) : 0;
+
+  if (durationSeconds == null || !Number.isFinite(durationSeconds)) {
+    return normalized;
+  }
+
+  return Math.min(normalized, Math.max(0, Number(durationSeconds)));
+}
+
+function getCurrentPlaybackPosition(playback: SessionAudioStateRecord | null) {
+  if (!playback) {
+    return 0;
+  }
+
+  if (playback.status !== "playing" || !playback.startedAt) {
+    return playback.positionSeconds;
+  }
+
+  const startedAt = Date.parse(playback.startedAt);
+
+  if (Number.isNaN(startedAt)) {
+    return playback.positionSeconds;
+  }
+
+  return playback.positionSeconds + Math.max(0, (Date.now() - startedAt) / 1000);
+}
+
 export async function registerUploadedAudioTrackAction(input: {
   sessionCode: string;
   title: string;
@@ -102,6 +130,7 @@ export async function deleteAudioTrackAction(input: {
         trackId: null,
         status: "stopped",
         volume: playback.volume,
+        loopEnabled: playback.loopEnabled,
         positionSeconds: 0
       });
     }
@@ -137,6 +166,7 @@ export async function selectAudioTrackAction(input: {
       trackId: track.id,
       status: "paused",
       volume: current?.volume ?? 0.72,
+      loopEnabled: current?.loopEnabled ?? false,
       positionSeconds: 0
     });
 
@@ -155,6 +185,7 @@ export async function syncAudioPlaybackAction(input: {
   trackId?: string | null;
   positionSeconds?: number;
   volume?: number;
+  loopEnabled?: boolean;
 }): Promise<AudioActionResult> {
   if (!getInfraReadiness().serviceRole) {
     return buildInfraError();
@@ -164,6 +195,8 @@ export async function syncAudioPlaybackAction(input: {
     const { session } = await requireSessionViewer(input.sessionCode, "gm");
     const current = await getSessionAudioState(session.id);
     const trackId = input.trackId ?? current?.trackId ?? null;
+    const hasExplicitPosition = typeof input.positionSeconds === "number";
+    let trackDurationSeconds: number | null = null;
 
     if (input.status === "playing" && !trackId) {
       throw new Error("Selecione uma faixa antes de dar play.");
@@ -175,6 +208,36 @@ export async function syncAudioPlaybackAction(input: {
       if (!track || track.sessionId !== session.id) {
         throw new Error("Faixa nao encontrada nesta sessao.");
       }
+
+      trackDurationSeconds = track.durationSeconds;
+    }
+
+    const currentPositionSeconds = normalizeActionPosition(
+      getCurrentPlaybackPosition(current),
+      trackDurationSeconds
+    );
+
+    let positionSeconds = normalizeActionPosition(
+      hasExplicitPosition ? input.positionSeconds ?? 0 : currentPositionSeconds,
+      trackDurationSeconds
+    );
+    let startedAt: string | null = null;
+
+    if (input.status === "stopped") {
+      positionSeconds = 0;
+      startedAt = null;
+    } else if (input.status === "paused") {
+      startedAt = null;
+    } else if (hasExplicitPosition) {
+      startedAt = new Date().toISOString();
+    } else if (current?.status === "playing" && current?.trackId === trackId) {
+      positionSeconds = normalizeActionPosition(
+        current.positionSeconds,
+        trackDurationSeconds
+      );
+      startedAt = current.startedAt ?? new Date().toISOString();
+    } else {
+      startedAt = new Date().toISOString();
     }
 
     const playback = await upsertSessionAudioState({
@@ -182,8 +245,9 @@ export async function syncAudioPlaybackAction(input: {
       trackId,
       status: input.status,
       volume: input.volume ?? current?.volume ?? 0.72,
-      positionSeconds: input.positionSeconds ?? current?.positionSeconds ?? 0,
-      startedAt: input.status === "playing" ? new Date().toISOString() : null
+      loopEnabled: input.loopEnabled ?? current?.loopEnabled ?? false,
+      positionSeconds,
+      startedAt
     });
 
     return { ok: true, playback };

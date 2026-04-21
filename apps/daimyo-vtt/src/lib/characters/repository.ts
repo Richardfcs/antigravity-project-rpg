@@ -143,6 +143,50 @@ export async function createSessionCharacter(input: {
   return mapCharacterRow(data);
 }
 
+export async function updateSessionCharacterProfile(input: {
+  characterId: string;
+  name?: string;
+  type?: CharacterType;
+  ownerParticipantId?: string | null;
+  assetId?: string | null;
+}) {
+  const patch: Record<string, string | null> = {};
+
+  if (input.name !== undefined) {
+    const name = sanitizeName(input.name, 64);
+
+    if (!name) {
+      throw new Error("Informe um nome valido para a ficha.");
+    }
+
+    patch.name = name;
+  }
+
+  if (input.type !== undefined) {
+    patch.type = input.type;
+  }
+
+  if (input.ownerParticipantId !== undefined) {
+    patch.owner_participant_id = input.ownerParticipantId;
+  }
+
+  if (input.assetId !== undefined) {
+    patch.asset_id = input.assetId;
+  }
+
+  const { data, error } = await getCharacterTable()
+    .update(patch)
+    .eq("id", input.characterId)
+    .select("*")
+    .single<CharacterRow>();
+
+  if (error || !data) {
+    throw error ?? new Error("Falha ao atualizar a ficha.");
+  }
+
+  return mapCharacterRow(data);
+}
+
 export async function adjustCharacterResource(input: {
   characterId: string;
   resource: "hp" | "fp";

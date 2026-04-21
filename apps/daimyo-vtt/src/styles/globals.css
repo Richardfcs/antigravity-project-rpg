@@ -188,6 +188,40 @@ body::after {
 }
 
 @layer components {
+  .daimyo-shell-bg {
+    background:
+      radial-gradient(
+        circle at top left,
+        color-mix(in srgb, var(--gold) 16%, transparent),
+        transparent 24%
+      ),
+      radial-gradient(
+        circle at top right,
+        color-mix(in srgb, var(--red-accent) 14%, transparent),
+        transparent 22%
+      ),
+      linear-gradient(
+        180deg,
+        var(--bg-deep),
+        color-mix(in srgb, var(--bg-deep) 62%, var(--bg-panel) 38%) 48%,
+        color-mix(in srgb, var(--bg-deep) 74%, var(--red-blood) 26%)
+      );
+  }
+
+  .daimyo-hero-wash {
+    background:
+      radial-gradient(
+        circle at top right,
+        color-mix(in srgb, var(--gold) 28%, transparent),
+        transparent 38%
+      ),
+      radial-gradient(
+        circle at bottom left,
+        color-mix(in srgb, var(--red-accent) 22%, transparent),
+        transparent 34%
+      );
+  }
+
   .surface-panel {
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.01)),

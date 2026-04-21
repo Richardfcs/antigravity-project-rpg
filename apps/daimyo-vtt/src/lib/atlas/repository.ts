@@ -24,6 +24,9 @@ interface AtlasPinRow {
   atlas_map_id: string;
   title: string;
   description: string;
+  is_visible_to_players: boolean | null;
+  is_name_visible_to_players: boolean | null;
+  is_quest_marked: boolean | null;
   x: number;
   y: number;
   image_asset_id: string | null;
@@ -72,6 +75,9 @@ function mapAtlasPinRow(row: AtlasPinRow): SessionAtlasPinRecord {
     atlasMapId: row.atlas_map_id,
     title: row.title,
     description: row.description,
+    isVisibleToPlayers: Boolean(row.is_visible_to_players),
+    isNameVisibleToPlayers: Boolean(row.is_name_visible_to_players),
+    isQuestMarked: Boolean(row.is_quest_marked),
     x: Number(row.x),
     y: Number(row.y),
     imageAssetId: row.image_asset_id,
@@ -406,6 +412,9 @@ export async function createSessionAtlasPin(input: {
   atlasMapId: string;
   title: string;
   description?: string;
+  isVisibleToPlayers?: boolean;
+  isNameVisibleToPlayers?: boolean;
+  isQuestMarked?: boolean;
   x: number;
   y: number;
   imageAssetId?: string | null;
@@ -425,6 +434,9 @@ export async function createSessionAtlasPin(input: {
       atlas_map_id: input.atlasMapId,
       title,
       description,
+      is_visible_to_players: input.isVisibleToPlayers ?? false,
+      is_name_visible_to_players: input.isNameVisibleToPlayers ?? false,
+      is_quest_marked: input.isQuestMarked ?? false,
       x: normalizePercent(input.x, 50),
       y: normalizePercent(input.y, 50),
       image_asset_id: input.imageAssetId ?? null,
@@ -499,6 +511,9 @@ export async function updateSessionAtlasPinDetails(input: {
   pinId: string;
   title?: string;
   description?: string;
+  isVisibleToPlayers?: boolean;
+  isNameVisibleToPlayers?: boolean;
+  isQuestMarked?: boolean;
   imageAssetId?: string | null;
   submapAssetId?: string | null;
   characterIds?: string[];
@@ -509,7 +524,7 @@ export async function updateSessionAtlasPinDetails(input: {
     throw new Error("Pin nao encontrado nesta sessao.");
   }
 
-  const patch: Record<string, string | null> = {};
+  const patch: Record<string, string | boolean | null> = {};
 
   if (input.title !== undefined) {
     const title = sanitizeName(input.title, 72);
@@ -531,6 +546,18 @@ export async function updateSessionAtlasPinDetails(input: {
 
   if (input.submapAssetId !== undefined) {
     patch.submap_asset_id = input.submapAssetId;
+  }
+
+  if (input.isVisibleToPlayers !== undefined) {
+    patch.is_visible_to_players = input.isVisibleToPlayers;
+  }
+
+  if (input.isNameVisibleToPlayers !== undefined) {
+    patch.is_name_visible_to_players = input.isNameVisibleToPlayers;
+  }
+
+  if (input.isQuestMarked !== undefined) {
+    patch.is_quest_marked = input.isQuestMarked;
   }
 
   const { data, error } = await getAtlasPinTable()

@@ -6,12 +6,10 @@ import {
   Flame,
   Eye,
   EyeOff,
-  Grid2X2,
   HeartCrack,
   LoaderCircle,
   Minus,
   MoonStar,
-  Move,
   Plus,
   ScanSearch,
   Skull,
@@ -140,6 +138,7 @@ export function TacticalMapStage({
   const removeMapToken = useMapStore((state) => state.removeMapToken);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const zoomRef = useRef(1);
   const [zoom, setZoom] = useState(1);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
@@ -157,23 +156,29 @@ export function TacticalMapStage({
   const [isPending, startTransition] = useTransition();
   const isFocus = viewMode === "focus";
 
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
   const centerViewport = useCallback(
-    (targetZoom = zoom) => {
+    (targetZoom?: number) => {
       const viewport = viewportRef.current;
 
       if (!viewport || !map) {
         return;
       }
 
-      const scaledWidth = map.width * targetZoom;
-      const scaledHeight = map.height * targetZoom;
+      const resolvedZoom = targetZoom ?? zoomRef.current;
+
+      const scaledWidth = map.width * resolvedZoom;
+      const scaledHeight = map.height * resolvedZoom;
 
       viewport.scrollTo({
         left: Math.max(0, (scaledWidth - viewport.clientWidth) / 2),
         top: Math.max(0, (scaledHeight - viewport.clientHeight) / 2)
       });
     },
-    [map, zoom]
+    [map]
   );
 
   const fitToViewport = useCallback(() => {
@@ -185,7 +190,7 @@ export function TacticalMapStage({
 
     const widthRatio = viewport.clientWidth / map.width;
     const heightRatio = viewport.clientHeight / map.height;
-    const nextZoom = clamp(Number(Math.min(widthRatio, heightRatio).toFixed(2)), 0.6, 2.4);
+    const nextZoom = clamp(Number(Math.min(widthRatio, heightRatio).toFixed(2)), 0.15, 2.4);
 
     setZoom(nextZoom);
     window.requestAnimationFrame(() => {
@@ -265,6 +270,36 @@ export function TacticalMapStage({
       window.removeEventListener("pointerup", handlePointerUp);
     };
   }, [dragState, map, onMoveToken]);
+
+  useEffect(() => {
+    if (!dragState) {
+      return;
+    }
+
+    const viewport = viewportRef.current;
+    const previousBodyUserSelect = document.body.style.userSelect;
+    const previousBodyCursor = document.body.style.cursor;
+    const previousTouchAction = viewport?.style.touchAction ?? "";
+    const previousOverflow = viewport?.style.overflow ?? "";
+
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "grabbing";
+
+    if (viewport) {
+      viewport.style.touchAction = "none";
+      viewport.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.body.style.userSelect = previousBodyUserSelect;
+      document.body.style.cursor = previousBodyCursor;
+
+      if (viewport) {
+        viewport.style.touchAction = previousTouchAction;
+        viewport.style.overflow = previousOverflow;
+      }
+    };
+  }, [dragState]);
 
   const tokenAssetOptions = useMemo(
     () => assetOptions.filter((asset) => ["token", "portrait", "npc"].includes(asset.kind)),
@@ -576,7 +611,7 @@ export function TacticalMapStage({
             className="rail-button h-9 px-3 text-xs font-semibold uppercase tracking-[0.16em]"
           >
             <ScanSearch size={14} />
-            fit
+            inteiro
           </button>
           <button
             type="button"
@@ -729,201 +764,205 @@ export function TacticalMapStage({
           compact ? "min-h-[320px]" : isFocus ? "min-h-0" : "min-h-[360px]"
         )}
       >
-        <div
-          ref={surfaceRef}
-          className="relative overflow-hidden"
-          style={{
-            width: `${renderedWidth}px`,
-            height: `${renderedHeight}px`
-          }}
-          onClick={handleSurfaceClick}
-        >
+        <div className="flex min-h-full min-w-full items-center justify-center p-3 md:p-4">
           <div
-            className={cn(
-              "absolute inset-0",
-              backgroundUrl ? "bg-center bg-no-repeat" : "ghost-grid"
-            )}
+            ref={surfaceRef}
+            className="relative shrink-0 overflow-hidden"
             style={{
-              backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
-              backgroundSize: "contain"
+              width: `${renderedWidth}px`,
+              height: `${renderedHeight}px`
             }}
-          />
-
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(circle at top, rgba(110,231,249,0.08), transparent 24%), radial-gradient(circle at bottom right, rgba(245,158,11,0.08), transparent 22%)"
-            }}
-          />
-
-          {map.gridEnabled && (
+            onClick={handleSurfaceClick}
+          >
             <div
-              className="pointer-events-none absolute inset-0"
+              className={cn(
+                "absolute inset-0",
+                backgroundUrl ? "bg-center bg-no-repeat" : "ghost-grid"
+              )}
               style={{
-                backgroundImage:
-                  "linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px)",
-                backgroundSize: `${gridPixelSize}px ${gridPixelSize}px`
+                backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
+                backgroundSize: "contain"
               }}
             />
-          )}
 
-          {canManageTokens && isCreatorOpen && (
             <div
-              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
-              style={{ left: `${draftPoint.x}%`, top: `${draftPoint.y}%` }}
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-300/40 bg-amber-300/16 text-amber-100 shadow-[0_0_30px_rgba(245,158,11,0.28)]">
-                <Plus size={16} />
-              </div>
-            </div>
-          )}
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(circle at top, rgba(110,231,249,0.08), transparent 24%), radial-gradient(circle at bottom right, rgba(245,158,11,0.08), transparent 22%)"
+              }}
+            />
 
-          {visibleTokens.map((entry) => {
-            const position = tokenPositions.get(entry.token.id) ?? {
-              x: entry.token.x,
-              y: entry.token.y
-            };
-            const isOwnToken =
-              entry.ownerParticipantId != null &&
-              entry.ownerParticipantId === viewerParticipantId;
-            const canDrag = canManageTokens || isOwnToken;
-            const size = clamp(56 * zoom * entry.token.scale, 34, 110);
-            const isSelected =
-              entry.token.id === selectedTokenId || entry.token.id === tokenMenu?.tokenId;
-            const factionStyle = entry.token.faction
-              ? factionMeta[entry.token.faction]
-              : null;
-
-            return (
-              <button
-                key={entry.token.id}
-                type="button"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setSelectedTokenId(entry.token.id);
-                  setTokenMenu(null);
-                }}
-                onContextMenu={(event) => {
-                  if (!canManageTokens) {
-                    return;
-                  }
-
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setSelectedTokenId(entry.token.id);
-                  setTokenMenu({
-                    tokenId: entry.token.id,
-                    x: event.clientX,
-                    y: event.clientY,
-                    label: entry.label,
-                    scale: entry.token.scale,
-                    assetId: entry.token.assetId ?? "",
-                    faction: entry.token.faction ?? "",
-                    statusEffects: entry.token.statusEffects
-                  });
-                }}
-                onPointerDown={(event) => {
-                  if (!canDrag) {
-                    return;
-                  }
-
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setSelectedTokenId(entry.token.id);
-                  setDragState({
-                    tokenId: entry.token.id,
-                    x: position.x,
-                    y: position.y
-                  });
-                }}
-                className={cn(
-                  "absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1",
-                  canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default"
-                )}
+            {map.gridEnabled && (
+              <div
+                className="pointer-events-none absolute inset-0"
                 style={{
-                  left: `${position.x}%`,
-                  top: `${position.y}%`,
-                  width: `${size + 16}px`
+                  backgroundImage:
+                    "linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px)",
+                  backgroundSize: `${gridPixelSize}px ${gridPixelSize}px`
                 }}
-                aria-label={entry.label}
+              />
+            )}
+
+            {canManageTokens && isCreatorOpen && (
+              <div
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+                style={{ left: `${draftPoint.x}%`, top: `${draftPoint.y}%` }}
               >
-                <div
+                <div className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-300/40 bg-amber-300/16 text-amber-100 shadow-[0_0_30px_rgba(245,158,11,0.28)]">
+                  <Plus size={16} />
+                </div>
+              </div>
+            )}
+
+            {visibleTokens.map((entry) => {
+              const position = tokenPositions.get(entry.token.id) ?? {
+                x: entry.token.x,
+                y: entry.token.y
+              };
+              const isOwnToken =
+                entry.ownerParticipantId != null &&
+                entry.ownerParticipantId === viewerParticipantId;
+              const canDrag = canManageTokens || isOwnToken;
+              const size = clamp(56 * zoom * entry.token.scale, 34, 110);
+              const isSelected =
+                entry.token.id === selectedTokenId || entry.token.id === tokenMenu?.tokenId;
+              const factionStyle = entry.token.faction
+                ? factionMeta[entry.token.faction]
+                : null;
+
+              return (
+                <button
+                  key={entry.token.id}
+                  type="button"
+                  draggable={false}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setSelectedTokenId(entry.token.id);
+                    setTokenMenu(null);
+                  }}
+                  onContextMenu={(event) => {
+                    if (!canManageTokens) {
+                      return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setSelectedTokenId(entry.token.id);
+                    setTokenMenu({
+                      tokenId: entry.token.id,
+                      x: event.clientX,
+                      y: event.clientY,
+                      label: entry.label,
+                      scale: entry.token.scale,
+                      assetId: entry.token.assetId ?? "",
+                      faction: entry.token.faction ?? "",
+                      statusEffects: entry.token.statusEffects
+                    });
+                  }}
+                  onPointerDown={(event) => {
+                    if (!canDrag) {
+                      return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    setSelectedTokenId(entry.token.id);
+                    setDragState({
+                      tokenId: entry.token.id,
+                      x: position.x,
+                      y: position.y
+                    });
+                  }}
                   className={cn(
-                    "relative overflow-hidden rounded-full border-2 bg-[rgba(7,16,24,0.82)] shadow-[0_10px_30px_rgba(2,6,23,0.55)] transition",
-                    isSelected
-                      ? "border-amber-300/55 shadow-[0_0_0_4px_rgba(245,158,11,0.16),0_14px_36px_rgba(2,6,23,0.55)]"
-                      : factionStyle
-                        ? factionStyle.ring
-                        : canDrag
-                          ? "border-amber-300/35 hover:border-cyan-200/55"
-                          : "border-white/20",
-                    canManageTokens && !entry.token.isVisibleToPlayers && "opacity-55"
+                    "absolute flex -translate-x-1/2 -translate-y-1/2 touch-none select-none flex-col items-center gap-1",
+                    canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default"
                   )}
                   style={{
-                    width: `${size}px`,
-                    height: `${size}px`
+                    left: `${position.x}%`,
+                    top: `${position.y}%`,
+                    width: `${size + 16}px`
                   }}
+                  aria-label={entry.label}
                 >
-                  {entry.asset?.secureUrl ? (
-                    <div
-                      className="absolute inset-0 bg-cover bg-no-repeat"
-                      style={{
-                        backgroundImage: `url(${entry.asset.secureUrl})`,
-                        backgroundPosition: "center 14%"
-                      }}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-lg font-semibold text-white">
-                      {entry.label.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
-
-                  {entry.token.statusEffects.length > 0 && (
-                    <div className="absolute right-1 top-1 flex max-w-[70%] flex-wrap justify-end gap-1">
-                      {entry.token.statusEffects.map((status) => {
-                        const meta = tokenStatusMeta[status];
-
-                        return (
-                          <span
-                            key={`${entry.token.id}:${status}`}
-                            className={cn(
-                              "flex h-5 w-5 items-center justify-center rounded-full border bg-black/70",
-                              meta.chip
-                            )}
-                            title={meta.label}
-                          >
-                            <meta.icon size={10} />
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {canManageTokens && !entry.token.isVisibleToPlayers && (
-                    <div className="absolute inset-x-0 bottom-0 flex justify-center bg-black/46 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-50">
-                      oculto
-                    </div>
-                  )}
-                </div>
-
-                <span className="rounded-full border border-black/30 bg-black/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
-                  {entry.label}
-                </span>
-                {entry.token.faction && (
-                  <span
+                  <div
                     className={cn(
-                      "rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]",
-                      factionMeta[entry.token.faction].chip
+                      "relative overflow-hidden rounded-full border-2 bg-[rgba(7,16,24,0.82)] shadow-[0_10px_30px_rgba(2,6,23,0.55)] transition",
+                      isSelected
+                        ? "border-amber-300/55 shadow-[0_0_0_4px_rgba(245,158,11,0.16),0_14px_36px_rgba(2,6,23,0.55)]"
+                        : factionStyle
+                          ? factionStyle.ring
+                          : canDrag
+                            ? "border-amber-300/35 hover:border-cyan-200/55"
+                            : "border-white/20",
+                      canManageTokens && !entry.token.isVisibleToPlayers && "opacity-55"
                     )}
+                    style={{
+                      width: `${size}px`,
+                      height: `${size}px`
+                    }}
                   >
-                    {factionMeta[entry.token.faction].label}
+                    {entry.asset?.secureUrl ? (
+                      <div
+                        className="absolute inset-0 bg-cover bg-no-repeat"
+                        style={{
+                          backgroundImage: `url(${entry.asset.secureUrl})`,
+                          backgroundPosition: "center 14%"
+                        }}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-lg font-semibold text-white">
+                        {entry.label.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+
+                    {entry.token.statusEffects.length > 0 && (
+                      <div className="absolute right-1 top-1 flex max-w-[70%] flex-wrap justify-end gap-1">
+                        {entry.token.statusEffects.map((status) => {
+                          const meta = tokenStatusMeta[status];
+
+                          return (
+                            <span
+                              key={`${entry.token.id}:${status}`}
+                              className={cn(
+                                "flex h-5 w-5 items-center justify-center rounded-full border bg-black/70",
+                                meta.chip
+                              )}
+                              title={meta.label}
+                            >
+                              <meta.icon size={10} />
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {canManageTokens && !entry.token.isVisibleToPlayers && (
+                      <div className="absolute inset-x-0 bottom-0 flex justify-center bg-black/46 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-50">
+                        oculto
+                      </div>
+                    )}
+                  </div>
+
+                  <span className="rounded-full border border-black/30 bg-black/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
+                    {entry.label}
                   </span>
-                )}
-              </button>
-            );
-          })}
+                  {entry.token.faction && (
+                    <span
+                      className={cn(
+                        "rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]",
+                        factionMeta[entry.token.faction].chip
+                      )}
+                    >
+                      {factionMeta[entry.token.faction].label}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {tokenMenu && selectedToken && canManageTokens && (
@@ -1096,44 +1135,6 @@ export function TacticalMapStage({
           </div>
         )}
       </div>
-
-      {!isFocus && (
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3">
-            <div className="flex items-center gap-2 text-white">
-              <Move size={15} className="text-amber-100" />
-              <p className="text-sm font-medium">Navegacao</p>
-            </div>
-            <p className="mt-2 text-xs leading-5 text-[color:var(--ink-3)]">
-              Role ou arraste a viewport para explorar o campo quando estiver ampliado.
-            </p>
-          </div>
-
-          <div className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3">
-            <div className="flex items-center gap-2 text-white">
-              <Grid2X2 size={15} className="text-amber-100" />
-              <p className="text-sm font-medium">Grid</p>
-            </div>
-            <p className="mt-2 text-xs leading-5 text-[color:var(--ink-3)]">
-              {map.gridEnabled
-                ? `As posicoes usam grade de ${map.gridSize}px.`
-                : "Movimentacao livre, sem encaixe em grade."}
-            </p>
-          </div>
-
-          <div className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3">
-            <div className="flex items-center gap-2 text-white">
-              <ShieldAlert size={15} className="text-amber-100" />
-              <p className="text-sm font-medium">Permissao</p>
-            </div>
-            <p className="mt-2 text-xs leading-5 text-[color:var(--ink-3)]">
-              {canManageTokens
-                ? "Mestre ve tokens ocultos, cria novos no palco e edita tudo por clique direito."
-                : "Jogadores movem apenas o token vinculado a propria ficha e nao veem controles do mestre."}
-            </p>
-          </div>
-        </div>
-      )}
 
       {feedback && <p className="text-sm text-amber-100">{feedback}</p>}
     </div>

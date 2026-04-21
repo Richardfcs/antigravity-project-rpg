@@ -14,6 +14,17 @@ export interface AtlasStagePin {
   linkedCharacterAssets: Array<SessionAssetRecord | null>;
 }
 
+export function canPlayerSeeAtlasPin(pin: SessionAtlasPinRecord) {
+  return pin.isVisibleToPlayers || pin.isNameVisibleToPlayers;
+}
+
+export function filterAtlasPinsForViewer(
+  atlasPins: SessionAtlasPinRecord[],
+  canRevealAll: boolean
+) {
+  return canRevealAll ? atlasPins : atlasPins.filter(canPlayerSeeAtlasPin);
+}
+
 export function sortAtlasMaps(atlasMaps: SessionAtlasMapRecord[]) {
   return [...atlasMaps].sort((left, right) =>
     left.createdAt.localeCompare(right.createdAt)

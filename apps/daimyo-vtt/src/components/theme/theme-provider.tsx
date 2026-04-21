@@ -3,9 +3,10 @@
 import {
   createContext,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
-  useState
+  useState,
+  useSyncExternalStore
 } from "react";
 import { BrushCleaning, Minus, Plus } from "lucide-react";
 
@@ -35,6 +36,18 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
+
+function subscribeToHydration() {
+  return () => {};
+}
+
+function getClientHydrationState() {
+  return true;
+}
+
+function getServerHydrationState() {
+  return false;
+}
 
 function normalizeSettings(partial?: Partial<DaimyoThemeSettings>): DaimyoThemeSettings {
   const defaults = daimyoThemeContract.defaultSettings;
@@ -124,6 +137,14 @@ function readStoredSettings() {
     ...parsedSettings,
     theme: rawTheme ?? parsedSettings.theme
   });
+}
+
+function useHydrated() {
+  return useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationState,
+    getServerHydrationState
+  );
 }
 
 function ThemeSettingsDrawer({
@@ -353,12 +374,13 @@ function ThemeSettingsDrawer({
 export function ThemeProvider({
   children
 }: Readonly<{ children: React.ReactNode }>) {
+  const isHydrated = useHydrated();
   const [settings, setSettings] = useState<DaimyoThemeSettings>(() =>
     readStoredSettings()
   );
   const [isOpen, setIsOpen] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyThemeSettings(settings);
   }, [settings]);
 
@@ -374,7 +396,7 @@ export function ThemeProvider({
   const value = useMemo<ThemeContextValue>(
     () => ({
       settings,
-      isReady: true,
+      isReady: isHydrated,
       isOpen,
       openDrawer: () => setIsOpen(true),
       closeDrawer: () => setIsOpen(false),
@@ -392,21 +414,23 @@ export function ThemeProvider({
           fontSize: current.fontSize + delta
         }))
     }),
-    [isOpen, settings]
+    [isHydrated, isOpen, settings]
   );
 
   return (
     <ThemeContext.Provider value={value}>
       {children}
-      <ThemeSettingsDrawer
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        settings={settings}
-        setTheme={value.setTheme}
-        setTextColor={value.setTextColor}
-        setFontFamily={value.setFontFamily}
-        adjustFontSize={value.adjustFontSize}
-      />
+      {isHydrated ? (
+        <ThemeSettingsDrawer
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          settings={settings}
+          setTheme={value.setTheme}
+          setTextColor={value.setTextColor}
+          setFontFamily={value.setFontFamily}
+          adjustFontSize={value.adjustFontSize}
+        />
+      ) : null}
     </ThemeContext.Provider>
   );
 }

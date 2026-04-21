@@ -4,6 +4,7 @@ import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import {
   AudioLines,
   LoaderCircle,
+  Repeat,
   Pause,
   Play,
   Square,
@@ -19,11 +20,13 @@ import {
   syncAudioPlaybackAction
 } from "@/app/actions/audio-actions";
 import {
+  clampPlaybackPosition,
   findActiveAudioTrack,
   getExpectedPlaybackPosition,
   groupTracksByPlaylist
 } from "@/lib/audio/selectors";
 import { useAudioStore } from "@/stores/audio-store";
+import type { SessionAudioStateRecord } from "@/types/audio";
 import type { SessionViewerIdentity } from "@/types/session";
 
 interface AudioPanelProps {
@@ -73,6 +76,30 @@ function playbackStatusLabel(status?: string | null) {
   }
 }
 
+function getWritablePlaybackPosition(options: {
+  playback: SessionAudioStateRecord | null;
+  runtimePositionSeconds: number;
+  durationSeconds?: number | null;
+}) {
+  const { playback, runtimePositionSeconds, durationSeconds } = options;
+  const runtimePosition = clampPlaybackPosition(runtimePositionSeconds, durationSeconds);
+
+  if (!playback) {
+    return runtimePosition;
+  }
+
+  if (playback.status === "playing") {
+    return runtimePosition > 0
+      ? runtimePosition
+      : getExpectedPlaybackPosition(playback, durationSeconds);
+  }
+
+  const persistedPosition = clampPlaybackPosition(playback.positionSeconds, durationSeconds);
+  return Math.abs(runtimePosition - persistedPosition) <= 0.75
+    ? runtimePosition
+    : persistedPosition;
+}
+
 export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
   const tracks = useAudioStore((state) => state.tracks);
   const playback = useAudioStore((state) => state.playback);
@@ -120,6 +147,8 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
   }));
   const activeTrack = useMemo(() => findActiveAudioTrack(tracks, playback), [tracks, playback]);
   const canManage = viewer?.role === "gm";
+  const activeTrackDuration = activeTrack?.durationSeconds ?? null;
+  const displayedPosition = getExpectedPlaybackPosition(playback, activeTrackDuration);
 
   const runAsync = (key: string, task: () => Promise<void>) => {
     setPendingKey(key);
@@ -292,12 +321,11 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
     }
 
     runAsync(`transport:${status}`, async () => {
-      const positionSeconds =
-        runtimePositionSeconds > 0
-          ? runtimePositionSeconds
-          : playback
-            ? getExpectedPlaybackPosition(playback)
-            : 0;
+      const positionSeconds = getWritablePlaybackPosition({
+        playback,
+        runtimePositionSeconds,
+        durationSeconds: activeTrackDuration
+      });
       const result = await syncAudioPlaybackAction({
         sessionCode,
         status,
@@ -325,12 +353,33 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
         sessionCode,
         status: playback?.status ?? "paused",
         trackId: playback?.trackId ?? activeTrack?.id ?? null,
-        positionSeconds: playback ? getExpectedPlaybackPosition(playback) : runtimePositionSeconds,
         volume: nextValue
       });
 
       if (!result.ok || !result.playback) {
         setFeedback(result.error ?? "Falha ao atualizar o volume.");
+        return;
+      }
+
+      setPlayback(result.playback);
+    });
+  };
+
+  const handleLoopToggle = () => {
+    if (!canManage) {
+      return;
+    }
+
+    runAsync("loop", async () => {
+      const result = await syncAudioPlaybackAction({
+        sessionCode,
+        status: playback?.status ?? "paused",
+        trackId: playback?.trackId ?? activeTrack?.id ?? null,
+        loopEnabled: !(playback?.loopEnabled ?? false)
+      });
+
+      if (!result.ok || !result.playback) {
+        setFeedback(result.error ?? "Falha ao alternar o looping.");
         return;
       }
 
@@ -360,7 +409,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
               {activeTrack?.title ?? "nenhuma"}
             </p>
             <p className="mt-1 text-xs text-[color:var(--ink-3)]">
-              {playbackStatusLabel(playback?.status)} · {formatSeconds(getExpectedPlaybackPosition(playback))}
+              {playbackStatusLabel(playback?.status)} · {formatSeconds(displayedPosition)}
             </p>
           </div>
 
@@ -404,6 +453,23 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                   <Square size={16} />
                 )}
                 stop
+              </button>
+              <button
+                type="button"
+                onClick={handleLoopToggle}
+                disabled={isPending || !playback?.trackId}
+                className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition disabled:opacity-60 ${
+                  playback?.loopEnabled
+                    ? "border-emerald-300/24 bg-emerald-300/10 text-emerald-50 hover:border-emerald-300/40"
+                    : "border-white/10 bg-white/[0.04] text-white hover:border-white/20"
+                }`}
+              >
+                {pendingKey === "loop" ? (
+                  <LoaderCircle size={16} className="animate-spin" />
+                ) : (
+                  <Repeat size={16} />
+                )}
+                {playback?.loopEnabled ? "loop ligado" : "loop desligado"}
               </button>
             </div>
           )}

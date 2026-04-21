@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import {
   AudioLines,
   Expand,
@@ -188,6 +188,7 @@ export function MasterShell({
   effectLayers,
   viewer
 }: MasterShellProps) {
+  const supportPanelRef = useRef<HTMLDivElement | null>(null);
   const [mobileSupportPanel, setMobileSupportPanel] = useState<"explorer" | "dock">(
     "explorer"
   );
@@ -440,6 +441,27 @@ export function MasterShell({
   const shouldRenderInlineStage =
     session.presentationMode !== "immersive" || resolvedImmersiveMinimized;
 
+  const scrollToSupportPanel = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      supportPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
+  };
+
+  const handleSectionSelect = (section: ExplorerSection) => {
+    setActiveSection(section);
+    if (isMobile) {
+      setMobileSupportPanel("explorer");
+    }
+    scrollToSupportPanel();
+  };
+
   const renderStagePanel = () => (
     <StagePanel
       snapshot={session}
@@ -557,7 +579,7 @@ export function MasterShell({
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(212,168,70,0.08),transparent_24%),radial-gradient(circle_at_top_right,rgba(196,30,58,0.08),transparent_20%),linear-gradient(180deg,#050505,#0b0907_48%,#120a08)] text-white">
+    <div className="daimyo-shell-bg min-h-screen text-white">
       <AudioSyncLayer />
       <SessionEffectOverlays viewerParticipantId={viewer?.participantId} allowPreview />
 
@@ -665,7 +687,7 @@ export function MasterShell({
             </div>
           </div>
 
-          <SectionTabs activeSection={activeSection} onSelect={setActiveSection} />
+          <SectionTabs activeSection={activeSection} onSelect={handleSectionSelect} />
         </div>
 
         <div className="mb-4">
@@ -689,13 +711,10 @@ export function MasterShell({
             {shouldRenderInlineStage && renderStagePanel()}
             {renderStatusDrawer()}
 
-            <div className="mobile-shell-tabs">
+            <div ref={supportPanelRef} className="mobile-shell-tabs">
               <SectionTabs
                 activeSection={activeSection}
-                onSelect={(section) => {
-                  setActiveSection(section);
-                  setMobileSupportPanel("explorer");
-                }}
+                onSelect={handleSectionSelect}
                 mobile
               />
 
@@ -762,7 +781,10 @@ export function MasterShell({
               </button>
             )}
 
-            <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+            <div
+              ref={supportPanelRef}
+              className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]"
+            >
               <ExplorerPanel
                 snapshot={session}
                 party={roster}

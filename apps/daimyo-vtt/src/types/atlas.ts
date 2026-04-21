@@ -14,6 +14,9 @@ export interface SessionAtlasPinRecord {
   atlasMapId: string;
   title: string;
   description: string;
+  isVisibleToPlayers: boolean;
+  isNameVisibleToPlayers: boolean;
+  isQuestMarked: boolean;
   x: number;
   y: number;
   imageAssetId: string | null;

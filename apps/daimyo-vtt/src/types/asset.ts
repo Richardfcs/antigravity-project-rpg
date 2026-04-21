@@ -4,6 +4,7 @@ export type AssetKind =
   | "npc"
   | "portrait"
   | "map"
+  | "grid"
   | "ambient";
 
 export interface SessionAssetRecord {

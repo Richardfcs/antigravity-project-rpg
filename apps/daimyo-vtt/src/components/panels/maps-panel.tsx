@@ -30,7 +30,7 @@ interface MapsPanelProps {
   viewer: SessionViewerIdentity | null;
 }
 
-const tacticalMapKinds = new Set(["map"]);
+const tacticalMapKinds = new Set(["grid", "map"]);
 
 export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
   const assets = useAssetStore((state) => state.assets);
@@ -290,7 +290,7 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
             <h3 className="text-sm font-semibold text-white">Novo mapa</h3>
           </div>
           <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-            Escolha um asset do tipo mapa, habilite grade se quiser e publique o campo de batalha.
+            Escolha uma grade tatica ou um mapa comum, habilite grade se quiser e publique o campo de batalha.
           </p>
 
           <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_140px_140px]">
@@ -306,7 +306,7 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
               onChange={(event) => setMapAssetId(event.target.value)}
               className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
             >
-              <option value="">sem mapa</option>
+              <option value="">sem fundo tatico</option>
               {mapAssets.map((asset) => (
                 <option key={asset.id} value={asset.id}>
                   {asset.label}
@@ -453,7 +453,9 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                       )}
                     </div>
                     <p className="mt-2 text-sm text-[color:var(--ink-2)]">
-                      {mapAsset ? `mapa: ${mapAsset.label}` : "sem mapa"}
+                      {mapAsset
+                        ? `${mapAsset.kind === "grid" ? "grade" : "mapa"}: ${mapAsset.label}`
+                        : "sem fundo tatico"}
                     </p>
                     <p className="mt-1 text-xs text-[color:var(--ink-3)]">
                       {map.gridEnabled ? `${map.gridSize}px grid` : "movimento livre"} - {entries.length} tokens

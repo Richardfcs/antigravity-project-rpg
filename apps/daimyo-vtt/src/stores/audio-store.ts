@@ -61,10 +61,23 @@ export const useAudioStore = create<AudioState>((set) => ({
           : state.playback
     })),
   setPlayback: (playback) =>
-    set({
-      playback,
-      runtimePositionSeconds: playback?.positionSeconds ?? 0,
-      unlockRequired: playback?.status === "playing" ? false : false
+    set((state) => {
+      const previous = state.playback;
+      const shouldResetRuntimePosition =
+        !playback ||
+        !previous ||
+        previous.trackId !== playback.trackId ||
+        previous.status !== playback.status ||
+        previous.startedAt !== playback.startedAt ||
+        Math.abs(previous.positionSeconds - playback.positionSeconds) > 0.75;
+
+      return {
+        playback,
+        runtimePositionSeconds: shouldResetRuntimePosition
+          ? playback?.positionSeconds ?? 0
+          : state.runtimePositionSeconds,
+        unlockRequired: playback?.status === "playing" ? state.unlockRequired : false
+      };
     }),
   setRuntimePosition: (seconds) => set({ runtimePositionSeconds: seconds }),
   setRuntimeError: (message) => set({ runtimeError: message }),

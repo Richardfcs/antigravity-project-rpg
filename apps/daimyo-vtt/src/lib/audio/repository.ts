@@ -30,6 +30,7 @@ interface AudioStateRow {
   track_id: string | null;
   status: AudioPlaybackStatus;
   volume: number;
+  loop_enabled?: boolean | null;
   started_at: string | null;
   position_seconds: number;
   updated_at: string;
@@ -77,6 +78,7 @@ function mapAudioStateRow(row: AudioStateRow): SessionAudioStateRecord {
     trackId: row.track_id,
     status: row.status,
     volume: Number(row.volume),
+    loopEnabled: Boolean(row.loop_enabled),
     startedAt: row.started_at,
     positionSeconds: Number(row.position_seconds),
     updatedAt: row.updated_at
@@ -219,6 +221,7 @@ export async function upsertSessionAudioState(input: {
   trackId?: string | null;
   status: AudioPlaybackStatus;
   volume?: number;
+  loopEnabled?: boolean;
   positionSeconds?: number;
   startedAt?: string | null;
 }) {
@@ -229,6 +232,7 @@ export async function upsertSessionAudioState(input: {
         track_id: input.trackId ?? null,
         status: input.status,
         volume: normalizeVolume(input.volume ?? 0.72),
+        loop_enabled: input.loopEnabled ?? false,
         position_seconds: normalizePosition(input.positionSeconds ?? 0),
         started_at:
           input.status === "playing" ? input.startedAt ?? new Date().toISOString() : null

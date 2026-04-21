@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Inter, JetBrains_Mono, Noto_Serif_JP } from "next/font/google";
 
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { buildThemeBootScript } from "@/lib/theme/boot-script";
 import "@/styles/globals.css";
 
 const inter = Inter({
@@ -60,7 +58,6 @@ export default function RootLayout({
         className={`${inter.variable} ${notoSerif.variable} ${mono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <Script id="theme-boot" strategy="beforeInteractive">{buildThemeBootScript()}</Script>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

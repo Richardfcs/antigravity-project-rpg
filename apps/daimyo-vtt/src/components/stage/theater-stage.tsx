@@ -17,38 +17,18 @@ interface TheaterStageProps {
 
 function getCardSize(count: number, compact: boolean) {
   if (count >= 12) {
-    return compact ? "w-[90px]" : "w-[100px]";
+    return compact ? "w-[96px]" : "w-[112px]";
   }
 
   if (count >= 8) {
-    return compact ? "w-[110px]" : "w-[120px]";
+    return compact ? "w-[116px]" : "w-[132px]";
   }
 
   if (count >= 5) {
-    return compact ? "w-[130px]" : "w-[150px]";
+    return compact ? "w-[138px]" : "w-[162px]";
   }
 
-  return compact ? "w-[160px]" : "w-[180px]";
-}
-
-function getGridCols(count: number) {
-  if (count >= 12) {
-    return "grid-cols-4 sm:grid-cols-5 xl:grid-cols-6";
-  }
-
-  if (count >= 8) {
-    return "grid-cols-3 sm:grid-cols-4 xl:grid-cols-5";
-  }
-
-  if (count >= 5) {
-    return "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4";
-  }
-
-  if (count >= 3) {
-    return "grid-cols-2 sm:grid-cols-3";
-  }
-
-  return "grid-cols-1 sm:grid-cols-2";
+  return compact ? "w-[168px]" : "w-[196px]";
 }
 
 function getArcOffset(index: number, total: number) {
@@ -194,12 +174,7 @@ export function TheaterStage({
               ))}
             </div>
           ) : layoutMode === "grid" ? (
-            <div
-              className={cn(
-                "grid w-full content-end justify-items-center gap-3",
-                getGridCols(entries.length)
-              )}
-            >
+            <div className="mx-auto flex w-full max-w-[1280px] flex-wrap content-end justify-center gap-3">
               {entries.map((entry) => (
                 <CastCard
                   key={entry.entry.id}
@@ -212,7 +187,7 @@ export function TheaterStage({
               ))}
             </div>
           ) : (
-            <div className="flex w-full flex-wrap items-end justify-center gap-3">
+            <div className="mx-auto flex w-full max-w-[1320px] flex-wrap items-end justify-center gap-3">
               {entries.map((entry, index) => {
                 const arcOffset =
                   layoutMode === "arc" ? getArcOffset(index, entries.length) : 0;

@@ -4,7 +4,8 @@ import {
   adjustCharacterInitiative,
   adjustCharacterResource,
   createSessionCharacter,
-  findSessionCharacterById
+  findSessionCharacterById,
+  updateSessionCharacterProfile
 } from "@/lib/characters/repository";
 import { getInfraReadiness } from "@/lib/env";
 import { requireSessionViewer } from "@/lib/session/access";
@@ -40,6 +41,15 @@ interface AdjustCharacterInitiativeInput {
   sessionCode: string;
   characterId: string;
   delta: number;
+}
+
+interface UpdateCharacterProfileInput {
+  sessionCode: string;
+  characterId: string;
+  name?: string;
+  type?: CharacterType;
+  ownerParticipantId?: string | null;
+  assetId?: string | null;
 }
 
 function buildInfraError() {
@@ -167,6 +177,67 @@ export async function adjustCharacterInitiativeAction(
         error instanceof Error
           ? error.message
           : "Falha ao atualizar a iniciativa."
+    };
+  }
+}
+
+export async function updateCharacterProfileAction(
+  input: UpdateCharacterProfileInput
+): Promise<CharacterActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const character = await findSessionCharacterById(input.characterId);
+
+    if (!character || character.sessionId !== session.id) {
+      throw new Error("Ficha nao encontrada nesta sessao.");
+    }
+
+    const nextType = input.type ?? character.type;
+    const nextOwnerParticipantId =
+      input.ownerParticipantId !== undefined
+        ? nextType === "player"
+          ? input.ownerParticipantId
+          : null
+        : nextType === "player"
+          ? character.ownerParticipantId
+          : null;
+
+    if (nextOwnerParticipantId) {
+      const participant = await findParticipantById(nextOwnerParticipantId);
+
+      if (!participant || participant.sessionId !== session.id) {
+        throw new Error("O jogador selecionado nao pertence a esta sessao.");
+      }
+    }
+
+    if (input.assetId) {
+      const asset = await findSessionAssetById(input.assetId);
+
+      if (!asset || asset.sessionId !== session.id) {
+        throw new Error("O recurso selecionado nao pertence a esta sessao.");
+      }
+    }
+
+    const updated = await updateSessionCharacterProfile({
+      characterId: character.id,
+      name: input.name,
+      type: nextType,
+      ownerParticipantId: nextOwnerParticipantId,
+      assetId: input.assetId
+    });
+
+    return { ok: true, character: updated };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Falha ao atualizar a ficha."
     };
   }
 }

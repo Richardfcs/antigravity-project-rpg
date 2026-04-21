@@ -34,7 +34,7 @@ interface MapActionResult {
   message?: string;
 }
 
-const tacticalMapKinds = new Set(["map"]);
+const tacticalMapKinds = new Set(["grid", "map"]);
 const tokenAssetKinds = new Set(["token", "portrait", "npc"]);
 const allowedFactions = new Set<TokenFaction>(["ally", "enemy", "neutral"]);
 const allowedTokenStatuses = new Set<TokenStatusPreset>([
@@ -89,7 +89,7 @@ export async function createMapAction(input: {
       }
 
       if (!tacticalMapKinds.has(asset.kind)) {
-        throw new Error("Selecione um asset do tipo map para o campo tatico.");
+        throw new Error("Selecione um asset do tipo grid ou map para o campo tatico.");
       }
 
       if (!resolvedWidth && asset.width) {
@@ -177,7 +177,7 @@ export async function updateMapAction(input: {
       const asset = await findSessionAssetById(input.backgroundAssetId);
 
       if (!asset || !tacticalMapKinds.has(asset.kind)) {
-        throw new Error("Selecione um asset do tipo map para o fundo do mapa.");
+        throw new Error("Selecione um asset do tipo grid ou map para o fundo do mapa.");
       }
     }
 
