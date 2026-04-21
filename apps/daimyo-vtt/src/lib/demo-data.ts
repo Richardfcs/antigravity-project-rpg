@@ -53,6 +53,10 @@ export function buildDemoSession(
     activeAtlasMapId: null,
     stageMode: "theater",
     presentationMode: "standard",
+    combatEnabled: false,
+    combatRound: 1,
+    combatTurnIndex: 0,
+    combatActiveTokenId: null,
     latencyLabel: "24ms",
     sceneMood: "chuva fina + lanternas frias",
     syncState: "booting"

@@ -2,10 +2,12 @@ import type { PresenceRole } from "@/types/presence";
 
 export type StageMode = "theater" | "tactical" | "atlas";
 export type PresentationMode = "standard" | "immersive";
+export type MasterMode = "prep" | "live";
 export type ExplorerSection =
   | "scenes"
   | "maps"
   | "actors"
+  | "codex"
   | "atlas"
   | "effects"
   | "admin"
@@ -29,6 +31,10 @@ export interface SessionRecord {
   activeAtlasMapId: string | null;
   activeStageMode: StageMode;
   presentationMode: PresentationMode;
+  combatEnabled: boolean;
+  combatRound: number;
+  combatTurnIndex: number;
+  combatActiveTokenId: string | null;
   sceneMood: string;
   createdAt: string;
   updatedAt: string;
@@ -64,6 +70,10 @@ export interface SessionShellSnapshot {
   activeAtlasMapId: string | null;
   stageMode: StageMode;
   presentationMode: PresentationMode;
+  combatEnabled: boolean;
+  combatRound: number;
+  combatTurnIndex: number;
+  combatActiveTokenId: string | null;
   latencyLabel: string;
   sceneMood: string;
   syncState: SyncState;

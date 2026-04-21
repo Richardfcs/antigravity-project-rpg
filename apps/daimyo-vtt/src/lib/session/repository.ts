@@ -36,6 +36,10 @@ interface SessionRow {
   active_atlas_map_id: string | null;
   active_stage_mode: StageMode;
   presentation_mode: PresentationMode;
+  combat_enabled?: boolean | null;
+  combat_round?: number | null;
+  combat_turn_index?: number | null;
+  combat_active_token_id?: string | null;
   scene_mood: string;
   created_at: string;
   updated_at: string;
@@ -74,6 +78,10 @@ function mapSessionRow(row: SessionRow): SessionRecord {
     activeAtlasMapId: row.active_atlas_map_id ?? null,
     activeStageMode: row.active_stage_mode ?? "theater",
     presentationMode: row.presentation_mode ?? "standard",
+    combatEnabled: row.combat_enabled ?? false,
+    combatRound: row.combat_round ?? 1,
+    combatTurnIndex: row.combat_turn_index ?? 0,
+    combatActiveTokenId: row.combat_active_token_id ?? null,
     sceneMood: row.scene_mood,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -108,6 +116,10 @@ function mapSessionToSnapshot(
     activeAtlasMapId: session.activeAtlasMapId,
     stageMode: session.activeStageMode,
     presentationMode: session.presentationMode,
+    combatEnabled: session.combatEnabled,
+    combatRound: session.combatRound,
+    combatTurnIndex: session.combatTurnIndex,
+    combatActiveTokenId: session.combatActiveTokenId,
     latencyLabel: "--",
     sceneMood: session.sceneMood,
     syncState: "booting"
@@ -181,6 +193,50 @@ export async function updateSessionPresentationMode(input: {
 
   if (error || !data) {
     throw error ?? new Error("Falha ao atualizar a apresentacao da sessao.");
+  }
+
+  return mapSessionRow(data);
+}
+
+export async function updateSessionCombatState(input: {
+  sessionId: string;
+  combatEnabled?: boolean;
+  combatRound?: number;
+  combatTurnIndex?: number;
+  combatActiveTokenId?: string | null;
+}) {
+  const payload: Record<string, boolean | number | string | null> = {};
+
+  if (input.combatEnabled !== undefined) {
+    payload.combat_enabled = input.combatEnabled;
+  }
+
+  if (input.combatRound !== undefined) {
+    payload.combat_round = Math.max(1, Math.floor(input.combatRound));
+  }
+
+  if (input.combatTurnIndex !== undefined) {
+    payload.combat_turn_index = Math.max(0, Math.floor(input.combatTurnIndex));
+  }
+
+  if (input.combatActiveTokenId !== undefined) {
+    payload.combat_active_token_id = input.combatActiveTokenId;
+  }
+
+  const { data, error } = await getSessionTable()
+    .update(payload)
+    .eq("id", input.sessionId)
+    .select("*")
+    .single<SessionRow>();
+
+  if (error || !data) {
+    if (isMissingColumnError(error)) {
+      throw new Error(
+        "A migration do estado de combate ainda nao foi aplicada no Supabase."
+      );
+    }
+
+    throw error ?? new Error("Falha ao atualizar o estado de combate da sessao.");
   }
 
   return mapSessionRow(data);

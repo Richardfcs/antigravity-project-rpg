@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AlertTriangle, LoaderCircle, ShieldAlert, Trash2 } from "lucide-react";
+import { AlertTriangle, Download, LoaderCircle, ShieldAlert, Trash2 } from "lucide-react";
 
 import {
   resetSessionContentAction,
   resetSessionDatasetAction
 } from "@/app/actions/admin-actions";
+import { daimyoContentBridge } from "@/lib/content-bridge/contract";
 import { useAssetStore } from "@/stores/asset-store";
 import { useAtlasStore } from "@/stores/atlas-store";
 import { useAudioStore } from "@/stores/audio-store";
@@ -77,6 +78,20 @@ const datasets = [
 type DatasetId = (typeof datasets)[number]["id"];
 
 export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
+  const snapshot = useSessionStore((state) => state.snapshot);
+  const assets = useAssetStore((state) => state.assets);
+  const atlasMaps = useAtlasStore((state) => state.atlasMaps);
+  const atlasPins = useAtlasStore((state) => state.atlasPins);
+  const atlasPinCharacters = useAtlasStore((state) => state.atlasPinCharacters);
+  const tracks = useAudioStore((state) => state.tracks);
+  const playback = useAudioStore((state) => state.playback);
+  const characters = useCharacterStore((state) => state.characters);
+  const messages = useChatStore((state) => state.messages);
+  const effects = useEffectLayerStore((state) => state.effects);
+  const maps = useMapStore((state) => state.maps);
+  const mapTokens = useMapStore((state) => state.mapTokens);
+  const scenes = useSceneStore((state) => state.scenes);
+  const sceneCast = useSceneStore((state) => state.sceneCast);
   const setMaps = useMapStore((state) => state.setMaps);
   const setMapTokens = useMapStore((state) => state.setMapTokens);
   const setScenes = useSceneStore((state) => state.setScenes);
@@ -103,6 +118,46 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
   const [isPending, startTransition] = useTransition();
 
   const canManage = viewer?.role === "gm";
+
+  const handleExportSnapshot = () => {
+    if (!snapshot) {
+      setFeedback("A sessão ainda nao carregou por completo para exportar.");
+      return;
+    }
+
+    const payload = {
+      manifest: daimyoContentBridge.defaultManifest("vtt"),
+      exportedAt: new Date().toISOString(),
+      sessionCode,
+      snapshot,
+      assets,
+      characters,
+      scenes,
+      sceneCast,
+      maps,
+      mapTokens,
+      atlasMaps,
+      atlasPins,
+      atlasPinCharacters,
+      tracks,
+      playback,
+      messages,
+      effects
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json"
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `daimyo-snapshot-${sessionCode.toLowerCase()}.json`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    setFeedback("Snapshot da mesa exportado.");
+  };
 
   const applyDatasetResult = (dataset: DatasetId | "all") => {
     if (dataset === "maps" || dataset === "all") {
@@ -244,6 +299,31 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
               em tempo real, com confirmacoes obrigatorias para evitar perda acidental.
             </p>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <p className="section-label">Snapshot oficial</p>
+            <h3 className="mt-2 text-lg font-semibold text-white">
+              Exportar o estado jogável da mesa
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
+              Gera um arquivo JSON com o manifesto da ponte de conteúdo, palco,
+              fichas, mapas, atlas, trilhas, conversa e efeitos vivos.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportSnapshot}
+            disabled={!canManage}
+            className="inline-flex items-center gap-2 rounded-full border border-amber-300/24 bg-amber-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100 transition hover:border-amber-300/40 disabled:opacity-60"
+          >
+            <Download size={14} />
+            exportar snapshot
+          </button>
         </div>
       </section>
 

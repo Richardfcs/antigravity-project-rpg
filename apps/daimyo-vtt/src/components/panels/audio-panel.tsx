@@ -20,12 +20,28 @@ import {
   syncAudioPlaybackAction
 } from "@/app/actions/audio-actions";
 import {
+  LibraryFilterPills,
+  LibraryFlagControls,
+  LibrarySortSelect
+} from "@/components/panels/library-controls";
+import {
   clampPlaybackPosition,
   findActiveAudioTrack,
   getExpectedPlaybackPosition,
   groupTracksByPlaylist
 } from "@/lib/audio/selectors";
+import {
+  filterLibraryItems,
+  filterLibraryItemsByStatus,
+  sliceLibraryItems,
+  sortLibraryItems
+} from "@/lib/library/query";
+import {
+  selectLibraryFlags,
+  useLibraryOrganizationStore
+} from "@/stores/library-organization-store";
 import { useAudioStore } from "@/stores/audio-store";
+import type { LibrarySortMode, LibraryStatusFilter } from "@/types/library";
 import type { SessionAudioStateRecord } from "@/types/audio";
 import type { SessionViewerIdentity } from "@/types/session";
 
@@ -113,6 +129,8 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [playlistFilter, setPlaylistFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<LibraryStatusFilter>("all");
+  const [sortMode, setSortMode] = useState<LibrarySortMode>("name");
   const [visibleCount, setVisibleCount] = useState(10);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -120,30 +138,41 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const groupedTracks = useMemo(() => groupTracksByPlaylist(tracks), [tracks]);
+  const audioLibraryFlags = useLibraryOrganizationStore((state) =>
+    selectLibraryFlags(state, sessionCode, "audio")
+  );
+  const toggleLibraryFlag = useLibraryOrganizationStore((state) => state.toggleFlag);
+  const setLibraryFlag = useLibraryOrganizationStore((state) => state.setFlag);
+  const touchLibraryItem = useLibraryOrganizationStore((state) => state.touchItem);
   const filteredGroups = useMemo(() => {
-    const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
-
     return groupedTracks
       .filter(
         (group) => playlistFilter === "all" || group.playlistName === playlistFilter
       )
       .map((group) => ({
         ...group,
-        tracks: group.tracks.filter((track) => {
-          if (!normalizedQuery) {
-            return true;
+        tracks: sortLibraryItems(
+          filterLibraryItemsByStatus(
+            filterLibraryItems(
+              group.tracks,
+              deferredSearchQuery,
+              (track) => `${track.title} ${track.originalFilename ?? ""} ${group.playlistName}`
+            ),
+            statusFilter,
+            (track) => audioLibraryFlags[track.id]
+          ),
+          {
+            sortMode,
+            getLabel: (track) => track.title,
+            getFlags: (track) => audioLibraryFlags[track.id]
           }
-
-          return `${track.title} ${track.originalFilename ?? ""} ${group.playlistName}`
-            .toLowerCase()
-            .includes(normalizedQuery);
-        })
+        )
       }))
       .filter((group) => group.tracks.length > 0);
-  }, [deferredSearchQuery, groupedTracks, playlistFilter]);
+  }, [audioLibraryFlags, deferredSearchQuery, groupedTracks, playlistFilter, sortMode, statusFilter]);
   const displayedGroups = filteredGroups.map((group) => ({
     ...group,
-    tracks: group.tracks.slice(0, visibleCount)
+    tracks: sliceLibraryItems(group.tracks, visibleCount)
   }));
   const activeTrack = useMemo(() => findActiveAudioTrack(tracks, playback), [tracks, playback]);
   const canManage = viewer?.role === "gm";
@@ -271,6 +300,8 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
         setTitle("");
         setPlaylistName("Geral");
         setAudioFile(null);
+        setLibraryFlag(sessionCode, "audio", result.track.id, "prepared", true);
+        touchLibraryItem(sessionCode, "audio", result.track.id);
         setFeedback("Faixa enviada e pronta para sincronizar.");
       } catch (error) {
         setFeedback(error instanceof Error ? error.message : "Falha ao salvar a faixa.");
@@ -295,6 +326,8 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
       }
 
       setPlayback(result.playback);
+      setLibraryFlag(sessionCode, "audio", trackId, "usedToday", true);
+      touchLibraryItem(sessionCode, "audio", trackId);
     });
   };
 
@@ -553,31 +586,38 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
             Busque por faixa, playlist ou arquivo e carregue por blocos.
           </p>
         </div>
-        <div className="grid w-full gap-3 md:max-w-[520px] md:grid-cols-[minmax(0,1fr)_180px]">
-          <input
-            value={searchQuery}
-            onChange={(event) => {
-              setSearchQuery(event.target.value);
-              setVisibleCount(10);
-            }}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-            placeholder="buscar trilha ou arquivo..."
-          />
-          <select
-            value={playlistFilter}
-            onChange={(event) => {
-              setPlaylistFilter(event.target.value);
-              setVisibleCount(10);
-            }}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-          >
-            <option value="all">todas as playlists</option>
-            {groupedTracks.map((group) => (
-              <option key={group.playlistName} value={group.playlistName}>
-                {group.playlistName}
-              </option>
-            ))}
-          </select>
+        <div className="flex w-full flex-col gap-3 md:max-w-[620px]">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+            <input
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setVisibleCount(10);
+              }}
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              placeholder="buscar trilha ou arquivo..."
+            />
+            <select
+              value={playlistFilter}
+              onChange={(event) => {
+                setPlaylistFilter(event.target.value);
+                setVisibleCount(10);
+              }}
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+            >
+              <option value="all">todas as playlists</option>
+              {groupedTracks.map((group) => (
+                <option key={group.playlistName} value={group.playlistName}>
+                  {group.playlistName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <LibraryFilterPills value={statusFilter} onChange={setStatusFilter} />
+            <LibrarySortSelect value={sortMode} onChange={setSortMode} />
+          </div>
         </div>
       </div>
 
@@ -621,6 +661,15 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                           {track.originalFilename ?? "arquivo enviado"}
                           {track.durationSeconds != null ? ` - ${formatSeconds(track.durationSeconds)}` : ""}
                         </p>
+                        <div className="mt-3">
+                          <LibraryFlagControls
+                            flags={audioLibraryFlags[track.id]}
+                            canManage={canManage}
+                            onToggle={(flag) =>
+                              toggleLibraryFlag(sessionCode, "audio", track.id, flag)
+                            }
+                          />
+                        </div>
                       </div>
 
                       {canManage && (

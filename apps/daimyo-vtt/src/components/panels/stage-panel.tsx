@@ -3,10 +3,7 @@
 import { useMemo, useTransition } from "react";
 import {
   Expand,
-  Globe,
-  PlaySquare,
-  Shrink,
-  Swords
+  Shrink
 } from "lucide-react";
 import { moveMapTokenAction } from "@/app/actions/map-actions";
 import { AtlasStage } from "@/components/stage/atlas-stage";
@@ -17,7 +14,11 @@ import {
   findActiveAtlasMap,
   listAtlasStagePins
 } from "@/lib/atlas/selectors";
-import { findActiveMap, listMapStageTokens } from "@/lib/maps/selectors";
+import type { TacticalCombatStateView } from "@/lib/maps/selectors";
+import {
+  findActiveMap,
+  listMapStageTokens
+} from "@/lib/maps/selectors";
 import {
   findActiveScene,
   listSceneCastEntries
@@ -55,15 +56,15 @@ interface StagePanelProps {
   viewer: SessionViewerIdentity | null;
   atlasMapIdOverride?: string | null;
   onAtlasMapNavigate?: (atlasMapId: string | null) => void;
+  combatState?: TacticalCombatStateView;
+  canManageCombat?: boolean;
+  onCombatStart?: () => void;
+  onCombatStop?: () => void;
+  onCombatAdvance?: (direction: "next" | "previous") => void;
+  onSelectCombatant?: (tokenId: string) => void;
   onStageModeChange: (mode: StageMode) => void;
   onPresentationModeChange: (mode: PresentationMode) => void;
 }
-
-const stageModes = [
-  { id: "theater" as const, label: "Palco", icon: PlaySquare, blurb: "cena narrativa em tempo real" },
-  { id: "tactical" as const, label: "Campo", icon: Swords, blurb: "mapa e marcadores sincronizados" },
-  { id: "atlas" as const, label: "Atlas", icon: Globe, blurb: "mundo macro com pins interativos" }
-];
 
 export function StagePanel({
   snapshot,
@@ -79,7 +80,12 @@ export function StagePanel({
   viewer,
   atlasMapIdOverride,
   onAtlasMapNavigate,
-  onStageModeChange,
+  combatState,
+  canManageCombat,
+  onCombatStart,
+  onCombatStop,
+  onCombatAdvance,
+  onSelectCombatant,
   onPresentationModeChange
 }: StagePanelProps) {
   const upsertMapToken = useMapStore((state) => state.upsertMapToken);
@@ -169,56 +175,32 @@ export function StagePanel({
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-4 rounded-[24px] border border-white/10 bg-[var(--bg-panel-strong)] p-4">
-      <header className="flex flex-col gap-4 border-b border-white/8 pb-4 xl:flex-row xl:items-start xl:justify-between">
+      <header className="flex flex-col gap-4 border-b border-white/8 pb-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <p className="section-label">Palco central</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">{stageTitle}</h2>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">{stageBlurb}</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--ink-2)]">
+            {stageBlurb}
+          </p>
         </div>
 
-        <div className="space-y-2">
-          <div className="grid gap-2 sm:grid-cols-3">
-            {stageModes.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => onStageModeChange(mode.id)}
-                className={cn(
-                  "rounded-[18px] border px-4 py-3 text-left transition",
-                  snapshot.stageMode === mode.id
-                    ? "border-amber-300/35 bg-amber-300/10 text-white"
-                    : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <mode.icon size={16} />
-                  <span className="text-sm font-medium">{mode.label}</span>
-                </div>
-                <p className="mt-2 text-xs leading-5 text-[color:var(--ink-3)]">{mode.blurb}</p>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() =>
-                onPresentationModeChange(
-                  snapshot.presentationMode === "immersive" ? "standard" : "immersive"
-                )
-              }
-              className={cn(
-                "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition",
-                snapshot.presentationMode === "immersive"
-                  ? "border-rose-300/22 bg-rose-300/10 text-rose-100"
-                  : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
-              )}
-            >
-              {snapshot.presentationMode === "immersive" ? <Shrink size={14} /> : <Expand size={14} />}
-              {snapshot.presentationMode === "immersive" ? "sair do imersivo" : "abrir imersivo"}
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() =>
+            onPresentationModeChange(
+              snapshot.presentationMode === "immersive" ? "standard" : "immersive"
+            )
+          }
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition",
+            snapshot.presentationMode === "immersive"
+              ? "border-rose-300/22 bg-rose-300/10 text-rose-100"
+              : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
+          )}
+        >
+          {snapshot.presentationMode === "immersive" ? <Shrink size={14} /> : <Expand size={14} />}
+          {snapshot.presentationMode === "immersive" ? "sair do imersivo" : "abrir imersivo"}
+        </button>
       </header>
 
       <div className="min-h-[520px] flex-1">
@@ -241,11 +223,17 @@ export function StagePanel({
               map={activeMap}
               backgroundUrl={activeMapBackground?.secureUrl ?? null}
               tokens={activeMapTokens}
+              combatState={combatState}
+              canManageCombat={canManageCombat}
               viewerParticipantId={viewer?.participantId}
               canManageTokens={viewer?.role === "gm"}
               assetOptions={assets}
               characterOptions={characters}
               onMoveToken={handleMoveToken}
+              onCombatStart={onCombatStart}
+              onCombatStop={onCombatStop}
+              onCombatAdvance={onCombatAdvance}
+              onSelectCombatant={onSelectCombatant}
               viewMode="workspace"
             />
           )}

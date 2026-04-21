@@ -26,12 +26,26 @@ import {
   updateCharacterProfileAction
 } from "@/app/actions/character-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
+import {
+  LibraryFilterPills,
+  LibraryFlagControls,
+  LibrarySortSelect
+} from "@/components/panels/library-controls";
 import { findCharacterByViewer, resolveCharacterAsset, sortCharactersByInitiative } from "@/lib/characters/selectors";
+import {
+  filterLibraryItemsByStatus,
+  sortLibraryItems
+} from "@/lib/library/query";
 import { cn } from "@/lib/utils";
 import { useAssetStore } from "@/stores/asset-store";
 import { useCharacterStore } from "@/stores/character-store";
+import {
+  selectLibraryFlags,
+  useLibraryOrganizationStore
+} from "@/stores/library-organization-store";
 import type { AssetKind, SessionAssetRecord } from "@/types/asset";
 import type { CharacterType, SessionCharacterRecord } from "@/types/character";
+import type { LibrarySortMode, LibraryStatusFilter } from "@/types/library";
 import type { OnlinePresence } from "@/types/presence";
 import type { SessionParticipantRecord, SessionViewerIdentity } from "@/types/session";
 
@@ -351,8 +365,14 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
   const [initiative, setInitiative] = useState("10");
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
   const [assetKindFilter, setAssetKindFilter] = useState<AssetKind | "all">("all");
+  const [assetStatusFilter, setAssetStatusFilter] = useState<LibraryStatusFilter>("all");
+  const [assetSortMode, setAssetSortMode] = useState<LibrarySortMode>("name");
   const [characterSearchQuery, setCharacterSearchQuery] = useState("");
   const [characterTypeFilter, setCharacterTypeFilter] = useState<CharacterType | "all">("all");
+  const [characterStatusFilter, setCharacterStatusFilter] =
+    useState<LibraryStatusFilter>("all");
+  const [characterSortMode, setCharacterSortMode] =
+    useState<LibrarySortMode>("name");
   const [visibleAssetCount, setVisibleAssetCount] = useState(12);
   const [visibleCharacterCount, setVisibleCharacterCount] = useState(10);
   const [characterFeedback, setCharacterFeedback] = useState<string | null>(null);
@@ -365,23 +385,52 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
   const playerParticipants = useMemo(() => participants.filter((participant) => participant.role === "player"), [participants]);
   const onlineParticipantIds = useMemo(() => new Set(party.filter((member) => member.status !== "offline").map((member) => member.id)), [party]);
   const viewerCharacter = useMemo(() => findCharacterByViewer(orderedCharacters, viewer?.participantId), [orderedCharacters, viewer?.participantId]);
+  const assetLibraryFlags = useLibraryOrganizationStore((state) =>
+    selectLibraryFlags(state, sessionCode, "assets")
+  );
+  const characterLibraryFlags = useLibraryOrganizationStore((state) =>
+    selectLibraryFlags(state, sessionCode, "characters")
+  );
+  const toggleLibraryFlag = useLibraryOrganizationStore((state) => state.toggleFlag);
+  const setLibraryFlag = useLibraryOrganizationStore((state) => state.setFlag);
+  const touchLibraryItem = useLibraryOrganizationStore((state) => state.touchItem);
   const filteredAssets = useMemo(() => {
     const normalizedQuery = deferredAssetSearchQuery.trim().toLowerCase();
-    return assets.filter((asset) => {
+    const searchedAssets = assets.filter((asset) => {
       if (assetKindFilter !== "all" && asset.kind !== assetKindFilter) return false;
       if (!normalizedQuery) return true;
       return `${asset.label} ${asset.kind}`.toLowerCase().includes(normalizedQuery);
     });
-  }, [assetKindFilter, assets, deferredAssetSearchQuery]);
+    const scopedAssets = filterLibraryItemsByStatus(
+      searchedAssets,
+      assetStatusFilter,
+      (asset) => assetLibraryFlags[asset.id]
+    );
+    return sortLibraryItems(scopedAssets, {
+      sortMode: assetSortMode,
+      getLabel: (asset) => asset.label,
+      getFlags: (asset) => assetLibraryFlags[asset.id]
+    });
+  }, [assetKindFilter, assetLibraryFlags, assetSortMode, assetStatusFilter, assets, deferredAssetSearchQuery]);
   const filteredCharacters = useMemo(() => {
     const normalizedQuery = deferredCharacterSearchQuery.trim().toLowerCase();
-    return orderedCharacters.filter((character) => {
+    const searchedCharacters = orderedCharacters.filter((character) => {
       if (characterTypeFilter !== "all" && character.type !== characterTypeFilter) return false;
       if (!normalizedQuery) return true;
       const ownerName = participants.find((participant) => participant.id === character.ownerParticipantId)?.displayName ?? "";
       return `${character.name} ${character.type} ${ownerName}`.toLowerCase().includes(normalizedQuery);
     });
-  }, [characterTypeFilter, deferredCharacterSearchQuery, orderedCharacters, participants]);
+    const scopedCharacters = filterLibraryItemsByStatus(
+      searchedCharacters,
+      characterStatusFilter,
+      (character) => characterLibraryFlags[character.id]
+    );
+    return sortLibraryItems(scopedCharacters, {
+      sortMode: characterSortMode,
+      getLabel: (character) => character.name,
+      getFlags: (character) => characterLibraryFlags[character.id]
+    });
+  }, [characterLibraryFlags, characterSortMode, characterStatusFilter, characterTypeFilter, deferredCharacterSearchQuery, orderedCharacters, participants]);
 
   const canManage = viewer?.role === "gm";
 
@@ -450,6 +499,8 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
         }
 
         upsertAsset(result.asset);
+        setLibraryFlag(sessionCode, "assets", result.asset.id, "prepared", true);
+        touchLibraryItem(sessionCode, "assets", result.asset.id);
         setAssetLabel("");
         setAssetFile(null);
         setAssetFeedback("Recurso guardado e pronto para reutilizacao.");
@@ -486,6 +537,8 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
       }
 
       upsertCharacter(result.character);
+      setLibraryFlag(sessionCode, "characters", result.character.id, "prepared", true);
+      touchLibraryItem(sessionCode, "characters", result.character.id);
       setCharacterName("");
       setOwnerParticipantId("");
       setSelectedAssetId("");
@@ -636,11 +689,17 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
           <div><h3 className="text-sm font-semibold text-white">Arquivo da mesa</h3><p className="mt-1 text-xs text-[color:var(--ink-3)]">Busque e filtre retratos, emblemas e pinturas sem percorrer tudo.</p></div>
           <span className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]">{assets.length} recursos</span>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-          <input value={assetSearchQuery} onChange={(event) => { setAssetSearchQuery(event.target.value); setVisibleAssetCount(12); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" placeholder="buscar retrato ou recurso..." />
-          <select value={assetKindFilter} onChange={(event) => { setAssetKindFilter(event.target.value as AssetKind | "all"); setVisibleAssetCount(12); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35">
-            <option value="all">todas as naturezas</option>{assetKinds.map((kind) => <option key={kind} value={kind}>{assetKindLabel(kind)}</option>)}
-          </select>
+        <div className="mt-4 flex flex-col gap-3">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+            <input value={assetSearchQuery} onChange={(event) => { setAssetSearchQuery(event.target.value); setVisibleAssetCount(12); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" placeholder="buscar retrato ou recurso..." />
+            <select value={assetKindFilter} onChange={(event) => { setAssetKindFilter(event.target.value as AssetKind | "all"); setVisibleAssetCount(12); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35">
+              <option value="all">todas as naturezas</option>{assetKinds.map((kind) => <option key={kind} value={kind}>{assetKindLabel(kind)}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <LibraryFilterPills value={assetStatusFilter} onChange={setAssetStatusFilter} />
+            <LibrarySortSelect value={assetSortMode} onChange={setAssetSortMode} />
+          </div>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filteredAssets.slice(0, visibleAssetCount).map((asset) => (
@@ -691,6 +750,11 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
                       <p className="text-sm font-semibold text-white">{asset.label}</p>
                       <p className="mt-1 text-xs text-[color:var(--ink-3)]">{assetKindLabel(asset.kind)}</p>
                     </div>
+                    <LibraryFlagControls
+                      flags={assetLibraryFlags[asset.id]}
+                      canManage={canManage}
+                      onToggle={(flag) => toggleLibraryFlag(sessionCode, "assets", asset.id, flag)}
+                    />
                     {canManage && (
                       <div className="flex flex-wrap gap-2">
                         <button
@@ -730,27 +794,41 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
           <div><h3 className="text-sm font-semibold text-white">Iniciativa e roster</h3><p className="mt-1 text-xs text-[color:var(--ink-3)]">PV/PF sincronizados e busca por ficha pronta para campanhas maiores.</p></div>
           <span className="hud-chip border-amber-300/20 bg-amber-300/8 text-amber-100"><RadioTower size={14} /> sincronia viva</span>
         </div>
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-          <input value={characterSearchQuery} onChange={(event) => { setCharacterSearchQuery(event.target.value); setVisibleCharacterCount(10); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" placeholder="buscar ficha, tipo ou jogador..." />
-          <select value={characterTypeFilter} onChange={(event) => { setCharacterTypeFilter(event.target.value as CharacterType | "all"); setVisibleCharacterCount(10); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35">
-            <option value="all">todas as naturezas</option><option value="player">protagonista</option><option value="npc">figura</option>
-          </select>
+        <div className="flex flex-col gap-3">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+            <input value={characterSearchQuery} onChange={(event) => { setCharacterSearchQuery(event.target.value); setVisibleCharacterCount(10); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" placeholder="buscar ficha, tipo ou jogador..." />
+            <select value={characterTypeFilter} onChange={(event) => { setCharacterTypeFilter(event.target.value as CharacterType | "all"); setVisibleCharacterCount(10); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35">
+              <option value="all">todas as naturezas</option><option value="player">protagonista</option><option value="npc">figura</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <LibraryFilterPills value={characterStatusFilter} onChange={setCharacterStatusFilter} />
+            <LibrarySortSelect value={characterSortMode} onChange={setCharacterSortMode} />
+          </div>
         </div>
         <div className="grid gap-3 xl:grid-cols-2">
           {filteredCharacters.slice(0, visibleCharacterCount).map((character) => (
-            <CharacterCard
-              key={character.id}
-              character={character}
-              asset={resolveCharacterAsset(character, assets)}
-              ownerName={participants.find((participant) => participant.id === character.ownerParticipantId)?.displayName ?? null}
-              isOnline={character.ownerParticipantId ? onlineParticipantIds.has(character.ownerParticipantId) : false}
-              canAdjust={viewer?.role === "gm" || viewer?.participantId === character.ownerParticipantId}
-              canManageInitiative={viewer?.role === "gm"}
-              canManageProfile={viewer?.role === "gm"}
-              participantOptions={playerParticipants}
-              assetOptions={assets}
-              sessionCode={sessionCode}
-            />
+            <div key={character.id} className="space-y-3">
+              <LibraryFlagControls
+                flags={characterLibraryFlags[character.id]}
+                canManage={canManage}
+                onToggle={(flag) =>
+                  toggleLibraryFlag(sessionCode, "characters", character.id, flag)
+                }
+              />
+              <CharacterCard
+                character={character}
+                asset={resolveCharacterAsset(character, assets)}
+                ownerName={participants.find((participant) => participant.id === character.ownerParticipantId)?.displayName ?? null}
+                isOnline={character.ownerParticipantId ? onlineParticipantIds.has(character.ownerParticipantId) : false}
+                canAdjust={viewer?.role === "gm" || viewer?.participantId === character.ownerParticipantId}
+                canManageInitiative={viewer?.role === "gm"}
+                canManageProfile={viewer?.role === "gm"}
+                participantOptions={playerParticipants}
+                assetOptions={assets}
+                sessionCode={sessionCode}
+              />
+            </div>
           ))}
         </div>
         {filteredCharacters.length > visibleCharacterCount && <button type="button" onClick={() => setVisibleCharacterCount((current) => current + 10)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20">carregar mais fichas</button>}

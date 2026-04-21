@@ -17,10 +17,26 @@ import {
 import { sendPrivateEventAction } from "@/app/actions/private-event-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
 import { findActiveAtlasMap, listAtlasStagePins } from "@/lib/atlas/selectors";
+import {
+  LibraryFilterPills,
+  LibraryFlagControls,
+  LibrarySortSelect
+} from "@/components/panels/library-controls";
+import {
+  filterLibraryItems,
+  filterLibraryItemsByStatus,
+  sliceLibraryItems,
+  sortLibraryItems
+} from "@/lib/library/query";
 import { cn } from "@/lib/utils";
 import { useAssetStore } from "@/stores/asset-store";
 import { useAtlasStore } from "@/stores/atlas-store";
+import {
+  selectLibraryFlags,
+  useLibraryOrganizationStore
+} from "@/stores/library-organization-store";
 import type { PrivateEventKind } from "@/types/immersive-event";
+import type { LibrarySortMode, LibraryStatusFilter } from "@/types/library";
 import type {
   SessionParticipantRecord,
   SessionViewerIdentity
@@ -53,6 +69,8 @@ export function AtlasPanel({
   const [eventIntensity, setEventIntensity] = useState("3");
   const [eventDurationMs, setEventDurationMs] = useState("5000");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LibraryStatusFilter>("all");
+  const [sortMode, setSortMode] = useState<LibrarySortMode>("name");
   const [visibleCount, setVisibleCount] = useState(8);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -73,18 +91,31 @@ export function AtlasPanel({
     () => participants.filter((participant) => participant.role === "player"),
     [participants]
   );
+  const atlasLibraryFlags = useLibraryOrganizationStore((state) =>
+    selectLibraryFlags(state, sessionCode, "atlas")
+  );
+  const toggleLibraryFlag = useLibraryOrganizationStore((state) => state.toggleFlag);
+  const setLibraryFlag = useLibraryOrganizationStore((state) => state.setFlag);
+  const touchLibraryItem = useLibraryOrganizationStore((state) => state.touchItem);
   const filteredAtlasMaps = useMemo(() => {
-    const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return atlasMaps;
-    }
-
-    return atlasMaps.filter((atlasMap) =>
-      atlasMap.name.toLowerCase().includes(normalizedQuery)
+    const searchedAtlasMaps = filterLibraryItems(
+      atlasMaps,
+      deferredSearchQuery,
+      (atlasMap) => atlasMap.name
     );
-  }, [atlasMaps, deferredSearchQuery]);
-  const displayedAtlasMaps = filteredAtlasMaps.slice(0, visibleCount);
+    const scopedAtlasMaps = filterLibraryItemsByStatus(
+      searchedAtlasMaps,
+      statusFilter,
+      (atlasMap) => atlasLibraryFlags[atlasMap.id]
+    );
+
+    return sortLibraryItems(scopedAtlasMaps, {
+      sortMode,
+      getLabel: (atlasMap) => atlasMap.name,
+      getFlags: (atlasMap) => atlasLibraryFlags[atlasMap.id]
+    });
+  }, [atlasLibraryFlags, atlasMaps, deferredSearchQuery, sortMode, statusFilter]);
+  const displayedAtlasMaps = sliceLibraryItems(filteredAtlasMaps, visibleCount);
   const canManage = viewer?.role === "gm";
 
   const runAsync = (key: string, task: () => Promise<void>) => {
@@ -136,6 +167,8 @@ export function AtlasPanel({
 
       setAtlasName("");
       setAtlasAssetId("");
+      setLibraryFlag(sessionCode, "atlas", result.atlasMap.id, "prepared", true);
+      touchLibraryItem(sessionCode, "atlas", result.atlasMap.id);
       setFeedback("Atlas criado. Agora edite os pins diretamente no palco.");
     });
   };
@@ -159,6 +192,8 @@ export function AtlasPanel({
             : { ...atlasMap, isActive: false }
         )
       );
+      setLibraryFlag(sessionCode, "atlas", atlasMapId, "usedToday", true);
+      touchLibraryItem(sessionCode, "atlas", atlasMapId);
     });
   };
 
@@ -399,15 +434,21 @@ export function AtlasPanel({
               Encontre rapido o mapa macro certo mesmo quando a campanha crescer.
             </p>
           </div>
-          <input
-            value={searchQuery}
-            onChange={(event) => {
-              setSearchQuery(event.target.value);
-              setVisibleCount(8);
-            }}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition md:max-w-sm focus:border-amber-300/35"
-            placeholder="buscar atlas..."
-          />
+          <div className="flex w-full flex-col gap-3 md:max-w-2xl">
+            <input
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setVisibleCount(8);
+              }}
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              placeholder="buscar atlas..."
+            />
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <LibraryFilterPills value={statusFilter} onChange={setStatusFilter} />
+              <LibrarySortSelect value={sortMode} onChange={setSortMode} />
+            </div>
+          </div>
         </div>
 
         {atlasMaps.length > 0 && filteredAtlasMaps.length === 0 && (
@@ -453,6 +494,15 @@ export function AtlasPanel({
                     <p className="mt-1 text-xs text-[color:var(--ink-3)]">
                       {pins.length} pins neste atlas
                     </p>
+                    <div className="mt-3">
+                      <LibraryFlagControls
+                        flags={atlasLibraryFlags[atlasMap.id]}
+                        canManage={canManage}
+                        onToggle={(flag) =>
+                          toggleLibraryFlag(sessionCode, "atlas", atlasMap.id, flag)
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
 

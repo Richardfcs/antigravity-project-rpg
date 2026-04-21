@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
+  ChevronLeft,
+  ChevronRight,
   Compass,
   Flame,
   Eye,
@@ -15,11 +17,13 @@ import {
   Skull,
   ShieldAlert,
   Sparkles,
+  Swords,
   Trash2,
   Waves,
   Zap
 } from "lucide-react";
 
+import { adjustCharacterResourceAction } from "@/app/actions/character-actions";
 import {
   addAssetNpcToMapAction,
   addTokenToMapAction,
@@ -27,7 +31,11 @@ import {
   removeMapTokenAction,
   updateMapTokenAction
 } from "@/app/actions/map-actions";
-import type { TacticalStageToken } from "@/lib/maps/selectors";
+import type {
+  TacticalCombatStateView,
+  TacticalStageToken
+} from "@/lib/maps/selectors";
+import { useCharacterStore } from "@/stores/character-store";
 import { cn } from "@/lib/utils";
 import { useMapStore } from "@/stores/map-store";
 import type { SessionAssetRecord } from "@/types/asset";
@@ -42,14 +50,20 @@ interface TacticalMapStageProps {
   sessionCode: string;
   map: SessionMapRecord | null;
   tokens: TacticalStageToken[];
+  combatState?: TacticalCombatStateView;
   backgroundUrl?: string | null;
   compact?: boolean;
   viewMode?: "workspace" | "focus";
   viewerParticipantId?: string | null;
   canManageTokens?: boolean;
+  canManageCombat?: boolean;
   assetOptions?: SessionAssetRecord[];
   characterOptions?: SessionCharacterRecord[];
   onMoveToken?: (tokenId: string, x: number, y: number) => void;
+  onCombatStart?: () => void;
+  onCombatStop?: () => void;
+  onCombatAdvance?: (direction: "next" | "previous") => void;
+  onSelectCombatant?: (tokenId: string) => void;
 }
 
 interface DragState {
@@ -125,15 +139,22 @@ export function TacticalMapStage({
   sessionCode,
   map,
   tokens,
+  combatState,
   backgroundUrl,
   compact = false,
   viewMode = "workspace",
   viewerParticipantId,
   canManageTokens = false,
+  canManageCombat = false,
   assetOptions = [],
   characterOptions = [],
-  onMoveToken
+  onMoveToken,
+  onCombatStart,
+  onCombatStop,
+  onCombatAdvance,
+  onSelectCombatant
 }: TacticalMapStageProps) {
+  const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
   const upsertMapToken = useMapStore((state) => state.upsertMapToken);
   const removeMapToken = useMapStore((state) => state.removeMapToken);
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -347,6 +368,7 @@ export function TacticalMapStage({
     visibleTokens.find((entry) => entry.token.id === selectedTokenId) ??
     visibleTokens.find((entry) => entry.token.id === tokenMenu?.tokenId) ??
     null;
+  const activeCombatant = combatState?.activeEntry ?? null;
 
   const runAsync = (key: string, task: () => Promise<void>) => {
     setPendingKey(key);
@@ -546,6 +568,28 @@ export function TacticalMapStage({
     });
   };
 
+  const handleAdjustCharacterResource = (
+    characterId: string,
+    resource: "hp" | "fp",
+    delta: number
+  ) => {
+    runAsync(`resource:${characterId}:${resource}:${delta}`, async () => {
+      const result = await adjustCharacterResourceAction({
+        sessionCode,
+        characterId,
+        resource,
+        delta
+      });
+
+      if (!result.ok || !result.character) {
+        setFeedback(result.message || "Falha ao atualizar o recurso da ficha.");
+        return;
+      }
+
+      upsertCharacter(result.character);
+    });
+  };
+
   if (!map) {
     return (
       <div className="flex h-full min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-dashed border-white/12 bg-black/22 px-6 text-center">
@@ -642,6 +686,121 @@ export function TacticalMapStage({
           </div>
         </div>
       </div>
+
+      {combatState && (
+        <div className="space-y-3 rounded-[22px] border border-white/10 bg-black/24 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="hud-chip border-rose-300/20 bg-rose-300/10 text-rose-100">
+                  <Swords size={14} />
+                  ordem de turno
+                </span>
+                <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+                  {combatState.totalTurns} combatentes
+                </span>
+                {combatState.enabled && (
+                  <>
+                    <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
+                      rodada {combatState.round}
+                    </span>
+                    <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+                      turno {combatState.totalTurns === 0 ? 0 : combatState.activeIndex + 1}/
+                      {combatState.totalTurns}
+                    </span>
+                  </>
+                )}
+              </div>
+              <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
+                {combatState.enabled
+                  ? `Ativo: ${activeCombatant?.label ?? "sem destaque"}.`
+                  : "Inicie a ordem para marcar o turno ativo e percorrer o campo."}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {!combatState.enabled ? (
+                canManageCombat && (
+                  <button
+                    type="button"
+                    onClick={onCombatStart}
+                    className="inline-flex items-center gap-2 rounded-full border border-rose-300/22 bg-rose-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-100 transition hover:border-rose-300/35"
+                  >
+                    <Swords size={14} />
+                    iniciar ordem
+                  </button>
+                )
+              ) : (
+                <>
+                  {canManageCombat && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onCombatAdvance?.("previous")}
+                        className="rail-button h-9 px-3 text-xs font-semibold uppercase tracking-[0.16em]"
+                      >
+                        <ChevronLeft size={14} />
+                        anterior
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onCombatAdvance?.("next")}
+                        className="rail-button h-9 px-3 text-xs font-semibold uppercase tracking-[0.16em]"
+                      >
+                        proximo
+                        <ChevronRight size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onCombatStop}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
+                      >
+                        encerrar
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {combatState.turnOrder.length > 0 && (
+            <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
+              {combatState.turnOrder.map((entry, index) => {
+                const isActive = entry.token.id === combatState.activeTokenId;
+
+                return (
+                  <button
+                    key={`combat:${entry.token.id}`}
+                    type="button"
+                    onClick={() => onSelectCombatant?.(entry.token.id)}
+                    disabled={!canManageCombat}
+                    className={cn(
+                      "min-w-[160px] rounded-[18px] border px-3 py-3 text-left transition",
+                      isActive
+                        ? "border-amber-300/30 bg-amber-300/12 text-white"
+                        : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]",
+                      canManageCombat
+                        ? "hover:border-white/20"
+                        : "cursor-default"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="section-label">turno {index + 1}</p>
+                        <p className="mt-1 text-sm font-semibold text-white">{entry.label}</p>
+                      </div>
+                      <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--ink-3)]">
+                        init {entry.initiative >= 0 ? `+${entry.initiative}` : entry.initiative}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {canManageTokens && isCreatorOpen && (
         <div className="grid gap-3 rounded-[22px] border border-amber-300/16 bg-black/24 p-4 xl:grid-cols-[220px_minmax(0,1fr)_220px]">
@@ -830,6 +989,7 @@ export function TacticalMapStage({
               const factionStyle = entry.token.faction
                 ? factionMeta[entry.token.faction]
                 : null;
+              const isCombatActive = entry.token.id === combatState?.activeTokenId;
 
               return (
                 <button
@@ -890,6 +1050,8 @@ export function TacticalMapStage({
                   <div
                     className={cn(
                       "relative overflow-hidden rounded-full border-2 bg-[rgba(7,16,24,0.82)] shadow-[0_10px_30px_rgba(2,6,23,0.55)] transition",
+                      isCombatActive &&
+                        "border-amber-200 shadow-[0_0_0_5px_rgba(252,211,77,0.2),0_18px_40px_rgba(2,6,23,0.58)]",
                       isSelected
                         ? "border-amber-300/55 shadow-[0_0_0_4px_rgba(245,158,11,0.16),0_14px_36px_rgba(2,6,23,0.55)]"
                         : factionStyle
@@ -1101,6 +1263,63 @@ export function TacticalMapStage({
                   })}
                 </div>
               </div>
+
+              {selectedToken.character && (() => {
+                const linkedCharacter = selectedToken.character;
+
+                return (
+                <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <span className="section-label">recursos da ficha</span>
+                    <span className="text-xs text-[color:var(--ink-3)]">
+                      {linkedCharacter.name}
+                    </span>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {(
+                      [
+                        ["hp", "PV", `${linkedCharacter.hp}/${linkedCharacter.hpMax}`],
+                        ["fp", "PF", `${linkedCharacter.fp}/${linkedCharacter.fpMax}`]
+                      ] as const
+                    ).map(([resource, label, value]) => (
+                      <div
+                        key={resource}
+                        className="rounded-2xl border border-white/10 bg-black/18 px-3 py-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="section-label">{label}</p>
+                            <p className="mt-1 text-sm font-semibold text-white">{value}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            {[-1, 1].map((delta) => (
+                              <button
+                                key={`${resource}:${delta}`}
+                                type="button"
+                                onClick={() =>
+                                  handleAdjustCharacterResource(linkedCharacter.id, resource, delta)
+                                }
+                                disabled={isPending}
+                                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
+                              >
+                                {pendingKey ===
+                                `resource:${linkedCharacter.id}:${resource}:${delta}` ? (
+                                  <LoaderCircle size={12} className="animate-spin" />
+                                ) : delta > 0 ? (
+                                  `+${delta}`
+                                ) : (
+                                  `${delta}`
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                );
+              })()}
             </div>
 
             <div className="mt-4 flex flex-wrap justify-between gap-2">

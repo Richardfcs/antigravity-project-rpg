@@ -20,7 +20,8 @@ import {
   linkSessionOwnerToAuthUser,
   listLinkedSessionsByAuthUser,
   updateSessionPresentationMode,
-  updateSessionStageMode
+  updateSessionStageMode,
+  updateSessionCombatState
 } from "@/lib/session/repository";
 import { normalizeSessionCode } from "@/lib/session/codes";
 import { verifySupabaseAccessToken } from "@/lib/supabase/auth";
@@ -242,6 +243,45 @@ export async function setSessionPresentationModeAction(input: {
       ok: false,
       message:
         formatActionError(error) ?? "Falha ao atualizar a apresentacao da sessao."
+    };
+  }
+}
+
+export async function setSessionCombatStateAction(input: {
+  sessionCode: string;
+  combatEnabled?: boolean;
+  combatRound?: number;
+  combatTurnIndex?: number;
+  combatActiveTokenId?: string | null;
+}): Promise<SessionStageModeResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return {
+      ok: false,
+      message: "O Supabase Service Role ainda nao esta configurado."
+    };
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const updatedSession = await updateSessionCombatState({
+      sessionId: session.id,
+      combatEnabled: input.combatEnabled,
+      combatRound: input.combatRound,
+      combatTurnIndex: input.combatTurnIndex,
+      combatActiveTokenId: input.combatActiveTokenId
+    });
+
+    return {
+      ok: true,
+      message: "Estado de combate atualizado.",
+      stageMode: updatedSession.activeStageMode,
+      presentationMode: updatedSession.presentationMode
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        formatActionError(error) ?? "Falha ao atualizar o combate da sessao."
     };
   }
 }

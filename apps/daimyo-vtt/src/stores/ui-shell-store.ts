@@ -5,7 +5,8 @@ import { createJSONStorage, persist } from "zustand/middleware";
 
 import type {
   DockTab,
-  ExplorerSection
+  ExplorerSection,
+  MasterMode
 } from "@/types/session";
 
 const DEFAULT_MASTER_COLUMNS = {
@@ -88,6 +89,8 @@ function normalizeDockTab(tab?: string): DockTab {
 type PersistedUiShellState = Partial<{
   activeSection: ExplorerSection;
   activeDockTab: DockTab;
+  masterMode: MasterMode;
+  liveSupportOpen: boolean;
   followMaster: boolean;
   leftCollapsed: boolean;
   rightCollapsed: boolean;
@@ -99,6 +102,8 @@ type PersistedUiShellState = Partial<{
 interface UiShellState {
   activeSection: ExplorerSection;
   activeDockTab: DockTab;
+  masterMode: MasterMode;
+  liveSupportOpen: boolean;
   followMaster: boolean;
   leftCollapsed: boolean;
   rightCollapsed: boolean;
@@ -107,6 +112,8 @@ interface UiShellState {
   masterRows: Record<string, number>;
   setActiveSection: (section: ExplorerSection) => void;
   setActiveDockTab: (tab: DockTab) => void;
+  setMasterMode: (mode: MasterMode) => void;
+  setLiveSupportOpen: (open: boolean) => void;
   setFollowMaster: (followMaster: boolean) => void;
   toggleLeft: () => void;
   toggleRight: () => void;
@@ -121,6 +128,8 @@ export const useUiShellStore = create<UiShellState>()(
     (set) => ({
       activeSection: "scenes",
       activeDockTab: "chat",
+      masterMode: "prep",
+      liveSupportOpen: false,
       followMaster: true,
       leftCollapsed: false,
       rightCollapsed: false,
@@ -129,6 +138,8 @@ export const useUiShellStore = create<UiShellState>()(
       masterRows: DEFAULT_MASTER_ROWS,
       setActiveSection: (section) => set({ activeSection: section }),
       setActiveDockTab: (tab) => set({ activeDockTab: normalizeDockTab(tab) }),
+      setMasterMode: (masterMode) => set({ masterMode }),
+      setLiveSupportOpen: (liveSupportOpen) => set({ liveSupportOpen }),
       setFollowMaster: (followMaster) => set({ followMaster }),
       toggleLeft: () => set((state) => ({ leftCollapsed: !state.leftCollapsed })),
       toggleRight: () =>
@@ -166,6 +177,8 @@ export const useUiShellStore = create<UiShellState>()(
         return {
           activeSection: state.activeSection ?? "scenes",
           activeDockTab: normalizeDockTab(state.activeDockTab),
+          masterMode: state.masterMode === "live" ? "live" : "prep",
+          liveSupportOpen: state.liveSupportOpen ?? false,
           followMaster: state.followMaster ?? true,
           leftCollapsed: state.leftCollapsed ?? false,
           rightCollapsed: state.rightCollapsed ?? false,

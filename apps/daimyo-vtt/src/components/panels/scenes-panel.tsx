@@ -23,7 +23,18 @@ import {
   spotlightSceneCastAction,
   updateSceneLayoutAction
 } from "@/app/actions/scene-actions";
+import {
+  LibraryFilterPills,
+  LibraryFlagControls,
+  LibrarySortSelect
+} from "@/components/panels/library-controls";
 import { AssetAvatar } from "@/components/media/asset-avatar";
+import {
+  filterLibraryItems,
+  filterLibraryItemsByStatus,
+  sliceLibraryItems,
+  sortLibraryItems
+} from "@/lib/library/query";
 import {
   findActiveScene,
   listSceneCastEntries,
@@ -32,9 +43,14 @@ import {
 import { cn } from "@/lib/utils";
 import { useAssetStore } from "@/stores/asset-store";
 import { useCharacterStore } from "@/stores/character-store";
+import {
+  selectLibraryFlags,
+  useLibraryOrganizationStore
+} from "@/stores/library-organization-store";
 import { useSceneStore } from "@/stores/scene-store";
 import type { SceneLayoutMode } from "@/types/scene";
 import type { SessionViewerIdentity } from "@/types/session";
+import type { LibrarySortMode, LibraryStatusFilter } from "@/types/library";
 
 interface ScenesPanelProps {
   sessionCode: string;
@@ -78,6 +94,8 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
   const [castSelections, setCastSelections] = useState<Record<string, string>>({});
   const [assetSelections, setAssetSelections] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LibraryStatusFilter>("all");
+  const [sortMode, setSortMode] = useState<LibrarySortMode>("name");
   const [visibleCount, setVisibleCount] = useState(8);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -94,18 +112,31 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
     () => assets.filter((asset) => stageNpcKinds.has(asset.kind)),
     [assets]
   );
+  const sceneLibraryFlags = useLibraryOrganizationStore((state) =>
+    selectLibraryFlags(state, sessionCode, "scenes")
+  );
+  const toggleLibraryFlag = useLibraryOrganizationStore((state) => state.toggleFlag);
+  const setLibraryFlag = useLibraryOrganizationStore((state) => state.setFlag);
+  const touchLibraryItem = useLibraryOrganizationStore((state) => state.touchItem);
   const filteredScenes = useMemo(() => {
-    const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return orderedScenes;
-    }
-
-    return orderedScenes.filter((scene) =>
-      `${scene.name} ${scene.moodLabel}`.toLowerCase().includes(normalizedQuery)
+    const searchedScenes = filterLibraryItems(
+      orderedScenes,
+      deferredSearchQuery,
+      (scene) => `${scene.name} ${scene.moodLabel}`
     );
-  }, [deferredSearchQuery, orderedScenes]);
-  const displayedScenes = filteredScenes.slice(0, visibleCount);
+    const scopedScenes = filterLibraryItemsByStatus(
+      searchedScenes,
+      statusFilter,
+      (scene) => sceneLibraryFlags[scene.id]
+    );
+
+    return sortLibraryItems(scopedScenes, {
+      sortMode,
+      getLabel: (scene) => scene.name,
+      getFlags: (scene) => sceneLibraryFlags[scene.id]
+    });
+  }, [deferredSearchQuery, orderedScenes, sceneLibraryFlags, sortMode, statusFilter]);
+  const displayedScenes = sliceLibraryItems(filteredScenes, visibleCount);
   const canManage = viewer?.role === "gm";
 
   const runAsync = (key: string, task: () => Promise<void>) => {
@@ -161,6 +192,8 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
       setMoodLabel("");
       setBackgroundAssetId("");
       setLayoutMode("line");
+      setLibraryFlag(sessionCode, "scenes", result.scene.id, "prepared", true);
+      touchLibraryItem(sessionCode, "scenes", result.scene.id);
       setFeedback("Cena criada.");
     });
   };
@@ -201,6 +234,8 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
             : { ...scene, isActive: false }
         )
       );
+      setLibraryFlag(sessionCode, "scenes", sceneId, "usedToday", true);
+      touchLibraryItem(sessionCode, "scenes", sceneId);
     });
   };
 
@@ -452,15 +487,21 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
               Busque por nome, clima ou palco ativo sem percorrer a lista inteira.
             </p>
           </div>
-          <input
-            value={searchQuery}
-            onChange={(event) => {
-              setSearchQuery(event.target.value);
-              setVisibleCount(8);
-            }}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition md:max-w-sm focus:border-amber-300/35"
-            placeholder="buscar cena ou clima..."
-          />
+          <div className="flex w-full flex-col gap-3 md:max-w-2xl">
+            <input
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setVisibleCount(8);
+              }}
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              placeholder="buscar cena ou clima..."
+            />
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <LibraryFilterPills value={statusFilter} onChange={setStatusFilter} />
+              <LibrarySortSelect value={sortMode} onChange={setSortMode} />
+            </div>
+          </div>
         </div>
 
         {orderedScenes.length === 0 && (
@@ -526,6 +567,15 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                     <p className="mt-1 text-xs text-[color:var(--ink-3)]">
                       {background ? `pintura: ${background.label}` : "sem pintura"} - {layoutModeLabel(scene.layoutMode)}
                     </p>
+                    <div className="mt-3">
+                      <LibraryFlagControls
+                        flags={sceneLibraryFlags[scene.id]}
+                        canManage={canManage}
+                        onToggle={(flag) =>
+                          toggleLibraryFlag(sessionCode, "scenes", scene.id, flag)
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
 

@@ -8,6 +8,17 @@ export interface TacticalStageToken {
   asset: SessionAssetRecord | null;
   label: string;
   ownerParticipantId: string | null;
+  initiative: number;
+}
+
+export interface TacticalCombatStateView {
+  enabled: boolean;
+  round: number;
+  activeTokenId: string | null;
+  activeIndex: number;
+  totalTurns: number;
+  activeEntry: TacticalStageToken | null;
+  turnOrder: TacticalStageToken[];
 }
 
 export function sortMaps(maps: SessionMapRecord[]) {
@@ -65,8 +76,60 @@ export function listMapStageTokens(
         character,
         asset,
         label: token.label || character?.name || "Token",
-        ownerParticipantId: character?.ownerParticipantId ?? null
+        ownerParticipantId: character?.ownerParticipantId ?? null,
+        initiative: character?.initiative ?? 0
       } satisfies TacticalStageToken;
     })
     .filter(Boolean) as TacticalStageToken[];
+}
+
+export function buildTacticalCombatState(options: {
+  enabled: boolean;
+  round: number;
+  turnIndex: number;
+  activeTokenId: string | null;
+  entries: TacticalStageToken[];
+}): TacticalCombatStateView {
+  const turnOrder = [...options.entries].sort((left, right) => {
+    if (left.initiative !== right.initiative) {
+      return right.initiative - left.initiative;
+    }
+
+    if (left.label !== right.label) {
+      return left.label.localeCompare(right.label);
+    }
+
+    return left.token.createdAt.localeCompare(right.token.createdAt);
+  });
+
+  if (turnOrder.length === 0) {
+    return {
+      enabled: options.enabled,
+      round: Math.max(1, options.round),
+      activeTokenId: null,
+      activeIndex: 0,
+      totalTurns: 0,
+      activeEntry: null,
+      turnOrder: []
+    };
+  }
+
+  const indexedActiveEntry = options.activeTokenId
+    ? turnOrder.findIndex((entry) => entry.token.id === options.activeTokenId)
+    : -1;
+  const safeIndex =
+    indexedActiveEntry >= 0
+      ? indexedActiveEntry
+      : Math.min(Math.max(options.turnIndex, 0), turnOrder.length - 1);
+  const activeEntry = turnOrder[safeIndex] ?? null;
+
+  return {
+    enabled: options.enabled,
+    round: Math.max(1, options.round),
+    activeTokenId: activeEntry?.token.id ?? null,
+    activeIndex: safeIndex,
+    totalTurns: turnOrder.length,
+    activeEntry,
+    turnOrder
+  };
 }

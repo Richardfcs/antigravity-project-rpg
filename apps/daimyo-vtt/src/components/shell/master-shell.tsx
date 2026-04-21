@@ -1,22 +1,23 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import {
   AudioLines,
+  BookOpenText,
   Expand,
   Ghost,
   Map,
   MapPinned,
   MessagesSquare,
   Minimize2,
-  RadioTower,
   ShieldAlert,
   Theater,
   UsersRound
 } from "lucide-react";
 
 import {
+  setSessionCombatStateAction,
   setSessionPresentationModeAction,
   setSessionStageModeAction
 } from "@/app/actions/session-actions";
@@ -24,7 +25,9 @@ import { moveMapTokenAction } from "@/app/actions/map-actions";
 import { AudioSyncLayer } from "@/components/audio/audio-sync-layer";
 import { AuthSessionBridge } from "@/components/auth/auth-session-bridge";
 import { SessionEffectOverlays } from "@/components/effects/session-effect-overlays";
+import { SessionCommandCenter } from "@/components/panels/session-command-center";
 import { StagePanel } from "@/components/panels/stage-panel";
+import { StageContextBar } from "@/components/panels/stage-context-bar";
 import { AtlasStage } from "@/components/stage/atlas-stage";
 import { TacticalMapStage } from "@/components/stage/tactical-map-stage";
 import { TheaterStage } from "@/components/stage/theater-stage";
@@ -42,17 +45,26 @@ import { useSessionPresence } from "@/hooks/use-session-presence";
 import { useSessionScenes } from "@/hooks/use-session-scenes";
 import { useSessionSnapshot } from "@/hooks/use-session-snapshot";
 import { findActiveAtlasMap, listAtlasStagePins } from "@/lib/atlas/selectors";
-import { findActiveMap, listMapStageTokens } from "@/lib/maps/selectors";
+import { buildSessionLibrarySummary } from "@/lib/library/summary";
+import {
+  buildTacticalCombatState,
+  findActiveMap,
+  listMapStageTokens
+} from "@/lib/maps/selectors";
 import { findActiveScene, listSceneCastEntries } from "@/lib/scenes/selectors";
+import { buildSessionCommandState } from "@/lib/session/command-state";
 import { cn } from "@/lib/utils";
 import { useAssetStore } from "@/stores/asset-store";
 import { useAtlasStore } from "@/stores/atlas-store";
+import { useAudioStore } from "@/stores/audio-store";
 import { useCharacterStore } from "@/stores/character-store";
+import { useEffectLayerStore } from "@/stores/effect-layer-store";
 import { useMapStore } from "@/stores/map-store";
 import { usePresenceStore } from "@/stores/presence-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useUiShellStore } from "@/stores/ui-shell-store";
+import { useLibraryOrganizationStore } from "@/stores/library-organization-store";
 import { useShallow } from "zustand/react/shallow";
 import type { SessionAssetRecord } from "@/types/asset";
 import type {
@@ -108,6 +120,7 @@ const masterSections: Array<{
 }> = [
   { id: "scenes", label: "Cenas", icon: Theater },
   { id: "maps", label: "Campos", icon: Map },
+  { id: "codex", label: "Oficina", icon: BookOpenText },
   { id: "actors", label: "Fichas", icon: UsersRound },
   { id: "atlas", label: "Atlas", icon: MapPinned },
   { id: "effects", label: "Efeitos", icon: Ghost },
@@ -188,6 +201,8 @@ export function MasterShell({
   effectLayers,
   viewer
 }: MasterShellProps) {
+  const stagePanelRef = useRef<HTMLDivElement | null>(null);
+  const statusDrawerRef = useRef<HTMLDivElement | null>(null);
   const supportPanelRef = useRef<HTMLDivElement | null>(null);
   const [mobileSupportPanel, setMobileSupportPanel] = useState<"explorer" | "dock">(
     "explorer"
@@ -201,26 +216,50 @@ export function MasterShell({
   const [sessionFeedback, setSessionFeedback] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const isMobile = useMobile();
-  const { activeSection, setActiveSection, activeDockTab, setActiveDockTab } =
+  const {
+    activeSection,
+    setActiveSection,
+    activeDockTab,
+    setActiveDockTab,
+    masterMode,
+    setMasterMode,
+    liveSupportOpen,
+    setLiveSupportOpen
+  } =
     useUiShellStore(
       useShallow((state) => ({
         activeSection: state.activeSection,
         setActiveSection: state.setActiveSection,
         activeDockTab: state.activeDockTab,
-        setActiveDockTab: state.setActiveDockTab
+        setActiveDockTab: state.setActiveDockTab,
+        masterMode: state.masterMode,
+        setMasterMode: state.setMasterMode,
+        liveSupportOpen: state.liveSupportOpen,
+        setLiveSupportOpen: state.setLiveSupportOpen
       }))
     );
+  const libraryCollections = useLibraryOrganizationStore(
+    (state) => state.sessions[snapshot.code]
+  );
 
-  const { storedSnapshot, setStageMode, setPresentationMode } = useSessionStore(
+  const { storedSnapshot, patchSnapshot, setStageMode, setPresentationMode } = useSessionStore(
     useShallow((state) => ({
       storedSnapshot: state.snapshot,
+      patchSnapshot: state.patchSnapshot,
       setStageMode: state.setStageMode,
       setPresentationMode: state.setPresentationMode
     }))
   );
   const members = usePresenceStore((state) => state.members);
   const storedAssets = useAssetStore((state) => state.assets);
+  const { storedTracks, storedPlayback } = useAudioStore(
+    useShallow((state) => ({
+      storedTracks: state.tracks,
+      storedPlayback: state.playback
+    }))
+  );
   const storedCharacters = useCharacterStore((state) => state.characters);
+  const storedEffects = useEffectLayerStore((state) => state.effects);
   const { storedScenes, storedSceneCast } = useSceneStore(
     useShallow((state) => ({
       storedScenes: state.scenes,
@@ -331,7 +370,9 @@ export function MasterShell({
     storedAtlasPinCharacters.length > 0
       ? storedAtlasPinCharacters
       : atlasPinCharacters;
-  const onlinePlayers = roster.filter((member) => member.status !== "offline").length;
+  const liveTracks = storedTracks.length > 0 ? storedTracks : audioTracks;
+  const livePlayback = storedPlayback ?? audioState;
+  const liveEffects = storedEffects.length > 0 ? storedEffects : effectLayers;
   const activeScene = findActiveScene(liveScenes, session.activeSceneId);
   const activeEntries = activeScene
     ? listSceneCastEntries(activeScene.id, liveSceneCast, liveCharacters, liveAssets)
@@ -340,9 +381,30 @@ export function MasterShell({
     ? liveAssets.find((asset) => asset.id === activeScene.backgroundAssetId) ?? null
     : null;
   const activeMap = findActiveMap(liveMaps, session.activeMapId);
-  const activeMapTokens = activeMap
-    ? listMapStageTokens(activeMap.id, liveMapTokens, liveCharacters, liveAssets)
-    : [];
+  const activeMapTokens = useMemo(
+    () =>
+      activeMap
+        ? listMapStageTokens(activeMap.id, liveMapTokens, liveCharacters, liveAssets)
+        : [],
+    [activeMap, liveAssets, liveCharacters, liveMapTokens]
+  );
+  const tacticalCombatState = useMemo(
+    () =>
+      buildTacticalCombatState({
+        enabled: session.combatEnabled,
+        round: session.combatRound,
+        turnIndex: session.combatTurnIndex,
+        activeTokenId: session.combatActiveTokenId,
+        entries: activeMapTokens
+      }),
+    [
+      activeMapTokens,
+      session.combatActiveTokenId,
+      session.combatEnabled,
+      session.combatRound,
+      session.combatTurnIndex
+    ]
+  );
   const activeMapBackground = activeMap
     ? liveAssets.find((asset) => asset.id === activeMap.backgroundAssetId) ?? null
     : null;
@@ -376,6 +438,51 @@ export function MasterShell({
       : session.stageMode === "tactical"
         ? activeMap?.name ?? session.activeScene
       : activeScene?.name ?? session.activeScene;
+  const commandState = useMemo(
+    () =>
+      buildSessionCommandState({
+        snapshot: session,
+        party: roster,
+        scenes: liveScenes,
+        sceneCast: liveSceneCast,
+        maps: liveMaps,
+        mapTokens: liveMapTokens,
+        atlasMaps: liveAtlasMaps,
+        atlasPins: liveAtlasPins,
+        assets: liveAssets,
+        characters: liveCharacters,
+        tracks: liveTracks,
+        playback: livePlayback,
+        effectLayers: liveEffects
+      }),
+    [
+      liveAssets,
+      liveAtlasMaps,
+      liveAtlasPins,
+      liveCharacters,
+      liveEffects,
+      liveMapTokens,
+      liveMaps,
+      livePlayback,
+      liveSceneCast,
+      liveScenes,
+      liveTracks,
+      roster,
+      session
+    ]
+  );
+  const librarySummary = useMemo(
+    () =>
+      buildSessionLibrarySummary({
+        collections: libraryCollections,
+        scenes: liveScenes,
+        maps: liveMaps,
+        atlasMaps: liveAtlasMaps,
+        tracks: liveTracks,
+        characters: liveCharacters
+      }),
+    [libraryCollections, liveAtlasMaps, liveCharacters, liveMaps, liveScenes, liveTracks]
+  );
 
   const handleStageModeChange = (mode: StageMode) => {
     const previousStageMode = session.stageMode;
@@ -440,67 +547,125 @@ export function MasterShell({
     session.presentationMode === "standard" ? false : isImmersiveMinimized;
   const shouldRenderInlineStage =
     session.presentationMode !== "immersive" || resolvedImmersiveMinimized;
+  const showSupportPanels = masterMode === "prep" || liveSupportOpen;
 
-  const scrollToSupportPanel = () => {
+  const scrollToRef = (targetRef: React.RefObject<HTMLDivElement | null>) => {
     if (typeof window === "undefined") {
       return;
     }
 
     window.requestAnimationFrame(() => {
-      supportPanelRef.current?.scrollIntoView({
+      targetRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start"
       });
     });
   };
 
-  const handleSectionSelect = (section: ExplorerSection) => {
+  const scrollToSupportPanel = () => {
+    scrollToRef(supportPanelRef);
+  };
+
+  const handleSectionSelect = (
+    section: ExplorerSection,
+    options?: { forceOpen?: boolean }
+  ) => {
     setActiveSection(section);
+    if (masterMode === "live" || options?.forceOpen) {
+      setLiveSupportOpen(true);
+    }
     if (isMobile) {
       setMobileSupportPanel("explorer");
     }
     scrollToSupportPanel();
   };
 
+  const handleMasterModeChange = (mode: "prep" | "live") => {
+    setMasterMode(mode);
+
+    if (mode === "prep") {
+      setLiveSupportOpen(false);
+      scrollToSupportPanel();
+      return;
+    }
+
+    setLiveSupportOpen(false);
+    scrollToRef(stagePanelRef);
+  };
+
+  const handleJumpToArea = (area: "stage" | "status" | "support") => {
+    if (area === "stage") {
+      scrollToRef(stagePanelRef);
+      return;
+    }
+
+    if (area === "status") {
+      scrollToRef(statusDrawerRef);
+      return;
+    }
+
+    if (masterMode === "live") {
+      setLiveSupportOpen(true);
+    }
+
+    scrollToSupportPanel();
+  };
+
   const renderStagePanel = () => (
-    <StagePanel
-      snapshot={session}
-      characters={liveCharacters}
-      assets={liveAssets}
-      scenes={liveScenes}
-      sceneCast={liveSceneCast}
-      maps={liveMaps}
-      mapTokens={liveMapTokens}
-      atlasMaps={liveAtlasMaps}
-      atlasPins={liveAtlasPins}
-      atlasPinCharacters={liveAtlasPinCharacters}
-      viewer={viewer}
-      atlasMapIdOverride={navigatedAtlasMapId !== session.activeAtlasMapId ? navigatedAtlasMapId : null}
-      onAtlasMapNavigate={(atlasMapId) =>
-        setAtlasNavigation(
-          atlasMapId
-            ? {
-                sourceAtlasMapId: session.activeAtlasMapId,
-                targetAtlasMapId: atlasMapId
-              }
-            : null
-        )
-      }
-      onStageModeChange={handleStageModeChange}
-      onPresentationModeChange={handlePresentationModeChange}
-    />
+    <div ref={stagePanelRef} className="space-y-4">
+      <StageContextBar
+        stageMode={session.stageMode}
+        state={commandState}
+        onOpenSection={(section) => handleSectionSelect(section, { forceOpen: true })}
+      />
+
+      <StagePanel
+        snapshot={session}
+        characters={liveCharacters}
+        assets={liveAssets}
+        scenes={liveScenes}
+        sceneCast={liveSceneCast}
+        maps={liveMaps}
+        mapTokens={liveMapTokens}
+        atlasMaps={liveAtlasMaps}
+        atlasPins={liveAtlasPins}
+        atlasPinCharacters={liveAtlasPinCharacters}
+        viewer={viewer}
+        combatState={tacticalCombatState}
+        canManageCombat={viewer?.role === "gm"}
+        atlasMapIdOverride={navigatedAtlasMapId !== session.activeAtlasMapId ? navigatedAtlasMapId : null}
+        onAtlasMapNavigate={(atlasMapId) =>
+          setAtlasNavigation(
+            atlasMapId
+              ? {
+                  sourceAtlasMapId: session.activeAtlasMapId,
+                  targetAtlasMapId: atlasMapId
+                }
+              : null
+          )
+        }
+        onCombatStart={handleCombatStart}
+        onCombatStop={handleCombatStop}
+        onCombatAdvance={handleCombatAdvance}
+        onSelectCombatant={handleCombatSelect}
+        onStageModeChange={handleStageModeChange}
+        onPresentationModeChange={handlePresentationModeChange}
+      />
+    </div>
   );
 
   const renderStatusDrawer = () => (
-    <SessionStatusDrawer
-      sessionCode={session.code}
-      gmName={viewer?.displayName ?? null}
-      viewer={viewer}
-      participants={participants}
-      party={roster}
-      characters={liveCharacters}
-      assets={liveAssets}
-    />
+    <div ref={statusDrawerRef}>
+      <SessionStatusDrawer
+        sessionCode={session.code}
+        gmName={viewer?.displayName ?? null}
+        viewer={viewer}
+        participants={participants}
+        party={roster}
+        characters={liveCharacters}
+        assets={liveAssets}
+      />
+    </div>
   );
 
   const handleMoveToken = (tokenId: string, x: number, y: number) => {
@@ -518,6 +683,125 @@ export function MasterShell({
     });
   };
 
+  const updateCombatState = (
+    nextPatch: Partial<
+      Pick<
+        SessionShellSnapshot,
+        "combatEnabled" | "combatRound" | "combatTurnIndex" | "combatActiveTokenId"
+      >
+    >,
+    fallbackMessage: string
+  ) => {
+    const previousPatch = {
+      combatEnabled: session.combatEnabled,
+      combatRound: session.combatRound,
+      combatTurnIndex: session.combatTurnIndex,
+      combatActiveTokenId: session.combatActiveTokenId
+    };
+
+    patchSnapshot(nextPatch);
+    setSessionFeedback(null);
+
+    startTransition(async () => {
+      const result = await setSessionCombatStateAction({
+        sessionCode: session.code,
+        combatEnabled: nextPatch.combatEnabled,
+        combatRound: nextPatch.combatRound,
+        combatTurnIndex: nextPatch.combatTurnIndex,
+        combatActiveTokenId: nextPatch.combatActiveTokenId
+      });
+
+      if (!result.ok) {
+        patchSnapshot(previousPatch);
+        setSessionFeedback(result.message ?? fallbackMessage);
+      }
+    });
+  };
+
+  const handleCombatStart = () => {
+    if (tacticalCombatState.turnOrder.length === 0) {
+      setSessionFeedback("Adicione pelo menos um token ao campo para iniciar a ordem.");
+      return;
+    }
+
+    updateCombatState(
+      {
+        combatEnabled: true,
+        combatRound: 1,
+        combatTurnIndex: 0,
+        combatActiveTokenId: tacticalCombatState.turnOrder[0]?.token.id ?? null
+      },
+      "Falha ao iniciar a ordem de turno."
+    );
+  };
+
+  const handleCombatStop = () => {
+    updateCombatState(
+      {
+        combatEnabled: false,
+        combatRound: 1,
+        combatTurnIndex: 0,
+        combatActiveTokenId: null
+      },
+      "Falha ao encerrar a ordem de turno."
+    );
+  };
+
+  const handleCombatAdvance = (direction: "next" | "previous") => {
+    if (tacticalCombatState.turnOrder.length === 0) {
+      setSessionFeedback("Nao ha combatentes ativos neste campo.");
+      return;
+    }
+
+    const totalTurns = tacticalCombatState.turnOrder.length;
+    let nextIndex = tacticalCombatState.activeIndex;
+    let nextRound = tacticalCombatState.round;
+
+    if (direction === "next") {
+      nextIndex += 1;
+      if (nextIndex >= totalTurns) {
+        nextIndex = 0;
+        nextRound += 1;
+      }
+    } else {
+      nextIndex -= 1;
+      if (nextIndex < 0) {
+        nextIndex = totalTurns - 1;
+        nextRound = Math.max(1, nextRound - 1);
+      }
+    }
+
+    updateCombatState(
+      {
+        combatEnabled: true,
+        combatRound: nextRound,
+        combatTurnIndex: nextIndex,
+        combatActiveTokenId: tacticalCombatState.turnOrder[nextIndex]?.token.id ?? null
+      },
+      "Falha ao avancar a ordem de turno."
+    );
+  };
+
+  const handleCombatSelect = (tokenId: string) => {
+    const targetIndex = tacticalCombatState.turnOrder.findIndex(
+      (entry) => entry.token.id === tokenId
+    );
+
+    if (targetIndex < 0) {
+      return;
+    }
+
+    updateCombatState(
+      {
+        combatEnabled: true,
+        combatRound: tacticalCombatState.round,
+        combatTurnIndex: targetIndex,
+        combatActiveTokenId: tokenId
+      },
+      "Falha ao destacar o combatente."
+    );
+  };
+
   const renderFocusedStage = () => {
     if (session.stageMode === "tactical") {
       return (
@@ -527,11 +811,17 @@ export function MasterShell({
           map={activeMap}
           backgroundUrl={activeMapBackground?.secureUrl ?? null}
           tokens={activeMapTokens}
+          combatState={tacticalCombatState}
+          canManageCombat={viewer?.role === "gm"}
           viewerParticipantId={viewer?.participantId}
           canManageTokens={viewer?.role === "gm"}
           assetOptions={liveAssets}
           characterOptions={liveCharacters}
           onMoveToken={handleMoveToken}
+          onCombatStart={handleCombatStart}
+          onCombatStop={handleCombatStop}
+          onCombatAdvance={handleCombatAdvance}
+          onSelectCombatant={handleCombatSelect}
           viewMode="focus"
         />
       );
@@ -637,57 +927,25 @@ export function MasterShell({
       )}
 
       <main className="mx-auto max-w-[1680px] p-3 lg:p-4">
-        <div className="mb-4 flex flex-col gap-3 rounded-[24px] border border-white/10 bg-white/[0.04] px-4 py-4 backdrop-blur">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="hud-chip border-amber-300/20 bg-amber-300/8 text-amber-100">
-                  mestre
-                </span>
-                <span className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]">
-                  sala {session.code}
-                </span>
-                <span className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]">
-                  {onlinePlayers} conectados
-                </span>
-                <span className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]">
-                  palco {activeVenue}
-                </span>
-              </div>
+        <div className="mb-4 space-y-3">
+          <SessionCommandCenter
+            sessionCode={session.code}
+            campaignName={session.campaignName}
+            state={commandState}
+            librarySummary={librarySummary}
+            masterMode={masterMode}
+            liveSupportOpen={liveSupportOpen}
+            onMasterModeChange={handleMasterModeChange}
+            onStageModeChange={handleStageModeChange}
+            onOpenSection={(section) => handleSectionSelect(section, { forceOpen: true })}
+            onJumpToArea={handleJumpToArea}
+            onToggleLiveSupport={setLiveSupportOpen}
+          />
 
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-[18px] border border-amber-300/20 bg-amber-300/10">
-                  <RadioTower size={20} className="text-amber-100" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl font-semibold tracking-tight text-white">
-                      Conselho do Daimyo
-                    </h1>
-                    <p className="mt-1 text-sm text-[color:var(--ink-2)]">
-                      palco dominante, ferramentas sob demanda e sincronizacao viva entre cena, campo e atlas
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-            <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[420px]">
-              <ThemeSettingsButton className="sm:col-span-3 justify-center" />
-              <div className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3">
-                <p className="section-label">Cenas</p>
-                <p className="mt-2 text-lg font-semibold text-white">{liveScenes.length}</p>
-              </div>
-              <div className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3">
-                <p className="section-label">Fichas</p>
-                <p className="mt-2 text-lg font-semibold text-white">{liveCharacters.length}</p>
-              </div>
-              <div className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3">
-                <p className="section-label">Retratos</p>
-                <p className="mt-2 text-lg font-semibold text-white">{liveAssets.length}</p>
-              </div>
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
+            <SectionTabs activeSection={activeSection} onSelect={handleSectionSelect} />
+            <ThemeSettingsButton />
           </div>
-
-          <SectionTabs activeSection={activeSection} onSelect={handleSectionSelect} />
         </div>
 
         <div className="mb-4">
@@ -711,59 +969,70 @@ export function MasterShell({
             {shouldRenderInlineStage && renderStagePanel()}
             {renderStatusDrawer()}
 
-            <div ref={supportPanelRef} className="mobile-shell-tabs">
-              <SectionTabs
-                activeSection={activeSection}
-                onSelect={handleSectionSelect}
-                mobile
-              />
+            <div ref={supportPanelRef}>
+              {showSupportPanels ? (
+                <>
+                  <div className="mobile-shell-tabs">
+                    <SectionTabs
+                      activeSection={activeSection}
+                      onSelect={handleSectionSelect}
+                      mobile
+                    />
 
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setMobileSupportPanel("explorer")}
-                  className={cn(
-                    "mobile-shell-tab",
-                    mobileSupportPanel === "explorer" &&
-                      "border-amber-300/35 bg-amber-300/12 text-white"
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMobileSupportPanel("explorer")}
+                        className={cn(
+                          "mobile-shell-tab",
+                          mobileSupportPanel === "explorer" &&
+                            "border-amber-300/35 bg-amber-300/12 text-white"
+                        )}
+                      >
+                        biblioteca
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMobileSupportPanel("dock")}
+                        className={cn(
+                          "mobile-shell-tab",
+                          mobileSupportPanel === "dock" &&
+                            "border-amber-300/35 bg-amber-300/12 text-white"
+                        )}
+                      >
+                        chat e mesa
+                      </button>
+                    </div>
+                  </div>
+
+                  {mobileSupportPanel === "explorer" && (
+                    <ExplorerPanel
+                      snapshot={session}
+                      party={roster}
+                      participants={participants}
+                      activeSection={activeSection}
+                      viewer={viewer}
+                      cloudinaryReady={infra.cloudinary}
+                    />
                   )}
-                >
-                  biblioteca
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobileSupportPanel("dock")}
-                  className={cn(
-                    "mobile-shell-tab",
-                    mobileSupportPanel === "dock" &&
-                      "border-amber-300/35 bg-amber-300/12 text-white"
+
+                  {mobileSupportPanel === "dock" && (
+                    <BottomDock
+                      snapshot={session}
+                      viewer={viewer}
+                      activeTab={activeDockTab}
+                      onTabChange={setActiveDockTab}
+                      showAudio
+                    />
                   )}
-                >
-                  chat e mesa
-                </button>
-              </div>
+                </>
+              ) : (
+                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-4 text-sm text-[color:var(--ink-2)]">
+                  Apoio recolhido para manter o foco no palco. Abra uma seção pelo
+                  Conselho da sessão quando precisar preparar algo.
+                </div>
+              )}
             </div>
-
-            {mobileSupportPanel === "explorer" && (
-              <ExplorerPanel
-                snapshot={session}
-                party={roster}
-                participants={participants}
-                activeSection={activeSection}
-                viewer={viewer}
-                cloudinaryReady={infra.cloudinary}
-              />
-            )}
-
-            {mobileSupportPanel === "dock" && (
-              <BottomDock
-                snapshot={session}
-                viewer={viewer}
-                activeTab={activeDockTab}
-                onTabChange={setActiveDockTab}
-                showAudio
-              />
-            )}
           </div>
         ) : (
           <div className="hidden min-h-0 gap-4 lg:grid">
@@ -781,26 +1050,34 @@ export function MasterShell({
               </button>
             )}
 
-            <div
-              ref={supportPanelRef}
-              className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]"
-            >
-              <ExplorerPanel
-                snapshot={session}
-                party={roster}
-                participants={participants}
-                activeSection={activeSection}
-                viewer={viewer}
-                cloudinaryReady={infra.cloudinary}
-              />
+            <div ref={supportPanelRef}>
+              {showSupportPanels ? (
+                <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+                  <ExplorerPanel
+                    snapshot={session}
+                    party={roster}
+                    participants={participants}
+                    activeSection={activeSection}
+                    viewer={viewer}
+                    cloudinaryReady={infra.cloudinary}
+                  />
 
-              <BottomDock
-                snapshot={session}
-                viewer={viewer}
-                activeTab={activeDockTab}
-                onTabChange={setActiveDockTab}
-                showAudio
-              />
+                  <BottomDock
+                    snapshot={session}
+                    viewer={viewer}
+                    activeTab={activeDockTab}
+                    onTabChange={setActiveDockTab}
+                    showAudio
+                  />
+                </div>
+              ) : (
+                <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-5 py-5 text-sm leading-6 text-[color:var(--ink-2)]">
+                  O modo <strong className="text-white">sessão ao vivo</strong> recolhe
+                  a biblioteca e o apoio para o mestre conduzir sem ruído. Use o
+                  Conselho da sessão para abrir cenas, campos, trilhas e ajustes sob
+                  demanda.
+                </div>
+              )}
             </div>
           </div>
         )}

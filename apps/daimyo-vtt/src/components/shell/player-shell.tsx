@@ -41,7 +41,11 @@ import {
   resolveCharacterAsset,
   sortCharactersByInitiative
 } from "@/lib/characters/selectors";
-import { findActiveMap, listMapStageTokens } from "@/lib/maps/selectors";
+import {
+  buildTacticalCombatState,
+  findActiveMap,
+  listMapStageTokens
+} from "@/lib/maps/selectors";
 import {
   findActiveScene,
   listSceneCastEntries
@@ -151,6 +155,9 @@ export function PlayerShell({
   effectLayers,
   viewer
 }: PlayerShellProps) {
+  const stageSectionRef = useRef<HTMLDivElement | null>(null);
+  const sheetSectionRef = useRef<HTMLDivElement | null>(null);
+  const dockSectionRef = useRef<HTMLDivElement | null>(null);
   const storedSnapshot = useSessionStore((state) => state.snapshot);
   const members = usePresenceStore((state) => state.members);
   const storedAssets = useAssetStore((state) => state.assets);
@@ -359,9 +366,30 @@ export function PlayerShell({
     ? liveAssets.find((asset) => asset.id === activeScene.backgroundAssetId) ?? null
     : null;
   const activeMap = findActiveMap(liveMaps, session.activeMapId);
-  const activeMapTokens = activeMap
-    ? listMapStageTokens(activeMap.id, liveMapTokens, liveCharacters, liveAssets)
-    : [];
+  const activeMapTokens = useMemo(
+    () =>
+      activeMap
+        ? listMapStageTokens(activeMap.id, liveMapTokens, liveCharacters, liveAssets)
+        : [],
+    [activeMap, liveAssets, liveCharacters, liveMapTokens]
+  );
+  const tacticalCombatState = useMemo(
+    () =>
+      buildTacticalCombatState({
+        enabled: session.combatEnabled,
+        round: session.combatRound,
+        turnIndex: session.combatTurnIndex,
+        activeTokenId: session.combatActiveTokenId,
+        entries: activeMapTokens
+      }),
+    [
+      activeMapTokens,
+      session.combatActiveTokenId,
+      session.combatEnabled,
+      session.combatRound,
+      session.combatTurnIndex
+    ]
+  );
   const activeMapBackground = activeMap
     ? liveAssets.find((asset) => asset.id === activeMap.backgroundAssetId) ?? null
     : null;
@@ -600,6 +628,7 @@ export function PlayerShell({
         map={activeMap}
         backgroundUrl={activeMapBackground?.secureUrl ?? null}
         tokens={activeMapTokens}
+        combatState={tacticalCombatState}
         viewerParticipantId={viewer?.participantId}
         canManageTokens={false}
         onMoveToken={handleMoveToken}
@@ -648,6 +677,7 @@ export function PlayerShell({
         map={activeMap}
         backgroundUrl={activeMapBackground?.secureUrl ?? null}
         tokens={activeMapTokens}
+        combatState={tacticalCombatState}
         viewerParticipantId={viewer?.participantId}
         canManageTokens={false}
         onMoveToken={handleMoveToken}
@@ -690,6 +720,45 @@ export function PlayerShell({
 
   const showInlineStage =
     effectivePresentationMode !== "immersive" || resolvedImmersiveMinimized;
+
+  const scrollToSection = (targetRef: React.RefObject<HTMLDivElement | null>) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      targetRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
+  };
+
+  const handlePlayerViewJump = (target: "stage" | "wiki" | "sheet" | "chat") => {
+    if (target === "wiki") {
+      setWikiOpen(true);
+      setLocalPresentationMode("standard");
+      setIsImmersiveMinimized(false);
+      setIsImmersiveChatOpen(false);
+      scrollToSection(stageSectionRef);
+      return;
+    }
+
+    if (target === "sheet") {
+      setIsStatusDrawerOpen(true);
+      scrollToSection(sheetSectionRef);
+      return;
+    }
+
+    if (target === "chat") {
+      setActiveDockTab("chat");
+      scrollToSection(dockSectionRef);
+      return;
+    }
+
+    setWikiOpen(false);
+    scrollToSection(stageSectionRef);
+  };
 
   return (
     <main className="daimyo-shell-bg min-h-screen px-4 py-5 sm:px-6">
@@ -781,6 +850,32 @@ export function PlayerShell({
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
+            {(
+              [
+                ["stage", "palco", Sparkles],
+                ["wiki", "wiki", Sparkles],
+                ["sheet", "minha ficha", Shield],
+                ["chat", "conversa", BellRing]
+              ] as const
+            ).map(([target, label, Icon]) => (
+              <button
+                key={target}
+                type="button"
+                onClick={() => handlePlayerViewJump(target)}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                  (target === "wiki" && wikiOpen) ||
+                  (target === "sheet" && isStatusDrawerOpen) ||
+                  (target === "chat" && activeDockTab === "chat" && !wikiOpen) ||
+                  (target === "stage" && !wikiOpen)
+                    ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
+                    : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
+                }`}
+              >
+                <Icon size={14} />
+                {label}
+              </button>
+            ))}
+
             <button
               type="button"
               onClick={handleFollowMasterToggle}
@@ -916,18 +1011,20 @@ export function PlayerShell({
           </div>
         )}
 
-        <SessionStatusDrawer
-          sessionCode={session.code}
-          viewer={viewer}
-          participants={participants}
-          party={roster}
-          characters={liveCharacters}
-          assets={liveAssets}
-          open={isStatusDrawerOpen}
-          onOpenChange={setIsStatusDrawerOpen}
-        />
+        <div ref={sheetSectionRef}>
+          <SessionStatusDrawer
+            sessionCode={session.code}
+            viewer={viewer}
+            participants={participants}
+            party={roster}
+            characters={liveCharacters}
+            assets={liveAssets}
+            open={isStatusDrawerOpen}
+            onOpenChange={setIsStatusDrawerOpen}
+          />
+        </div>
 
-        {showInlineStage && renderedStage}
+        {showInlineStage && <div ref={stageSectionRef}>{renderedStage}</div>}
 
         {effectivePresentationMode === "immersive" && resolvedImmersiveMinimized && (
           <button
@@ -1144,13 +1241,15 @@ export function PlayerShell({
           </article>
         </section>
 
-        <BottomDock
-          snapshot={session}
-          viewer={viewer}
-          activeTab={activeDockTab}
-          onTabChange={setActiveDockTab}
-          showAudio={false}
-        />
+        <div ref={dockSectionRef}>
+          <BottomDock
+            snapshot={session}
+            viewer={viewer}
+            activeTab={activeDockTab}
+            onTabChange={setActiveDockTab}
+            showAudio={false}
+          />
+        </div>
       </div>
     </main>
   );

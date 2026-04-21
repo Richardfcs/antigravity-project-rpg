@@ -1,5 +1,6 @@
 import {
   AudioLines,
+  BookOpenText,
   Ghost,
   Map,
   MapPinned,
@@ -14,6 +15,7 @@ import { AdminPanel } from "@/components/panels/admin-panel";
 import { AudioPanel } from "@/components/panels/audio-panel";
 import { AtlasPanel } from "@/components/panels/atlas-panel";
 import { ChatPanel } from "@/components/panels/chat-panel";
+import { CodexPanel } from "@/components/panels/codex-panel";
 import { DicePanel } from "@/components/panels/dice-panel";
 import { EffectsPanel } from "@/components/panels/effects-panel";
 import { MapsPanel } from "@/components/panels/maps-panel";
@@ -45,6 +47,11 @@ const sectionMeta = {
     icon: Map,
     title: "Campos",
     description: "Campos taticos, grade opcional, marcadores vivos e mapa ativo."
+  },
+  codex: {
+    icon: BookOpenText,
+    title: "Oficina",
+    description: "Arquétipos, codex e arsenal reaproveitados do projeto base sem inflar o palco."
   },
   actors: {
     icon: UsersRound,
@@ -113,6 +120,14 @@ export function ExplorerPanel({
 
         {activeSection === "maps" && (
           <MapsPanel sessionCode={snapshot.code} viewer={viewer} />
+        )}
+
+        {activeSection === "codex" && (
+          <CodexPanel
+            sessionCode={snapshot.code}
+            viewer={viewer}
+            participants={participants}
+          />
         )}
 
         {activeSection === "actors" && (

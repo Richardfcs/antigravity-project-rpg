@@ -18,12 +18,28 @@ import {
   updateMapAction
 } from "@/app/actions/map-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
+import {
+  LibraryFilterPills,
+  LibraryFlagControls,
+  LibrarySortSelect
+} from "@/components/panels/library-controls";
+import {
+  filterLibraryItems,
+  filterLibraryItemsByStatus,
+  sliceLibraryItems,
+  sortLibraryItems
+} from "@/lib/library/query";
 import { findActiveMap, listMapStageTokens } from "@/lib/maps/selectors";
 import { cn } from "@/lib/utils";
 import { useAssetStore } from "@/stores/asset-store";
 import { useCharacterStore } from "@/stores/character-store";
+import {
+  selectLibraryFlags,
+  useLibraryOrganizationStore
+} from "@/stores/library-organization-store";
 import { useMapStore } from "@/stores/map-store";
 import type { SessionViewerIdentity } from "@/types/session";
+import type { LibrarySortMode, LibraryStatusFilter } from "@/types/library";
 
 interface MapsPanelProps {
   sessionCode: string;
@@ -62,6 +78,8 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
     >
   >({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LibraryStatusFilter>("all");
+  const [sortMode, setSortMode] = useState<LibrarySortMode>("name");
   const [visibleCount, setVisibleCount] = useState(8);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -77,21 +95,32 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
     () => assets.filter((asset) => ["token", "portrait", "npc"].includes(asset.kind)),
     [assets]
   );
+  const mapLibraryFlags = useLibraryOrganizationStore((state) =>
+    selectLibraryFlags(state, sessionCode, "maps")
+  );
+  const toggleLibraryFlag = useLibraryOrganizationStore((state) => state.toggleFlag);
+  const setLibraryFlag = useLibraryOrganizationStore((state) => state.setFlag);
+  const touchLibraryItem = useLibraryOrganizationStore((state) => state.touchItem);
   const filteredMaps = useMemo(() => {
-    const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return maps;
-    }
-
-    return maps.filter((map) => {
+    const searchedMaps = filterLibraryItems(maps, deferredSearchQuery, (map) => {
       const assetLabel =
         assets.find((asset) => asset.id === map.backgroundAssetId)?.label ?? "";
 
-      return `${map.name} ${assetLabel}`.toLowerCase().includes(normalizedQuery);
+      return `${map.name} ${assetLabel}`;
     });
-  }, [assets, deferredSearchQuery, maps]);
-  const displayedMaps = filteredMaps.slice(0, visibleCount);
+    const scopedMaps = filterLibraryItemsByStatus(
+      searchedMaps,
+      statusFilter,
+      (map) => mapLibraryFlags[map.id]
+    );
+
+    return sortLibraryItems(scopedMaps, {
+      sortMode,
+      getLabel: (map) => map.name,
+      getFlags: (map) => mapLibraryFlags[map.id]
+    });
+  }, [assets, deferredSearchQuery, mapLibraryFlags, maps, sortMode, statusFilter]);
+  const displayedMaps = sliceLibraryItems(filteredMaps, visibleCount);
   const canManage = viewer?.role === "gm";
 
   const runAsync = (key: string, task: () => Promise<void>) => {
@@ -151,6 +180,8 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
       setDefaultNeutralAssetId("");
       setGridEnabled(true);
       setGridSize("64");
+      setLibraryFlag(sessionCode, "maps", result.map.id, "prepared", true);
+      touchLibraryItem(sessionCode, "maps", result.map.id);
       setFeedback("Mapa criado.");
     });
   };
@@ -172,6 +203,8 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
           map.id === result.map?.id ? result.map : { ...map, isActive: false }
         )
       );
+      setLibraryFlag(sessionCode, "maps", mapId, "usedToday", true);
+      touchLibraryItem(sessionCode, "maps", mapId);
     });
   };
 
@@ -388,15 +421,21 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
               Busque rapido por nome do campo ou pelo recurso-base.
             </p>
           </div>
-          <input
-            value={searchQuery}
-            onChange={(event) => {
-              setSearchQuery(event.target.value);
-              setVisibleCount(8);
-            }}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition md:max-w-sm focus:border-amber-300/35"
-            placeholder="buscar mapa ou recurso..."
-          />
+          <div className="flex w-full flex-col gap-3 md:max-w-2xl">
+            <input
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setVisibleCount(8);
+              }}
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              placeholder="buscar mapa ou recurso..."
+            />
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <LibraryFilterPills value={statusFilter} onChange={setStatusFilter} />
+              <LibrarySortSelect value={sortMode} onChange={setSortMode} />
+            </div>
+          </div>
         </div>
 
         {maps.length === 0 && (
@@ -460,6 +499,15 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                     <p className="mt-1 text-xs text-[color:var(--ink-3)]">
                       {map.gridEnabled ? `${map.gridSize}px grid` : "movimento livre"} - {entries.length} tokens
                     </p>
+                    <div className="mt-3">
+                      <LibraryFlagControls
+                        flags={mapLibraryFlags[map.id]}
+                        canManage={canManage}
+                        onToggle={(flag) =>
+                          toggleLibraryFlag(sessionCode, "maps", map.id, flag)
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
 
