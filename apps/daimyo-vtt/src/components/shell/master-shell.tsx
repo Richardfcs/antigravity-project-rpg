@@ -11,6 +11,7 @@ import {
   MapPinned,
   MessagesSquare,
   Minimize2,
+  ScrollText,
   ShieldAlert,
   Theater,
   UsersRound
@@ -40,7 +41,10 @@ import { useSessionAssets } from "@/hooks/use-session-assets";
 import { useSessionBootstrap } from "@/hooks/use-session-bootstrap";
 import { useSessionChat } from "@/hooks/use-session-chat";
 import { useSessionCharacters } from "@/hooks/use-session-characters";
+import { useSessionDiagnostics } from "@/hooks/use-session-diagnostics";
 import { useSessionMaps } from "@/hooks/use-session-maps";
+import { useSessionMemory } from "@/hooks/use-session-memory";
+import { useSessionNotes } from "@/hooks/use-session-notes";
 import { useSessionPresence } from "@/hooks/use-session-presence";
 import { useSessionScenes } from "@/hooks/use-session-scenes";
 import { useSessionSnapshot } from "@/hooks/use-session-snapshot";
@@ -63,6 +67,7 @@ import { useMapStore } from "@/stores/map-store";
 import { usePresenceStore } from "@/stores/presence-store";
 import { useSceneStore } from "@/stores/scene-store";
 import { useSessionStore } from "@/stores/session-store";
+import { useSessionMemoryStore } from "@/stores/session-memory-store";
 import { useUiShellStore } from "@/stores/ui-shell-store";
 import { useLibraryOrganizationStore } from "@/stores/library-organization-store";
 import { useShallow } from "zustand/react/shallow";
@@ -81,6 +86,8 @@ import type { InfraReadiness } from "@/types/infra";
 import type { SessionEffectLayerRecord } from "@/types/immersive-event";
 import type { MapTokenRecord, SessionMapRecord } from "@/types/map";
 import type { SessionMessageRecord } from "@/types/message";
+import type { SessionMemoryRecord } from "@/types/session-memory";
+import type { SessionNoteRecord } from "@/types/note";
 import type { OnlinePresence } from "@/types/presence";
 import type { SceneCastRecord, SessionSceneRecord } from "@/types/scene";
 import type {
@@ -110,6 +117,8 @@ interface MasterShellProps {
   audioTracks: SessionAudioTrackRecord[];
   audioState: SessionAudioStateRecord | null;
   effectLayers: SessionEffectLayerRecord[];
+  notes: SessionNoteRecord[];
+  memoryEvents: SessionMemoryRecord[];
   viewer: SessionViewerIdentity | null;
 }
 
@@ -121,6 +130,7 @@ const masterSections: Array<{
   { id: "scenes", label: "Cenas", icon: Theater },
   { id: "maps", label: "Campos", icon: Map },
   { id: "codex", label: "Oficina", icon: BookOpenText },
+  { id: "notes", label: "Notas", icon: ScrollText },
   { id: "actors", label: "Fichas", icon: UsersRound },
   { id: "atlas", label: "Atlas", icon: MapPinned },
   { id: "effects", label: "Efeitos", icon: Ghost },
@@ -199,6 +209,8 @@ export function MasterShell({
   audioTracks,
   audioState,
   effectLayers,
+  notes,
+  memoryEvents,
   viewer
 }: MasterShellProps) {
   const stagePanelRef = useRef<HTMLDivElement | null>(null);
@@ -260,6 +272,7 @@ export function MasterShell({
   );
   const storedCharacters = useCharacterStore((state) => state.characters);
   const storedEffects = useEffectLayerStore((state) => state.effects);
+  const storedMemoryEvents = useSessionMemoryStore((state) => state.events);
   const { storedScenes, storedSceneCast } = useSceneStore(
     useShallow((state) => ({
       storedScenes: state.scenes,
@@ -356,6 +369,23 @@ export function MasterShell({
     enabled: infra.supabase
   });
 
+  useSessionNotes({
+    sessionCode: snapshot.code,
+    initialNotes: notes,
+    enabled: infra.supabase
+  });
+
+  useSessionMemory({
+    sessionCode: snapshot.code,
+    initialEvents: memoryEvents,
+    enabled: infra.supabase && Boolean(viewer)
+  });
+
+  useSessionDiagnostics({
+    enabled: true,
+    syncState: (storedSnapshot ?? snapshot).syncState
+  });
+
   const session = storedSnapshot ?? snapshot;
   const roster = members.length > 0 ? members : party;
   const liveAssets = storedAssets.length > 0 ? storedAssets : assets;
@@ -373,6 +403,8 @@ export function MasterShell({
   const liveTracks = storedTracks.length > 0 ? storedTracks : audioTracks;
   const livePlayback = storedPlayback ?? audioState;
   const liveEffects = storedEffects.length > 0 ? storedEffects : effectLayers;
+  const liveMemoryEvents =
+    storedMemoryEvents.length > 0 ? storedMemoryEvents : memoryEvents;
   const activeScene = findActiveScene(liveScenes, session.activeSceneId);
   const activeEntries = activeScene
     ? listSceneCastEntries(activeScene.id, liveSceneCast, liveCharacters, liveAssets)
@@ -631,9 +663,12 @@ export function MasterShell({
         atlasPins={liveAtlasPins}
         atlasPinCharacters={liveAtlasPinCharacters}
         viewer={viewer}
+        memoryEvents={liveMemoryEvents}
         combatState={tacticalCombatState}
         canManageCombat={viewer?.role === "gm"}
-        atlasMapIdOverride={navigatedAtlasMapId !== session.activeAtlasMapId ? navigatedAtlasMapId : null}
+        atlasMapIdOverride={
+          navigatedAtlasMapId !== session.activeAtlasMapId ? navigatedAtlasMapId : null
+        }
         onAtlasMapNavigate={(atlasMapId) =>
           setAtlasNavigation(
             atlasMapId
@@ -840,6 +875,7 @@ export function MasterShell({
           assetOptions={liveAssets}
           characterOptions={liveCharacters}
           pinCharacterLinks={liveAtlasPinCharacters}
+          revealHistory={liveMemoryEvents}
           onOpenSubmap={(atlasMapId) =>
             setAtlasNavigation({
               sourceAtlasMapId: session.activeAtlasMapId,
@@ -940,6 +976,7 @@ export function MasterShell({
             onOpenSection={(section) => handleSectionSelect(section, { forceOpen: true })}
             onJumpToArea={handleJumpToArea}
             onToggleLiveSupport={setLiveSupportOpen}
+            memoryEvents={liveMemoryEvents}
           />
 
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
@@ -1012,7 +1049,7 @@ export function MasterShell({
                       participants={participants}
                       activeSection={activeSection}
                       viewer={viewer}
-                      cloudinaryReady={infra.cloudinary}
+                      infra={infra}
                     />
                   )}
 
@@ -1059,7 +1096,7 @@ export function MasterShell({
                     participants={participants}
                     activeSection={activeSection}
                     viewer={viewer}
-                    cloudinaryReady={infra.cloudinary}
+                    infra={infra}
                   />
 
                   <BottomDock

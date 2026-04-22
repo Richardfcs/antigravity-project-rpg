@@ -5,6 +5,7 @@ import {
   Map,
   MapPinned,
   MessagesSquare,
+  ScrollText,
   ShieldAlert,
   Theater,
   UsersRound
@@ -19,7 +20,9 @@ import { CodexPanel } from "@/components/panels/codex-panel";
 import { DicePanel } from "@/components/panels/dice-panel";
 import { EffectsPanel } from "@/components/panels/effects-panel";
 import { MapsPanel } from "@/components/panels/maps-panel";
+import { NotesPanel } from "@/components/panels/notes-panel";
 import { ScenesPanel } from "@/components/panels/scenes-panel";
+import type { InfraReadiness } from "@/types/infra";
 import type { OnlinePresence } from "@/types/presence";
 import type {
   ExplorerSection,
@@ -34,7 +37,7 @@ interface ExplorerPanelProps {
   participants: SessionParticipantRecord[];
   activeSection: ExplorerSection;
   viewer: SessionViewerIdentity | null;
-  cloudinaryReady: boolean;
+  infra: InfraReadiness;
 }
 
 const sectionMeta = {
@@ -51,7 +54,14 @@ const sectionMeta = {
   codex: {
     icon: BookOpenText,
     title: "Oficina",
-    description: "Arquétipos, codex e arsenal reaproveitados do projeto base sem inflar o palco."
+    description:
+      "Arquetipos, codex e arsenal reaproveitados do projeto base sem inflar o palco."
+  },
+  notes: {
+    icon: ScrollText,
+    title: "Notas",
+    description:
+      "Memoria contextual do mestre e cadernos privados para acompanhar a sessao."
   },
   actors: {
     icon: UsersRound,
@@ -91,7 +101,7 @@ export function ExplorerPanel({
   participants,
   activeSection,
   viewer,
-  cloudinaryReady
+  infra
 }: ExplorerPanelProps) {
   const meta = sectionMeta[activeSection];
   const Icon = meta.icon;
@@ -130,13 +140,17 @@ export function ExplorerPanel({
           />
         )}
 
+        {activeSection === "notes" && (
+          <NotesPanel snapshot={snapshot} viewer={viewer} />
+        )}
+
         {activeSection === "actors" && (
           <ActorsPanel
             sessionCode={snapshot.code}
             viewer={viewer}
             participants={participants}
             party={party}
-            cloudinaryReady={cloudinaryReady}
+            cloudinaryReady={infra.cloudinary}
           />
         )}
 
@@ -157,7 +171,7 @@ export function ExplorerPanel({
         )}
 
         {activeSection === "admin" && (
-          <AdminPanel sessionCode={snapshot.code} viewer={viewer} />
+          <AdminPanel sessionCode={snapshot.code} viewer={viewer} infra={infra} />
         )}
 
         {activeSection === "audio" && (

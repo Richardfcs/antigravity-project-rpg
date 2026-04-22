@@ -39,7 +39,13 @@ const supportedEffects = new Set<SessionEffectPreset>([
   "calm",
   "joy",
   "sad",
-  "silhouette"
+  "silhouette",
+  "whisper-fog",
+  "omen-red",
+  "void-pressure",
+  "fever-dream",
+  "revelation",
+  "dread"
 ]);
 
 function buildInfraError(): EffectActionResult {

@@ -56,6 +56,17 @@ const presetGroups: Array<{
       { value: "sad", label: "triste / melancolico" },
       { value: "silhouette", label: "silhueta misteriosa" }
     ]
+  },
+  {
+    label: "horror e percepcao",
+    options: [
+      { value: "whisper-fog", label: "nevoa de sussurros" },
+      { value: "omen-red", label: "pressagio vermelho" },
+      { value: "void-pressure", label: "pressao do vazio" },
+      { value: "fever-dream", label: "febre e sonho" },
+      { value: "revelation", label: "revelacao ritual" },
+      { value: "dread", label: "temor profundo" }
+    ]
   }
 ];
 
@@ -202,7 +213,7 @@ export function EffectsPanel({
           <h3 className="text-sm font-semibold text-white">Efeitos imersivos</h3>
         </div>
         <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-          Aplique clima, atmosfera ou estados emocionais para todos ou para um alvo especifico.
+          Aplique clima, atmosfera, estados emocionais ou pressagios subjetivos para todos ou para um alvo especifico.
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">

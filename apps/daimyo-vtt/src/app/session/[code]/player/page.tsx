@@ -13,9 +13,11 @@ import { listSessionCharacters } from "@/lib/characters/repository";
 import { listSessionMessages } from "@/lib/chat/repository";
 import { listSessionEffectLayers } from "@/lib/effects/repository";
 import { listMapTokens, listSessionMaps } from "@/lib/maps/repository";
+import { listSessionNotesForViewer } from "@/lib/notes/repository";
 import { listPendingPrivateEvents } from "@/lib/private-events/repository";
 import { listSceneCast, listSessionScenes } from "@/lib/scenes/repository";
 import { readSessionViewerCookie } from "@/lib/session/cookies";
+import { listSessionMemoryEventsForViewer } from "@/lib/session/memory-repository";
 import {
   getSessionBootstrap,
   mapParticipantsToOnlinePresence
@@ -53,7 +55,9 @@ export default async function PlayerSessionPage({ params }: PlayerPageProps) {
     audioTracks,
     audioState,
     privateEvents,
-    effectLayers
+    effectLayers,
+    notes,
+    memoryEvents
   ] = await Promise.all([
     listSessionAssets(bootstrap.session.id),
     listSessionCharacters(bootstrap.session.id),
@@ -70,7 +74,21 @@ export default async function PlayerSessionPage({ params }: PlayerPageProps) {
     bootstrap.viewer
       ? listPendingPrivateEvents(bootstrap.session.id, bootstrap.viewer.participantId)
       : Promise.resolve([]),
-    listSessionEffectLayers(bootstrap.session.id)
+    listSessionEffectLayers(bootstrap.session.id),
+    bootstrap.viewer
+      ? listSessionNotesForViewer({
+          sessionId: bootstrap.session.id,
+          authorParticipantId: bootstrap.viewer.participantId,
+          role: bootstrap.viewer.role
+        })
+      : Promise.resolve([]),
+    bootstrap.viewer
+      ? listSessionMemoryEventsForViewer({
+          sessionId: bootstrap.session.id,
+          role: bootstrap.viewer.role,
+          viewerParticipantId: bootstrap.viewer.participantId
+        })
+      : Promise.resolve([])
   ]);
 
   return (
@@ -95,6 +113,8 @@ export default async function PlayerSessionPage({ params }: PlayerPageProps) {
       audioState={audioState}
       privateEvents={privateEvents}
       effectLayers={effectLayers}
+      notes={notes}
+      memoryEvents={memoryEvents}
       viewer={bootstrap.viewer}
     />
   );

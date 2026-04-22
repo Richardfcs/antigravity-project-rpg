@@ -9,6 +9,7 @@ import {
   getSessionAudioState,
   upsertSessionAudioState
 } from "@/lib/audio/repository";
+import { createSessionMemoryEvent } from "@/lib/session/memory-repository";
 import { requireSessionViewer } from "@/lib/session/access";
 import type {
   AudioPlaybackStatus,
@@ -56,6 +57,16 @@ function getCurrentPlaybackPosition(playback: SessionAudioStateRecord | null) {
   }
 
   return playback.positionSeconds + Math.max(0, (Date.now() - startedAt) / 1000);
+}
+
+async function recordSessionMemory(
+  input: Parameters<typeof createSessionMemoryEvent>[0]
+) {
+  try {
+    await createSessionMemoryEvent(input);
+  } catch {
+    // A trilha deve continuar funcionando mesmo se a memória falhar.
+  }
 }
 
 export async function registerUploadedAudioTrackAction(input: {
@@ -153,7 +164,7 @@ export async function selectAudioTrackAction(input: {
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
     const track = await findSessionAudioTrackById(input.trackId);
 
     if (!track || track.sessionId !== session.id) {
@@ -168,6 +179,15 @@ export async function selectAudioTrackAction(input: {
       volume: current?.volume ?? 0.72,
       loopEnabled: current?.loopEnabled ?? false,
       positionSeconds: 0
+    });
+
+    await recordSessionMemory({
+      sessionId: session.id,
+      actorParticipantId: viewer.participantId,
+      category: "audio",
+      title: "Trilha preparada",
+      detail: track.title,
+      audioTrackId: track.id
     });
 
     return { ok: true, track, playback };
@@ -192,7 +212,7 @@ export async function syncAudioPlaybackAction(input: {
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
     const current = await getSessionAudioState(session.id);
     const trackId = input.trackId ?? current?.trackId ?? null;
     const hasExplicitPosition = typeof input.positionSeconds === "number";
@@ -249,6 +269,29 @@ export async function syncAudioPlaybackAction(input: {
       positionSeconds,
       startedAt
     });
+
+    const statusChanged = input.status !== current?.status;
+    const trackChanged = trackId !== (current?.trackId ?? null);
+
+    if (statusChanged || trackChanged) {
+      const title =
+        input.status === "playing"
+          ? "Trilha ecoa"
+          : input.status === "paused"
+            ? "Trilha suspensa"
+            : "Silencio ritual";
+      await recordSessionMemory({
+        sessionId: session.id,
+        actorParticipantId: viewer.participantId,
+        category: "audio",
+        title,
+        detail:
+          trackId && trackId !== current?.trackId
+            ? "A mesa mudou de faixa para este momento."
+            : undefined,
+        audioTrackId: trackId
+      });
+    }
 
     return { ok: true, playback };
   } catch (error) {

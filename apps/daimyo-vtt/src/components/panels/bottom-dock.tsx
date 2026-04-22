@@ -1,8 +1,9 @@
-﻿import { AudioLines, Dices, MessageSquareText } from "lucide-react";
+import { AudioLines, Dices, MessageSquareText, ScrollText } from "lucide-react";
 
 import { AudioPanel } from "@/components/panels/audio-panel";
 import { ChatPanel } from "@/components/panels/chat-panel";
 import { DicePanel } from "@/components/panels/dice-panel";
+import { NotesPanel } from "@/components/panels/notes-panel";
 import { cn } from "@/lib/utils";
 import type {
   DockTab,
@@ -21,6 +22,7 @@ interface BottomDockProps {
 const tabs = [
   { id: "chat" as const, label: "Conversa", icon: MessageSquareText },
   { id: "dice" as const, label: "Dados", icon: Dices },
+  { id: "notes" as const, label: "Caderno", icon: ScrollText },
   { id: "audio" as const, label: "Trilhas", icon: AudioLines }
 ];
 
@@ -40,7 +42,7 @@ export function BottomDock({
         <div className="min-w-0">
           <p className="section-label">Painel de apoio</p>
           <h2 className="mt-2 break-words text-xl font-semibold text-white">
-            Conversa e trilhas da mesa
+            Conversa, caderno e trilhas da mesa
           </h2>
         </div>
         <div className="flex min-w-0 flex-wrap gap-2">
@@ -72,6 +74,10 @@ export function BottomDock({
           <DicePanel sessionCode={snapshot.code} viewer={viewer} />
         )}
 
+        {resolvedActiveTab === "notes" && (
+          <NotesPanel snapshot={snapshot} viewer={viewer} />
+        )}
+
         {showAudio && resolvedActiveTab === "audio" && (
           <AudioPanel sessionCode={snapshot.code} viewer={viewer} />
         )}
@@ -79,4 +85,3 @@ export function BottomDock({
     </section>
   );
 }
-

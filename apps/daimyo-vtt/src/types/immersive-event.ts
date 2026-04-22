@@ -20,7 +20,13 @@ export type SessionEffectPreset =
   | "calm"
   | "joy"
   | "sad"
-  | "silhouette";
+  | "silhouette"
+  | "whisper-fog"
+  | "omen-red"
+  | "void-pressure"
+  | "fever-dream"
+  | "revelation"
+  | "dread";
 
 export interface SessionPrivateEventRecord {
   id: string;

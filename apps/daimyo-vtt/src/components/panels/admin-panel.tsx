@@ -1,27 +1,46 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { AlertTriangle, Download, LoaderCircle, ShieldAlert, Trash2 } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import {
+  AlertTriangle,
+  Download,
+  LoaderCircle,
+  RotateCcw,
+  ShieldAlert,
+  Trash2,
+  Upload
+} from "lucide-react";
 
 import {
   resetSessionContentAction,
-  resetSessionDatasetAction
+  resetSessionDatasetAction,
+  restoreSessionSnapshotAction
 } from "@/app/actions/admin-actions";
-import { daimyoContentBridge } from "@/lib/content-bridge/contract";
+import { DiagnosticsPanel } from "@/components/panels/diagnostics-panel";
+import {
+  buildSessionSnapshotPayload,
+  daimyoSessionSnapshot,
+  type SessionSnapshotExportPayload
+} from "@/lib/content-bridge/snapshot";
 import { useAssetStore } from "@/stores/asset-store";
 import { useAtlasStore } from "@/stores/atlas-store";
 import { useAudioStore } from "@/stores/audio-store";
 import { useCharacterStore } from "@/stores/character-store";
 import { useChatStore } from "@/stores/chat-store";
+import { useDiagnosticsStore } from "@/stores/diagnostics-store";
 import { useEffectLayerStore } from "@/stores/effect-layer-store";
 import { useMapStore } from "@/stores/map-store";
 import { useSceneStore } from "@/stores/scene-store";
+import { useSessionMemoryStore } from "@/stores/session-memory-store";
+import { useSessionNoteStore } from "@/stores/session-note-store";
 import { useSessionStore } from "@/stores/session-store";
+import type { InfraReadiness } from "@/types/infra";
 import type { SessionViewerIdentity } from "@/types/session";
 
 interface AdminPanelProps {
   sessionCode: string;
   viewer: SessionViewerIdentity | null;
+  infra: InfraReadiness;
 }
 
 const datasets = [
@@ -53,7 +72,7 @@ const datasets = [
     id: "assets",
     label: "recursos",
     title: "Retratos e recursos",
-    description: "Apaga imagens registradas da sessao e tenta remover a midia remota."
+    description: "Apaga apenas os registros locais da sessao. As midias remotas podem ser limpas por reset."
   },
   {
     id: "audio",
@@ -72,12 +91,24 @@ const datasets = [
     label: "efeitos",
     title: "Efeitos imersivos",
     description: "Remove filtros persistentes e eventos privados ainda salvos."
+  },
+  {
+    id: "notes",
+    label: "notas",
+    title: "Notas da mesa",
+    description: "Limpa notas contextuais do mestre e cadernos dos jogadores."
+  },
+  {
+    id: "memory",
+    label: "memoria",
+    title: "Memoria de sessao",
+    description: "Apaga o historico recente de trilhas, revelacoes e marcos da mesa."
   }
 ] as const;
 
 type DatasetId = (typeof datasets)[number]["id"];
 
-export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
+export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
   const snapshot = useSessionStore((state) => state.snapshot);
   const assets = useAssetStore((state) => state.assets);
   const atlasMaps = useAtlasStore((state) => state.atlasMaps);
@@ -88,6 +119,8 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
   const characters = useCharacterStore((state) => state.characters);
   const messages = useChatStore((state) => state.messages);
   const effects = useEffectLayerStore((state) => state.effects);
+  const notes = useSessionNoteStore((state) => state.notes);
+  const memoryEvents = useSessionMemoryStore((state) => state.events);
   const maps = useMapStore((state) => state.maps);
   const mapTokens = useMapStore((state) => state.mapTokens);
   const scenes = useSceneStore((state) => state.scenes);
@@ -105,7 +138,11 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
   const setPlayback = useAudioStore((state) => state.setPlayback);
   const setMessages = useChatStore((state) => state.setMessages);
   const setEffects = useEffectLayerStore((state) => state.setEffects);
+  const setNotes = useSessionNoteStore((state) => state.setNotes);
+  const setMemoryEvents = useSessionMemoryStore((state) => state.setEvents);
   const patchSnapshot = useSessionStore((state) => state.patchSnapshot);
+  const pushDiagnostic = useDiagnosticsStore((state) => state.pushEntry);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [datasetConfirmations, setDatasetConfirmations] = useState<Record<string, string>>(
     {}
   );
@@ -115,19 +152,21 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
   const [resetCode, setResetCode] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [restoreSnapshotRaw, setRestoreSnapshotRaw] = useState("");
+  const [restorePreview, setRestorePreview] = useState<SessionSnapshotExportPayload | null>(
+    null
+  );
   const [isPending, startTransition] = useTransition();
 
   const canManage = viewer?.role === "gm";
 
   const handleExportSnapshot = () => {
     if (!snapshot) {
-      setFeedback("A sessão ainda nao carregou por completo para exportar.");
+      setFeedback("A sessao ainda nao carregou por completo para exportar.");
       return;
     }
 
-    const payload = {
-      manifest: daimyoContentBridge.defaultManifest("vtt"),
-      exportedAt: new Date().toISOString(),
+    const payload = buildSessionSnapshotPayload({
       sessionCode,
       snapshot,
       assets,
@@ -142,8 +181,10 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
       tracks,
       playback,
       messages,
-      effects
-    };
+      effects,
+      notes,
+      memoryEvents
+    });
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json"
@@ -151,18 +192,53 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `daimyo-snapshot-${sessionCode.toLowerCase()}.json`;
+    anchor.download = daimyoSessionSnapshot.createSessionSnapshotFilename(sessionCode);
     document.body.append(anchor);
     anchor.click();
     anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
     setFeedback("Snapshot da mesa exportado.");
+    pushDiagnostic({
+      level: "info",
+      source: "session",
+      message: "Snapshot da mesa exportado localmente."
+    });
+  };
+
+  const handleSnapshotFile = async (file: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    try {
+      const rawContent = await file.text();
+      const normalized = daimyoSessionSnapshot.normalizeSessionSnapshotPayload(
+        JSON.parse(rawContent)
+      );
+      setRestoreSnapshotRaw(rawContent);
+      setRestorePreview(normalized);
+      setFeedback(`Snapshot ${file.name} pronto para restaurar.`);
+    } catch (error) {
+      setRestoreSnapshotRaw("");
+      setRestorePreview(null);
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel ler este snapshot."
+      );
+      pushDiagnostic({
+        level: "warn",
+        source: "session",
+        message: "Tentativa de restore com arquivo de snapshot invalido."
+      });
+    }
   };
 
   const applyDatasetResult = (dataset: DatasetId | "all") => {
     if (dataset === "maps" || dataset === "all") {
       setMaps([]);
       setMapTokens([]);
+      patchSnapshot({ activeMapId: null });
     }
 
     if (dataset === "scenes" || dataset === "all") {
@@ -203,8 +279,12 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
       setEffects([]);
     }
 
-    if (dataset === "maps" || dataset === "all") {
-      patchSnapshot({ activeMapId: null });
+    if (dataset === "notes" || dataset === "all") {
+      setNotes([]);
+    }
+
+    if (dataset === "memory" || dataset === "all") {
+      setMemoryEvents([]);
     }
 
     if (dataset === "all") {
@@ -215,6 +295,10 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
         activeAtlasMapId: null,
         stageMode: "theater",
         presentationMode: "standard",
+        combatEnabled: false,
+        combatRound: 1,
+        combatTurnIndex: 0,
+        combatActiveTokenId: null,
         sceneMood: "aguardando preparacao"
       });
     }
@@ -247,12 +331,22 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
 
       if (!result.ok || !result.dataset) {
         setFeedback(result.message ?? "Falha ao limpar este conjunto.");
+        pushDiagnostic({
+          level: "error",
+          source: "session",
+          message: result.message ?? "Falha ao limpar um conjunto da mesa."
+        });
         return;
       }
 
       applyDatasetResult(result.dataset);
       setDatasetConfirmations((current) => ({ ...current, [dataset]: "" }));
       setFeedback(result.message ?? `Limpeza de ${expectedLabel} concluida.`);
+      pushDiagnostic({
+        level: "info",
+        source: "session",
+        message: result.message ?? `Limpeza de ${expectedLabel} concluida.`
+      });
     });
   };
 
@@ -273,6 +367,11 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
 
       if (!result.ok || !result.dataset) {
         setFeedback(result.message ?? "Falha ao resetar a mesa.");
+        pushDiagnostic({
+          level: "error",
+          source: "session",
+          message: result.message ?? "Falha ao resetar todo o conteudo da mesa."
+        });
         return;
       }
 
@@ -282,6 +381,53 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
       setConfirmIrreversible(false);
       setResetCode("");
       setFeedback(result.message ?? "Conteudo da mesa resetado.");
+      pushDiagnostic({
+        level: "warn",
+        source: "session",
+        message: result.message ?? "Conteudo total da mesa resetado."
+      });
+    });
+  };
+
+  const handleRestore = () => {
+    if (!canManage) {
+      setFeedback("Apenas o mestre pode restaurar snapshots.");
+      return;
+    }
+
+    if (!restoreSnapshotRaw || !restorePreview) {
+      setFeedback("Escolha um snapshot valido antes de restaurar.");
+      return;
+    }
+
+    runAsync("restore-snapshot", async () => {
+      const result = await restoreSessionSnapshotAction({
+        sessionCode,
+        rawSnapshot: restoreSnapshotRaw
+      });
+
+      if (!result.ok) {
+        setFeedback(result.message ?? "Falha ao restaurar o snapshot.");
+        pushDiagnostic({
+          level: "error",
+          source: "session",
+          message: result.message ?? "Falha ao restaurar um snapshot."
+        });
+        return;
+      }
+
+      setFeedback(result.message ?? "Snapshot restaurado.");
+      pushDiagnostic({
+        level: "warn",
+        source: "session",
+        message:
+          result.message ??
+          "Snapshot restaurado e a mesa sera recarregada com o estado recuperado."
+      });
+
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 160);
     });
   };
 
@@ -295,8 +441,9 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
           <div>
             <h3 className="text-sm font-semibold text-white">Administracao total da mesa</h3>
             <p className="mt-2 text-sm leading-6 text-amber-50/90">
-              Esta area e exclusiva do mestre. As limpezas abaixo apagam dados operacionais
-              em tempo real, com confirmacoes obrigatorias para evitar perda acidental.
+              Esta area e exclusiva do mestre. As limpezas abaixo apagam dados
+              operacionais em tempo real, e o snapshot oficial garante backup e
+              restauração segura do conteudo jogavel.
             </p>
           </div>
         </div>
@@ -307,23 +454,90 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
           <div>
             <p className="section-label">Snapshot oficial</p>
             <h3 className="mt-2 text-lg font-semibold text-white">
-              Exportar o estado jogável da mesa
+              Exportar ou restaurar o estado jogavel da mesa
             </h3>
             <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-              Gera um arquivo JSON com o manifesto da ponte de conteúdo, palco,
-              fichas, mapas, atlas, trilhas, conversa e efeitos vivos.
+              Gera um arquivo JSON com manifesto, palco, fichas, mapas, atlas,
+              trilhas, conversa, notas e memoria. A restauração reaplica os
+              registros no banco sem apagar a mídia remota.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleExportSnapshot}
-            disabled={!canManage}
-            className="inline-flex items-center gap-2 rounded-full border border-amber-300/24 bg-amber-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100 transition hover:border-amber-300/40 disabled:opacity-60"
-          >
-            <Download size={14} />
-            exportar snapshot
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleExportSnapshot}
+              disabled={!canManage}
+              className="inline-flex items-center gap-2 rounded-full border border-amber-300/24 bg-amber-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100 transition hover:border-amber-300/40 disabled:opacity-60"
+            >
+              <Download size={14} />
+              exportar snapshot
+            </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!canManage}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white disabled:opacity-60"
+            >
+              <Upload size={14} />
+              escolher snapshot
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(event) =>
+                void handleSnapshotFile(event.target.files?.[0] ?? null)
+              }
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-[18px] border border-white/10 bg-black/18 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-white">Restore oficial</p>
+              <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
+                Use um snapshot exportado pelo Daimyo VTT para reerguer a mesa com
+                o mesmo palco, conteúdo e trilhas.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleRestore}
+              disabled={isPending || !restorePreview}
+              className="inline-flex items-center gap-2 rounded-full border border-emerald-300/22 bg-emerald-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:border-emerald-300/40 disabled:opacity-60"
+            >
+              {pendingKey === "restore-snapshot" ? (
+                <LoaderCircle size={14} className="animate-spin" />
+              ) : (
+                <RotateCcw size={14} />
+              )}
+              restaurar snapshot
+            </button>
+          </div>
+
+          <div className="mt-4 rounded-[16px] border border-white/8 bg-white/[0.03] p-4 text-sm text-[color:var(--ink-2)]">
+            {restorePreview ? (
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                <p>Origem: {restorePreview.sessionCode}</p>
+                <p>Cenas: {restorePreview.scenes.length}</p>
+                <p>Mapas: {restorePreview.maps.length}</p>
+                <p>Atlas: {restorePreview.atlasMaps.length}</p>
+                <p>Fichas: {restorePreview.characters.length}</p>
+                <p>Trilhas: {restorePreview.tracks.length}</p>
+                <p>Notas: {restorePreview.notes.length}</p>
+                <p>Memoria: {restorePreview.memoryEvents.length}</p>
+                <p>Exportado em: {restorePreview.exportedAt}</p>
+              </div>
+            ) : (
+              <p>
+                Nenhum snapshot carregado ainda. Escolha um arquivo `.json` para
+                visualizar o pacote antes de restaurar.
+              </p>
+            )}
+          </div>
         </div>
       </section>
 
@@ -382,8 +596,9 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
             <p className="section-label">Reset total do conteudo</p>
             <h3 className="mt-2 text-lg font-semibold text-white">Apagar tudo da mesa</h3>
             <p className="mt-2 text-sm leading-6 text-rose-50/90">
-              Preserva a sessao, o codigo, o ownership e os participantes vinculados, mas
-              remove mapas, cenas, atlas, personagens, assets, audio, chat e efeitos.
+              Preserva a sessao, o codigo, o ownership e os participantes
+              vinculados, mas remove mapas, cenas, atlas, personagens, assets,
+              audio, chat, efeitos, notas e memoria.
             </p>
           </div>
         </div>
@@ -413,7 +628,9 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
               <input
                 type="checkbox"
                 checked={checked as boolean}
-                onChange={(event) => (setChecked as (value: boolean) => void)(event.target.checked)}
+                onChange={(event) =>
+                  (setChecked as (value: boolean) => void)(event.target.checked)
+                }
                 className="mt-1"
               />
               <span>{label as string}</span>
@@ -443,6 +660,8 @@ export function AdminPanel({ sessionCode, viewer }: AdminPanelProps) {
           </button>
         </div>
       </section>
+
+      <DiagnosticsPanel infra={infra} />
 
       {feedback && (
         <div className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-[color:var(--ink-2)]">

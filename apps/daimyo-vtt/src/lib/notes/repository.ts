@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { PresenceRole } from "@/types/presence";
 import type { SessionNoteKind, SessionNoteRecord } from "@/types/note";
 
 interface SessionNoteRow {
@@ -55,6 +56,34 @@ export async function listSessionNotes(sessionId: string) {
     .eq("session_id", sessionId)
     .order("updated_at", { ascending: true })
     .returns<SessionNoteRow[]>();
+
+  if (error) {
+    if (isMissingRelationError(error)) {
+      return [] satisfies SessionNoteRecord[];
+    }
+
+    throw error;
+  }
+
+  return (data ?? []).map(mapSessionNoteRow);
+}
+
+export async function listSessionNotesForViewer(input: {
+  sessionId: string;
+  authorParticipantId: string;
+  role: PresenceRole;
+}) {
+  let query = getSessionNotesTable()
+    .select("*")
+    .eq("session_id", input.sessionId)
+    .eq("author_participant_id", input.authorParticipantId)
+    .order("updated_at", { ascending: true });
+
+  if (input.role !== "gm") {
+    query = query.eq("kind", "journal");
+  }
+
+  const { data, error } = await query.returns<SessionNoteRow[]>();
 
   if (error) {
     if (isMissingRelationError(error)) {

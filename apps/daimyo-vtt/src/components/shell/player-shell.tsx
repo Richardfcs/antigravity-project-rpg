@@ -12,6 +12,7 @@ import {
   MoonStar,
   Music4,
   RadioTower,
+  ScrollText,
   Shield,
   Shrink,
   Sparkles,
@@ -26,6 +27,7 @@ import { AuthSessionBridge } from "@/components/auth/auth-session-bridge";
 import { ImmersiveOverlays } from "@/components/effects/immersive-overlays";
 import { SessionEffectOverlays } from "@/components/effects/session-effect-overlays";
 import { AssetAvatar } from "@/components/media/asset-avatar";
+import { SessionMemoryFeed } from "@/components/panels/session-memory-feed";
 import { AtlasStage } from "@/components/stage/atlas-stage";
 import { TacticalMapStage } from "@/components/stage/tactical-map-stage";
 import { TheaterStage } from "@/components/stage/theater-stage";
@@ -59,6 +61,8 @@ import { useSessionChat } from "@/hooks/use-session-chat";
 import { useSessionCharacters } from "@/hooks/use-session-characters";
 import { useSessionEffects } from "@/hooks/use-session-effects";
 import { useSessionMaps } from "@/hooks/use-session-maps";
+import { useSessionMemory } from "@/hooks/use-session-memory";
+import { useSessionNotes } from "@/hooks/use-session-notes";
 import { useSessionPresence } from "@/hooks/use-session-presence";
 import { useSessionScenes } from "@/hooks/use-session-scenes";
 import { useSessionSnapshot } from "@/hooks/use-session-snapshot";
@@ -70,6 +74,7 @@ import { useImmersiveEventStore } from "@/stores/immersive-event-store";
 import { useMapStore } from "@/stores/map-store";
 import { usePresenceStore } from "@/stores/presence-store";
 import { useSceneStore } from "@/stores/scene-store";
+import { useSessionMemoryStore } from "@/stores/session-memory-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useUiShellStore } from "@/stores/ui-shell-store";
 import { useShallow } from "zustand/react/shallow";
@@ -88,6 +93,8 @@ import type { SessionEffectLayerRecord } from "@/types/immersive-event";
 import type { SessionPrivateEventRecord } from "@/types/immersive-event";
 import type { MapTokenRecord, SessionMapRecord } from "@/types/map";
 import type { SessionMessageRecord } from "@/types/message";
+import type { SessionMemoryRecord } from "@/types/session-memory";
+import type { SessionNoteRecord } from "@/types/note";
 import type { OnlinePresence } from "@/types/presence";
 import type { SceneCastRecord, SessionSceneRecord } from "@/types/scene";
 import type {
@@ -116,6 +123,8 @@ interface PlayerShellProps {
   audioState: SessionAudioStateRecord | null;
   privateEvents: SessionPrivateEventRecord[];
   effectLayers: SessionEffectLayerRecord[];
+  notes: SessionNoteRecord[];
+  memoryEvents: SessionMemoryRecord[];
   viewer: SessionViewerIdentity | null;
 }
 
@@ -153,12 +162,15 @@ export function PlayerShell({
   audioState,
   privateEvents,
   effectLayers,
+  notes,
+  memoryEvents,
   viewer
 }: PlayerShellProps) {
   const stageSectionRef = useRef<HTMLDivElement | null>(null);
   const sheetSectionRef = useRef<HTMLDivElement | null>(null);
   const dockSectionRef = useRef<HTMLDivElement | null>(null);
   const storedSnapshot = useSessionStore((state) => state.snapshot);
+  const storedMemoryEvents = useSessionMemoryStore((state) => state.events);
   const members = usePresenceStore((state) => state.members);
   const storedAssets = useAssetStore((state) => state.assets);
   const { storedCharacters, upsertCharacter } = useCharacterStore(
@@ -323,6 +335,18 @@ export function PlayerShell({
     enabled: true
   });
 
+  useSessionNotes({
+    sessionCode: snapshot.code,
+    initialNotes: notes,
+    enabled: true
+  });
+
+  useSessionMemory({
+    sessionCode: snapshot.code,
+    initialEvents: memoryEvents,
+    enabled: Boolean(viewer)
+  });
+
   const session = storedSnapshot ?? snapshot;
   const roster = members.length > 0 ? members : party;
   const syncedTracks = storedTracks.length > 0 ? storedTracks : audioTracks;
@@ -339,6 +363,8 @@ export function PlayerShell({
     storedAtlasPinCharacters.length > 0
       ? storedAtlasPinCharacters
       : atlasPinCharacters;
+  const liveMemoryEvents =
+    storedMemoryEvents.length > 0 ? storedMemoryEvents : memoryEvents;
   const orderedCharacters = useMemo(
     () => sortCharactersByInitiative(liveCharacters),
     [liveCharacters]
@@ -734,7 +760,9 @@ export function PlayerShell({
     });
   };
 
-  const handlePlayerViewJump = (target: "stage" | "wiki" | "sheet" | "chat") => {
+  const handlePlayerViewJump = (
+    target: "stage" | "wiki" | "sheet" | "chat" | "notes"
+  ) => {
     if (target === "wiki") {
       setWikiOpen(true);
       setLocalPresentationMode("standard");
@@ -752,6 +780,12 @@ export function PlayerShell({
 
     if (target === "chat") {
       setActiveDockTab("chat");
+      scrollToSection(dockSectionRef);
+      return;
+    }
+
+    if (target === "notes") {
+      setActiveDockTab("notes");
       scrollToSection(dockSectionRef);
       return;
     }
@@ -855,7 +889,8 @@ export function PlayerShell({
                 ["stage", "palco", Sparkles],
                 ["wiki", "wiki", Sparkles],
                 ["sheet", "minha ficha", Shield],
-                ["chat", "conversa", BellRing]
+                ["chat", "conversa", BellRing],
+                ["notes", "caderno", ScrollText]
               ] as const
             ).map(([target, label, Icon]) => (
               <button
@@ -866,6 +901,7 @@ export function PlayerShell({
                   (target === "wiki" && wikiOpen) ||
                   (target === "sheet" && isStatusDrawerOpen) ||
                   (target === "chat" && activeDockTab === "chat" && !wikiOpen) ||
+                  (target === "notes" && activeDockTab === "notes" && !wikiOpen) ||
                   (target === "stage" && !wikiOpen)
                     ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
                     : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
@@ -1025,6 +1061,38 @@ export function PlayerShell({
         </div>
 
         {showInlineStage && <div ref={stageSectionRef}>{renderedStage}</div>}
+
+        <section className="surface-panel p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="section-label">Memoria recente</p>
+              <h3 className="mt-2 text-lg font-semibold text-white">O que ecoou na sessao</h3>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--ink-2)]">
+                Revelacoes do atlas, mudancas de palco, trilhas e eventos que
+                marcaram este momento da mesa.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveDockTab("notes");
+                dockSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
+            >
+              <ScrollText size={14} />
+              abrir caderno
+            </button>
+          </div>
+          <div className="mt-4">
+            <SessionMemoryFeed
+              events={liveMemoryEvents}
+              compact
+              limit={4}
+              emptyLabel="A sessao ainda nao deixou rastros recentes para este olhar."
+            />
+          </div>
+        </section>
 
         {effectivePresentationMode === "immersive" && resolvedImmersiveMinimized && (
           <button

@@ -7,6 +7,7 @@ import {
   createPrivateEvent,
   findPrivateEventById
 } from "@/lib/private-events/repository";
+import { createSessionMemoryEvent } from "@/lib/session/memory-repository";
 import { requireSessionViewer } from "@/lib/session/access";
 import { findParticipantById } from "@/lib/session/repository";
 import type { SessionPrivateEventRecord, PrivateEventKind } from "@/types/immersive-event";
@@ -30,6 +31,16 @@ function buildInfraError(): PrivateEventActionResult {
     ok: false,
     message: "O Supabase Service Role ainda nao esta configurado."
   };
+}
+
+async function recordSessionMemory(
+  input: Parameters<typeof createSessionMemoryEvent>[0]
+) {
+  try {
+    await createSessionMemoryEvent(input);
+  } catch {
+    // O evento privado principal nao deve falhar por causa do historico.
+  }
 }
 
 export async function sendPrivateEventAction(input: {
@@ -77,6 +88,15 @@ export async function sendPrivateEventAction(input: {
       imageAssetId: input.imageAssetId ?? null,
       intensity: input.intensity,
       durationMs: input.durationMs
+    });
+
+    await recordSessionMemory({
+      sessionId: session.id,
+      actorParticipantId: viewer.participantId,
+      targetParticipantId: target.id,
+      category: "private-event",
+      title: input.title,
+      detail: `Sinal enviado para ${target.displayName}.`
     });
 
     return { ok: true, event };

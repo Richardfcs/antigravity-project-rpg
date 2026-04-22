@@ -15,6 +15,7 @@ import {
   UsersRound
 } from "lucide-react";
 
+import { SessionMemoryFeed } from "@/components/panels/session-memory-feed";
 import { cn } from "@/lib/utils";
 import type { SessionCommandState } from "@/lib/session/command-state";
 import type { SessionLibrarySummary } from "@/types/library";
@@ -23,6 +24,7 @@ import type {
   MasterMode,
   StageMode
 } from "@/types/session";
+import type { SessionMemoryRecord } from "@/types/session-memory";
 
 interface SessionCommandCenterProps {
   sessionCode: string;
@@ -36,6 +38,7 @@ interface SessionCommandCenterProps {
   onOpenSection: (section: ExplorerSection) => void;
   onJumpToArea: (area: "stage" | "status" | "support") => void;
   onToggleLiveSupport: (open: boolean) => void;
+  memoryEvents: SessionMemoryRecord[];
 }
 
 const stageMeta = {
@@ -94,7 +97,8 @@ export function SessionCommandCenter({
   onStageModeChange,
   onOpenSection,
   onJumpToArea,
-  onToggleLiveSupport
+  onToggleLiveSupport,
+  memoryEvents
 }: SessionCommandCenterProps) {
   const stageActions = buildStageActions(state.stageMode);
   const ActiveStageIcon = stageMeta[state.stageMode].icon;
@@ -357,6 +361,36 @@ export function SessionCommandCenter({
               {liveSupportOpen ? "recolher apoio" : "abrir apoio"}
             </button>
           )}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-[22px] border border-white/10 bg-black/18 p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <p className="section-label">Memoria de sessao</p>
+            <h3 className="mt-2 text-lg font-semibold text-white">
+              Rastro recente do que mudou na mesa
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
+              Trocas de palco, revelacoes do atlas, trilhas e sinais privados aparecem aqui para ajudar a conduzir sem perder o fio da sessao.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenSection("notes")}
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
+          >
+            <ScrollText size={14} />
+            notas
+          </button>
+        </div>
+
+        <div className="mt-4">
+          <SessionMemoryFeed
+            events={memoryEvents}
+            emptyLabel="A mesa ainda nao deixou rastros recentes nesta sessao."
+            limit={4}
+          />
         </div>
       </div>
     </section>

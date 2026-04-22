@@ -34,6 +34,7 @@ import type {
 } from "@/types/atlas";
 import type { SessionCharacterRecord } from "@/types/character";
 import type { MapTokenRecord, SessionMapRecord } from "@/types/map";
+import type { SessionMemoryRecord } from "@/types/session-memory";
 import type { SceneCastRecord, SessionSceneRecord } from "@/types/scene";
 import type {
   PresentationMode,
@@ -54,6 +55,7 @@ interface StagePanelProps {
   atlasPins: SessionAtlasPinRecord[];
   atlasPinCharacters: SessionAtlasPinCharacterRecord[];
   viewer: SessionViewerIdentity | null;
+  memoryEvents?: SessionMemoryRecord[];
   atlasMapIdOverride?: string | null;
   onAtlasMapNavigate?: (atlasMapId: string | null) => void;
   combatState?: TacticalCombatStateView;
@@ -78,6 +80,7 @@ export function StagePanel({
   atlasPins,
   atlasPinCharacters,
   viewer,
+  memoryEvents = [],
   atlasMapIdOverride,
   onAtlasMapNavigate,
   combatState,
@@ -250,6 +253,7 @@ export function StagePanel({
               characterOptions={characters}
               pinCharacterLinks={liveAtlasPinCharacters}
               atlasMaps={atlasMaps}
+              revealHistory={memoryEvents}
               onOpenSubmap={(atlasMapId) => onAtlasMapNavigate?.(atlasMapId)}
               onResetNavigation={() => onAtlasMapNavigate?.(null)}
               navigatingSubmap={Boolean(atlasMapIdOverride && atlasMapIdOverride !== snapshot.activeAtlasMapId)}

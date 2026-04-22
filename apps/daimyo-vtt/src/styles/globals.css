@@ -146,6 +146,55 @@ body::after {
   }
 }
 
+@keyframes daimyo-stage-breathe {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 0.72;
+  }
+
+  50% {
+    transform: scale(1.03) translateY(-1.5%);
+    opacity: 0.9;
+  }
+}
+
+@keyframes daimyo-stage-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -3%, 0);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes daimyo-ritual-pulse {
+  0%,
+  100% {
+    opacity: 0.12;
+  }
+
+  50% {
+    opacity: 0.34;
+  }
+}
+
+@keyframes daimyo-vision-warp {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+
+  50% {
+    transform: scale(1.035) rotate(0.4deg);
+  }
+}
+
 @layer base {
   * {
     border-color: var(--border-panel);
@@ -362,5 +411,75 @@ body::after {
   .daimyo-lightning {
     background: radial-gradient(circle at 50% 15%, rgba(255, 255, 255, 0.7), transparent 12%);
     animation: daimyo-lightning-pulse 4.5s ease-in-out infinite;
+  }
+
+  .daimyo-stage-grain {
+    background:
+      radial-gradient(circle at 16% 22%, rgba(255, 255, 255, 0.05), transparent 16%),
+      radial-gradient(circle at 78% 18%, rgba(212, 168, 70, 0.06), transparent 18%),
+      radial-gradient(circle at 54% 82%, rgba(196, 30, 58, 0.07), transparent 20%);
+    mix-blend-mode: soft-light;
+    opacity: 0.42;
+  }
+
+  .daimyo-stage-fog {
+    background:
+      radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.16), transparent 26%),
+      linear-gradient(180deg, transparent 0%, rgba(4, 4, 6, 0.08) 32%, rgba(4, 4, 6, 0.42) 100%);
+    filter: blur(14px);
+    animation: daimyo-stage-drift 9s ease-in-out infinite;
+  }
+
+  .daimyo-stage-aura {
+    background:
+      radial-gradient(circle at 50% 34%, rgba(212, 168, 70, 0.16), transparent 20%),
+      radial-gradient(circle at 50% 72%, rgba(196, 30, 58, 0.1), transparent 28%);
+    animation: daimyo-stage-breathe 8s ease-in-out infinite;
+  }
+
+  .daimyo-whisper-fog {
+    background:
+      radial-gradient(circle at 20% 24%, rgba(196, 181, 253, 0.2), transparent 16%),
+      radial-gradient(circle at 74% 38%, rgba(224, 231, 255, 0.16), transparent 20%),
+      linear-gradient(180deg, rgba(30, 27, 75, 0.16), rgba(12, 10, 26, 0.24));
+    animation: daimyo-stage-breathe 11s ease-in-out infinite;
+  }
+
+  .daimyo-omen-red {
+    background:
+      radial-gradient(circle at 50% 50%, rgba(220, 38, 38, 0.24), transparent 22%),
+      radial-gradient(circle at 18% 14%, rgba(254, 202, 202, 0.12), transparent 10%),
+      linear-gradient(180deg, rgba(32, 8, 10, 0.18), rgba(8, 2, 4, 0.32));
+    animation: daimyo-ritual-pulse 2.8s ease-in-out infinite;
+  }
+
+  .daimyo-void-pressure {
+    background:
+      radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.34), transparent 28%),
+      radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.08), transparent 12%),
+      linear-gradient(180deg, rgba(2, 6, 23, 0.3), rgba(2, 6, 23, 0.46));
+    animation: daimyo-stage-breathe 7s ease-in-out infinite;
+  }
+
+  .daimyo-fever-dream {
+    background:
+      radial-gradient(circle at 24% 24%, rgba(251, 191, 36, 0.2), transparent 18%),
+      radial-gradient(circle at 72% 34%, rgba(244, 114, 182, 0.18), transparent 18%),
+      radial-gradient(circle at 46% 68%, rgba(96, 165, 250, 0.16), transparent 18%);
+    animation: daimyo-vision-warp 10s ease-in-out infinite;
+  }
+
+  .daimyo-revelation {
+    background:
+      radial-gradient(circle at 50% 30%, rgba(250, 204, 21, 0.26), transparent 18%),
+      radial-gradient(circle at 50% 54%, rgba(167, 139, 250, 0.18), transparent 24%);
+    animation: daimyo-ritual-pulse 4.2s ease-in-out infinite;
+  }
+
+  .daimyo-dread {
+    background:
+      radial-gradient(circle at 50% 50%, rgba(88, 28, 135, 0.22), transparent 24%),
+      linear-gradient(180deg, rgba(12, 10, 18, 0.22), rgba(4, 3, 8, 0.44));
+    animation: daimyo-stage-breathe 6.5s ease-in-out infinite;
   }
 }

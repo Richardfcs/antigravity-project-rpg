@@ -79,7 +79,7 @@ function normalizeMasterRows(
 }
 
 function normalizeDockTab(tab?: string): DockTab {
-  if (tab === "chat" || tab === "dice" || tab === "audio") {
+  if (tab === "chat" || tab === "dice" || tab === "audio" || tab === "notes") {
     return tab;
   }
 

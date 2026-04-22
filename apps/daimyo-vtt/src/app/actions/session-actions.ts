@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getInfraReadiness } from "@/lib/env";
+import { createSessionMemoryEvent } from "@/lib/session/memory-repository";
 import { requireSessionViewer } from "@/lib/session/access";
 import {
   buildSessionViewerCookie,
@@ -65,6 +66,27 @@ interface SessionAuthActionResult {
   route?: string;
   linked?: boolean;
   message?: string;
+}
+
+async function recordSessionMemory(
+  input: Parameters<typeof createSessionMemoryEvent>[0]
+) {
+  try {
+    await createSessionMemoryEvent(input);
+  } catch {
+    // A memória da sessão é narrativa e não deve derrubar a action principal.
+  }
+}
+
+function describeStageMode(stageMode: StageMode) {
+  switch (stageMode) {
+    case "tactical":
+      return "Campo tatico";
+    case "atlas":
+      return "Atlas";
+    default:
+      return "Palco narrativo";
+  }
 }
 
 export async function createSessionAction(formData: FormData) {
@@ -197,10 +219,24 @@ export async function setSessionStageModeAction(input: {
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
     const updatedSession = await updateSessionStageMode({
       sessionId: session.id,
       stageMode: input.stageMode
+    });
+
+    await recordSessionMemory({
+      sessionId: session.id,
+      actorParticipantId: viewer.participantId,
+      category: "stage",
+      title: `${describeStageMode(updatedSession.activeStageMode)} em foco`,
+      detail:
+        updatedSession.activeStageMode === "theater"
+          ? updatedSession.activeScene
+          : updatedSession.activeStageMode === "tactical"
+            ? "O campo tatico assumiu o palco da sessao."
+            : "O atlas assumiu a condução da sessao.",
+      stageMode: updatedSession.activeStageMode
     });
 
     return {

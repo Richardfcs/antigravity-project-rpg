@@ -21,6 +21,7 @@ import {
   updateAtlasPinPositionAction
 } from "@/app/actions/atlas-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
+import { SessionMemoryFeed } from "@/components/panels/session-memory-feed";
 import type { AtlasStagePin } from "@/lib/atlas/selectors";
 import { useAtlasStore } from "@/stores/atlas-store";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ import type {
   SessionAtlasPinCharacterRecord
 } from "@/types/atlas";
 import type { SessionCharacterRecord } from "@/types/character";
+import type { SessionMemoryRecord } from "@/types/session-memory";
 
 interface AtlasStageProps {
   sessionCode?: string;
@@ -43,6 +45,7 @@ interface AtlasStageProps {
   assetOptions?: SessionAssetRecord[];
   characterOptions?: SessionCharacterRecord[];
   pinCharacterLinks?: SessionAtlasPinCharacterRecord[];
+  revealHistory?: SessionMemoryRecord[];
   onOpenSubmap?: (atlasMapId: string) => void;
   onResetNavigation?: () => void;
   navigatingSubmap?: boolean;
@@ -85,6 +88,7 @@ export function AtlasStage({
   assetOptions = [],
   characterOptions = [],
   pinCharacterLinks = [],
+  revealHistory = [],
   onOpenSubmap,
   onResetNavigation,
   navigatingSubmap = false
@@ -424,6 +428,24 @@ export function AtlasStage({
     });
   };
 
+  const revealHistoryEntries = useMemo(() => {
+    if (!canEdit || !atlasMap) {
+      return [];
+    }
+
+    return revealHistory.filter((event) => {
+      if (event.category !== "atlas") {
+        return false;
+      }
+
+      if (selectedPin) {
+        return event.atlasPinId === selectedPin.pin.id;
+      }
+
+      return event.atlasMapId === atlasMap.id;
+    });
+  }, [atlasMap, canEdit, revealHistory, selectedPin]);
+
   if (!atlasMap) {
     return (
       <div className="flex h-full min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-dashed border-white/12 bg-black/22 px-6 text-center">
@@ -740,6 +762,22 @@ export function AtlasStage({
                   pista ativa
                 </span>
               )}
+            </div>
+          )}
+          {canEdit && (
+            <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3">
+              <p className="text-sm font-semibold text-white">Historico de revelacao</p>
+              <p className="mt-1 text-xs leading-5 text-[color:var(--ink-2)]">
+                O que ja foi mostrado, ocultado ou marcado neste ponto do atlas.
+              </p>
+              <div className="mt-3">
+                <SessionMemoryFeed
+                  events={revealHistoryEntries}
+                  emptyLabel="Nenhum rastro de revelacao foi registrado aqui ainda."
+                  compact
+                  limit={4}
+                />
+              </div>
             </div>
           )}
           {canSeeSelectedPinDetails && selectedPin.imageAsset?.secureUrl && (

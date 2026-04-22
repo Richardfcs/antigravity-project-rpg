@@ -1,6 +1,7 @@
 "use server";
 
 import { getInfraReadiness } from "@/lib/env";
+import { restoreSessionSnapshot } from "@/lib/session/backup";
 import {
   resetSessionContent,
   resetSessionDataset,
@@ -12,6 +13,7 @@ interface AdminActionResult {
   ok: boolean;
   dataset?: ResettableSessionDataset | "all";
   message?: string;
+  counts?: Record<string, number>;
 }
 
 function buildInfraError(): AdminActionResult {
@@ -29,7 +31,9 @@ const datasetLabels: Record<ResettableSessionDataset, string> = {
   assets: "assets",
   audio: "audio",
   chat: "chat",
-  effects: "efeitos"
+  effects: "efeitos",
+  notes: "notas",
+  memory: "memoria"
 };
 
 export async function resetSessionDatasetAction(input: {
@@ -101,6 +105,35 @@ export async function resetSessionContentAction(input: {
     return {
       ok: false,
       message: error instanceof Error ? error.message : "Falha ao resetar a mesa."
+    };
+  }
+}
+
+export async function restoreSessionSnapshotAction(input: {
+  sessionCode: string;
+  rawSnapshot: string;
+}): Promise<AdminActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const result = await restoreSessionSnapshot({
+      sessionId: session.id,
+      rawSnapshot: input.rawSnapshot
+    });
+
+    return {
+      ok: true,
+      dataset: "all",
+      counts: result.restoredCounts,
+      message: "Snapshot restaurado com sucesso nesta mesa."
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Falha ao restaurar o snapshot."
     };
   }
 }

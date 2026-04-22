@@ -8,12 +8,13 @@ export type ExplorerSection =
   | "maps"
   | "actors"
   | "codex"
+  | "notes"
   | "atlas"
   | "effects"
   | "admin"
   | "audio"
   | "chat";
-export type DockTab = "chat" | "dice" | "audio";
+export type DockTab = "chat" | "dice" | "audio" | "notes";
 export type SyncState = "idle" | "booting" | "connected" | "degraded";
 export type SessionStatus = "lobby" | "active" | "closed";
 export type SessionParticipantStatus = "online" | "idle" | "offline";

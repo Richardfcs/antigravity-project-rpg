@@ -14,6 +14,7 @@ import {
 } from "@/lib/atlas/repository";
 import { findSessionCharacterById } from "@/lib/characters/repository";
 import { getInfraReadiness } from "@/lib/env";
+import { createSessionMemoryEvent } from "@/lib/session/memory-repository";
 import { requireSessionViewer } from "@/lib/session/access";
 import type {
   SessionAtlasMapRecord,
@@ -37,6 +38,70 @@ function buildInfraError(): AtlasActionResult {
     ok: false,
     message: "O Supabase Service Role ainda nao esta configurado."
   };
+}
+
+async function recordSessionMemory(
+  input: Parameters<typeof createSessionMemoryEvent>[0]
+) {
+  try {
+    await createSessionMemoryEvent(input);
+  } catch {
+    // O atlas continua operando mesmo se o historico falhar.
+  }
+}
+
+function describeAtlasRevealChange(input: {
+  previousNameVisible: boolean;
+  nextNameVisible: boolean;
+  previousDetailsVisible: boolean;
+  nextDetailsVisible: boolean;
+  previousQuestMarked: boolean;
+  nextQuestMarked: boolean;
+  pinTitle: string;
+}) {
+  if (!input.previousDetailsVisible && input.nextDetailsVisible) {
+    return {
+      title: "Detalhes revelados",
+      detail: `Os detalhes de ${input.pinTitle} foram abertos aos jogadores.`
+    };
+  }
+
+  if (input.previousDetailsVisible && !input.nextDetailsVisible) {
+    return {
+      title: "Detalhes velados",
+      detail: `Os detalhes de ${input.pinTitle} voltaram a ficar ocultos.`
+    };
+  }
+
+  if (!input.previousNameVisible && input.nextNameVisible) {
+    return {
+      title: "Nome revelado",
+      detail: `O nome de ${input.pinTitle} agora pode ser visto pelos jogadores.`
+    };
+  }
+
+  if (input.previousNameVisible && !input.nextNameVisible) {
+    return {
+      title: "Nome velado",
+      detail: `O nome de ${input.pinTitle} voltou a ficar oculto.`
+    };
+  }
+
+  if (!input.previousQuestMarked && input.nextQuestMarked) {
+    return {
+      title: "Pista marcada",
+      detail: `${input.pinTitle} recebeu uma marca de pista.`
+    };
+  }
+
+  if (input.previousQuestMarked && !input.nextQuestMarked) {
+    return {
+      title: "Pista recolhida",
+      detail: `${input.pinTitle} deixou de marcar uma pista.`
+    };
+  }
+
+  return null;
 }
 
 export async function createAtlasMapAction(input: {
@@ -283,7 +348,7 @@ export async function updateAtlasPinDetailsAction(input: {
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
     const pin = await findSessionAtlasPinById(input.pinId);
 
     if (!pin || pin.sessionId !== session.id) {
@@ -336,6 +401,29 @@ export async function updateAtlasPinDetailsAction(input: {
       submapAssetId: input.submapAssetId,
       characterIds: input.characterIds
     });
+
+    const revealChange = describeAtlasRevealChange({
+      previousNameVisible: pin.isNameVisibleToPlayers,
+      nextNameVisible: updated.pin.isNameVisibleToPlayers,
+      previousDetailsVisible: pin.isVisibleToPlayers,
+      nextDetailsVisible: updated.pin.isVisibleToPlayers,
+      previousQuestMarked: pin.isQuestMarked,
+      nextQuestMarked: updated.pin.isQuestMarked,
+      pinTitle: updated.pin.title
+    });
+
+    if (revealChange) {
+      await recordSessionMemory({
+        sessionId: session.id,
+        actorParticipantId: viewer.participantId,
+        category: "atlas",
+        title: revealChange.title,
+        detail: revealChange.detail,
+        atlasMapId: updated.pin.atlasMapId,
+        atlasPinId: updated.pin.id,
+        stageMode: "atlas"
+      });
+    }
 
     return {
       ok: true,

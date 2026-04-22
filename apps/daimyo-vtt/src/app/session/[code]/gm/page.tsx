@@ -14,8 +14,10 @@ import { listSessionMessages } from "@/lib/chat/repository";
 import { getInfraReadiness } from "@/lib/env";
 import { listSessionEffectLayers } from "@/lib/effects/repository";
 import { listMapTokens, listSessionMaps } from "@/lib/maps/repository";
+import { listSessionNotesForViewer } from "@/lib/notes/repository";
 import { listSceneCast, listSessionScenes } from "@/lib/scenes/repository";
 import { readSessionViewerCookie } from "@/lib/session/cookies";
+import { listSessionMemoryEventsForViewer } from "@/lib/session/memory-repository";
 import {
   getSessionBootstrap,
   mapParticipantsToOnlinePresence
@@ -52,7 +54,9 @@ export default async function GmSessionPage({ params }: GmPageProps) {
     messages,
     audioTracks,
     audioState,
-    effectLayers
+    effectLayers,
+    notes,
+    memoryEvents
   ] = await Promise.all([
     listSessionAssets(bootstrap.session.id),
     listSessionCharacters(bootstrap.session.id),
@@ -66,7 +70,21 @@ export default async function GmSessionPage({ params }: GmPageProps) {
     listSessionMessages(bootstrap.session.id),
     listSessionAudioTracks(bootstrap.session.id),
     getSessionAudioState(bootstrap.session.id),
-    listSessionEffectLayers(bootstrap.session.id)
+    listSessionEffectLayers(bootstrap.session.id),
+    bootstrap.viewer
+      ? listSessionNotesForViewer({
+          sessionId: bootstrap.session.id,
+          authorParticipantId: bootstrap.viewer.participantId,
+          role: bootstrap.viewer.role
+        })
+      : Promise.resolve([]),
+    bootstrap.viewer
+      ? listSessionMemoryEventsForViewer({
+          sessionId: bootstrap.session.id,
+          role: bootstrap.viewer.role,
+          viewerParticipantId: bootstrap.viewer.participantId
+        })
+      : Promise.resolve([])
   ]);
 
   return (
@@ -91,6 +109,8 @@ export default async function GmSessionPage({ params }: GmPageProps) {
       audioTracks={audioTracks}
       audioState={audioState}
       effectLayers={effectLayers}
+      notes={notes}
+      memoryEvents={memoryEvents}
       viewer={bootstrap.viewer}
     />
   );

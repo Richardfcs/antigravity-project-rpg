@@ -11,7 +11,9 @@ export type ResettableSessionDataset =
   | "assets"
   | "audio"
   | "chat"
-  | "effects";
+  | "effects"
+  | "notes"
+  | "memory";
 
 interface AssetCleanupRow {
   public_id: string;
