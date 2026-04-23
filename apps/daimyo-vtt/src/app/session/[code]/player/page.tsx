@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { PlayerShell } from "@/components/shell/player-shell";
 import { listSessionAssets } from "@/lib/assets/repository";
@@ -39,6 +39,10 @@ export default async function PlayerSessionPage({ params }: PlayerPageProps) {
 
   if (!bootstrap) {
     notFound();
+  }
+
+  if (viewerCookie?.participantId && !bootstrap.viewer) {
+    redirect("/?error=Voce foi removido da mesa.");
   }
 
   const [

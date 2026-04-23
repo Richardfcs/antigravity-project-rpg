@@ -6,7 +6,11 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import type {
   DockTab,
   ExplorerSection,
-  MasterMode
+  MasterDrawer,
+  MasterMode,
+  MasterWorkspace,
+  PlayerBottomTab,
+  PlayerOverlay
 } from "@/types/session";
 
 const DEFAULT_MASTER_COLUMNS = {
@@ -90,8 +94,13 @@ type PersistedUiShellState = Partial<{
   activeSection: ExplorerSection;
   activeDockTab: DockTab;
   masterMode: MasterMode;
+  masterWorkspace: MasterWorkspace;
+  masterDrawer: MasterDrawer;
+  supportTrayOpen: boolean;
   liveSupportOpen: boolean;
   followMaster: boolean;
+  playerBottomTab: PlayerBottomTab;
+  playerOverlay: PlayerOverlay;
   leftCollapsed: boolean;
   rightCollapsed: boolean;
   bottomCollapsed: boolean;
@@ -103,8 +112,13 @@ interface UiShellState {
   activeSection: ExplorerSection;
   activeDockTab: DockTab;
   masterMode: MasterMode;
+  masterWorkspace: MasterWorkspace;
+  masterDrawer: MasterDrawer;
+  supportTrayOpen: boolean;
   liveSupportOpen: boolean;
   followMaster: boolean;
+  playerBottomTab: PlayerBottomTab;
+  playerOverlay: PlayerOverlay;
   leftCollapsed: boolean;
   rightCollapsed: boolean;
   bottomCollapsed: boolean;
@@ -113,8 +127,13 @@ interface UiShellState {
   setActiveSection: (section: ExplorerSection) => void;
   setActiveDockTab: (tab: DockTab) => void;
   setMasterMode: (mode: MasterMode) => void;
+  setMasterWorkspace: (workspace: MasterWorkspace) => void;
+  setMasterDrawer: (drawer: MasterDrawer) => void;
+  setSupportTrayOpen: (open: boolean) => void;
   setLiveSupportOpen: (open: boolean) => void;
   setFollowMaster: (followMaster: boolean) => void;
+  setPlayerBottomTab: (tab: PlayerBottomTab) => void;
+  setPlayerOverlay: (overlay: PlayerOverlay) => void;
   toggleLeft: () => void;
   toggleRight: () => void;
   toggleBottom: () => void;
@@ -129,8 +148,13 @@ export const useUiShellStore = create<UiShellState>()(
       activeSection: "scenes",
       activeDockTab: "chat",
       masterMode: "prep",
+      masterWorkspace: "library",
+      masterDrawer: "closed",
+      supportTrayOpen: false,
       liveSupportOpen: false,
       followMaster: true,
+      playerBottomTab: "stage",
+      playerOverlay: "none",
       leftCollapsed: false,
       rightCollapsed: false,
       bottomCollapsed: false,
@@ -139,8 +163,13 @@ export const useUiShellStore = create<UiShellState>()(
       setActiveSection: (section) => set({ activeSection: section }),
       setActiveDockTab: (tab) => set({ activeDockTab: normalizeDockTab(tab) }),
       setMasterMode: (masterMode) => set({ masterMode }),
+      setMasterWorkspace: (masterWorkspace) => set({ masterWorkspace }),
+      setMasterDrawer: (masterDrawer) => set({ masterDrawer }),
+      setSupportTrayOpen: (supportTrayOpen) => set({ supportTrayOpen, liveSupportOpen: supportTrayOpen }),
       setLiveSupportOpen: (liveSupportOpen) => set({ liveSupportOpen }),
       setFollowMaster: (followMaster) => set({ followMaster }),
+      setPlayerBottomTab: (playerBottomTab) => set({ playerBottomTab }),
+      setPlayerOverlay: (playerOverlay) => set({ playerOverlay }),
       toggleLeft: () => set((state) => ({ leftCollapsed: !state.leftCollapsed })),
       toggleRight: () =>
         set((state) => ({ rightCollapsed: !state.rightCollapsed })),
@@ -169,7 +198,7 @@ export const useUiShellStore = create<UiShellState>()(
     }),
     {
       name: "daimyo-vtt-ui-shell",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState) => {
         const state = (persistedState ?? {}) as PersistedUiShellState;
@@ -178,8 +207,17 @@ export const useUiShellStore = create<UiShellState>()(
           activeSection: state.activeSection ?? "scenes",
           activeDockTab: normalizeDockTab(state.activeDockTab),
           masterMode: state.masterMode === "live" ? "live" : "prep",
+          masterWorkspace:
+            state.masterWorkspace === "stage" ? "stage" : "library",
+          masterDrawer:
+            state.masterDrawer && state.masterDrawer !== "closed"
+              ? state.masterDrawer
+              : "closed",
+          supportTrayOpen: state.supportTrayOpen ?? state.liveSupportOpen ?? false,
           liveSupportOpen: state.liveSupportOpen ?? false,
           followMaster: state.followMaster ?? true,
+          playerBottomTab: state.playerBottomTab ?? "stage",
+          playerOverlay: state.playerOverlay ?? "none",
           leftCollapsed: state.leftCollapsed ?? false,
           rightCollapsed: state.rightCollapsed ?? false,
           bottomCollapsed: state.bottomCollapsed ?? false,

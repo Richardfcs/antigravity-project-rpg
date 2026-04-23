@@ -15,11 +15,13 @@ import {
   buildViewerIdentity,
   createSessionWithGm,
   findSessionByCode,
+  findParticipantById,
   findParticipantByAuthUser,
   joinSessionAsPlayer,
   linkParticipantToAuthUser,
   linkSessionOwnerToAuthUser,
   listLinkedSessionsByAuthUser,
+  removeSessionParticipant,
   updateSessionPresentationMode,
   updateSessionStageMode,
   updateSessionCombatState
@@ -65,6 +67,12 @@ interface SessionAuthActionResult {
   ok: boolean;
   route?: string;
   linked?: boolean;
+  message?: string;
+}
+
+interface SessionParticipantActionResult {
+  ok: boolean;
+  participantId?: string;
   message?: string;
 }
 
@@ -318,6 +326,62 @@ export async function setSessionCombatStateAction(input: {
       ok: false,
       message:
         formatActionError(error) ?? "Falha ao atualizar o combate da sessao."
+    };
+  }
+}
+
+export async function removeSessionParticipantAction(input: {
+  sessionCode: string;
+  participantId: string;
+}): Promise<SessionParticipantActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return {
+      ok: false,
+      message: "O Supabase Service Role ainda nao esta configurado."
+    };
+  }
+
+  try {
+    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
+    const participant = await findParticipantById(input.participantId);
+
+    if (!participant || participant.sessionId !== session.id) {
+      return {
+        ok: false,
+        message: "Jogador nao encontrado nesta mesa."
+      };
+    }
+
+    if (participant.role !== "player") {
+      return {
+        ok: false,
+        message: "Apenas jogadores podem ser removidos da mesa."
+      };
+    }
+
+    const removedParticipant = await removeSessionParticipant({
+      sessionId: session.id,
+      participantId: participant.id
+    });
+
+    await recordSessionMemory({
+      sessionId: session.id,
+      actorParticipantId: viewer.participantId,
+      targetParticipantId: removedParticipant.id,
+      category: "private",
+      title: `${removedParticipant.displayName} foi removido da mesa`,
+      detail: "O mestre encerrou o vinculo deste jogador com a sessao."
+    });
+
+    return {
+      ok: true,
+      participantId: removedParticipant.id
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        formatActionError(error) ?? "Falha ao remover o jogador da sessao."
     };
   }
 }

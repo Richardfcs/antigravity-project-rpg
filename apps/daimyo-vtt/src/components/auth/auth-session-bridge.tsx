@@ -106,11 +106,9 @@ export function AuthSessionBridge({
   }
 
   return (
-    <div className="rounded-[18px] border border-emerald-300/18 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-50">
-      <span className="inline-flex items-center gap-2">
-        <ShieldCheck size={16} />
-        {statusLabel}
-      </span>
-    </div>
+    <span className="hud-chip border-emerald-300/18 bg-emerald-300/10 text-emerald-50">
+      <ShieldCheck size={14} />
+      {statusLabel}
+    </span>
   );
 }

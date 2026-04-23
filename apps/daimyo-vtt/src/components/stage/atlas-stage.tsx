@@ -38,6 +38,7 @@ interface AtlasStageProps {
   atlasMap: SessionAtlasMapRecord | null;
   atlasMaps?: SessionAtlasMapRecord[];
   backgroundUrl?: string | null;
+  backgroundAsset?: SessionAssetRecord | null;
   pins: AtlasStagePin[];
   compact?: boolean;
   viewMode?: "workspace" | "focus";
@@ -81,6 +82,7 @@ export function AtlasStage({
   atlasMap,
   atlasMaps = [],
   backgroundUrl,
+  backgroundAsset = null,
   pins,
   compact = false,
   viewMode = "workspace",
@@ -106,10 +108,11 @@ export function AtlasStage({
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [isFocusDrawerOpen, setIsFocusDrawerOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const isFocus = viewMode === "focus";
-  const worldWidth = 1600;
-  const worldHeight = 960;
+  const worldWidth = backgroundAsset?.width ?? 1600;
+  const worldHeight = backgroundAsset?.height ?? 960;
 
   const centerViewport = useCallback(
     (targetZoom = zoom) => {
@@ -151,7 +154,7 @@ export function AtlasStage({
     window.requestAnimationFrame(() => {
       fitToViewport();
     });
-  }, [atlasMap?.id, fitToViewport]);
+  }, [atlasMap?.id, fitToViewport, worldHeight, worldWidth]);
 
   useEffect(() => {
     if (!dragState || !atlasMap || !canEdit || !sessionCode) {
@@ -209,7 +212,17 @@ export function AtlasStage({
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [atlasMap, canEdit, dragState, sessionCode, startTransition, upsertAtlasPin, zoom]);
+  }, [
+    atlasMap,
+    canEdit,
+    dragState,
+    sessionCode,
+    startTransition,
+    upsertAtlasPin,
+    worldHeight,
+    worldWidth,
+    zoom
+  ]);
 
   const imageAssetOptions = useMemo(
     () => assetOptions.filter((asset) => asset.kind === "background"),
@@ -223,7 +236,9 @@ export function AtlasStage({
   const effectiveSelectedPinId =
     selectedPinId && pins.some((pin) => pin.pin.id === selectedPinId)
       ? selectedPinId
-      : pins[0]?.pin.id ?? null;
+      : isFocus
+        ? null
+        : pins[0]?.pin.id ?? null;
   const selectedPin =
     pins.find((pin) => pin.pin.id === effectiveSelectedPinId) ?? null;
 
@@ -246,6 +261,12 @@ export function AtlasStage({
   }, [dragState, pins]);
 
   const handleSurfaceClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (isFocus) {
+      setSelectedPinId(null);
+      setEditor(null);
+      setIsFocusDrawerOpen(false);
+    }
+
     if (!canEdit || !editMode) {
       return;
     }
@@ -268,10 +289,14 @@ export function AtlasStage({
       submapAssetId: "",
       characterIds: []
     });
+    setIsFocusDrawerOpen(true);
   };
 
   const handleSelectPin = (entry: AtlasStagePin) => {
     setSelectedPinId(entry.pin.id);
+    if (isFocus) {
+      setIsFocusDrawerOpen(true);
+    }
 
     if (canEdit && editMode) {
       setEditor({
@@ -300,6 +325,7 @@ export function AtlasStage({
     }
 
     setEditMode(true);
+    setIsFocusDrawerOpen(true);
     setEditor({
       mode: "edit",
       pinId: selectedPin.pin.id,
@@ -347,6 +373,9 @@ export function AtlasStage({
           replaceAtlasPinCharacters(result.pin.id, result.pinCharacters ?? []);
           setEditor(null);
           setSelectedPinId(result.pin.id);
+          if (isFocus) {
+            setIsFocusDrawerOpen(true);
+          }
         }
       } else if (editor.pinId) {
         const result = await updateAtlasPinDetailsAction({
@@ -422,6 +451,7 @@ export function AtlasStage({
         removeAtlasPin(result.pin.id);
         setEditor(null);
         setSelectedPinId(null);
+        setIsFocusDrawerOpen(false);
       }
 
       setPendingKey(null);
@@ -469,6 +499,7 @@ export function AtlasStage({
   const canSeeSelectedPinDetails = Boolean(
     selectedPin && (canEdit || selectedPin.pin.isVisibleToPlayers)
   );
+  const canOpenFocusDrawer = Boolean(editor || selectedPin);
   const detailPanel = (
     <div className="stat-card max-h-full overflow-auto">
       <p className="section-label">{editor ? "Editor do pin" : "Local em foco"}</p>
@@ -863,11 +894,11 @@ export function AtlasStage({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col gap-4 rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(12,21,35,0.96),rgba(17,28,44,0.78))]",
-        isFocus ? "p-3 md:p-4" : "p-4"
+        "flex h-full min-h-0 flex-col gap-3 overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(145deg,rgba(12,21,35,0.96),rgba(17,28,44,0.78))]",
+        isFocus ? "p-3 md:p-3.5" : "p-3"
       )}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
@@ -906,16 +937,22 @@ export function AtlasStage({
               </button>
             )}
           </div>
-          {!isFocus && (
-            <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-              {editMode
-                ? "Clique no mapa para criar pin e arraste pins existentes para reposicionar."
-                : "Navegue pelo mapa macro da campanha e abra cada local clicando nos pins do atlas."}
-            </p>
-          )}
         </div>
 
         <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/18 px-2 py-1.5">
+          {isFocus && canOpenFocusDrawer ? (
+            <button
+              type="button"
+              onClick={() => setIsFocusDrawerOpen((current) => !current)}
+              className={cn(
+                "rail-button h-9 px-3 text-xs font-semibold uppercase tracking-[0.16em]",
+                isFocusDrawerOpen && "border-amber-300/22 bg-amber-300/10 text-amber-100"
+              )}
+            >
+              <ScrollText size={14} />
+              {editor ? "editor" : "detalhes"}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={fitToViewport}
@@ -952,7 +989,7 @@ export function AtlasStage({
 
       <div
         className={cn(
-          "min-h-0 flex-1",
+          "min-h-0 flex-1 overflow-hidden",
           isFocus ? "relative" : "grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_360px]"
         )}
       >
@@ -964,82 +1001,93 @@ export function AtlasStage({
               ? "h-full min-h-0"
               : compact
                 ? "min-h-[320px]"
-                : "min-h-[360px] h-full"
+                : "min-h-[460px] h-full"
           )}
         >
-          <div
-            className="relative overflow-hidden"
-            style={{ width: `${renderedWidth}px`, height: `${renderedHeight}px` }}
-            onClick={handleSurfaceClick}
-          >
+          <div className="flex min-h-full min-w-full p-3 md:p-4">
             <div
-              className={cn("absolute inset-0", backgroundUrl ? "bg-center bg-no-repeat" : "")}
-              style={{
-                backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
-                backgroundSize: backgroundUrl ? "contain" : undefined,
-                backgroundColor: backgroundUrl ? undefined : "#020617"
-              }}
-            />
+              className="relative m-auto shrink-0 overflow-hidden"
+              style={{ width: `${renderedWidth}px`, height: `${renderedHeight}px` }}
+              onClick={handleSurfaceClick}
+            >
+              <div
+                className={cn("absolute inset-0", backgroundUrl ? "bg-center bg-no-repeat" : "")}
+                style={{
+                  backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
+                  backgroundSize: backgroundUrl ? "contain" : undefined,
+                  backgroundColor: backgroundUrl ? undefined : "#020617"
+                }}
+              />
 
-            {renderedPins.map((entry) => {
-              const isSelected = entry.pin.id === effectiveSelectedPinId;
+              {renderedPins.map((entry) => {
+                const isSelected = entry.pin.id === effectiveSelectedPinId;
 
-              return (
-                <button
-                  key={entry.pin.id}
-                  type="button"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    handleSelectPin(entry);
-                  }}
-                  onPointerDown={(event) => {
-                    if (!canEdit || !editMode) {
-                      return;
-                    }
+                return (
+                  <button
+                    key={entry.pin.id}
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleSelectPin(entry);
+                    }}
+                    onPointerDown={(event) => {
+                      if (!canEdit || !editMode) {
+                        return;
+                      }
 
-                    event.preventDefault();
-                    event.stopPropagation();
-                    handleSelectPin(entry);
-                    setDragState({ pinId: entry.pin.id, x: entry.x, y: entry.y });
-                  }}
-                  className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
-                  style={{ left: `${entry.x}%`, top: `${entry.y}%` }}
-                >
-                  <div
-                    className={cn(
-                      "flex h-11 w-11 items-center justify-center rounded-full border shadow-[0_10px_24px_rgba(2,6,23,0.45)] transition",
-                      canEdit && !entry.pin.isVisibleToPlayers && !entry.pin.isNameVisibleToPlayers
-                        ? "border-white/12 border-dashed bg-black/40 text-[color:var(--ink-3)]"
-                        : isSelected
-                          ? "border-amber-300/40 bg-amber-300/16 text-amber-50"
-                          : "border-white/14 bg-black/55 text-white hover:border-amber-300/25",
-                      entry.pin.isQuestMarked && "animate-pulse"
-                    )}
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleSelectPin(entry);
+                      setDragState({ pinId: entry.pin.id, x: entry.x, y: entry.y });
+                    }}
+                    className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+                    style={{ left: `${entry.x}%`, top: `${entry.y}%` }}
                   >
-                    <MapPinned size={18} />
-                  </div>
-                  {(canEdit || entry.pin.isVisibleToPlayers || entry.pin.isNameVisibleToPlayers) && (
-                    <div className="mt-2 min-w-[96px] rounded-full border border-white/10 bg-black/60 px-3 py-1 text-[11px] font-semibold tracking-[0.08em] text-white shadow-[0_8px_18px_rgba(2,6,23,0.35)]">
-                      <span className="block truncate">
-                        {entry.pin.title}
-                      </span>
+                    <div
+                      className={cn(
+                        "flex h-11 w-11 items-center justify-center rounded-full border shadow-[0_10px_24px_rgba(2,6,23,0.45)] transition",
+                        canEdit && !entry.pin.isVisibleToPlayers && !entry.pin.isNameVisibleToPlayers
+                          ? "border-white/12 border-dashed bg-black/40 text-[color:var(--ink-3)]"
+                          : isSelected
+                            ? "border-amber-300/40 bg-amber-300/16 text-amber-50"
+                            : "border-white/14 bg-black/55 text-white hover:border-amber-300/25",
+                        entry.pin.isQuestMarked && "animate-pulse"
+                      )}
+                    >
+                      <MapPinned size={18} />
                     </div>
-                  )}
-                </button>
-              );
-            })}
+                    {(canEdit ||
+                      entry.pin.isVisibleToPlayers ||
+                      entry.pin.isNameVisibleToPlayers) && (
+                      <div className="mt-2 min-w-[96px] rounded-full border border-white/10 bg-black/60 px-3 py-1 text-[11px] font-semibold tracking-[0.08em] text-white shadow-[0_8px_18px_rgba(2,6,23,0.35)]">
+                        <span className="block truncate">{entry.pin.title}</span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         {isFocus ? (
-          (editor || selectedPin) && (
-            <div className="pointer-events-none absolute right-4 top-4 z-[20] max-h-[calc(100%-2rem)] w-[min(360px,92vw)]">
-              <div className="pointer-events-auto">{detailPanel}</div>
+          canOpenFocusDrawer && isFocusDrawerOpen && (
+            <div className="pointer-events-none absolute inset-y-3 right-3 z-[20] flex w-[min(380px,calc(100%-1.5rem))] justify-end md:w-[360px]">
+              <div className="pointer-events-auto relative h-full max-h-full w-full overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsFocusDrawerOpen(false)}
+                  className="absolute right-3 top-3 z-[2] inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[rgba(5,10,18,0.82)] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
+                >
+                  <EyeOff size={14} />
+                </button>
+                {detailPanel}
+              </div>
             </div>
           )
         ) : (
-          <aside className="space-y-4">
+          <aside className="min-h-0 space-y-4 overflow-hidden">
             {detailPanel}
             {feedback && <p className="text-sm text-amber-100">{feedback}</p>}
           </aside>

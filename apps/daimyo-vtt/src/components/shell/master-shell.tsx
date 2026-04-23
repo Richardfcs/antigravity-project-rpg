@@ -1,20 +1,12 @@
-"use client";
+﻿"use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
-  AudioLines,
-  BookOpenText,
-  Expand,
-  Ghost,
-  Map,
-  MapPinned,
   MessagesSquare,
   Minimize2,
-  ScrollText,
-  ShieldAlert,
-  Theater,
-  UsersRound
+  Expand,
+  X
 } from "lucide-react";
 
 import {
@@ -25,17 +17,17 @@ import {
 import { moveMapTokenAction } from "@/app/actions/map-actions";
 import { AudioSyncLayer } from "@/components/audio/audio-sync-layer";
 import { AuthSessionBridge } from "@/components/auth/auth-session-bridge";
+import { AppDrawer } from "@/components/layout/app-drawer";
+import { AppTray } from "@/components/layout/app-tray";
 import { SessionEffectOverlays } from "@/components/effects/session-effect-overlays";
 import { SessionCommandCenter } from "@/components/panels/session-command-center";
 import { StagePanel } from "@/components/panels/stage-panel";
-import { StageContextBar } from "@/components/panels/stage-context-bar";
 import { AtlasStage } from "@/components/stage/atlas-stage";
 import { TacticalMapStage } from "@/components/stage/tactical-map-stage";
 import { TheaterStage } from "@/components/stage/theater-stage";
 import { ThemeSettingsButton } from "@/components/theme/theme-provider";
 import { useSessionAtlas } from "@/hooks/use-session-atlas";
 import { useSessionAudio } from "@/hooks/use-session-audio";
-import { useMobile } from "@/hooks/use-mobile";
 import { useSessionEffects } from "@/hooks/use-session-effects";
 import { useSessionAssets } from "@/hooks/use-session-assets";
 import { useSessionBootstrap } from "@/hooks/use-session-bootstrap";
@@ -44,6 +36,7 @@ import { useSessionCharacters } from "@/hooks/use-session-characters";
 import { useSessionDiagnostics } from "@/hooks/use-session-diagnostics";
 import { useSessionMaps } from "@/hooks/use-session-maps";
 import { useSessionMemory } from "@/hooks/use-session-memory";
+import { useMobile } from "@/hooks/use-mobile";
 import { useSessionNotes } from "@/hooks/use-session-notes";
 import { useSessionPresence } from "@/hooks/use-session-presence";
 import { useSessionScenes } from "@/hooks/use-session-scenes";
@@ -57,7 +50,6 @@ import {
 } from "@/lib/maps/selectors";
 import { findActiveScene, listSceneCastEntries } from "@/lib/scenes/selectors";
 import { buildSessionCommandState } from "@/lib/session/command-state";
-import { cn } from "@/lib/utils";
 import { useAssetStore } from "@/stores/asset-store";
 import { useAtlasStore } from "@/stores/atlas-store";
 import { useAudioStore } from "@/stores/audio-store";
@@ -93,6 +85,7 @@ import type { SceneCastRecord, SessionSceneRecord } from "@/types/scene";
 import type {
   ExplorerSection,
   PresentationMode,
+  MasterWorkspace,
   SessionParticipantRecord,
   SessionShellSnapshot,
   SessionViewerIdentity,
@@ -122,23 +115,6 @@ interface MasterShellProps {
   viewer: SessionViewerIdentity | null;
 }
 
-const masterSections: Array<{
-  id: ExplorerSection;
-  label: string;
-  icon: typeof Theater;
-}> = [
-  { id: "scenes", label: "Cenas", icon: Theater },
-  { id: "maps", label: "Campos", icon: Map },
-  { id: "codex", label: "Oficina", icon: BookOpenText },
-  { id: "notes", label: "Notas", icon: ScrollText },
-  { id: "actors", label: "Fichas", icon: UsersRound },
-  { id: "atlas", label: "Atlas", icon: MapPinned },
-  { id: "effects", label: "Efeitos", icon: Ghost },
-  { id: "admin", label: "Dominio", icon: ShieldAlert },
-  { id: "audio", label: "Trilhas", icon: AudioLines },
-  { id: "chat", label: "Conversa", icon: MessagesSquare }
-];
-
 const ExplorerPanel = dynamic(
   () => import("@/components/panels/explorer-panel").then((mod) => mod.ExplorerPanel),
   { ssr: false }
@@ -158,38 +134,6 @@ const ChatPanel = dynamic(
   () => import("@/components/panels/chat-panel").then((mod) => mod.ChatPanel),
   { ssr: false }
 );
-
-function SectionTabs({
-  activeSection,
-  onSelect,
-  mobile = false
-}: {
-  activeSection: ExplorerSection;
-  onSelect: (section: ExplorerSection) => void;
-  mobile?: boolean;
-}) {
-  return (
-    <div className={mobile ? "grid grid-cols-4 gap-1.5" : "flex flex-wrap gap-2"}>
-      {masterSections.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          onClick={() => onSelect(item.id)}
-          className={cn(
-            mobile
-              ? "mobile-shell-tab"
-              : "inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-[color:var(--ink-2)] transition hover:border-amber-300/35 hover:bg-amber-300/10 hover:text-white",
-            activeSection === item.id &&
-              "border-amber-300/35 bg-amber-300/12 text-white"
-          )}
-        >
-          <item.icon size={mobile ? 15 : 16} />
-          {item.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export function MasterShell({
   snapshot,
@@ -213,18 +157,13 @@ export function MasterShell({
   memoryEvents,
   viewer
 }: MasterShellProps) {
-  const stagePanelRef = useRef<HTMLDivElement | null>(null);
-  const statusDrawerRef = useRef<HTMLDivElement | null>(null);
-  const supportPanelRef = useRef<HTMLDivElement | null>(null);
-  const [mobileSupportPanel, setMobileSupportPanel] = useState<"explorer" | "dock">(
-    "explorer"
-  );
   const [atlasNavigation, setAtlasNavigation] = useState<{
     sourceAtlasMapId: string | null;
     targetAtlasMapId: string | null;
   } | null>(null);
   const [isImmersiveChatOpen, setIsImmersiveChatOpen] = useState(false);
   const [isImmersiveMinimized, setIsImmersiveMinimized] = useState(false);
+  const [statusDrawerOpen, setStatusDrawerOpen] = useState(false);
   const [sessionFeedback, setSessionFeedback] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const isMobile = useMobile();
@@ -235,8 +174,12 @@ export function MasterShell({
     setActiveDockTab,
     masterMode,
     setMasterMode,
-    liveSupportOpen,
-    setLiveSupportOpen
+    masterWorkspace,
+    setMasterWorkspace,
+    masterDrawer,
+    setMasterDrawer,
+    supportTrayOpen,
+    setSupportTrayOpen
   } =
     useUiShellStore(
       useShallow((state) => ({
@@ -246,8 +189,12 @@ export function MasterShell({
         setActiveDockTab: state.setActiveDockTab,
         masterMode: state.masterMode,
         setMasterMode: state.setMasterMode,
-        liveSupportOpen: state.liveSupportOpen,
-        setLiveSupportOpen: state.setLiveSupportOpen
+        masterWorkspace: state.masterWorkspace,
+        setMasterWorkspace: state.setMasterWorkspace,
+        masterDrawer: state.masterDrawer,
+        setMasterDrawer: state.setMasterDrawer,
+        supportTrayOpen: state.supportTrayOpen,
+        setSupportTrayOpen: state.setSupportTrayOpen
       }))
     );
   const libraryCollections = useLibraryOrganizationStore(
@@ -519,6 +466,7 @@ export function MasterShell({
   const handleStageModeChange = (mode: StageMode) => {
     const previousStageMode = session.stageMode;
     setStageMode(mode);
+    setMasterWorkspace("stage");
     setIsImmersiveChatOpen(false);
     setSessionFeedback(null);
 
@@ -579,128 +527,221 @@ export function MasterShell({
     session.presentationMode === "standard" ? false : isImmersiveMinimized;
   const shouldRenderInlineStage =
     session.presentationMode !== "immersive" || resolvedImmersiveMinimized;
-  const showSupportPanels = masterMode === "prep" || liveSupportOpen;
-
-  const scrollToRef = (targetRef: React.RefObject<HTMLDivElement | null>) => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.requestAnimationFrame(() => {
-      targetRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    });
+  const libraryWorkspaceActive =
+    !isMobile && masterMode === "prep" && masterWorkspace === "library";
+  const resolvedDrawerSection = masterDrawer === "closed" ? activeSection : masterDrawer;
+  const drawerTitleMap: Record<ExplorerSection, string> = {
+    scenes: "Biblioteca",
+    maps: "Biblioteca",
+    actors: "Biblioteca",
+    codex: "Biblioteca",
+    notes: "Biblioteca",
+    atlas: "Biblioteca",
+    effects: "Biblioteca",
+    admin: "Biblioteca",
+    audio: "Biblioteca",
+    chat: "Biblioteca"
   };
-
-  const scrollToSupportPanel = () => {
-    scrollToRef(supportPanelRef);
-  };
+  const drawerVisible = statusDrawerOpen || masterDrawer !== "closed";
 
   const handleSectionSelect = (
     section: ExplorerSection,
     options?: { forceOpen?: boolean }
   ) => {
     setActiveSection(section);
-    if (masterMode === "live" || options?.forceOpen) {
-      setLiveSupportOpen(true);
+    if (!isMobile && masterMode === "prep") {
+      setMasterWorkspace("library");
+      setStatusDrawerOpen(false);
+      setMasterDrawer("closed");
+      return;
     }
-    if (isMobile) {
-      setMobileSupportPanel("explorer");
+
+    if (options?.forceOpen || masterMode === "prep") {
+      setStatusDrawerOpen(false);
+      setMasterDrawer(section);
     }
-    scrollToSupportPanel();
   };
 
   const handleMasterModeChange = (mode: "prep" | "live") => {
     setMasterMode(mode);
 
     if (mode === "prep") {
-      setLiveSupportOpen(false);
-      scrollToSupportPanel();
+      setStatusDrawerOpen(false);
+      setMasterWorkspace(isMobile ? "stage" : "library");
+      setMasterDrawer("closed");
       return;
     }
 
-    setLiveSupportOpen(false);
-    scrollToRef(stagePanelRef);
+    setMasterWorkspace("stage");
+    setMasterDrawer("closed");
+    setStatusDrawerOpen(false);
   };
 
-  const handleJumpToArea = (area: "stage" | "status" | "support") => {
-    if (area === "stage") {
-      scrollToRef(stagePanelRef);
+  const handleToggleLibraryWorkspace = () => {
+    if (isMobile) {
+      handleOpenDrawer();
       return;
     }
 
-    if (area === "status") {
-      scrollToRef(statusDrawerRef);
+    setStatusDrawerOpen(false);
+    setMasterDrawer("closed");
+    setMasterWorkspace((masterWorkspace === "library" ? "stage" : "library") as MasterWorkspace);
+  };
+
+  const handleOpenDrawer = (section?: ExplorerSection) => {
+    const targetSection = section ?? activeSection;
+    setActiveSection(targetSection);
+
+    if (!isMobile && masterMode === "prep") {
+      setStatusDrawerOpen(false);
+      setMasterDrawer("closed");
+      setMasterWorkspace("library");
       return;
     }
 
-    if (masterMode === "live") {
-      setLiveSupportOpen(true);
-    }
+    setStatusDrawerOpen(false);
+    setMasterDrawer(
+      masterDrawer !== "closed" && resolvedDrawerSection === targetSection
+        ? "closed"
+        : targetSection
+    );
+  };
 
-    scrollToSupportPanel();
+  const handleOpenStatus = () => {
+    setMasterWorkspace("stage");
+    setMasterDrawer("closed");
+    setStatusDrawerOpen((current) => !current);
+  };
+
+  const handleToggleSupport = () => {
+    setSupportTrayOpen(!supportTrayOpen);
   };
 
   const renderStagePanel = () => (
-    <div ref={stagePanelRef} className="space-y-4">
-      <StageContextBar
-        stageMode={session.stageMode}
-        state={commandState}
-        onOpenSection={(section) => handleSectionSelect(section, { forceOpen: true })}
-      />
+    <StagePanel
+      snapshot={session}
+      characters={liveCharacters}
+      assets={liveAssets}
+      scenes={liveScenes}
+      sceneCast={liveSceneCast}
+      maps={liveMaps}
+      mapTokens={liveMapTokens}
+      atlasMaps={liveAtlasMaps}
+      atlasPins={liveAtlasPins}
+      atlasPinCharacters={liveAtlasPinCharacters}
+      viewer={viewer}
+      memoryEvents={liveMemoryEvents}
+      combatState={tacticalCombatState}
+      canManageCombat={viewer?.role === "gm"}
+      atlasMapIdOverride={
+        navigatedAtlasMapId !== session.activeAtlasMapId ? navigatedAtlasMapId : null
+      }
+      onAtlasMapNavigate={(atlasMapId) =>
+        setAtlasNavigation(
+          atlasMapId
+            ? {
+                sourceAtlasMapId: session.activeAtlasMapId,
+                targetAtlasMapId: atlasMapId
+              }
+            : null
+        )
+      }
+      onCombatStart={handleCombatStart}
+      onCombatStop={handleCombatStop}
+      onCombatAdvance={handleCombatAdvance}
+      onSelectCombatant={handleCombatSelect}
+      onStageModeChange={handleStageModeChange}
+      onPresentationModeChange={handlePresentationModeChange}
+    />
+  );
 
-      <StagePanel
-        snapshot={session}
-        characters={liveCharacters}
-        assets={liveAssets}
-        scenes={liveScenes}
-        sceneCast={liveSceneCast}
-        maps={liveMaps}
-        mapTokens={liveMapTokens}
-        atlasMaps={liveAtlasMaps}
-        atlasPins={liveAtlasPins}
-        atlasPinCharacters={liveAtlasPinCharacters}
-        viewer={viewer}
-        memoryEvents={liveMemoryEvents}
-        combatState={tacticalCombatState}
-        canManageCombat={viewer?.role === "gm"}
-        atlasMapIdOverride={
-          navigatedAtlasMapId !== session.activeAtlasMapId ? navigatedAtlasMapId : null
-        }
-        onAtlasMapNavigate={(atlasMapId) =>
-          setAtlasNavigation(
-            atlasMapId
-              ? {
-                  sourceAtlasMapId: session.activeAtlasMapId,
-                  targetAtlasMapId: atlasMapId
-                }
-              : null
-          )
-        }
-        onCombatStart={handleCombatStart}
-        onCombatStop={handleCombatStop}
-        onCombatAdvance={handleCombatAdvance}
-        onSelectCombatant={handleCombatSelect}
-        onStageModeChange={handleStageModeChange}
-        onPresentationModeChange={handlePresentationModeChange}
-      />
-    </div>
+  const renderLibraryWorkspace = () => (
+    <section className="surface-panel flex h-[calc(100vh-10rem)] min-h-[640px] max-h-[calc(100vh-10rem)] min-w-0 flex-col overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-white/8 px-3 py-2.5">
+        <div className="min-w-0">
+          <p className="section-label">Preparacao</p>
+          <h2 className="truncate text-base font-semibold text-white">
+            Biblioteca e edicao
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+            {drawerTitleMap[activeSection]}
+          </span>
+          <button
+            type="button"
+            onClick={() => setMasterWorkspace("stage")}
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
+          >
+            voltar ao palco
+          </button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-hidden p-2.5">
+        <ExplorerPanel
+          snapshot={session}
+          party={roster}
+          participants={participants}
+          activeSection={activeSection}
+          onSectionChange={handleSectionSelect}
+          viewer={viewer}
+          infra={infra}
+          embedded
+        />
+      </div>
+    </section>
   );
 
   const renderStatusDrawer = () => (
-    <div ref={statusDrawerRef}>
-      <SessionStatusDrawer
-        sessionCode={session.code}
-        gmName={viewer?.displayName ?? null}
-        viewer={viewer}
-        participants={participants}
-        party={roster}
-        characters={liveCharacters}
-        assets={liveAssets}
-      />
-    </div>
+    <SessionStatusDrawer
+      sessionCode={session.code}
+      gmName={viewer?.displayName ?? null}
+      viewer={viewer}
+      participants={participants}
+      party={roster}
+      characters={liveCharacters}
+      assets={liveAssets}
+      defaultOpen
+      embedded
+    />
+  );
+
+  const renderInlineDrawerPanel = () => (
+    <section className="surface-panel flex min-h-0 flex-col overflow-hidden">
+      <div className="flex items-center justify-between gap-2 border-b border-white/8 px-2.5 py-1.5">
+        <h2 className="truncate text-sm font-semibold text-white">
+          {statusDrawerOpen ? "Status gerais" : drawerTitleMap[resolvedDrawerSection]}
+        </h2>
+        <button
+          type="button"
+          onClick={
+            statusDrawerOpen
+              ? () => setStatusDrawerOpen(false)
+              : () => setMasterDrawer("closed")
+          }
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
+        >
+          <X size={14} />
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden p-2">
+        {statusDrawerOpen ? (
+          renderStatusDrawer()
+        ) : (
+          <ExplorerPanel
+            snapshot={session}
+            party={roster}
+            participants={participants}
+            activeSection={resolvedDrawerSection}
+            onSectionChange={handleSectionSelect}
+            viewer={viewer}
+            infra={infra}
+            embedded
+          />
+        )}
+      </div>
+    </section>
   );
 
   const handleMoveToken = (tokenId: string, x: number, y: number) => {
@@ -845,6 +886,7 @@ export function MasterShell({
           sessionCode={session.code}
           map={activeMap}
           backgroundUrl={activeMapBackground?.secureUrl ?? null}
+          backgroundAsset={activeMapBackground}
           tokens={activeMapTokens}
           combatState={tacticalCombatState}
           canManageCombat={viewer?.role === "gm"}
@@ -870,6 +912,7 @@ export function MasterShell({
           atlasMap={displayedAtlasMap}
           atlasMaps={liveAtlasMaps}
           backgroundUrl={activeAtlasBackground?.secureUrl ?? null}
+          backgroundAsset={activeAtlasBackground}
           pins={activeAtlasPins}
           canEdit={viewer?.role === "gm"}
           assetOptions={liveAssets}
@@ -962,162 +1005,117 @@ export function MasterShell({
         </div>
       )}
 
-      <main className="mx-auto max-w-[1680px] p-3 lg:p-4">
-        <div className="mb-4 space-y-3">
+      <main className="mx-auto max-w-[1680px] p-2.5 lg:p-3">
+        <div className="space-y-2">
           <SessionCommandCenter
             sessionCode={session.code}
             campaignName={session.campaignName}
             state={commandState}
             librarySummary={librarySummary}
             masterMode={masterMode}
-            liveSupportOpen={liveSupportOpen}
+            supportOpen={supportTrayOpen}
+            libraryWorkspaceActive={libraryWorkspaceActive}
             onMasterModeChange={handleMasterModeChange}
             onStageModeChange={handleStageModeChange}
-            onOpenSection={(section) => handleSectionSelect(section, { forceOpen: true })}
-            onJumpToArea={handleJumpToArea}
-            onToggleLiveSupport={setLiveSupportOpen}
-            memoryEvents={liveMemoryEvents}
+            onToggleLibraryWorkspace={handleToggleLibraryWorkspace}
+            onOpenDrawer={handleOpenDrawer}
+            onOpenStatus={handleOpenStatus}
+            onToggleSupport={handleToggleSupport}
           />
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3">
-            <SectionTabs activeSection={activeSection} onSelect={handleSectionSelect} />
+          <div className="flex flex-wrap items-center justify-between gap-1.5 rounded-[12px] border border-white/10 bg-white/[0.04] px-2 py-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <AuthSessionBridge sessionCode={session.code} role="gm" viewer={viewer} />
+              {!viewer ? (
+                <span className="hud-chip border-amber-300/18 bg-amber-300/8 text-amber-100">
+                  mestre nao vinculado
+                </span>
+              ) : null}
+            </div>
             <ThemeSettingsButton />
           </div>
-        </div>
 
-        <div className="mb-4">
-          <AuthSessionBridge sessionCode={session.code} role="gm" viewer={viewer} />
-        </div>
-
-        {!viewer && (
-          <div className="mb-4 rounded-[20px] border border-amber-300/20 bg-amber-300/8 px-4 py-3 text-sm text-amber-50">
-            Este navegador ainda nao esta vinculado como mestre desta sala. Entre pelo lobby ou use sua conta para restaurar o controle.
-          </div>
-        )}
-
-        {sessionFeedback && (
-          <div className="mb-4 rounded-[20px] border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm text-rose-50">
-            {sessionFeedback}
-          </div>
-        )}
-
-        {isMobile ? (
-          <div className="space-y-4 lg:hidden">
-            {shouldRenderInlineStage && renderStagePanel()}
-            {renderStatusDrawer()}
-
-            <div ref={supportPanelRef}>
-              {showSupportPanels ? (
-                <>
-                  <div className="mobile-shell-tabs">
-                    <SectionTabs
-                      activeSection={activeSection}
-                      onSelect={handleSectionSelect}
-                      mobile
-                    />
-
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setMobileSupportPanel("explorer")}
-                        className={cn(
-                          "mobile-shell-tab",
-                          mobileSupportPanel === "explorer" &&
-                            "border-amber-300/35 bg-amber-300/12 text-white"
-                        )}
-                      >
-                        biblioteca
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMobileSupportPanel("dock")}
-                        className={cn(
-                          "mobile-shell-tab",
-                          mobileSupportPanel === "dock" &&
-                            "border-amber-300/35 bg-amber-300/12 text-white"
-                        )}
-                      >
-                        chat e mesa
-                      </button>
-                    </div>
-                  </div>
-
-                  {mobileSupportPanel === "explorer" && (
-                    <ExplorerPanel
-                      snapshot={session}
-                      party={roster}
-                      participants={participants}
-                      activeSection={activeSection}
-                      viewer={viewer}
-                      infra={infra}
-                    />
-                  )}
-
-                  {mobileSupportPanel === "dock" && (
-                    <BottomDock
-                      snapshot={session}
-                      viewer={viewer}
-                      activeTab={activeDockTab}
-                      onTabChange={setActiveDockTab}
-                      showAudio
-                    />
-                  )}
-                </>
-              ) : (
-                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-4 text-sm text-[color:var(--ink-2)]">
-                  Apoio recolhido para manter o foco no palco. Abra uma seção pelo
-                  Conselho da sessão quando precisar preparar algo.
-                </div>
-              )}
+          {sessionFeedback ? (
+            <div className="rounded-[16px] border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-xs text-rose-50">
+              {sessionFeedback}
             </div>
-          </div>
-        ) : (
-          <div className="hidden min-h-0 gap-4 lg:grid">
-            {shouldRenderInlineStage && renderStagePanel()}
-            {renderStatusDrawer()}
+          ) : null}
 
-            {session.presentationMode === "immersive" && resolvedImmersiveMinimized && (
-              <button
-                type="button"
-                onClick={() => setIsImmersiveMinimized(false)}
-                className="fixed bottom-5 right-5 z-[70] inline-flex items-center gap-2 rounded-full border border-rose-300/22 bg-rose-300/12 px-4 py-3 text-sm font-semibold text-rose-50 shadow-[0_14px_40px_rgba(2,6,23,0.38)] transition hover:border-rose-300/35"
+          <div className="flex flex-col gap-2.5 lg:flex-row">
+            <div className="min-w-0 flex-1 space-y-2.5">
+              {libraryWorkspaceActive
+                ? renderLibraryWorkspace()
+                : shouldRenderInlineStage
+                  ? renderStagePanel()
+                  : null}
+
+              {isMobile && drawerVisible ? renderInlineDrawerPanel() : null}
+
+              <AppTray
+                title="Apoio"
+                open={supportTrayOpen}
+                onToggle={handleToggleSupport}
               >
-                <Expand size={16} />
-                reabrir palco imersivo
-              </button>
-            )}
-
-            <div ref={supportPanelRef}>
-              {showSupportPanels ? (
-                <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
-                  <ExplorerPanel
-                    snapshot={session}
-                    party={roster}
-                    participants={participants}
-                    activeSection={activeSection}
-                    viewer={viewer}
-                    infra={infra}
-                  />
-
+                <div className="h-[min(52vh,36rem)] min-h-[320px] max-h-[min(52vh,36rem)] overflow-hidden">
                   <BottomDock
                     snapshot={session}
                     viewer={viewer}
                     activeTab={activeDockTab}
                     onTabChange={setActiveDockTab}
                     showAudio
+                    embedded
                   />
                 </div>
-              ) : (
-                <div className="rounded-[24px] border border-white/10 bg-white/[0.04] px-5 py-5 text-sm leading-6 text-[color:var(--ink-2)]">
-                  O modo <strong className="text-white">sessão ao vivo</strong> recolhe
-                  a biblioteca e o apoio para o mestre conduzir sem ruído. Use o
-                  Conselho da sessão para abrir cenas, campos, trilhas e ajustes sob
-                  demanda.
-                </div>
-              )}
+              </AppTray>
             </div>
+
+            {drawerVisible && !libraryWorkspaceActive && !isMobile ? (
+              <div className="min-w-0 lg:w-[360px] xl:w-[390px]">
+                <AppDrawer
+                  title={
+                    statusDrawerOpen
+                      ? "Status gerais"
+                      : drawerTitleMap[resolvedDrawerSection]
+                  }
+                  open={drawerVisible}
+                  mobileMode="sheet"
+                  onClose={
+                    statusDrawerOpen
+                      ? () => setStatusDrawerOpen(false)
+                      : () => setMasterDrawer("closed")
+                  }
+                  className="lg:h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-10rem)] lg:w-full"
+                >
+                  {statusDrawerOpen ? (
+                    renderStatusDrawer()
+                  ) : (
+                    <ExplorerPanel
+                      snapshot={session}
+                      party={roster}
+                      participants={participants}
+                      activeSection={resolvedDrawerSection}
+                      onSectionChange={handleSectionSelect}
+                      viewer={viewer}
+                      infra={infra}
+                      embedded
+                    />
+                  )}
+                </AppDrawer>
+              </div>
+            ) : null}
           </div>
-        )}
+
+          {session.presentationMode === "immersive" && resolvedImmersiveMinimized ? (
+            <button
+              type="button"
+              onClick={() => setIsImmersiveMinimized(false)}
+              className="fixed bottom-5 right-5 z-[70] inline-flex items-center gap-2 rounded-full border border-rose-300/22 bg-rose-300/12 px-4 py-3 text-sm font-semibold text-rose-50 shadow-[0_14px_40px_rgba(2,6,23,0.38)] transition hover:border-rose-300/35"
+            >
+              <Expand size={16} />
+              reabrir palco imersivo
+            </button>
+          ) : null}
+        </div>
       </main>
     </div>
   );

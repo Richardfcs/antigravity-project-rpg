@@ -267,7 +267,7 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
 
   if (!viewer) {
     return (
-      <section className="rounded-[22px] border border-white/10 bg-black/18 p-4 text-sm leading-6 text-[color:var(--ink-2)]">
+      <section className="rounded-[20px] border border-white/10 bg-black/18 p-3 text-sm leading-5 text-[color:var(--ink-2)]">
         Entre na sessao para abrir as notas do palco ou o seu caderno.
       </section>
     );
@@ -275,12 +275,12 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
 
   if (!context) {
     return (
-      <section className="rounded-[22px] border border-white/10 bg-black/18 p-4">
+      <section className="rounded-[20px] border border-white/10 bg-black/18 p-3">
         <div className="flex items-center gap-2 text-white">
           <ScrollText size={16} className="text-amber-100" />
           <h3 className="text-sm font-semibold">Notas da mesa</h3>
         </div>
-        <p className="mt-3 text-sm leading-6 text-[color:var(--ink-2)]">
+        <p className="mt-2 text-sm leading-5 text-[color:var(--ink-2)]">
           Abra uma cena, um campo tatico ou um local do atlas para anotar o tom deste momento.
         </p>
       </section>
@@ -288,31 +288,31 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
   }
 
   return (
-    <section className="space-y-4 rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(243,236,223,0.035),transparent),rgba(8,6,5,0.78)] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-white/8 pb-4">
+    <section className="space-y-3 rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(243,236,223,0.035),transparent),rgba(8,6,5,0.78)] p-3 shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
+      <header className="flex flex-wrap items-start justify-between gap-2.5 border-b border-white/8 pb-3">
         <div className="min-w-0">
           <p className="section-label">{viewer.role === "gm" ? "memoria do mestre" : "caderno do jogador"}</p>
-          <h3 className="mt-2 break-words text-xl font-semibold text-white">
+          <h3 className="mt-1 break-words text-base font-semibold text-white">
             {context.label}
           </h3>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--ink-2)]">
+          <p className="mt-1.5 max-w-2xl text-sm leading-5 text-[color:var(--ink-2)]">
             {context.helper}
           </p>
         </div>
-        <div className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-100">
+        <div className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-100">
           {currentNote ? "guardado" : "rascunho"}
         </div>
       </header>
 
-      <div className="rounded-[22px] border border-white/8 bg-black/16 p-4">
-        <div className="space-y-4">
+      <div className="rounded-[18px] border border-white/8 bg-black/16 p-3">
+        <div className="space-y-3">
           <label className="block">
             <span className="section-label">titulo</span>
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value.slice(0, 120))}
               placeholder={context.titlePlaceholder}
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/35"
             />
           </label>
 
@@ -322,7 +322,7 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
               value={body}
               onChange={(event) => setBody(event.target.value.slice(0, 12000))}
               placeholder={context.bodyPlaceholder}
-              className="mt-2 min-h-[220px] w-full rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.02))] px-4 py-4 text-sm leading-7 text-white outline-none transition focus:border-amber-300/35"
+              className="mt-1.5 min-h-[170px] w-full rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.02))] px-3 py-3 text-sm leading-6 text-white outline-none transition focus:border-amber-300/35"
             />
           </label>
         </div>
@@ -340,7 +340,7 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
             onClick={handleClear}
             disabled={!canEdit || isPending}
             className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition",
+              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition",
               !canEdit || isPending
                 ? "cursor-not-allowed border-white/8 bg-white/[0.03] text-[color:var(--ink-3)]"
                 : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
@@ -354,7 +354,7 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
             onClick={handleSave}
             disabled={!canEdit || isPending}
             className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition",
+              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition",
               !canEdit || isPending
                 ? "cursor-not-allowed border-amber-300/14 bg-amber-300/8 text-amber-100/60"
                 : "border-amber-300/30 bg-amber-300/12 text-amber-100 hover:border-amber-300/45 hover:bg-amber-300/18"
@@ -367,7 +367,7 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
       </div>
 
       {feedback ? (
-        <div className="rounded-[18px] border border-amber-300/15 bg-amber-300/8 px-4 py-3 text-sm text-amber-50">
+        <div className="rounded-[16px] border border-amber-300/15 bg-amber-300/8 px-3 py-2.5 text-sm text-amber-50">
           {feedback}
         </div>
       ) : null}

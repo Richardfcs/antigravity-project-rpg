@@ -6,28 +6,23 @@ import {
   BellRing,
   ChevronRight,
   Expand,
-  HeartPulse,
-  LoaderCircle,
   Map,
-  MoonStar,
   Music4,
   RadioTower,
   ScrollText,
   Shield,
   Shrink,
-  Sparkles,
-  Swords,
-  Theater
+  Sparkles
 } from "lucide-react";
 
-import { adjustCharacterResourceAction } from "@/app/actions/character-actions";
 import { moveMapTokenAction } from "@/app/actions/map-actions";
 import { AudioSyncLayer } from "@/components/audio/audio-sync-layer";
 import { AuthSessionBridge } from "@/components/auth/auth-session-bridge";
 import { ImmersiveOverlays } from "@/components/effects/immersive-overlays";
 import { SessionEffectOverlays } from "@/components/effects/session-effect-overlays";
-import { AssetAvatar } from "@/components/media/asset-avatar";
-import { SessionMemoryFeed } from "@/components/panels/session-memory-feed";
+import { AppDrawer } from "@/components/layout/app-drawer";
+import { AppTopBar } from "@/components/layout/app-top-bar";
+import { AppTray } from "@/components/layout/app-tray";
 import { AtlasStage } from "@/components/stage/atlas-stage";
 import { TacticalMapStage } from "@/components/stage/tactical-map-stage";
 import { TheaterStage } from "@/components/stage/theater-stage";
@@ -40,7 +35,6 @@ import {
 } from "@/lib/atlas/selectors";
 import {
   findCharacterByViewer,
-  resolveCharacterAsset,
   sortCharactersByInitiative
 } from "@/lib/characters/selectors";
 import {
@@ -66,6 +60,7 @@ import { useSessionNotes } from "@/hooks/use-session-notes";
 import { useSessionPresence } from "@/hooks/use-session-presence";
 import { useSessionScenes } from "@/hooks/use-session-scenes";
 import { useSessionSnapshot } from "@/hooks/use-session-snapshot";
+import { useMobile } from "@/hooks/use-mobile";
 import { useAssetStore } from "@/stores/asset-store";
 import { useAtlasStore } from "@/stores/atlas-store";
 import { useAudioStore } from "@/stores/audio-store";
@@ -74,7 +69,6 @@ import { useImmersiveEventStore } from "@/stores/immersive-event-store";
 import { useMapStore } from "@/stores/map-store";
 import { usePresenceStore } from "@/stores/presence-store";
 import { useSceneStore } from "@/stores/scene-store";
-import { useSessionMemoryStore } from "@/stores/session-memory-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useUiShellStore } from "@/stores/ui-shell-store";
 import { useShallow } from "zustand/react/shallow";
@@ -166,19 +160,10 @@ export function PlayerShell({
   memoryEvents,
   viewer
 }: PlayerShellProps) {
-  const stageSectionRef = useRef<HTMLDivElement | null>(null);
-  const sheetSectionRef = useRef<HTMLDivElement | null>(null);
-  const dockSectionRef = useRef<HTMLDivElement | null>(null);
   const storedSnapshot = useSessionStore((state) => state.snapshot);
-  const storedMemoryEvents = useSessionMemoryStore((state) => state.events);
   const members = usePresenceStore((state) => state.members);
   const storedAssets = useAssetStore((state) => state.assets);
-  const { storedCharacters, upsertCharacter } = useCharacterStore(
-    useShallow((state) => ({
-      storedCharacters: state.characters,
-      upsertCharacter: state.upsertCharacter
-    }))
-  );
+  const storedCharacters = useCharacterStore((state) => state.characters);
   const { storedScenes, storedSceneCast } = useSceneStore(
     useShallow((state) => ({
       storedScenes: state.scenes,
@@ -199,13 +184,26 @@ export function PlayerShell({
       storedAtlasPinCharacters: state.atlasPinCharacters
     }))
   );
-  const { activeDockTab, setActiveDockTab, followMaster, setFollowMaster } =
+  const {
+    activeDockTab,
+    setActiveDockTab,
+    followMaster,
+    setFollowMaster,
+    playerBottomTab,
+    setPlayerBottomTab,
+    playerOverlay,
+    setPlayerOverlay
+  } =
     useUiShellStore(
       useShallow((state) => ({
         activeDockTab: state.activeDockTab,
         setActiveDockTab: state.setActiveDockTab,
         followMaster: state.followMaster,
-        setFollowMaster: state.setFollowMaster
+        setFollowMaster: state.setFollowMaster,
+        playerBottomTab: state.playerBottomTab,
+        setPlayerBottomTab: state.setPlayerBottomTab,
+        playerOverlay: state.playerOverlay,
+        setPlayerOverlay: state.setPlayerOverlay
       }))
     );
   const pendingPrivateEvents = useImmersiveEventStore((state) => state.events);
@@ -227,7 +225,6 @@ export function PlayerShell({
 
   const [feedback, setFeedback] = useState<string | null>(null);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
-  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [localStageMode, setLocalStageMode] = useState<StageMode>(snapshot.stageMode);
   const [localPresentationMode, setLocalPresentationMode] = useState<PresentationMode>(
     snapshot.presentationMode
@@ -237,7 +234,6 @@ export function PlayerShell({
     targetAtlasMapId: string | null;
   } | null>(null);
   const [wikiOpen, setWikiOpen] = useState(false);
-  const [isStatusDrawerOpen, setIsStatusDrawerOpen] = useState(false);
   const [isImmersiveChatOpen, setIsImmersiveChatOpen] = useState(false);
   const [isImmersiveMinimized, setIsImmersiveMinimized] = useState(false);
   const [lastBroadcastStageMode, setLastBroadcastStageMode] = useState<StageMode>(
@@ -247,7 +243,8 @@ export function PlayerShell({
     useState<PresentationMode>(
       snapshot.stageMode === "atlas" ? "standard" : snapshot.presentationMode
     );
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+  const isMobile = useMobile();
   const previousMasterFocus = useRef({
     stageMode: snapshot.stageMode,
     presentationMode: snapshot.presentationMode
@@ -363,8 +360,6 @@ export function PlayerShell({
     storedAtlasPinCharacters.length > 0
       ? storedAtlasPinCharacters
       : atlasPinCharacters;
-  const liveMemoryEvents =
-    storedMemoryEvents.length > 0 ? storedMemoryEvents : memoryEvents;
   const orderedCharacters = useMemo(
     () => sortCharactersByInitiative(liveCharacters),
     [liveCharacters]
@@ -373,17 +368,6 @@ export function PlayerShell({
     findCharacterByViewer(orderedCharacters, viewer?.participantId) ??
     orderedCharacters.find((character) => character.type === "player") ??
     null;
-  const currentAsset = currentCharacter
-    ? resolveCharacterAsset(currentCharacter, liveAssets)
-    : null;
-  const initiativeIndex = currentCharacter
-    ? orderedCharacters.findIndex((character) => character.id === currentCharacter.id) + 1
-    : null;
-  const canControlCurrentCharacter = Boolean(
-    viewer &&
-      currentCharacter &&
-      currentCharacter.ownerParticipantId === viewer.participantId
-  );
   const activeScene = findActiveScene(liveScenes, session.activeSceneId);
   const activeEntries = activeScene
     ? listSceneCastEntries(activeScene.id, liveSceneCast, liveCharacters, liveAssets)
@@ -534,33 +518,6 @@ export function PlayerShell({
     };
   }, [broadcastPresentationMode]);
 
-  const handleResourceDelta = (resource: "hp" | "fp", delta: number) => {
-    if (!viewer || !currentCharacter) {
-      setFeedback("Entre na sessao pelo lobby para sincronizar sua ficha.");
-      return;
-    }
-
-    setFeedback(null);
-    setPendingKey(`${resource}:${delta}`);
-
-    startTransition(async () => {
-      const result = await adjustCharacterResourceAction({
-        sessionCode: session.code,
-        characterId: currentCharacter.id,
-        resource,
-        delta
-      });
-
-      if (result.ok && result.character) {
-        upsertCharacter(result.character);
-      } else if (result.message) {
-        setFeedback(result.message);
-      }
-
-      setPendingKey(null);
-    });
-  };
-
   const handleMoveToken = (tokenId: string, x: number, y: number) => {
     setFeedback(null);
 
@@ -601,12 +558,6 @@ export function PlayerShell({
       : effectiveStageMode === "atlas"
         ? activeAtlasMap?.name ?? "Atlas"
         : activeScene?.name ?? session.activeScene;
-  const heroBlurb =
-    effectiveStageMode === "tactical"
-      ? "O mapa tatico da sessao acompanha a mesa em tempo real, inclusive quando o mestre troca o campo."
-      : effectiveStageMode === "atlas"
-        ? "O atlas da campanha esta aberto. Os pins destacam locais, rotas e submapas importantes."
-        : "O palco reage ao vivo com destaque de fala, formacao de cards e background sincronizado.";
 
   const handleFollowMasterToggle = () => {
     const nextValue = !followMaster;
@@ -616,6 +567,8 @@ export function PlayerShell({
       setLocalPresentationMode(broadcastPresentationMode);
       setIsImmersiveMinimized(false);
       setWikiOpen(false);
+      setPlayerBottomTab("stage");
+      setPlayerOverlay("none");
       setSyncNotice("Voce voltou a seguir o foco do mestre.");
     } else {
       setSyncNotice("Modo livre ativado. Agora voce pode abrir outro palco localmente.");
@@ -629,6 +582,8 @@ export function PlayerShell({
     setLocalPresentationMode(broadcastPresentationMode);
     setIsImmersiveMinimized(false);
     setWikiOpen(false);
+    setPlayerBottomTab("stage");
+    setPlayerOverlay("none");
     setSyncNotice("Sessao alinhada com o foco atual do mestre.");
   };
 
@@ -637,9 +592,13 @@ export function PlayerShell({
       const nextValue = !current;
 
       if (nextValue) {
+        setPlayerBottomTab("wiki");
         setLocalPresentationMode("standard");
         setIsImmersiveMinimized(false);
         setIsImmersiveChatOpen(false);
+        setPlayerOverlay("none");
+      } else {
+        setPlayerBottomTab("stage");
       }
 
       return nextValue;
@@ -653,6 +612,7 @@ export function PlayerShell({
         sessionCode={session.code}
         map={activeMap}
         backgroundUrl={activeMapBackground?.secureUrl ?? null}
+        backgroundAsset={activeMapBackground}
         tokens={activeMapTokens}
         combatState={tacticalCombatState}
         viewerParticipantId={viewer?.participantId}
@@ -667,6 +627,7 @@ export function PlayerShell({
         atlasMap={displayedAtlasMap}
         atlasMaps={liveAtlasMaps}
         backgroundUrl={activeAtlasBackground?.secureUrl ?? null}
+        backgroundAsset={activeAtlasBackground}
         pins={activeAtlasPins}
         canEdit={false}
         characterOptions={liveCharacters}
@@ -702,6 +663,7 @@ export function PlayerShell({
         sessionCode={session.code}
         map={activeMap}
         backgroundUrl={activeMapBackground?.secureUrl ?? null}
+        backgroundAsset={activeMapBackground}
         tokens={activeMapTokens}
         combatState={tacticalCombatState}
         viewerParticipantId={viewer?.participantId}
@@ -716,6 +678,7 @@ export function PlayerShell({
         atlasMap={displayedAtlasMap}
         atlasMaps={liveAtlasMaps}
         backgroundUrl={activeAtlasBackground?.secureUrl ?? null}
+        backgroundAsset={activeAtlasBackground}
         pins={activeAtlasPins}
         canEdit={false}
         characterOptions={liveCharacters}
@@ -746,56 +709,48 @@ export function PlayerShell({
 
   const showInlineStage =
     effectivePresentationMode !== "immersive" || resolvedImmersiveMinimized;
-
-  const scrollToSection = (targetRef: React.RefObject<HTMLDivElement | null>) => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.requestAnimationFrame(() => {
-      targetRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    });
-  };
+  const supportTrayOpen = !isMobile || playerBottomTab !== "stage";
 
   const handlePlayerViewJump = (
     target: "stage" | "wiki" | "sheet" | "chat" | "notes"
   ) => {
     if (target === "wiki") {
+      setPlayerBottomTab("wiki");
+      setPlayerOverlay("none");
       setWikiOpen(true);
       setLocalPresentationMode("standard");
       setIsImmersiveMinimized(false);
       setIsImmersiveChatOpen(false);
-      scrollToSection(stageSectionRef);
       return;
     }
 
     if (target === "sheet") {
-      setIsStatusDrawerOpen(true);
-      scrollToSection(sheetSectionRef);
+      setPlayerBottomTab("sheet");
+      setPlayerOverlay("sheet");
       return;
     }
 
     if (target === "chat") {
+      setPlayerBottomTab("chat");
+      setPlayerOverlay("none");
       setActiveDockTab("chat");
-      scrollToSection(dockSectionRef);
       return;
     }
 
     if (target === "notes") {
+      setPlayerBottomTab("notes");
+      setPlayerOverlay("none");
       setActiveDockTab("notes");
-      scrollToSection(dockSectionRef);
       return;
     }
 
+    setPlayerBottomTab("stage");
+    setPlayerOverlay("none");
     setWikiOpen(false);
-    scrollToSection(stageSectionRef);
   };
 
   return (
-    <main className="daimyo-shell-bg min-h-screen px-4 py-5 sm:px-6">
+    <main className="daimyo-shell-bg min-h-screen px-3 py-3 sm:px-4">
       <AudioSyncLayer />
       <SessionEffectOverlays viewerParticipantId={viewer?.participantId} />
       <ImmersiveOverlays sessionCode={session.code} />
@@ -861,34 +816,33 @@ export function PlayerShell({
           </div>
         </div>
       )}
-      <div className="mx-auto flex max-w-6xl flex-col gap-4">
-        <header className="surface-panel-strong overflow-hidden p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
-                <Sparkles size={14} />
-                olhar do viajante
+      <div className="mx-auto flex max-w-6xl flex-col gap-3 pb-20 lg:pb-3">
+        <AppTopBar
+          title={heroTitle}
+          eyebrow={
+            <>
+              <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+                sala {session.code}
               </span>
-              <h1 className="mt-3 text-3xl font-semibold text-white">{heroTitle}</h1>
-              <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-                {heroBlurb}
-              </p>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <ThemeSettingsButton />
-              <div className="rounded-[18px] border border-white/10 bg-white/[0.04] px-3 py-2 text-right">
-                <p className="section-label">sala</p>
-                <p className="mt-1 font-mono text-sm text-white">{session.code}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+                {followMaster ? "seguindo o mestre" : "modo livre"}
+              </span>
+              {activeTrack ? (
+                <span className="hud-chip border-emerald-300/18 bg-emerald-300/10 text-emerald-100">
+                  <Music4 size={12} />
+                  {activeTrack.title}
+                </span>
+              ) : null}
+            </>
+          }
+          actions={<ThemeSettingsButton />}
+        >
+          <div className="flex flex-wrap items-center gap-1.5">
             {(
               [
                 ["stage", "palco", Sparkles],
-                ["wiki", "wiki", Sparkles],
-                ["sheet", "minha ficha", Shield],
+                ["wiki", "wiki", Map],
+                ["sheet", "ficha", Shield],
                 ["chat", "conversa", BellRing],
                 ["notes", "caderno", ScrollText]
               ] as const
@@ -897,12 +851,12 @@ export function PlayerShell({
                 key={target}
                 type="button"
                 onClick={() => handlePlayerViewJump(target)}
-                className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition ${
+                  (target === "stage" && !wikiOpen && playerOverlay === "none") ||
                   (target === "wiki" && wikiOpen) ||
-                  (target === "sheet" && isStatusDrawerOpen) ||
-                  (target === "chat" && activeDockTab === "chat" && !wikiOpen) ||
-                  (target === "notes" && activeDockTab === "notes" && !wikiOpen) ||
-                  (target === "stage" && !wikiOpen)
+                  (target === "sheet" && playerOverlay === "sheet") ||
+                  (target === "chat" && activeDockTab === "chat" && playerBottomTab === "chat") ||
+                  (target === "notes" && activeDockTab === "notes" && playerBottomTab === "notes")
                     ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
                     : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
                 }`}
@@ -915,66 +869,14 @@ export function PlayerShell({
             <button
               type="button"
               onClick={handleFollowMasterToggle}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+              className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition ${
                 followMaster
                   ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
                   : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
               }`}
             >
               <RadioTower size={14} />
-              {followMaster ? "seguindo o mestre" : "modo livre"}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleWikiToggle}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
-                wikiOpen
-                  ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-100"
-                  : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
-              }`}
-            >
-              <Sparkles size={14} />
-              {wikiOpen ? "fechar wiki" : "abrir wiki"}
-            </button>
-
-            {(
-              [
-                ["theater", "ultimo teatro", Theater],
-                ["tactical", "ultimo mapa", Map]
-              ] as const
-            ).map(([modeId, label, Icon]) => (
-              <button
-                key={modeId}
-                type="button"
-                onClick={() => {
-                  setFollowMaster(false);
-                  setWikiOpen(false);
-                  setLocalStageMode(modeId);
-                  setLocalPresentationMode("standard");
-                }}
-                className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
-                  !wikiOpen && effectiveStageMode === modeId
-                    ? "border-rose-300/25 bg-rose-300/10 text-rose-100"
-                    : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
-                }`}
-              >
-                <Icon size={14} />
-                {label}
-              </button>
-            ))}
-
-            <button
-              type="button"
-              onClick={() => setIsStatusDrawerOpen((current) => !current)}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
-                isStatusDrawerOpen
-                  ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
-                  : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
-              }`}
-            >
-              <Shield size={14} />
-              {isStatusDrawerOpen ? "fechar ficha" : "minha ficha"}
+              {followMaster ? "seguir" : "livre"}
             </button>
 
             <button
@@ -984,7 +886,7 @@ export function PlayerShell({
                   current === "immersive" ? "standard" : "immersive"
                 )
               }
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+              className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition ${
                 localPresentationMode === "immersive" || effectivePresentationMode === "immersive"
                   ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
                   : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
@@ -997,57 +899,90 @@ export function PlayerShell({
               )}
               tela cheia
             </button>
+          </div>
 
-            {activeTrack && (
-              <span className="hud-chip border-emerald-300/18 bg-emerald-300/10 text-emerald-100">
-                <Music4 size={14} />
-                tocando {activeTrack.title}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {currentCharacter ? (
+              <>
+                <span className="hud-chip border-rose-300/15 bg-rose-300/10 text-rose-100">
+                  {currentCharacter.hp}/{currentCharacter.hpMax} PV
+                </span>
+                <span className="hud-chip border-amber-300/15 bg-amber-300/10 text-amber-100">
+                  {currentCharacter.fp}/{currentCharacter.fpMax} PF
+                </span>
+              </>
+            ) : null}
+            <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+              {effectiveStageMode === "tactical"
+                ? `${activeMapTokens.length} tokens`
+                : effectiveStageMode === "atlas"
+                  ? `${activeAtlasPins.length} pins`
+                  : `${activeEntries.length} em cena`}
+            </span>
+            <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+              {roster.filter((member) => member.status !== "offline").length} online
+            </span>
+            {pendingPrivateEvents.length > 0 ? (
+              <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+                {pendingPrivateEvents.length} alertas
               </span>
-            )}
+            ) : null}
           </div>
-        </header>
+        </AppTopBar>
 
-        {!viewer && (
-          <div className="rounded-[20px] border border-amber-300/20 bg-amber-300/8 px-4 py-3 text-sm text-amber-50">
-            Este navegador ainda nao entrou nesta sala como jogador. Voce consegue
-            ver a sessao, mas a edicao da ficha fica bloqueada ate entrar pelo lobby.
+        {!viewer ? (
+          <div className="rounded-[16px] border border-amber-300/20 bg-amber-300/8 px-3 py-2 text-xs text-amber-50">
+            Entre pelo lobby para vincular sua ficha a esta mesa.
           </div>
-        )}
+        ) : null}
 
-        {syncNotice && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-amber-300/18 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
+        {syncNotice ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-[16px] border border-amber-300/18 bg-amber-300/10 px-3 py-2 text-xs text-amber-50">
             <span>{syncNotice}</span>
-            {!followMaster && (
+            {!followMaster ? (
               <button
                 type="button"
                 onClick={handleFollowNow}
-                className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/12 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-50 transition hover:border-amber-300/40"
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/25 bg-amber-300/12 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-50 transition hover:border-amber-300/40"
               >
                 <ChevronRight size={14} />
-                acompanhar agora
+                acompanhar
               </button>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
 
-        {activeTrack && (audioUnlockRequired || audioRuntimeError) && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
+        {feedback ? (
+          <div className="rounded-[16px] border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-xs text-rose-50">
+            {feedback}
+          </div>
+        ) : null}
+
+        {activeTrack && (audioUnlockRequired || audioRuntimeError) ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-[16px] border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs text-amber-50">
             <span>
               {audioRuntimeError ??
-                "A trilha esta ativa, mas esta aba precisa liberar o audio para acompanhar a mesa."}
+                "A trilha esta ativa, mas esta aba ainda precisa liberar o audio."}
             </span>
             <button
               type="button"
               onClick={requestAudioUnlock}
-              className="inline-flex items-center gap-2 rounded-full border border-amber-300/28 bg-amber-300/14 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-50 transition hover:border-amber-300/45"
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/28 bg-amber-300/14 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-50 transition hover:border-amber-300/45"
             >
               <Music4 size={14} />
               ativar audio
             </button>
           </div>
-        )}
+        ) : null}
 
-        <div ref={sheetSectionRef}>
+        {showInlineStage ? renderedStage : null}
+
+        <AppDrawer
+          title={currentCharacter?.name ?? "Minha ficha"}
+          open={playerOverlay === "sheet"}
+          onClose={() => setPlayerOverlay("none")}
+          className="lg:fixed lg:right-4 lg:top-4 lg:bottom-4 lg:z-[70] lg:w-[360px]"
+        >
           <SessionStatusDrawer
             sessionCode={session.code}
             viewer={viewer}
@@ -1055,46 +990,29 @@ export function PlayerShell({
             party={roster}
             characters={liveCharacters}
             assets={liveAssets}
-            open={isStatusDrawerOpen}
-            onOpenChange={setIsStatusDrawerOpen}
+            defaultOpen
+            embedded
           />
-        </div>
+        </AppDrawer>
 
-        {showInlineStage && <div ref={stageSectionRef}>{renderedStage}</div>}
-
-        <section className="surface-panel p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="section-label">Memoria recente</p>
-              <h3 className="mt-2 text-lg font-semibold text-white">O que ecoou na sessao</h3>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--ink-2)]">
-                Revelacoes do atlas, mudancas de palco, trilhas e eventos que
-                marcaram este momento da mesa.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveDockTab("notes");
-                dockSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
-            >
-              <ScrollText size={14} />
-              abrir caderno
-            </button>
-          </div>
-          <div className="mt-4">
-            <SessionMemoryFeed
-              events={liveMemoryEvents}
-              compact
-              limit={4}
-              emptyLabel="A sessao ainda nao deixou rastros recentes para este olhar."
+        <AppTray
+          title="Apoio"
+          open={supportTrayOpen}
+          onToggle={() => setPlayerBottomTab(!supportTrayOpen ? "chat" : "stage")}
+        >
+          <div className="h-[min(38vh,25rem)] min-h-[220px] max-h-[min(38vh,25rem)] overflow-hidden">
+            <BottomDock
+              snapshot={session}
+              viewer={viewer}
+              activeTab={activeDockTab}
+              onTabChange={setActiveDockTab}
+              showAudio={false}
+              embedded
             />
           </div>
-        </section>
+        </AppTray>
 
-        {effectivePresentationMode === "immersive" && resolvedImmersiveMinimized && (
+        {effectivePresentationMode === "immersive" && resolvedImmersiveMinimized ? (
           <button
             type="button"
             onClick={() => setIsImmersiveMinimized(false)}
@@ -1103,222 +1021,43 @@ export function PlayerShell({
             <Expand size={16} />
             reabrir palco
           </button>
-        )}
-
-        {currentCharacter ? (
-          <section className="surface-panel p-5">
-            <div className="flex items-start gap-4">
-              <AssetAvatar
-                imageUrl={currentAsset?.secureUrl}
-                label={currentCharacter.name}
-                kind={currentAsset?.kind}
-                className="h-20 w-20 shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="section-label">Minha ficha</p>
-                <h3 className="mt-2 truncate text-2xl font-semibold text-white">
-                  {currentCharacter.name}
-                </h3>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]">
-                    ordem #{initiativeIndex ?? "--"}
-                  </span>
-                  <span className="hud-chip border-amber-300/20 bg-amber-300/8 text-amber-100">
-                    init{" "}
-                    {currentCharacter.initiative >= 0
-                      ? `+${currentCharacter.initiative}`
-                      : currentCharacter.initiative}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {[
-                {
-                  key: "hp" as const,
-                  label: "PV",
-                  icon: HeartPulse,
-                  value: `${currentCharacter.hp}/${currentCharacter.hpMax}`,
-                  tone: "border-rose-300/15 bg-rose-300/10 text-rose-100"
-                },
-                {
-                  key: "fp" as const,
-                  label: "PF",
-                  icon: MoonStar,
-                  value: `${currentCharacter.fp}/${currentCharacter.fpMax}`,
-                  tone: "border-amber-300/15 bg-amber-300/10 text-amber-100"
-                }
-              ].map((resource) => (
-                <article
-                  key={resource.key}
-                  className={`rounded-[22px] border p-4 ${resource.tone}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/14">
-                      <resource.icon size={18} />
-                    </div>
-                    <div>
-                      <p className="section-label text-current">{resource.label}</p>
-                      <p className="mt-1 text-2xl font-semibold text-white">
-                        {resource.value}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    {[-1, 1].map((delta) => (
-                      <button
-                        key={`${resource.key}:${delta}`}
-                        type="button"
-                        onClick={() => handleResourceDelta(resource.key, delta)}
-                        disabled={isPending || !canControlCurrentCharacter}
-                        className="rounded-xl border border-white/10 bg-black/18 px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
-                      >
-                        {pendingKey === `${resource.key}:${delta}` ? (
-                          <LoaderCircle size={14} className="animate-spin" />
-                        ) : delta > 0 ? (
-                          `+${delta}`
-                        ) : (
-                          `${delta}`
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </article>
-              ))}
-
-              <article className="surface-panel p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-300/15 bg-emerald-300/10 text-emerald-100">
-                    <Shield size={18} />
-                  </div>
-                  <div>
-                    <p className="section-label">Estado</p>
-                    <p className="mt-1 text-base font-semibold text-white">
-                      {currentCharacter.hp <= 0
-                        ? "caido"
-                        : currentCharacter.hp <= Math.ceil(currentCharacter.hpMax / 3)
-                          ? "ferido"
-                          : "pronto"}
-                    </p>
-                  </div>
-                </div>
-              </article>
-
-              <article className="surface-panel p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-300/15 bg-amber-300/10 text-amber-100">
-                    <Swords size={18} />
-                  </div>
-                  <div>
-                    <p className="section-label">Iniciativa</p>
-                    <p className="mt-1 text-base font-semibold text-white">
-                      {initiativeIndex ? `${initiativeIndex}o na fila` : "aguardando"}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            </div>
-
-            {feedback && <p className="mt-4 text-sm text-amber-100">{feedback}</p>}
-          </section>
-        ) : (
-          <section className="surface-panel p-5">
-            <p className="text-sm leading-6 text-[color:var(--ink-2)]">
-              Nenhuma ficha foi vinculada a este navegador ainda. O mestre precisa
-              criar uma ficha do tipo player e associa-la ao seu nome na sala.
-            </p>
-          </section>
-        )}
-
-        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <article className="surface-panel p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-300/15 bg-rose-300/10 text-rose-100">
-                <Sparkles size={18} />
-              </div>
-              <div>
-                <p className="section-label">
-                  {effectiveStageMode === "tactical"
-                    ? "Tokens"
-                    : effectiveStageMode === "atlas"
-                      ? "Pins"
-                      : "Elenco"}
-                </p>
-                <p className="mt-1 text-2xl font-semibold text-white">
-                  {effectiveStageMode === "tactical"
-                    ? activeMapTokens.length
-                    : effectiveStageMode === "atlas"
-                      ? activeAtlasPins.length
-                      : activeEntries.length}
-                </p>
-              </div>
-            </div>
-          </article>
-
-          <article className="surface-panel p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-300/15 bg-amber-300/10 text-amber-100">
-                <RadioTower size={18} />
-              </div>
-              <div>
-                <p className="section-label">Presenca</p>
-                <p className="mt-1 text-2xl font-semibold text-white">
-                  {roster.filter((member) => member.status !== "offline").length}
-                </p>
-              </div>
-            </div>
-          </article>
-
-          <article className="surface-panel p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-300/15 bg-emerald-300/10 text-emerald-100">
-                <Shield size={18} />
-              </div>
-              <div>
-                <p className="section-label">
-                  {effectiveStageMode === "tactical"
-                    ? "Mapa"
-                    : effectiveStageMode === "atlas"
-                      ? "Atlas"
-                      : "Cena"}
-                </p>
-                <p className="mt-1 text-base font-semibold text-white">
-                  {effectiveStageMode === "tactical"
-                    ? activeMap?.name ?? "sem campo"
-                    : effectiveStageMode === "atlas"
-                      ? activeAtlasMap?.name ?? "sem atlas"
-                      : activeScene?.name ?? "sem palco"}
-                </p>
-              </div>
-            </div>
-          </article>
-
-          <article className="surface-panel p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-300/15 bg-amber-300/10 text-amber-100">
-                <BellRing size={18} />
-              </div>
-              <div>
-                <p className="section-label">Alertas</p>
-                <p className="mt-1 text-base font-semibold text-white">
-                  {pendingPrivateEvents.length > 0 ? `${pendingPrivateEvents.length} ativos` : "limpo"}
-                </p>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        <div ref={dockSectionRef}>
-          <BottomDock
-            snapshot={session}
-            viewer={viewer}
-            activeTab={activeDockTab}
-            onTabChange={setActiveDockTab}
-            showAudio={false}
-          />
-        </div>
+        ) : null}
       </div>
+
+      <nav className="fixed inset-x-3 bottom-3 z-[65] flex items-center justify-between gap-2 rounded-[18px] border border-white/10 bg-[rgba(6,10,18,0.92)] px-2 py-2 shadow-[0_16px_40px_rgba(2,6,23,0.36)] backdrop-blur lg:hidden">
+        {(
+          [
+            ["stage", "palco", Sparkles],
+            ["wiki", "wiki", Map],
+            ["sheet", "ficha", Shield],
+            ["chat", "chat", BellRing],
+            ["notes", "notas", ScrollText]
+          ] as const
+        ).map(([target, label, Icon]) => {
+          const active =
+            (target === "stage" && playerBottomTab === "stage" && !wikiOpen) ||
+            (target === "wiki" && wikiOpen) ||
+            (target === "sheet" && playerOverlay === "sheet") ||
+            (target === "chat" && playerBottomTab === "chat") ||
+            (target === "notes" && playerBottomTab === "notes");
+
+          return (
+            <button
+              key={target}
+              type="button"
+              onClick={() => handlePlayerViewJump(target)}
+              className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
+                active
+                  ? "bg-amber-300/10 text-amber-100"
+                  : "text-[color:var(--ink-2)] hover:bg-white/[0.04] hover:text-white"
+              }`}
+            >
+              <Icon size={15} />
+              <span className="truncate">{label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </main>
   );
 }

@@ -1,5 +1,6 @@
 import { AudioLines, Dices, MessageSquareText, ScrollText } from "lucide-react";
 
+import { CompactPanelHeader } from "@/components/layout/compact-panel-header";
 import { AudioPanel } from "@/components/panels/audio-panel";
 import { ChatPanel } from "@/components/panels/chat-panel";
 import { DicePanel } from "@/components/panels/dice-panel";
@@ -17,6 +18,7 @@ interface BottomDockProps {
   activeTab: DockTab;
   onTabChange: (tab: DockTab) => void;
   showAudio?: boolean;
+  embedded?: boolean;
 }
 
 const tabs = [
@@ -31,28 +33,48 @@ export function BottomDock({
   viewer,
   activeTab,
   onTabChange,
-  showAudio = true
+  showAudio = true,
+  embedded = false
 }: BottomDockProps) {
   const visibleTabs = showAudio ? tabs : tabs.filter((tab) => tab.id !== "audio");
   const resolvedActiveTab = !showAudio && activeTab === "audio" ? "chat" : activeTab;
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-[24px] border border-white/10 bg-[var(--bg-panel-strong)] p-4">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-white/8 pb-4">
-        <div className="min-w-0">
-          <p className="section-label">Painel de apoio</p>
-          <h2 className="mt-2 break-words text-xl font-semibold text-white">
-            Conversa, caderno e trilhas da mesa
-          </h2>
-        </div>
-        <div className="flex min-w-0 flex-wrap gap-2">
+    <section className="flex h-full min-h-0 flex-col">
+      {!embedded ? (
+        <CompactPanelHeader
+          label="Apoio"
+          title="Conversa, dados e caderno"
+          actions={
+            <div className="flex min-w-0 flex-wrap gap-2">
+              {visibleTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => onTabChange(tab.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] transition",
+                    activeTab === tab.id
+                      ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                      : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
+                  )}
+                >
+                  <tab.icon size={14} />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          }
+        />
+      ) : (
+        <div className="flex min-w-0 flex-wrap gap-2 border-b border-white/8 pb-2">
           {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] transition",
+                "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] transition",
                 activeTab === tab.id
                   ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
                   : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
@@ -63,9 +85,15 @@ export function BottomDock({
             </button>
           ))}
         </div>
-      </header>
+      )}
 
-      <div className="mt-4 min-h-0 flex-1 overflow-hidden">
+      <div
+        className={
+          embedded
+            ? "scrollbar-thin mt-1.5 min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1"
+            : "scrollbar-thin mt-2 min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1"
+        }
+      >
         {resolvedActiveTab === "chat" && (
           <ChatPanel sessionCode={snapshot.code} viewer={viewer} />
         )}

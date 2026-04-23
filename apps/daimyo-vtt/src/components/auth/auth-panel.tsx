@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   KeyRound,
   LoaderCircle,
@@ -16,6 +16,17 @@ import {
 } from "@/app/actions/session-actions";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import type { LinkedSessionSummary } from "@/types/session";
+
+type AuthPanelVariant = "login-only" | "account";
+
+interface AuthPanelProps {
+  variant?: AuthPanelVariant;
+  onAuthenticatedChange?: (state: {
+    isAuthenticated: boolean;
+    email: string | null;
+  }) => void;
+  onOpenCampaigns?: () => void;
+}
 
 function formatRole(role: LinkedSessionSummary["role"]) {
   return role === "gm" ? "Mestre" : "Jogador";
@@ -50,19 +61,11 @@ function formatFriendlyAuthError(message: string) {
   return message;
 }
 
-function scrollToCampaignActions() {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  window.requestAnimationFrame(() => {
-    document
-      .getElementById("campaign-actions")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-}
-
-export function AuthPanel() {
+export function AuthPanel({
+  variant = "login-only",
+  onAuthenticatedChange,
+  onOpenCampaigns
+}: AuthPanelProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authEmail, setAuthEmail] = useState<string | null>(null);
@@ -71,6 +74,7 @@ export function AuthPanel() {
   const [isReady, setIsReady] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const onAuthenticatedChangeRef = useRef(onAuthenticatedChange);
 
   const client = useMemo(() => {
     try {
@@ -83,6 +87,10 @@ export function AuthPanel() {
   const effectiveFeedback =
     feedback ??
     (client ? null : "As envs publicas do Supabase ainda nao estao prontas para login.");
+
+  useEffect(() => {
+    onAuthenticatedChangeRef.current = onAuthenticatedChange;
+  }, [onAuthenticatedChange]);
 
   useEffect(() => {
     if (!client) {
@@ -102,6 +110,10 @@ export function AuthPanel() {
 
       const currentEmail = session?.user?.email ?? null;
       setAuthEmail(currentEmail);
+      onAuthenticatedChangeRef.current?.({
+        isAuthenticated: Boolean(currentEmail),
+        email: currentEmail
+      });
       if (currentEmail) {
         setEmail(currentEmail);
       }
@@ -190,10 +202,11 @@ export function AuthPanel() {
         setFeedback(formatFriendlyAuthError(signIn.error.message));
       } else {
         setPassword("");
-        setFeedback(
-          "Conta conectada. Suas mesas vinculadas apareceram logo abaixo."
-        );
-        scrollToCampaignActions();
+        setFeedback("Conta conectada.");
+        onAuthenticatedChangeRef.current?.({
+          isAuthenticated: true,
+          email: normalizedEmail
+        });
       }
 
       setPendingKey(null);
@@ -216,6 +229,10 @@ export function AuthPanel() {
         setAuthEmail(null);
         setLinkedSessions([]);
         setPassword("");
+        onAuthenticatedChangeRef.current?.({
+          isAuthenticated: false,
+          email: null
+        });
       }
 
       setPendingKey(null);
@@ -256,107 +273,58 @@ export function AuthPanel() {
     });
   };
 
-  return (
-    <section className="rounded-[28px] border border-white/10 bg-black/20 p-5 sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="section-label">Acesso do cla</p>
-          <h2 className="mt-2 text-xl font-semibold text-white sm:text-2xl lg:text-3xl">
-            Entre com email e senha sem cerimonia extra
-          </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--ink-2)]">
-            Use apenas email e senha. Se a conta ainda nao existir, o app a cria
-            na hora e ja liga sua presenca as mesas sem confirmacao adicional.
-          </p>
-        </div>
-
-        {authEmail && (
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={isPending}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:border-white/20 disabled:opacity-60 sm:w-auto"
-          >
-            {pendingKey === "logout" ? (
-              <LoaderCircle size={14} className="animate-spin" />
-            ) : (
-              <LogOut size={14} />
-            )}
-            sair
-          </button>
-        )}
-      </div>
-
-      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-        <div className="rounded-[24px] border border-amber-300/14 bg-amber-300/8 p-4 sm:p-5">
-          <form
-            className="grid gap-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              handleAuthenticate();
-            }}
-          >
-            <label className="block">
-              <span className="section-label">Email</span>
-              <input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                autoComplete="email"
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-[color:var(--ink-3)] focus:border-amber-300/35"
-                placeholder="voce@mesa.com"
-              />
-            </label>
-
-            <label className="block">
-              <span className="section-label">Senha</span>
-              <input
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                type="password"
-                autoComplete="current-password"
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-[color:var(--ink-3)] focus:border-amber-300/35"
-              placeholder="pelo menos 6 caracteres"
-            />
-          </label>
-
-            <button
-              type="submit"
-              disabled={isPending || !client}
-              className="mt-1 inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {pendingKey === "auth" ? (
-                <LoaderCircle size={16} className="animate-spin" />
-              ) : (
-                <LogIn size={16} />
-              )}
-              entrar ou abrir conta
-            </button>
-          </form>
-
-          <div className="mt-4 rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-[color:var(--ink-2)]">
-            {authEmail ? (
-              <span className="inline-flex min-w-0 items-center gap-2 break-all text-emerald-100">
-                <ShieldCheck size={16} />
-                conectado como {authEmail}
-              </span>
-            ) : (
-              <span className="inline-flex items-start gap-2">
-                <KeyRound size={16} className="text-amber-100" />
-                Se a conta nao existir ainda, ela e aberta na hora com este mesmo email e senha.
-              </span>
-            )}
+  if (variant === "account") {
+    return (
+      <section className="flex min-h-0 flex-col rounded-[22px] border border-white/10 bg-black/20 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="section-label">Minhas mesas</p>
+            <h2 className="mt-1 text-base font-semibold text-white">
+              Entre onde voce ja joga
+            </h2>
+            <p className="mt-1 text-xs text-[color:var(--ink-2)]">
+              Conta conectada como {authEmail ?? "cla ativo"}.
+            </p>
           </div>
         </div>
 
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-[16px] border border-emerald-300/16 bg-emerald-300/8 px-3 py-2 text-sm text-emerald-100">
+          <span className="inline-flex min-w-0 items-center gap-2 break-all">
+            <ShieldCheck size={16} />
+            conectado como {authEmail ?? "conta ativa"}
+          </span>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenCampaigns}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-amber-300/24 bg-amber-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100 transition hover:border-amber-300/40"
+            >
+              <LogIn size={14} />
+              criar ou entrar
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isPending}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:border-white/20 disabled:opacity-60"
+            >
+              {pendingKey === "logout" ? (
+                <LoaderCircle size={14} className="animate-spin" />
+              ) : (
+                <LogOut size={14} />
+              )}
+              sair
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-2.5 flex min-h-0 flex-1 flex-col rounded-[16px] border border-white/10 bg-white/[0.04] p-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="section-label">Minhas mesas</p>
-              <p className="mt-1 text-sm text-[color:var(--ink-2)]">
-                {authEmail
-                  ? "Retome qualquer mesa em que voce ja entrou como Mestre ou Jogador."
-                  : "Depois do acesso, seus saloes vinculados aparecem aqui automaticamente."}
+              <p className="section-label">Mesas</p>
+              <p className="mt-1 text-xs text-[color:var(--ink-2)]">
+                Toque para entrar direto na mesa.
               </p>
             </div>
             <span className="hud-chip w-fit border-white/10 bg-black/18 text-[color:var(--ink-2)]">
@@ -364,26 +332,35 @@ export function AuthPanel() {
             </span>
           </div>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-2 min-h-0 space-y-2 overflow-y-auto pr-1 lg:max-h-[46vh]">
             {!isReady && (
-              <div className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-4 text-sm text-[color:var(--ink-2)]">
+              <div className="rounded-[12px] border border-white/10 bg-black/18 px-3 py-2 text-sm text-[color:var(--ink-2)]">
                 carregando suas mesas...
               </div>
             )}
 
             {isReady && linkedSessions.length === 0 && (
-              <div className="rounded-[18px] border border-dashed border-white/12 bg-black/18 px-4 py-4 text-sm text-[color:var(--ink-2)]">
-                Nenhum salao vinculado ainda. Entre em uma campanha abaixo e o VTT
-                vai ligar essa passagem a sua conta automaticamente.
+              <div className="flex flex-1 flex-col items-center justify-center rounded-[12px] border border-dashed border-white/12 bg-black/18 px-4 py-5 text-center">
+                <p className="text-sm text-[color:var(--ink-2)]">
+                  Nenhuma mesa vinculada ainda.
+                </p>
+                <button
+                  type="button"
+                  onClick={onOpenCampaigns}
+                  className="mt-4 inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-300/24 bg-amber-300/10 px-5 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/40"
+                >
+                  <LogIn size={16} />
+                  criar ou entrar em uma mesa
+                </button>
               </div>
             )}
 
             {linkedSessions.map((item) => (
               <article
                 key={`${item.sessionId}:${item.participantId}`}
-                className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-4"
+                className="rounded-[12px] border border-white/10 bg-black/18 px-3 py-2"
               >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-white">
                       {item.sessionName}
@@ -400,24 +377,104 @@ export function AuthPanel() {
                     type="button"
                     onClick={() => handleRestore(item)}
                     disabled={isPending}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-300/24 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-50 transition hover:border-rose-300/40 disabled:opacity-60 sm:w-auto"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-300/24 bg-rose-300/10 px-3 py-2.5 text-sm font-semibold text-rose-50 transition hover:border-rose-300/40 disabled:opacity-60 sm:w-auto"
                   >
                     {pendingKey === `restore:${item.participantId}` ? (
                       <LoaderCircle size={16} className="animate-spin" />
                     ) : (
                       <ShieldCheck size={16} />
                     )}
-                    retomar mesa
+                    entrar na mesa
                   </button>
                 </div>
               </article>
             ))}
           </div>
         </div>
+
+        {effectiveFeedback && (
+          <p className="mt-2 text-sm text-[color:var(--ink-2)]">{effectiveFeedback}</p>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex min-h-0 flex-col rounded-[24px] border border-white/10 bg-black/20 p-3.5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="section-label">Acesso do cla</p>
+          <h2 className="mt-1 text-base font-semibold text-white sm:text-lg">
+            Email e senha, sem etapas extras
+          </h2>
+          <p className="mt-1 text-xs text-[color:var(--ink-2)] sm:text-sm">
+            Conta nova entra na hora.
+          </p>
+        </div>
+
+        <span className="hud-chip border-white/10 bg-black/18 text-[color:var(--ink-2)]">
+          acesso rapido
+        </span>
+      </div>
+
+      <div className="mt-3 flex min-h-0 flex-1 items-center">
+        <div className="w-full rounded-[18px] border border-amber-300/14 bg-amber-300/8 p-3">
+          <form
+            className="grid gap-2.5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleAuthenticate();
+            }}
+          >
+            <label className="block">
+              <span className="section-label">Email</span>
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                type="email"
+                autoComplete="email"
+                className="mt-1.5 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-[color:var(--ink-3)] focus:border-amber-300/35"
+                placeholder="voce@mesa.com"
+              />
+            </label>
+
+            <label className="block">
+              <span className="section-label">Senha</span>
+              <input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                type="password"
+                autoComplete="current-password"
+                className="mt-1.5 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-[color:var(--ink-3)] focus:border-amber-300/35"
+                placeholder="pelo menos 6 caracteres"
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={isPending || !client}
+              className="mt-1 inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-2.5 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pendingKey === "auth" ? (
+                <LoaderCircle size={16} className="animate-spin" />
+              ) : (
+                <LogIn size={16} />
+              )}
+              entrar ou abrir conta
+            </button>
+          </form>
+
+          <div className="mt-2.5 rounded-[14px] border border-white/10 bg-black/18 px-3 py-2 text-xs text-[color:var(--ink-2)]">
+            <span className="inline-flex items-start gap-2">
+              <KeyRound size={16} className="text-amber-100" />
+              Usa este email e senha para entrar ou criar.
+            </span>
+          </div>
+        </div>
       </div>
 
       {effectiveFeedback && (
-        <p className="mt-4 text-sm text-[color:var(--ink-2)]">{effectiveFeedback}</p>
+        <p className="mt-2 text-sm text-[color:var(--ink-2)]">{effectiveFeedback}</p>
       )}
     </section>
   );

@@ -1,5 +1,6 @@
-﻿"use client";
+"use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import {
   ChevronDown,
@@ -8,10 +9,12 @@ import {
   HeartPulse,
   LoaderCircle,
   MoonStar,
-  RadioTower
+  RadioTower,
+  UserMinus
 } from "lucide-react";
 
 import { adjustCharacterResourceAction } from "@/app/actions/character-actions";
+import { removeSessionParticipantAction } from "@/app/actions/session-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
 import { resolveCharacterAsset } from "@/lib/characters/selectors";
 import { cn } from "@/lib/utils";
@@ -32,6 +35,7 @@ interface SessionStatusDrawerProps {
   defaultOpen?: boolean;
   open?: boolean;
   onOpenChange?: (next: boolean) => void;
+  embedded?: boolean;
 }
 
 function ResourceChip({
@@ -54,20 +58,20 @@ function ResourceChip({
       : "border-amber-300/16 bg-amber-300/10 text-amber-100";
 
   return (
-    <div className={cn("rounded-2xl border px-3 py-3", tone)}>
+    <div className={cn("rounded-2xl border px-3 py-2.5", tone)}>
       <div className="flex items-center gap-2">
         <Icon size={14} />
         <p className="section-label text-current">{label === "hp" ? "PV" : "PF"}</p>
       </div>
-      <p className="mt-2 text-base font-semibold text-white">{value}</p>
+      <p className="mt-1.5 text-sm font-semibold text-white">{value}</p>
       {canAdjust && (
-        <div className="mt-3 flex gap-2">
+        <div className="mt-2 flex gap-2">
           {[-1, 1].map((delta) => (
             <button
               key={`${label}:${delta}`}
               type="button"
               onClick={() => onAdjust(delta)}
-              className="rounded-xl border border-white/10 bg-black/18 px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
+              className="rounded-xl border border-white/10 bg-black/18 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:border-white/20"
             >
               {pendingKey === `${label}:${delta}` ? (
                 <LoaderCircle size={12} className="animate-spin" />
@@ -94,11 +98,15 @@ export function SessionStatusDrawer({
   assets,
   defaultOpen = false,
   open,
-  onOpenChange
+  onOpenChange,
+  embedded = false
 }: SessionStatusDrawerProps) {
+  const router = useRouter();
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [removedParticipantIds, setRemovedParticipantIds] = useState<string[]>([]);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const resolvedOpen = open ?? internalOpen;
@@ -143,6 +151,13 @@ export function SessionStatusDrawer({
       }),
     [assets, characterByOwnerId, playerParticipants, presenceById]
   );
+  const visibleLinkedPlayers = useMemo(
+    () =>
+      linkedPlayers.filter(
+        ({ participant }) => !removedParticipantIds.includes(participant.id)
+      ),
+    [linkedPlayers, removedParticipantIds]
+  );
   const onlineCount = useMemo(
     () => party.filter((member) => member.status !== "offline").length,
     [party]
@@ -154,6 +169,7 @@ export function SessionStatusDrawer({
     delta: number
   ) => {
     setPendingKey(`${character.id}:${resource}:${delta}`);
+    setFeedback(null);
     startTransition(async () => {
       const result = await adjustCharacterResourceAction({
         sessionCode,
@@ -170,17 +186,56 @@ export function SessionStatusDrawer({
     });
   };
 
-  return (
-    <section className="rounded-[24px] border border-white/10 bg-[var(--bg-panel-strong)]">
+  const handleRemoveParticipant = (participantId: string, displayName: string) => {
+    if (viewer?.role !== "gm") {
+      setFeedback("Apenas o mestre pode retirar alguem da mesa.");
+      return;
+    }
+
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`Retirar ${displayName} desta mesa agora?`)
+    ) {
+      return;
+    }
+
+    setPendingKey(`remove:${participantId}`);
+    setFeedback(null);
+    startTransition(async () => {
+      const result = await removeSessionParticipantAction({
+        sessionCode,
+        participantId
+      });
+
+      if (!result.ok) {
+        setFeedback(result.message ?? "Falha ao retirar o jogador da mesa.");
+        setPendingKey(null);
+        return;
+      }
+
+      setRemovedParticipantIds((current) =>
+        current.includes(participantId) ? current : [...current, participantId]
+      );
+      setFeedback(`${displayName} foi retirado da mesa.`);
+      setPendingKey(null);
+      router.refresh();
+    });
+  };
+
+  const content = (
+    <>
       <button
         type="button"
         onClick={() => setResolvedOpen(!resolvedOpen)}
-        className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left sm:px-5"
+        className={cn(
+          "flex w-full items-center justify-between gap-3 text-left",
+          embedded ? "px-0 py-0 pb-3" : "px-4 py-3"
+        )}
       >
         <div className="min-w-0">
           <p className="section-label">Status gerais</p>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-            Mestre, jogadores, ficha resumida e barras sincronizadas em um unico lugar.
+          <p className="mt-1 text-xs text-[color:var(--ink-2)] sm:text-sm">
+            Grupo, fichas e barras em um so painel.
           </p>
         </div>
 
@@ -190,19 +245,26 @@ export function SessionStatusDrawer({
             {onlineCount} online
           </span>
           <span className="hud-chip border-amber-300/18 bg-amber-300/8 text-amber-100">
-            {linkedPlayers.filter((item) => item.character).length} fichas
+            {visibleLinkedPlayers.filter((item) => item.character).length} fichas
           </span>
           {resolvedOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </button>
 
       {resolvedOpen && (
-        <div className="space-y-4 border-t border-white/8 px-4 py-4 sm:px-5">
-          <article className="rounded-[22px] border border-amber-300/16 bg-amber-300/8 p-4">
-            <div className="flex items-center gap-4">
+        <div
+          className={cn(
+            "max-h-[min(54vh,36rem)] space-y-3 overflow-y-auto pr-1",
+            embedded
+              ? "border-t border-white/8 pt-3"
+              : "border-t border-white/8 px-4 py-3 pr-3"
+          )}
+        >
+          <article className="rounded-[18px] border border-amber-300/16 bg-amber-300/8 p-3">
+            <div className="flex items-center gap-3">
               <AssetAvatar
                 label={gmParticipant?.displayName ?? gmName ?? "GM"}
-                className="h-16 w-16 shrink-0"
+                className="h-12 w-12 shrink-0"
               />
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -219,18 +281,18 @@ export function SessionStatusDrawer({
                     )}
                   />
                 </div>
-                <h3 className="mt-2 text-lg font-semibold text-white">
+                <h3 className="mt-1 text-base font-semibold text-white">
                   {gmParticipant?.displayName ?? gmName ?? "Mestre da sessao"}
                 </h3>
-                <p className="mt-1 text-sm text-[color:var(--ink-2)]">
-                  Conduz a mesa ativa e sincroniza palco, mapa tatico e imersao para todo o grupo.
+                <p className="mt-1 text-xs text-[color:var(--ink-2)]">
+                  Controle da mesa ao vivo.
                 </p>
               </div>
             </div>
           </article>
 
           <div className="grid gap-3 xl:grid-cols-2">
-            {linkedPlayers.map(({ participant, character, asset, presence }) => {
+            {visibleLinkedPlayers.map(({ participant, character, asset, presence }) => {
               const canAdjust =
                 Boolean(character) &&
                 (viewer?.role === "gm" || viewer?.participantId === participant.id);
@@ -238,14 +300,14 @@ export function SessionStatusDrawer({
               return (
                 <article
                   key={participant.id}
-                  className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4"
+                  className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3"
                 >
                   <div className="flex items-start gap-3">
                     <AssetAvatar
                       imageUrl={asset?.secureUrl}
                       label={character?.name ?? participant.displayName}
                       kind={asset?.kind}
-                      className="h-16 w-16 shrink-0"
+                      className="h-12 w-12 shrink-0"
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -270,6 +332,24 @@ export function SessionStatusDrawer({
                           : "crie ou vincule uma ficha para este jogador"}
                       </p>
                     </div>
+                    {viewer?.role === "gm" ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleRemoveParticipant(participant.id, participant.displayName)
+                        }
+                        disabled={isPending}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-300/18 bg-rose-300/10 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-100 transition hover:border-rose-300/35 disabled:cursor-not-allowed disabled:opacity-60"
+                        title={`Retirar ${participant.displayName}`}
+                      >
+                        {pendingKey === `remove:${participant.id}` ? (
+                          <LoaderCircle size={12} className="animate-spin" />
+                        ) : (
+                          <UserMinus size={12} />
+                        )}
+                        retirar
+                      </button>
+                    ) : null}
                   </div>
 
                   {character ? (
@@ -279,7 +359,9 @@ export function SessionStatusDrawer({
                         value={`${character.hp}/${character.hpMax}`}
                         canAdjust={canAdjust}
                         pendingKey={
-                          pendingKey?.startsWith(`${character.id}:hp:`) ? pendingKey.split(":").slice(1).join(":") : null
+                          pendingKey?.startsWith(`${character.id}:hp:`)
+                            ? pendingKey.split(":").slice(1).join(":")
+                            : null
                         }
                         onAdjust={(delta) => handleAdjustResource(character, "hp", delta)}
                       />
@@ -288,14 +370,16 @@ export function SessionStatusDrawer({
                         value={`${character.fp}/${character.fpMax}`}
                         canAdjust={canAdjust}
                         pendingKey={
-                          pendingKey?.startsWith(`${character.id}:fp:`) ? pendingKey.split(":").slice(1).join(":") : null
+                          pendingKey?.startsWith(`${character.id}:fp:`)
+                            ? pendingKey.split(":").slice(1).join(":")
+                            : null
                         }
                         onAdjust={(delta) => handleAdjustResource(character, "fp", delta)}
                       />
                     </div>
                   ) : (
-                    <div className="mt-4 rounded-[18px] border border-dashed border-white/12 bg-black/18 px-4 py-3 text-sm text-[color:var(--ink-2)]">
-                      Este jogador ainda nao tem personagem ativo vinculado na sessao.
+                    <div className="mt-3 rounded-[16px] border border-dashed border-white/12 bg-black/18 px-3 py-2.5 text-sm text-[color:var(--ink-2)]">
+                      Sem ficha vinculada.
                     </div>
                   )}
                 </article>
@@ -309,9 +393,24 @@ export function SessionStatusDrawer({
               aplicando ajuste em tempo real...
             </div>
           )}
+
+          {feedback ? (
+            <div className="rounded-[16px] border border-amber-300/15 bg-amber-300/8 px-3 py-2 text-sm text-amber-50">
+              {feedback}
+            </div>
+          ) : null}
         </div>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return <section className="flex h-full min-h-0 flex-col">{content}</section>;
+  }
+
+  return (
+    <section className="rounded-[22px] border border-white/10 bg-[var(--bg-panel-strong)]">
+      {content}
     </section>
   );
 }
-

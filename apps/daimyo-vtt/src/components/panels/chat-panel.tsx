@@ -74,22 +74,22 @@ export function ChatPanel({ sessionCode, viewer }: ChatPanelProps) {
   };
 
   return (
-    <section className="flex h-full flex-col rounded-[24px] border border-white/10 bg-[var(--bg-panel-strong)] p-4">
-      <header className="border-b border-white/8 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
-            <MessageSquareText size={18} />
+    <section className="flex h-full flex-col rounded-[20px] border border-white/10 bg-[var(--bg-panel-strong)] p-3">
+      <header className="border-b border-white/8 pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
+            <MessageSquareText size={16} />
           </div>
           <div>
             <p className="section-label">Chat</p>
-            <h3 className="mt-1 text-lg font-semibold text-white">Mesa em tempo real</h3>
+            <h3 className="text-sm font-semibold text-white">Mesa em tempo real</h3>
           </div>
         </div>
       </header>
 
-      <div ref={listRef} className="scrollbar-thin mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+      <div ref={listRef} className="scrollbar-thin mt-3 flex-1 space-y-2.5 overflow-y-auto pr-1">
         {visibleMessages.length === 0 && (
-          <div className="rounded-[18px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-5 text-sm text-[color:var(--ink-2)]">
+          <div className="rounded-[16px] border border-dashed border-white/12 bg-white/[0.03] px-3 py-4 text-sm text-[color:var(--ink-2)]">
             Ainda nao ha mensagens nesta sessao.
           </div>
         )}
@@ -97,7 +97,7 @@ export function ChatPanel({ sessionCode, viewer }: ChatPanelProps) {
         {visibleMessages.map((message) => (
           <article
             key={message.id}
-            className={`rounded-[18px] border px-4 py-3 ${toneForKind(message.kind)}`}
+            className={`rounded-[16px] border px-3 py-2.5 ${toneForKind(message.kind)}`}
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -116,21 +116,21 @@ export function ChatPanel({ sessionCode, viewer }: ChatPanelProps) {
                 })}
               </p>
             </div>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
+            <p className="mt-1.5 text-sm leading-5 text-[color:var(--ink-2)]">
               {message.body}
             </p>
           </article>
         ))}
       </div>
 
-      <div className="mt-4 space-y-3 border-t border-white/8 pt-4">
+      <div className="mt-3 space-y-2.5 border-t border-white/8 pt-3">
         <textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           rows={3}
           placeholder={viewer ? "Descreva a acao, fale com a mesa ou narre um detalhe..." : "Entre na sala para habilitar o chat"}
           disabled={!viewer || isPending}
-          className="w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-[16px] border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition focus:border-amber-300/35 disabled:cursor-not-allowed disabled:opacity-60"
         />
 
         <div className="flex items-center justify-between gap-3">
@@ -142,7 +142,7 @@ export function ChatPanel({ sessionCode, viewer }: ChatPanelProps) {
             type="button"
             onClick={handleSubmit}
             disabled={isPending || !viewer}
-            className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl border border-amber-300/28 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isPending ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}
             enviar

@@ -421,24 +421,24 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
   };
 
   return (
-    <section className="flex h-full flex-col rounded-[24px] border border-white/10 bg-[var(--bg-panel-strong)] p-4">
-      <header className="border-b border-white/8 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
-            <AudioLines size={18} />
+    <section className="flex h-full flex-col rounded-[20px] border border-white/10 bg-[var(--bg-panel-strong)] p-3">
+      <header className="border-b border-white/8 pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
+            <AudioLines size={16} />
           </div>
           <div>
             <p className="section-label">Trilhas</p>
-            <h3 className="mt-1 text-lg font-semibold text-white">Tambores de guerra</h3>
+            <h3 className="text-sm font-semibold text-white">Tambores de guerra</h3>
           </div>
         </div>
       </header>
 
-      <div className="mt-4 rounded-[20px] border border-white/10 bg-black/18 p-4">
+      <div className="mt-3 rounded-[18px] border border-white/10 bg-black/18 p-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="section-label">Faixa ativa</p>
-            <p className="mt-1 text-lg font-semibold text-white">
+            <p className="mt-1 text-base font-semibold text-white">
               {activeTrack?.title ?? "nenhuma"}
             </p>
             <p className="mt-1 text-xs text-[color:var(--ink-3)]">
@@ -452,7 +452,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                 type="button"
                 onClick={() => handleTransport("playing")}
                 disabled={isPending || !playback?.trackId}
-                className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-300/28 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:opacity-60"
               >
                 {pendingKey === "transport:playing" ? (
                   <LoaderCircle size={16} className="animate-spin" />
@@ -465,7 +465,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                 type="button"
                 onClick={() => handleTransport("paused")}
                 disabled={isPending || !playback?.trackId}
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
               >
                 {pendingKey === "transport:paused" ? (
                   <LoaderCircle size={16} className="animate-spin" />
@@ -478,7 +478,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                 type="button"
                 onClick={() => handleTransport("stopped")}
                 disabled={isPending || !playback?.trackId}
-                className="inline-flex items-center gap-2 rounded-2xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-xs font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
               >
                 {pendingKey === "transport:stopped" ? (
                   <LoaderCircle size={16} className="animate-spin" />
@@ -491,7 +491,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                 type="button"
                 onClick={handleLoopToggle}
                 disabled={isPending || !playback?.trackId}
-                className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition disabled:opacity-60 ${
+                className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition disabled:opacity-60 ${
                   playback?.loopEnabled
                     ? "border-emerald-300/24 bg-emerald-300/10 text-emerald-50 hover:border-emerald-300/40"
                     : "border-white/10 bg-white/[0.04] text-white hover:border-white/20"
@@ -509,8 +509,8 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
         </div>
 
         {canManage && (
-          <label className="mt-4 block">
-            <div className="mb-2 flex items-center gap-2 text-sm text-[color:var(--ink-2)]">
+          <label className="mt-3 block">
+            <div className="mb-1.5 flex items-center gap-2 text-xs text-[color:var(--ink-2)]">
               <Volume2 size={16} />
               volume global
             </div>
@@ -531,20 +531,20 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
       </div>
 
       {canManage && (
-        <div className="mt-4 rounded-[20px] border border-white/10 bg-black/18 p-4">
+        <div className="mt-3 rounded-[18px] border border-white/10 bg-black/18 p-3">
           <p className="section-label">Nova faixa</p>
-          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <div className="mt-2.5 grid gap-2.5 lg:grid-cols-2">
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/35"
               placeholder="Tambor do cerco"
             />
 
             <input
               value={playlistName}
               onChange={(event) => setPlaylistName(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/35"
               placeholder="Geral"
             />
 
@@ -554,12 +554,12 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                 type="file"
                 accept=".mp3,.m4a,.mp4,audio/mpeg,audio/mp4,video/mp4"
                 onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
-                className="mt-2 block w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-[color:var(--ink-2)] file:mr-3 file:rounded-xl file:border-0 file:bg-amber-300/14 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-amber-100"
+                className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-[color:var(--ink-2)] file:mr-3 file:rounded-xl file:border-0 file:bg-amber-300/14 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-amber-100"
               />
             </label>
           </div>
 
-          <p className="mt-3 text-xs leading-5 text-[color:var(--ink-3)]">
+          <p className="mt-2.5 text-xs leading-5 text-[color:var(--ink-3)]">
             Priorize MP3. M4A/MP4 de audio entra como compatibilidade e sobe pela rota de midia do Cloudinary.
           </p>
 
@@ -567,7 +567,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
             type="button"
             onClick={handleCreateTrack}
             disabled={isPending}
-            className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-300/28 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pendingKey === "create-track" ? (
               <LoaderCircle size={16} className="animate-spin" />
@@ -579,22 +579,22 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
         </div>
       )}
 
-      <div className="mt-4 flex flex-col gap-3 rounded-[20px] border border-white/10 bg-black/18 p-4 md:flex-row md:items-start md:justify-between">
+      <div className="mt-3 flex flex-col gap-2.5 rounded-[18px] border border-white/10 bg-black/18 p-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <p className="section-label">Biblioteca de trilhas</p>
-          <p className="mt-1 break-words text-sm leading-6 text-[color:var(--ink-2)]">
+          <p className="mt-1 break-words text-sm leading-5 text-[color:var(--ink-2)]">
             Busque por faixa, playlist ou arquivo e carregue por blocos.
           </p>
         </div>
         <div className="flex w-full flex-col gap-3 md:max-w-[620px]">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+          <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_160px]">
             <input
               value={searchQuery}
               onChange={(event) => {
                 setSearchQuery(event.target.value);
                 setVisibleCount(10);
               }}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/35"
               placeholder="buscar trilha ou arquivo..."
             />
             <select
@@ -603,7 +603,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                 setPlaylistFilter(event.target.value);
                 setVisibleCount(10);
               }}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/35"
             >
               <option value="all">todas as playlists</option>
               {groupedTracks.map((group) => (
@@ -614,28 +614,28 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
             </select>
           </div>
 
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
             <LibraryFilterPills value={statusFilter} onChange={setStatusFilter} />
             <LibrarySortSelect value={sortMode} onChange={setSortMode} />
           </div>
         </div>
       </div>
 
-      <div className="scrollbar-thin mt-4 flex-1 space-y-4 overflow-y-auto pr-1">
+      <div className="scrollbar-thin mt-3 flex-1 space-y-3 overflow-y-auto pr-1">
         {groupedTracks.length === 0 && (
-          <div className="rounded-[18px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-5 text-sm text-[color:var(--ink-2)]">
+          <div className="rounded-[16px] border border-dashed border-white/12 bg-white/[0.03] px-3 py-4 text-sm text-[color:var(--ink-2)]">
             Nenhuma faixa cadastrada ainda.
           </div>
         )}
 
         {groupedTracks.length > 0 && filteredGroups.length === 0 && (
-          <div className="rounded-[18px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-5 text-sm text-[color:var(--ink-2)]">
+          <div className="rounded-[16px] border border-dashed border-white/12 bg-white/[0.03] px-3 py-4 text-sm text-[color:var(--ink-2)]">
             Nenhuma faixa corresponde aos filtros atuais.
           </div>
         )}
 
         {displayedGroups.map((group) => (
-          <section key={group.playlistName} className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
+          <section key={group.playlistName} className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-white">{group.playlistName}</p>
@@ -645,14 +645,14 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
               </div>
             </div>
 
-            <div className="mt-3 space-y-3">
+            <div className="mt-2.5 space-y-2.5">
               {group.tracks.map((track) => {
                 const isCurrent = playback?.trackId === track.id;
 
                 return (
                   <article
                     key={track.id}
-                    className={`rounded-[18px] border px-4 py-3 ${isCurrent ? "border-amber-300/20 bg-amber-300/10" : "border-white/10 bg-black/18"}`}
+                    className={`rounded-[16px] border px-3 py-2.5 ${isCurrent ? "border-amber-300/20 bg-amber-300/10" : "border-white/10 bg-black/18"}`}
                   >
                     <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                       <div>
@@ -661,7 +661,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                           {track.originalFilename ?? "arquivo enviado"}
                           {track.durationSeconds != null ? ` - ${formatSeconds(track.durationSeconds)}` : ""}
                         </p>
-                        <div className="mt-3">
+                        <div className="mt-2.5">
                           <LibraryFlagControls
                             flags={audioLibraryFlags[track.id]}
                             canManage={canManage}
@@ -678,7 +678,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                             type="button"
                             onClick={() => handleSelectTrack(track.id)}
                             disabled={isPending}
-                            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
+                            className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
                           >
                             {pendingKey === `select:${track.id}` ? (
                               <LoaderCircle size={14} className="animate-spin" />
@@ -693,7 +693,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                             type="button"
                             onClick={() => handleDeleteTrack(track.id)}
                             disabled={isPending}
-                            className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-xs font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
+                            className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-2.5 py-1.5 text-[10px] font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
                           >
                             {pendingKey === `delete:${track.id}` ? (
                               <LoaderCircle size={14} className="animate-spin" />
@@ -715,7 +715,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
           <button
             type="button"
             onClick={() => setVisibleCount((current) => current + 10)}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20"
+            className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
           >
             carregar mais trilhas
           </button>

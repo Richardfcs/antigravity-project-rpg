@@ -162,7 +162,7 @@ export function TheaterStage({
       <div
         className={cn(
           "relative z-10 flex h-full min-h-0 w-full flex-col",
-          compact || isFocus ? "px-4 pb-4 pt-4" : "px-5 pb-5 pt-4"
+          compact || isFocus ? "px-4 pb-4 pt-4" : "px-4 pb-4 pt-3.5"
         )}
       >
         <div className="mx-auto flex w-full max-w-[1120px] flex-col items-center text-center">
@@ -176,9 +176,9 @@ export function TheaterStage({
             </span>
           </div>
 
-          <div className="mt-4 rounded-full border border-white/10 bg-black/34 px-5 py-2 shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+          <div className="mt-3 rounded-full border border-white/10 bg-black/34 px-4 py-1.5 shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur-xl">
             <p className="section-label text-center">cena em foco</p>
-            <h2 className="mt-2 text-balance text-2xl font-semibold text-white sm:text-[2rem]">
+            <h2 className="mt-1.5 text-balance text-[1.8rem] font-semibold text-white sm:text-[1.95rem]">
               {sceneName}
             </h2>
           </div>

@@ -28,14 +28,14 @@ export function LibraryFilterPills({
   ];
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1">
       {options.map((option) => (
         <button
           key={option.id}
           type="button"
           onClick={() => onChange(option.id)}
           className={cn(
-            "rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition",
+            "shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition",
             value === option.id
               ? "border-amber-300/28 bg-amber-300/10 text-amber-100"
               : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
@@ -59,7 +59,7 @@ export function LibrarySortSelect({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value as LibrarySortMode)}
-      className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+      className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white outline-none transition focus:border-amber-300/35"
     >
       <option value="name">ordem alfabetica</option>
       <option value="prepared">pronto primeiro</option>
@@ -100,7 +100,7 @@ export function LibraryFlagControls({
   ];
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5">
       {buttons.map((button) => (
         <button
           key={button.id}
@@ -108,7 +108,7 @@ export function LibraryFlagControls({
           disabled={!canManage}
           onClick={() => onToggle(button.id)}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition disabled:cursor-default disabled:opacity-70",
+            "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] transition disabled:cursor-default disabled:opacity-70",
             button.active
               ? "border-amber-300/24 bg-amber-300/10 text-amber-100"
               : "border-white/10 bg-white/[0.03] text-[color:var(--ink-3)] hover:border-white/20 hover:text-white"

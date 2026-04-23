@@ -15,20 +15,13 @@ interface StageContextBarProps {
 function buildContext(stageMode: StageMode, state: SessionCommandState) {
   switch (stageMode) {
     case "tactical":
-      const combatSummary = state.combatEnabled
-        ? `Combate ativo: rodada ${state.combatRound}, turno ${state.combatTurnIndex + 1}.`
-        : "Combate leve pronto para ser iniciado pelo mestre.";
-
       return {
         title: "Campo em foco",
-        summary: `${state.mapTokenCount} marcadores ativos no campo atual. ${combatSummary}`,
         chips: [
           { label: state.activeMapName ?? "sem campo ativo", icon: MapPinned },
           { label: `${state.mapTokenCount} tokens`, icon: Compass },
           {
-            label: state.combatEnabled
-              ? `rodada ${state.combatRound}`
-              : "combate em espera",
+            label: state.combatEnabled ? `rodada ${state.combatRound}` : "combate em espera",
             icon: Ghost
           }
         ],
@@ -42,10 +35,12 @@ function buildContext(stageMode: StageMode, state: SessionCommandState) {
     case "atlas":
       return {
         title: "Wiki em foco",
-        summary: `${state.atlasVisiblePinCount} pins já podem ser vistos. ${state.atlasHiddenPinCount} ainda aguardam revelação.`,
         chips: [
           { label: state.activeAtlasName ?? "sem atlas ativo", icon: MapPinned },
-          { label: `${state.atlasVisiblePinCount}/${state.atlasVisiblePinCount + state.atlasHiddenPinCount} revelados`, icon: Compass }
+          {
+            label: `${state.atlasVisiblePinCount}/${state.atlasVisiblePinCount + state.atlasHiddenPinCount} revelados`,
+            icon: Compass
+          }
         ],
         actions: [
           { label: "atlas", section: "atlas" as const, icon: MapPinned },
@@ -58,7 +53,6 @@ function buildContext(stageMode: StageMode, state: SessionCommandState) {
     default:
       return {
         title: "Cena em foco",
-        summary: `${state.sceneCastCount} figuras no palco narrativo atual.`,
         chips: [
           { label: state.activeSceneName ?? "sem cena ativa", icon: Theater },
           { label: `${state.sceneCastCount} em cena`, icon: UsersRound }
@@ -81,40 +75,38 @@ export function StageContextBar({
   const context = buildContext(stageMode, state);
 
   return (
-    <section className="flex flex-col gap-3 rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-4">
+    <section className="rounded-[18px] border border-white/10 bg-white/[0.04] px-3 py-2.5">
       <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-        <div>
-          <p className="section-label">{context.title}</p>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">{context.summary}</p>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="section-label">{context.title}</span>
+            {context.chips.map((chip) => (
+              <span
+                key={chip.label}
+                className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]"
+              >
+                <chip.icon size={12} />
+                {chip.label}
+              </span>
+            ))}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {context.chips.map((chip) => (
-            <span
-              key={chip.label}
-              className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]"
+          {context.actions.map((action) => (
+            <button
+              key={`${stageMode}:${action.section}`}
+              type="button"
+              onClick={() => onOpenSection(action.section)}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/18 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
+              )}
             >
-              <chip.icon size={14} />
-              {chip.label}
-            </span>
+              <action.icon size={14} />
+              {action.label}
+            </button>
           ))}
         </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {context.actions.map((action) => (
-          <button
-            key={`${stageMode}:${action.section}`}
-            type="button"
-            onClick={() => onOpenSection(action.section)}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/18 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
-            )}
-          >
-            <action.icon size={14} />
-            {action.label}
-          </button>
-        ))}
       </div>
     </section>
   );

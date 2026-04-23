@@ -275,7 +275,7 @@ body::after {
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.01)),
       var(--bg-panel);
-    @apply rounded-[24px] border shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl;
+    @apply rounded-[20px] border shadow-[0_18px_56px_rgba(0,0,0,0.3)] backdrop-blur-xl;
     border-color: color-mix(in srgb, var(--border-panel) 82%, white 18%);
   }
 
@@ -283,24 +283,24 @@ body::after {
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.02)),
       var(--bg-panel);
-    @apply rounded-[28px] border shadow-[0_28px_90px_rgba(0,0,0,0.42)] backdrop-blur-xl;
+    @apply rounded-[24px] border shadow-[0_22px_70px_rgba(0,0,0,0.36)] backdrop-blur-xl;
     border-color: color-mix(in srgb, var(--border-panel) 74%, var(--gold) 26%);
   }
 
   .hud-chip {
-    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em];
+    @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em];
     border-color: color-mix(in srgb, var(--gold) 26%, var(--border-panel) 74%);
     background: rgba(255, 255, 255, 0.03);
     color: var(--text-secondary);
   }
 
   .section-label {
-    @apply text-[10px] font-semibold uppercase tracking-[0.26em];
+    @apply text-[8px] font-semibold uppercase tracking-[0.18em];
     color: color-mix(in srgb, var(--gold) 48%, var(--text-muted) 52%);
   }
 
   .rail-button {
-    @apply flex h-11 w-11 items-center justify-center rounded-2xl border transition;
+    @apply flex h-8 w-8 items-center justify-center rounded-xl border transition;
     border-color: color-mix(in srgb, var(--border-panel) 84%, white 16%);
     background: rgba(255, 255, 255, 0.03);
     color: var(--text-secondary);
@@ -332,7 +332,7 @@ body::after {
   }
 
   .stat-card {
-    @apply rounded-[20px] border p-4;
+    @apply rounded-[18px] border p-3;
     border-color: rgba(255, 255, 255, 0.08);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),

@@ -147,6 +147,27 @@ export function StagePanel({
     ? assets.find((asset) => asset.id === activeAtlasMap.assetId) ?? null
     : null;
 
+  const stageChips = useMemo(() => {
+    if (snapshot.stageMode === "tactical") {
+      return [
+        `${activeMapTokens.length} tokens`,
+        combatState?.enabled ? `rodada ${combatState.round}` : "combate em espera"
+      ];
+    }
+
+    if (snapshot.stageMode === "atlas") {
+      return [`${activeAtlasPins.length} locais visiveis`];
+    }
+
+    return [`${activeEntries.length} em cena`];
+  }, [
+    activeAtlasPins.length,
+    activeEntries.length,
+    activeMapTokens.length,
+    combatState?.enabled,
+    combatState?.round,
+    snapshot.stageMode
+  ]);
 
   const stageTitle =
     snapshot.stageMode === "tactical"
@@ -154,13 +175,10 @@ export function StagePanel({
       : snapshot.stageMode === "atlas"
         ? activeAtlasMap?.name ?? "Atlas"
         : activeScene?.name ?? snapshot.activeScene;
-  const stageBlurb =
-    snapshot.stageMode === "tactical"
-      ? "Marcadores claros, criacao no palco e comando direto do mestre."
-      : snapshot.stageMode === "atlas"
-        ? "Pins criados e reposicionados no proprio mapa macro."
-        : "Palco em estilo apresentacao, com destaque, formacao e retratos responsivos.";
-
+  const stageShellHeightClass =
+    snapshot.stageMode === "theater"
+      ? "xl:h-[calc(100vh-12rem)] xl:min-h-[600px] xl:max-h-[860px]"
+      : "xl:h-[calc(100vh-8.5rem)] xl:min-h-[740px]";
   const handleMoveToken = (tokenId: string, x: number, y: number) => {
     startTransition(async () => {
       const result = await moveMapTokenAction({
@@ -177,14 +195,35 @@ export function StagePanel({
   };
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-4 rounded-[24px] border border-white/10 bg-[var(--bg-panel-strong)] p-4">
-      <header className="flex flex-col gap-4 border-b border-white/8 pb-4 xl:flex-row xl:items-center xl:justify-between">
-        <div>
-          <p className="section-label">Palco central</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">{stageTitle}</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--ink-2)]">
-            {stageBlurb}
-          </p>
+    <section
+      className={cn(
+        "flex h-full min-h-0 flex-col gap-1.5 overflow-hidden rounded-[16px] border border-white/10 bg-[var(--bg-panel-strong)] p-1.5 lg:p-2",
+        stageShellHeightClass
+      )}
+    >
+      <header className="flex flex-col gap-1 border-b border-white/8 pb-1.5 xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="section-label">Palco</p>
+            <h2 className="text-sm font-semibold text-white md:text-base">{stageTitle}</h2>
+            <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+              {snapshot.stageMode === "tactical"
+                ? "campo"
+                : snapshot.stageMode === "atlas"
+                  ? "wiki"
+                  : "cena"}
+            </span>
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {stageChips.map((chip) => (
+              <span
+                key={chip}
+                className="hud-chip border-white/10 bg-black/18 text-[color:var(--ink-2)]"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
         </div>
 
         <button
@@ -195,19 +234,19 @@ export function StagePanel({
             )
           }
           className={cn(
-            "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition",
+            "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition",
             snapshot.presentationMode === "immersive"
               ? "border-rose-300/22 bg-rose-300/10 text-rose-100"
               : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
           )}
         >
           {snapshot.presentationMode === "immersive" ? <Shrink size={14} /> : <Expand size={14} />}
-          {snapshot.presentationMode === "immersive" ? "sair do imersivo" : "abrir imersivo"}
+          {snapshot.presentationMode === "immersive" ? "sair" : "imersivo"}
         </button>
       </header>
 
-      <div className="min-h-[520px] flex-1">
-        <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-[280px] flex-1 overflow-hidden md:min-h-[340px] xl:min-h-0">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden">
           {snapshot.stageMode === "theater" && (
             <TheaterStage
               sceneName={activeScene?.name ?? snapshot.activeScene}
@@ -225,6 +264,7 @@ export function StagePanel({
               sessionCode={snapshot.code}
               map={activeMap}
               backgroundUrl={activeMapBackground?.secureUrl ?? null}
+              backgroundAsset={activeMapBackground}
               tokens={activeMapTokens}
               combatState={combatState}
               canManageCombat={canManageCombat}
@@ -247,6 +287,7 @@ export function StagePanel({
               sessionCode={snapshot.code}
               atlasMap={activeAtlasMap}
               backgroundUrl={activeAtlasBackground?.secureUrl ?? null}
+              backgroundAsset={activeAtlasBackground}
               pins={activeAtlasPins}
               canEdit={viewer?.role === "gm"}
               assetOptions={assets}

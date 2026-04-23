@@ -283,6 +283,25 @@ export async function findParticipantById(participantId: string) {
   return data ? mapParticipantRow(data) : null;
 }
 
+export async function removeSessionParticipant(input: {
+  sessionId: string;
+  participantId: string;
+}) {
+  const { data, error } = await getParticipantTable()
+    .delete()
+    .eq("id", input.participantId)
+    .eq("session_id", input.sessionId)
+    .eq("role", "player")
+    .select("*")
+    .maybeSingle<ParticipantRow>();
+
+  if (error || !data) {
+    throw error ?? new Error("Falha ao remover o jogador da sessao.");
+  }
+
+  return mapParticipantRow(data);
+}
+
 export async function linkParticipantToAuthUser(input: {
   sessionId: string;
   participantId: string;

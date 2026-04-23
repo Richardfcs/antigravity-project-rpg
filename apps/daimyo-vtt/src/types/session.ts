@@ -3,6 +3,8 @@ import type { PresenceRole } from "@/types/presence";
 export type StageMode = "theater" | "tactical" | "atlas";
 export type PresentationMode = "standard" | "immersive";
 export type MasterMode = "prep" | "live";
+export type MasterWorkspace = "stage" | "library";
+export type MasterDrawer = "closed" | ExplorerSection;
 export type ExplorerSection =
   | "scenes"
   | "maps"
@@ -15,6 +17,8 @@ export type ExplorerSection =
   | "audio"
   | "chat";
 export type DockTab = "chat" | "dice" | "audio" | "notes";
+export type PlayerBottomTab = "stage" | "wiki" | "sheet" | "chat" | "notes";
+export type PlayerOverlay = "none" | "sheet" | "wiki" | "chat" | "notes";
 export type SyncState = "idle" | "booting" | "connected" | "degraded";
 export type SessionStatus = "lobby" | "active" | "closed";
 export type SessionParticipantStatus = "online" | "idle" | "offline";

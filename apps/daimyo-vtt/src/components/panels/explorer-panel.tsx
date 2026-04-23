@@ -1,16 +1,4 @@
-import {
-  AudioLines,
-  BookOpenText,
-  Ghost,
-  Map,
-  MapPinned,
-  MessagesSquare,
-  ScrollText,
-  ShieldAlert,
-  Theater,
-  UsersRound
-} from "lucide-react";
-
+import { CompactPanelHeader } from "@/components/layout/compact-panel-header";
 import { ActorsPanel } from "@/components/panels/actors-panel";
 import { AdminPanel } from "@/components/panels/admin-panel";
 import { AudioPanel } from "@/components/panels/audio-panel";
@@ -36,62 +24,42 @@ interface ExplorerPanelProps {
   party: OnlinePresence[];
   participants: SessionParticipantRecord[];
   activeSection: ExplorerSection;
+  onSectionChange?: (section: ExplorerSection) => void;
   viewer: SessionViewerIdentity | null;
   infra: InfraReadiness;
+  embedded?: boolean;
 }
 
 const sectionMeta = {
   scenes: {
-    icon: Theater,
-    title: "Cenas",
-    description: "Palco, fundo e ordem visual do elenco narrativo."
+    title: "Cenas"
   },
   maps: {
-    icon: Map,
-    title: "Campos",
-    description: "Campos taticos, grade opcional, marcadores vivos e mapa ativo."
+    title: "Campos"
   },
   codex: {
-    icon: BookOpenText,
-    title: "Oficina",
-    description:
-      "Arquetipos, codex e arsenal reaproveitados do projeto base sem inflar o palco."
+    title: "Oficina"
   },
   notes: {
-    icon: ScrollText,
-    title: "Notas",
-    description:
-      "Memoria contextual do mestre e cadernos privados para acompanhar a sessao."
+    title: "Notas"
   },
   actors: {
-    icon: UsersRound,
-    title: "Fichas",
-    description: "Retratos e recursos, elenco vivo, PV/PF e iniciativa em tempo real."
+    title: "Fichas"
   },
   atlas: {
-    icon: MapPinned,
-    title: "Atlas",
-    description: "Pins, regioes e submapas para o mundo da campanha."
+    title: "Atlas"
   },
   effects: {
-    icon: Ghost,
-    title: "Efeitos",
-    description: "Clima, atmosfera, kegare e estados individuais aplicados em tempo real."
+    title: "Efeitos"
   },
   admin: {
-    icon: ShieldAlert,
-    title: "Dominio",
-    description: "Limpezas granulares e reset total do conteudo da mesa com confirmacoes."
+    title: "Dominio"
   },
   audio: {
-    icon: AudioLines,
-    title: "Trilhas",
-    description: "Trilhas, transporte e volume global sincronizados para toda a mesa."
+    title: "Trilhas"
   },
   chat: {
-    icon: MessagesSquare,
-    title: "Conversa",
-    description: "Chat publico vivo e rolagens 3d6/GURPS publicadas em tempo real."
+    title: "Conversa"
   }
 } as const;
 
@@ -100,30 +68,45 @@ export function ExplorerPanel({
   party,
   participants,
   activeSection,
+  onSectionChange,
   viewer,
-  infra
+  infra,
+  embedded = false
 }: ExplorerPanelProps) {
   const meta = sectionMeta[activeSection];
-  const Icon = meta.icon;
 
   return (
-    <section className="flex h-full flex-col rounded-[24px] border border-white/10 bg-[var(--bg-panel-strong)] p-4">
-      <header className="border-b border-white/8 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
-            <Icon size={18} />
-          </div>
-          <div>
-            <p className="section-label">{snapshot.code}</p>
-            <h2 className="mt-1 text-xl font-semibold text-white">{meta.title}</h2>
-          </div>
-        </div>
-        <p className="mt-3 text-sm leading-6 text-[color:var(--ink-2)]">
-          {meta.description}
-        </p>
-      </header>
+    <section className="flex h-full min-h-0 flex-col">
+      {!embedded ? (
+        <CompactPanelHeader
+          label="Biblioteca"
+          title={meta.title}
+          actions={
+            <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+              sala {snapshot.code}
+            </span>
+          }
+        />
+      ) : null}
 
-      <div className="scrollbar-thin mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+      <div className={embedded ? "" : "mt-1.5"}>
+        <label className="block">
+          <span className="sr-only">Seção da biblioteca</span>
+          <select
+            value={activeSection}
+            onChange={(event) => onSectionChange?.(event.target.value as ExplorerSection)}
+            className="w-full rounded-xl border border-white/10 bg-black/20 px-2.5 py-1.5 text-xs text-white outline-none transition focus:border-amber-300/35"
+          >
+            {Object.entries(sectionMeta).map(([key, value]) => (
+              <option key={key} value={key}>
+                {value.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="scrollbar-thin mt-2 flex-1 space-y-2 overflow-y-auto pr-1">
         {activeSection === "scenes" && (
           <ScenesPanel sessionCode={snapshot.code} viewer={viewer} />
         )}
@@ -179,7 +162,7 @@ export function ExplorerPanel({
         )}
 
         {activeSection === "chat" && (
-          <div className="space-y-4">
+          <div className="space-y-2">
             <ChatPanel sessionCode={snapshot.code} viewer={viewer} />
             <DicePanel sessionCode={snapshot.code} viewer={viewer} />
           </div>
