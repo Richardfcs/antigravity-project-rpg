@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import {
@@ -19,6 +19,7 @@ import {
   selectAudioTrackAction,
   syncAudioPlaybackAction
 } from "@/app/actions/audio-actions";
+import { cn } from "@/lib/utils";
 import {
   LibraryFilterPills,
   LibraryFlagControls,
@@ -421,181 +422,207 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
   };
 
   return (
-    <section className="flex h-full flex-col rounded-[20px] border border-white/10 bg-[var(--bg-panel-strong)] p-3">
-      <header className="border-b border-white/8 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
-            <AudioLines size={16} />
-          </div>
-          <div>
-            <p className="section-label">Trilhas</p>
-            <h3 className="text-sm font-semibold text-white">Tambores de guerra</h3>
-          </div>
-        </div>
-      </header>
-
-      <div className="mt-3 rounded-[18px] border border-white/10 bg-black/18 p-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="section-label">Faixa ativa</p>
-            <p className="mt-1 text-base font-semibold text-white">
-              {activeTrack?.title ?? "nenhuma"}
-            </p>
-            <p className="mt-1 text-xs text-[color:var(--ink-3)]">
-              {playbackStatusLabel(playback?.status)} · {formatSeconds(displayedPosition)}
-            </p>
+    <div className="space-y-6">
+      <section className="rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
+        <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.1)]">
+              <AudioLines size={24} />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold tracking-tight text-white uppercase">Sinfonia de Guerra</h3>
+              <p className="text-xs text-white/40">Dite o ritmo do destino e a harmonia das cenas.</p>
+            </div>
           </div>
 
           {canManage && (
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => handleTransport("playing")}
-                disabled={isPending || !playback?.trackId}
-                className="inline-flex items-center gap-2 rounded-xl border border-amber-300/28 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:opacity-60"
-              >
-                {pendingKey === "transport:playing" ? (
-                  <LoaderCircle size={16} className="animate-spin" />
-                ) : (
-                  <Play size={16} />
-                )}
-                play
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTransport("paused")}
-                disabled={isPending || !playback?.trackId}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
-              >
-                {pendingKey === "transport:paused" ? (
-                  <LoaderCircle size={16} className="animate-spin" />
-                ) : (
-                  <Pause size={16} />
-                )}
-                pause
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTransport("stopped")}
-                disabled={isPending || !playback?.trackId}
-                className="inline-flex items-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-xs font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
-              >
-                {pendingKey === "transport:stopped" ? (
-                  <LoaderCircle size={16} className="animate-spin" />
-                ) : (
-                  <Square size={16} />
-                )}
-                stop
-              </button>
-              <button
-                type="button"
-                onClick={handleLoopToggle}
-                disabled={isPending || !playback?.trackId}
-                className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition disabled:opacity-60 ${
-                  playback?.loopEnabled
-                    ? "border-emerald-300/24 bg-emerald-300/10 text-emerald-50 hover:border-emerald-300/40"
-                    : "border-white/10 bg-white/[0.04] text-white hover:border-white/20"
-                }`}
-              >
-                {pendingKey === "loop" ? (
-                  <LoaderCircle size={16} className="animate-spin" />
-                ) : (
-                  <Repeat size={16} />
-                )}
-                {playback?.loopEnabled ? "loop ligado" : "loop desligado"}
-              </button>
+            <div className="flex items-center gap-4 rounded-2xl bg-white/5 px-4 py-2 border border-white/5">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/30">
+                <Volume2 size={14} />
+                Volume
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={playback?.volume ?? 0.72}
+                onChange={(event) => handleVolumeChange(Number(event.target.value))}
+                disabled={isPending}
+                className="w-32 accent-amber-400"
+              />
             </div>
           )}
+        </header>
+
+        <div className="rounded-[24px] border border-white/5 bg-white/[0.02] p-6 mb-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400/50 mb-2">Transmissão Ativa</p>
+              <h4 className="text-2xl font-bold text-white truncate leading-tight">
+                {activeTrack?.title ?? "Silêncio Narrativo"}
+              </h4>
+              <div className="mt-2 flex items-center gap-3 text-xs font-bold text-white/40">
+                <span className="uppercase tracking-widest">{playbackStatusLabel(playback?.status)}</span>
+                <span className="h-1 w-1 rounded-full bg-white/20"></span>
+                <span className="tabular-nums">{formatSeconds(displayedPosition)}</span>
+                {playback?.loopEnabled && (
+                  <>
+                    <span className="h-1 w-1 rounded-full bg-white/20"></span>
+                    <span className="text-emerald-400 uppercase tracking-tighter">Loop Ativo</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {canManage && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleTransport("playing")}
+                  disabled={isPending || !playback?.trackId}
+                  className={cn(
+                    "flex h-14 w-14 items-center justify-center rounded-2xl border transition-all disabled:opacity-20",
+                    playback?.status === "playing" 
+                      ? "border-amber-400/50 bg-amber-400/20 text-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.2)]" 
+                      : "border-white/10 bg-white/5 text-white hover:border-white/20"
+                  )}
+                >
+                  {pendingKey === "transport:playing" ? (
+                    <LoaderCircle size={20} className="animate-spin" />
+                  ) : (
+                    <Play size={24} className="fill-current" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTransport("paused")}
+                  disabled={isPending || !playback?.trackId}
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white transition-all hover:border-white/20 disabled:opacity-20"
+                >
+                  {pendingKey === "transport:paused" ? (
+                    <LoaderCircle size={20} className="animate-spin" />
+                  ) : (
+                    <Pause size={24} className="fill-current" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTransport("stopped")}
+                  disabled={isPending || !playback?.trackId}
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-400 transition-all hover:border-rose-500/40 disabled:opacity-20"
+                >
+                  {pendingKey === "transport:stopped" ? (
+                    <LoaderCircle size={20} className="animate-spin" />
+                  ) : (
+                    <Square size={20} className="fill-current" />
+                  )}
+                </button>
+                <div className="w-px h-10 bg-white/10 mx-2"></div>
+                <button
+                  type="button"
+                  onClick={handleLoopToggle}
+                  disabled={isPending || !playback?.trackId}
+                  className={cn(
+                    "flex h-14 w-14 items-center justify-center rounded-2xl border transition-all disabled:opacity-20",
+                    playback?.loopEnabled
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                      : "border-white/10 bg-white/5 text-white/40 hover:text-white"
+                  )}
+                >
+                  {pendingKey === "loop" ? (
+                    <LoaderCircle size={20} className="animate-spin" />
+                  ) : (
+                    <Repeat size={20} />
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {canManage && (
-          <label className="mt-3 block">
-            <div className="mb-1.5 flex items-center gap-2 text-xs text-[color:var(--ink-2)]">
-              <Volume2 size={16} />
-              volume global
+          <div className="rounded-[24px] border border-white/5 bg-black/20 p-5">
+            <header className="flex items-center gap-2 mb-4">
+              <UploadCloud size={14} className="text-white/30" />
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Anexar Novo Registro Sonoro</h4>
+            </header>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Identificação da Faixa</label>
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+                  placeholder="Ex: Marcha do Shogun"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Playlist de Destino</label>
+                <input
+                  value={playlistName}
+                  onChange={(event) => setPlaylistName(event.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+                  placeholder="Ex: Batalha, Ambiente, Horror"
+                />
+              </div>
+
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Arquivo de Mídia</label>
+                <div className="relative group">
+                  <input
+                    type="file"
+                    accept=".mp3,.m4a,.mp4,audio/mpeg,audio/mp4,video/mp4"
+                    onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-white/40 outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-amber-400/20 file:px-4 file:py-1 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:text-amber-400 group-hover:bg-white/[0.08]"
+                  />
+                </div>
+              </div>
             </div>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={playback?.volume ?? 0.72}
-              onChange={(event) => handleVolumeChange(Number(event.target.value))}
-              disabled={isPending}
-              className="w-full"
-            />
-          </label>
+
+            <div className="mt-5 flex items-center justify-between">
+              <p className="text-[10px] font-medium text-white/20 italic">Formatos ideais: MP3, M4A ou MP4 (áudio).</p>
+              <button
+                type="button"
+                onClick={handleCreateTrack}
+                disabled={isPending}
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-8 py-3 text-[10px] font-black uppercase tracking-widest text-amber-100 transition hover:bg-amber-400/20 disabled:opacity-20"
+              >
+                {pendingKey === "create-track" ? (
+                  <LoaderCircle size={14} className="animate-spin" />
+                ) : (
+                  <UploadCloud size={14} />
+                )}
+                Sincronizar com Nuvem
+              </button>
+            </div>
+          </div>
         )}
 
-        {runtimeError && <p className="mt-3 text-sm text-amber-100">{runtimeError}</p>}
-      </div>
+        {runtimeError && (
+          <div className="mt-6 rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-xs font-bold text-rose-400">
+            {runtimeError}
+          </div>
+        )}
+      </section>
 
-      {canManage && (
-        <div className="mt-3 rounded-[18px] border border-white/10 bg-black/18 p-3">
-          <p className="section-label">Nova faixa</p>
-          <div className="mt-2.5 grid gap-2.5 lg:grid-cols-2">
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/35"
-              placeholder="Tambor do cerco"
-            />
-
-            <input
-              value={playlistName}
-              onChange={(event) => setPlaylistName(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/35"
-              placeholder="Geral"
-            />
-
-            <label className="lg:col-span-2 block">
-              <span className="section-label">Arquivo</span>
-              <input
-                type="file"
-                accept=".mp3,.m4a,.mp4,audio/mpeg,audio/mp4,video/mp4"
-                onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
-                className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-[color:var(--ink-2)] file:mr-3 file:rounded-xl file:border-0 file:bg-amber-300/14 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-amber-100"
-              />
-            </label>
+      <div className="space-y-4">
+        <header className="flex flex-col md:flex-row items-center justify-between gap-4 px-2">
+          <div className="flex items-center gap-2">
+            <AudioLines size={14} className="text-white/30" />
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Arquivo Sonoro da Mesa</h4>
           </div>
 
-          <p className="mt-2.5 text-xs leading-5 text-[color:var(--ink-3)]">
-            Priorize MP3. M4A/MP4 de audio entra como compatibilidade e sobe pela rota de midia do Cloudinary.
-          </p>
-
-          <button
-            type="button"
-            onClick={handleCreateTrack}
-            disabled={isPending}
-            className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-300/28 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {pendingKey === "create-track" ? (
-              <LoaderCircle size={16} className="animate-spin" />
-            ) : (
-              <UploadCloud size={16} />
-            )}
-            enviar faixa
-          </button>
-        </div>
-      )}
-
-      <div className="mt-3 flex flex-col gap-2.5 rounded-[18px] border border-white/10 bg-black/18 p-3 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0">
-          <p className="section-label">Biblioteca de trilhas</p>
-          <p className="mt-1 break-words text-sm leading-5 text-[color:var(--ink-2)]">
-            Busque por faixa, playlist ou arquivo e carregue por blocos.
-          </p>
-        </div>
-        <div className="flex w-full flex-col gap-3 md:max-w-[620px]">
-          <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_160px]">
+          <div className="flex flex-wrap items-center gap-3">
             <input
               value={searchQuery}
               onChange={(event) => {
                 setSearchQuery(event.target.value);
                 setVisibleCount(10);
               }}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/35"
-              placeholder="buscar trilha ou arquivo..."
+              className="w-48 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+              placeholder="Buscar sinfonia..."
             />
             <select
               value={playlistFilter}
@@ -603,127 +630,142 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                 setPlaylistFilter(event.target.value);
                 setVisibleCount(10);
               }}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/35"
+              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-white outline-none transition focus:border-amber-400/35"
             >
-              <option value="all">todas as playlists</option>
+              <option value="all">Todas Playlists</option>
               {groupedTracks.map((group) => (
                 <option key={group.playlistName} value={group.playlistName}>
                   {group.playlistName}
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
-            <LibraryFilterPills value={statusFilter} onChange={setStatusFilter} />
-            <LibrarySortSelect value={sortMode} onChange={setSortMode} />
-          </div>
-        </div>
-      </div>
-
-      <div className="scrollbar-thin mt-3 flex-1 space-y-3 overflow-y-auto pr-1">
-        {groupedTracks.length === 0 && (
-          <div className="rounded-[16px] border border-dashed border-white/12 bg-white/[0.03] px-3 py-4 text-sm text-[color:var(--ink-2)]">
-            Nenhuma faixa cadastrada ainda.
-          </div>
-        )}
-
-        {groupedTracks.length > 0 && filteredGroups.length === 0 && (
-          <div className="rounded-[16px] border border-dashed border-white/12 bg-white/[0.03] px-3 py-4 text-sm text-[color:var(--ink-2)]">
-            Nenhuma faixa corresponde aos filtros atuais.
-          </div>
-        )}
-
-        {displayedGroups.map((group) => (
-          <section key={group.playlistName} className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-white">{group.playlistName}</p>
-                <p className="mt-1 text-xs text-[color:var(--ink-3)]">
-                  {group.tracks.length} faixa(s)
-                </p>
-              </div>
+            <div className="flex items-center gap-2">
+              <LibraryFilterPills value={statusFilter} onChange={setStatusFilter} />
+              <LibrarySortSelect value={sortMode} onChange={setSortMode} />
             </div>
+          </div>
+        </header>
 
-            <div className="mt-2.5 space-y-2.5">
-              {group.tracks.map((track) => {
-                const isCurrent = playback?.trackId === track.id;
+        <div className="grid gap-6">
+          {groupedTracks.length === 0 && (
+            <div className="rounded-[24px] border border-dashed border-white/5 bg-white/[0.02] px-6 py-12 text-center">
+              <p className="text-sm text-white/20 font-medium italic">O silêncio absoluto reina na biblioteca.</p>
+            </div>
+          )}
 
-                return (
-                  <article
-                    key={track.id}
-                    className={`rounded-[16px] border px-3 py-2.5 ${isCurrent ? "border-amber-300/20 bg-amber-300/10" : "border-white/10 bg-black/18"}`}
-                  >
-                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-white">{track.title}</p>
-                        <p className="mt-1 text-xs text-[color:var(--ink-3)]">
-                          {track.originalFilename ?? "arquivo enviado"}
-                          {track.durationSeconds != null ? ` - ${formatSeconds(track.durationSeconds)}` : ""}
-                        </p>
-                        <div className="mt-2.5">
-                          <LibraryFlagControls
-                            flags={audioLibraryFlags[track.id]}
-                            canManage={canManage}
-                            onToggle={(flag) =>
-                              toggleLibraryFlag(sessionCode, "audio", track.id, flag)
-                            }
-                          />
+          {displayedGroups.map((group) => (
+            <section key={group.playlistName} className="space-y-3">
+              <div className="flex items-center gap-3 px-2">
+                <span className="h-px flex-1 bg-white/5"></span>
+                <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">{group.playlistName}</h5>
+                <span className="h-px flex-1 bg-white/5"></span>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {group.tracks.map((track) => {
+                  const isCurrent = playback?.trackId === track.id;
+
+                  return (
+                    <article
+                      key={track.id}
+                      className={cn(
+                        "group relative overflow-hidden rounded-[24px] border p-4 transition-all",
+                        isCurrent 
+                          ? "border-amber-400/30 bg-amber-400/5 shadow-[0_0_20px_rgba(251,191,36,0.05)]" 
+                          : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+                      )}
+                    >
+                      <div className="flex flex-col h-full justify-between gap-4">
+                        <div>
+                          <div className="flex items-start justify-between gap-3">
+                            <h6 className={cn(
+                              "text-sm font-bold truncate transition-colors",
+                              isCurrent ? "text-amber-400" : "text-white group-hover:text-amber-100"
+                            )}>
+                              {track.title}
+                            </h6>
+                            {isCurrent && <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse mt-1.5" />}
+                          </div>
+                          <p className="mt-1 text-[10px] font-medium text-white/20 truncate">
+                            {track.originalFilename ?? "Arquivo Sincronizado"}
+                          </p>
+                          <div className="mt-3">
+                            <LibraryFlagControls
+                              flags={audioLibraryFlags[track.id]}
+                              canManage={canManage}
+                              onToggle={(flag) =>
+                                toggleLibraryFlag(sessionCode, "audio", track.id, flag)
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-3">
+                          <span className="text-[10px] font-bold tabular-nums text-white/20">
+                            {track.durationSeconds != null ? formatSeconds(track.durationSeconds) : "--:--"}
+                          </span>
+
+                          {canManage && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSelectTrack(track.id)}
+                                disabled={isPending}
+                                className={cn(
+                                  "rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all",
+                                  isCurrent
+                                    ? "bg-amber-400 text-black"
+                                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white"
+                                )}
+                              >
+                                {pendingKey === `select:${track.id}` ? (
+                                  <LoaderCircle size={14} className="animate-spin" />
+                                ) : isCurrent ? (
+                                  "Armada"
+                                ) : (
+                                  "Armar"
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTrack(track.id)}
+                                disabled={isPending}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-400 opacity-40 transition-all hover:opacity-100 hover:bg-rose-500/20"
+                              >
+                                {pendingKey === `delete:${track.id}` ? (
+                                  <LoaderCircle size={14} className="animate-spin" />
+                                ) : (
+                                  <Trash2 size={14} />
+                                )}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
-
-                      {canManage && (
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSelectTrack(track.id)}
-                            disabled={isPending}
-                            className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
-                          >
-                            {pendingKey === `select:${track.id}` ? (
-                              <LoaderCircle size={14} className="animate-spin" />
-                            ) : isCurrent ? (
-                              "armada"
-                            ) : (
-                              "selecionar"
-                            )}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteTrack(track.id)}
-                            disabled={isPending}
-                            className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-2.5 py-1.5 text-[10px] font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
-                          >
-                            {pendingKey === `delete:${track.id}` ? (
-                              <LoaderCircle size={14} className="animate-spin" />
-                            ) : (
-                              <Trash2 size={14} />
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        ))}
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
 
         {filteredGroups.some((group) => group.tracks.length > visibleCount) && (
           <button
             type="button"
             onClick={() => setVisibleCount((current) => current + 10)}
-            className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
+            className="w-full rounded-2xl border border-white/10 bg-white/5 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/40 transition hover:bg-white/10 hover:text-white"
           >
-            carregar mais trilhas
+            Expandir Arquivo Sonoro
           </button>
         )}
       </div>
 
-      {feedback && <p className="mt-3 text-sm text-amber-100">{feedback}</p>}
-    </section>
+      {feedback && (
+        <div className="animate-in fade-in slide-in-from-bottom-2 rounded-2xl border border-amber-400/20 bg-amber-400/5 px-6 py-4 text-xs font-medium text-amber-200/80">
+          {feedback}
+        </div>
+      )}
+    </div>
   );
 }
-

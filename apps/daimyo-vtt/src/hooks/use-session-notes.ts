@@ -28,7 +28,6 @@ export function useSessionNotes({
     }
 
     let cancelled = false;
-    let intervalId: number | null = null;
 
     const reconcile = async () => {
       try {
@@ -52,15 +51,9 @@ export function useSessionNotes({
     };
 
     void reconcile();
-    intervalId = window.setInterval(() => {
-      void reconcile();
-    }, 4000);
 
     return () => {
       cancelled = true;
-      if (intervalId !== null) {
-        window.clearInterval(intervalId);
-      }
     };
   }, [enabled, sessionCode, setNotes]);
 }

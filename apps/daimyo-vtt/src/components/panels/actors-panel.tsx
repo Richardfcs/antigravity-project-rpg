@@ -1,7 +1,10 @@
-﻿"use client";
+"use client";
 
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import {
+  ChevronDown,
+  ChevronUp,
+  Eye,
   HeartPulse,
   LoaderCircle,
   MoonStar,
@@ -9,6 +12,8 @@ import {
   Plus,
   RadioTower,
   Save,
+  Search,
+  Settings2,
   Shield,
   Trash2,
   UploadCloud
@@ -23,9 +28,11 @@ import {
   adjustCharacterInitiativeAction,
   adjustCharacterResourceAction,
   createCharacterAction,
+  deleteCharacterAction,
   updateCharacterProfileAction
 } from "@/app/actions/character-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
+import { CharacterSheetModal } from "@/components/panels/character-sheet-modal";
 import {
   LibraryFilterPills,
   LibraryFlagControls,
@@ -44,7 +51,7 @@ import {
   useLibraryOrganizationStore
 } from "@/stores/library-organization-store";
 import type { AssetKind, SessionAssetRecord } from "@/types/asset";
-import type { CharacterType, SessionCharacterRecord } from "@/types/character";
+import type { CharacterType, CharacterTier, SessionCharacterRecord } from "@/types/character";
 import type { LibrarySortMode, LibraryStatusFilter } from "@/types/library";
 import type { OnlinePresence } from "@/types/presence";
 import type { SessionParticipantRecord, SessionViewerIdentity } from "@/types/session";
@@ -89,6 +96,19 @@ function characterTypeLabel(type: CharacterType) {
   return type === "player" ? "protagonista" : "figura";
 }
 
+function characterTierLabel(tier: CharacterTier) {
+  switch (tier) {
+    case "full":
+      return "completa";
+    case "medium":
+      return "mediana";
+    case "summary":
+      return "resumida";
+    default:
+      return "desconhecida";
+  }
+}
+
 function buildSessionTag(sessionCode: string) {
   return sessionCode.toLowerCase().replace(/[^a-z0-9-]/g, "-");
 }
@@ -103,7 +123,9 @@ function CharacterCard({
   canManageProfile,
   participantOptions,
   assetOptions,
-  sessionCode
+  sessionCode,
+  flags,
+  onToggleFlag
 }: {
   character: SessionCharacterRecord;
   asset: SessionAssetRecord | null;
@@ -115,21 +137,28 @@ function CharacterCard({
   participantOptions: SessionParticipantRecord[];
   assetOptions: SessionAssetRecord[];
   sessionCode: string;
+  flags?: any;
+  onToggleFlag?: (flag: any) => void;
 }) {
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
+  const removeCharacter = useCharacterStore((state) => state.removeCharacter);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [draftName, setDraftName] = useState(character.name);
   const [draftType, setDraftType] = useState<CharacterType>(character.type);
+  const [draftTier, setDraftTier] = useState<CharacterTier>(character.tier ?? "medium");
   const [draftOwnerParticipantId, setDraftOwnerParticipantId] = useState(
     character.ownerParticipantId ?? ""
   );
   const [draftAssetId, setDraftAssetId] = useState(character.assetId ?? "");
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
 
   const resetProfileDraft = () => {
     setDraftName(character.name);
     setDraftType(character.type);
+    setDraftTier(character.tier ?? "medium");
     setDraftOwnerParticipantId(character.ownerParticipantId ?? "");
     setDraftAssetId(character.assetId ?? "");
     setIsEditingProfile(false);
@@ -165,6 +194,7 @@ function CharacterCard({
         characterId: character.id,
         name: draftName,
         type: draftType,
+        tier: draftTier,
         ownerParticipantId: draftType === "player" ? draftOwnerParticipantId || null : null,
         assetId: draftAssetId || null
       });
@@ -173,6 +203,7 @@ function CharacterCard({
         upsertCharacter(result.character);
         setDraftName(result.character.name);
         setDraftType(result.character.type);
+        setDraftTier(result.character.tier);
         setDraftOwnerParticipantId(result.character.ownerParticipantId ?? "");
         setDraftAssetId(result.character.assetId ?? "");
         setIsEditingProfile(false);
@@ -182,161 +213,341 @@ function CharacterCard({
     });
   };
 
-  return (
-    <article className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4">
-      <div className="flex items-start gap-3">
-        <AssetAvatar imageUrl={asset?.secureUrl} label={character.name} kind={asset?.kind} className="h-14 w-14 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-sm font-semibold text-white">{character.name}</p>
-            <span className={cn("h-2.5 w-2.5 rounded-full", isOnline ? "bg-emerald-400" : "bg-slate-500")} />
-          </div>
-          <p className="mt-2 text-xs text-[color:var(--ink-3)]">
-            {characterTypeLabel(character.type)} · {ownerName ?? "sem vinculo"} · iniciativa {character.initiative >= 0 ? `+${character.initiative}` : character.initiative}
-          </p>
-        </div>
-      </div>
+  const deleteCharacter = () => {
+    if (!window.confirm(`Tem certeza que deseja apagar permanentemente a ficha de ${character.name}?`)) {
+      return;
+    }
 
-      {canManageProfile && (
-        <div className="mt-4 rounded-[18px] border border-white/10 bg-black/18 px-3 py-3">
-          {isEditingProfile ? (
-            <div className="space-y-3">
-              <input
-                value={draftName}
-                onChange={(event) => setDraftName(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-                placeholder="Nome da ficha"
-              />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <select
-                  value={draftType}
-                  onChange={(event) =>
-                    setDraftType(event.target.value as CharacterType)
-                  }
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-                >
-                  <option value="player">protagonista</option>
-                  <option value="npc">figura</option>
-                </select>
-                <select
-                  value={draftOwnerParticipantId}
-                  onChange={(event) => setDraftOwnerParticipantId(event.target.value)}
-                  disabled={draftType !== "player"}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition disabled:opacity-50 focus:border-amber-300/35"
-                >
-                  <option value="">sem vinculo</option>
-                  {participantOptions.map((participant) => (
-                    <option key={participant.id} value={participant.id}>
-                      {participant.displayName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <select
-                value={draftAssetId}
-                onChange={(event) => setDraftAssetId(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-              >
-                <option value="">sem retrato</option>
-                {assetOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={saveProfile}
-                  disabled={isPending}
-                  className="inline-flex items-center gap-2 rounded-xl border border-amber-300/28 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:opacity-60"
-                >
-                  {pendingKey === "profile:save" ? (
-                    <LoaderCircle size={14} className="animate-spin" />
-                  ) : (
-                    <Save size={14} />
-                  )}
-                  salvar ficha
-                </button>
-                <button
-                  type="button"
-                  onClick={resetProfileDraft}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
-                >
-                  cancelar
-                </button>
-              </div>
-              <p className="text-xs text-[color:var(--ink-3)]">
-                Você pode criar sem vínculo e decidir depois se a ficha vira figura ou protagonista.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="section-label">Alocação da ficha</p>
-                <p className="mt-1 text-xs text-[color:var(--ink-3)]">
-                  {character.type === "player"
-                    ? ownerName ?? "protagonista sem jogador vinculado"
-                    : "figura livre para a mesa"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setDraftName(character.name);
-                  setDraftType(character.type);
-                  setDraftOwnerParticipantId(character.ownerParticipantId ?? "");
-                  setDraftAssetId(character.assetId ?? "");
-                  setIsEditingProfile(true);
-                }}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
-              >
-                <PencilLine size={14} />
-                editar ficha
-              </button>
-            </div>
-          )}
+    setPendingKey("profile:delete");
+    startTransition(async () => {
+      const result = await deleteCharacterAction({
+        sessionCode,
+        characterId: character.id
+      });
+
+      if (result.ok && result.character) {
+        removeCharacter(result.character.id);
+      }
+
+      setPendingKey(null);
+    });
+  };
+
+  return (
+    <article 
+      className={cn(
+        "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
+        isExpanded
+          ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
+          : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+      )}
+    >
+      {/* Cinematic Background */}
+      {asset?.secureUrl && (
+        <div className="absolute inset-0 z-0 overflow-hidden">
+          <img
+            src={asset.secureUrl}
+            alt=""
+            className={cn(
+              "h-full w-full object-cover",
+              isExpanded ? "opacity-15 blur-sm" : "opacity-5 blur-[2px]"
+            )}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent" />
         </div>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        {[
-          { key: "hp" as const, label: "PV", icon: HeartPulse, tone: "border-rose-300/15 bg-rose-300/8 text-rose-100", value: `${character.hp}/${character.hpMax}` },
-          { key: "fp" as const, label: "PF", icon: MoonStar, tone: "border-amber-300/15 bg-amber-300/8 text-amber-100", value: `${character.fp}/${character.fpMax}` }
-        ].map((resource) => (
-          <div key={resource.key} className={cn("rounded-[18px] border px-3 py-3", resource.tone)}>
-            <div className="flex items-center gap-2">
-              <resource.icon size={15} />
-              <p className="section-label text-current">{resource.label}</p>
+      <div 
+        className="relative z-10 p-4 cursor-pointer"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <AssetAvatar imageUrl={asset?.secureUrl} label={character.name} kind={asset?.kind} className="h-12 w-12 shrink-0 rounded-xl border border-white/10" />
+                <div className={cn(
+                  "absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-[#0a0a0a] transition-colors",
+                  isOnline ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-500"
+                )} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="truncate text-base font-bold tracking-tight text-white">{character.name}</h4>
+                  <span className={cn(
+                    "hud-chip border-amber-300/18 bg-amber-300/10 text-[8px] text-amber-100 uppercase tracking-widest font-black px-1.5",
+                    character.type === "player" ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-100" : "border-amber-300/18 bg-amber-300/10 text-amber-100"
+                  )}>
+                    {characterTypeLabel(character.type)}
+                  </span>
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-white/40">
+                  <span className="truncate max-w-[100px]">{ownerName ?? "sem vínculo"}</span>
+                  <span className="text-white/10">•</span>
+                  <span className="font-medium text-amber-300/40">{characterTierLabel(character.tier ?? "medium")}</span>
+                  {flags && (
+                    <div className="ml-1 opacity-40 hover:opacity-100 transition-opacity">
+                      <LibraryFlagControls
+                        flags={flags}
+                        canManage={canManageProfile}
+                        onToggle={onToggleFlag!}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            <p className="mt-2 text-xl font-semibold text-white">{resource.value}</p>
-            {canAdjust && (
-              <div className="mt-3 flex gap-2">
-                {[-1, 1].map((delta) => (
-                  <button key={`${resource.key}:${delta}`} type="button" onClick={() => updateResource(resource.key, delta)} disabled={isPending} className="rounded-xl border border-white/10 bg-black/18 px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60">
-                    {pendingKey === `${resource.key}:${delta}` ? <LoaderCircle size={14} className="animate-spin" /> : delta > 0 ? `+${delta}` : `${delta}`}
+          </div>
+
+          <div className="flex items-center justify-between gap-4 sm:justify-start">
+            <div className="flex gap-4">
+              <div className="flex flex-col items-end">
+                <span className="text-[8px] font-black uppercase tracking-widest text-white/20">PV</span>
+                <span className="text-xs font-bold text-rose-200">{character.hp}/{character.hpMax}</span>
+              </div>
+              <div className="flex flex-col items-end border-l border-white/5 pl-4">
+                <span className="text-[8px] font-black uppercase tracking-widest text-white/20">PF</span>
+                <span className="text-xs font-bold text-amber-200">{character.fp}/{character.fpMax}</span>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {canManageProfile && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteCharacter();
+                  }}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-400 opacity-0 transition-all hover:bg-rose-500/20 group-hover:opacity-100"
+                  title="Excluir ficha"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+              
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/5 bg-white/5 text-white/40 transition-all group-hover:border-amber-400/20 group-hover:text-amber-300">
+                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {isExpanded && (
+          <div 
+            className="mt-6 space-y-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Resource Adjustment Section */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                { key: "hp" as const, label: "Ajustar PV", icon: HeartPulse, tone: "border-rose-300/15 bg-rose-300/5 text-rose-100", value: character.hp },
+                { key: "fp" as const, label: "Ajustar PF", icon: MoonStar, tone: "border-amber-300/15 bg-amber-300/5 text-amber-100", value: character.fp }
+              ].map((resource) => (
+                <div key={resource.key} className={cn("rounded-2xl border p-4", resource.tone)}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <resource.icon size={14} className="opacity-60" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-current">{resource.label}</span>
+                    </div>
+                    <span className="text-lg font-bold text-white">{resource.value}</span>
+                  </div>
+                  {canAdjust && (
+                    <div className="mt-3 flex gap-2">
+                      {[-1, 1].map((delta) => (
+                        <button 
+                          key={`${resource.key}:${delta}`} 
+                          type="button" 
+                          onClick={() => updateResource(resource.key, delta)} 
+                          disabled={isPending} 
+                          className="flex-1 rounded-xl border border-white/10 bg-black/40 py-2 text-xs font-bold text-white transition hover:border-white/30 hover:bg-black/60 disabled:opacity-50"
+                        >
+                          {pendingKey === `${resource.key}:${delta}` ? <LoaderCircle size={14} className="animate-spin mx-auto" /> : delta > 0 ? `+${delta}` : delta}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Initiative and Profile Toggle */}
+            <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+              {canManageInitiative && (
+                <div className="flex items-center justify-between rounded-2xl border border-amber-300/16 bg-amber-300/5 p-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-100">Vel. Básica / Iniciativa</p>
+                    <p className="mt-1 text-lg font-bold text-white">{character.initiative >= 0 ? `+${character.initiative}` : character.initiative}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {[-1, 1].map((delta) => (
+                      <button 
+                        key={`initiative:${delta}`} 
+                        type="button" 
+                        onClick={() => updateInitiative(delta)} 
+                        disabled={isPending} 
+                        className="h-10 w-10 rounded-xl border border-white/10 bg-black/40 text-sm font-bold text-white transition hover:border-white/30 hover:bg-black/60"
+                      >
+                        {pendingKey === `initiative:${delta}` ? <LoaderCircle size={14} className="animate-spin mx-auto" /> : delta > 0 ? `+${delta}` : delta}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSheetModalOpen(true)}
+                  className="inline-flex h-full items-center gap-2 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-6 py-4 text-xs font-black uppercase tracking-widest text-amber-300 transition hover:bg-amber-300/20"
+                >
+                  <Eye size={16} />
+                  Ver Detalhes
+                </button>
+                {canManageProfile && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraftName(character.name);
+                      setDraftType(character.type);
+                      setDraftTier(character.tier ?? "medium");
+                      setDraftOwnerParticipantId(character.ownerParticipantId ?? "");
+                      setDraftAssetId(character.assetId ?? "");
+                      setIsEditingProfile(!isEditingProfile);
+                    }}
+                    className={cn(
+                      "inline-flex h-full items-center gap-2 rounded-2xl border px-4 transition-all",
+                      isEditingProfile 
+                        ? "border-rose-400/40 bg-rose-400/10 text-rose-300" 
+                        : "border-white/10 bg-white/5 text-white/60 hover:text-white"
+                    )}
+                  >
+                    <Settings2 size={18} className={cn("transition-transform duration-300", isEditingProfile && "rotate-90")} />
                   </button>
-                ))}
+                )}
+              </div>
+            </div>
+
+            {/* Profile Editing Section */}
+            {isEditingProfile && canManageProfile && (
+              <div className="rounded-[24px] border border-white/5 bg-black/60 p-5 backdrop-blur-2xl animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-2 mb-4">
+                  <PencilLine size={14} className="text-amber-400" />
+                  <h5 className="text-[10px] font-black uppercase tracking-widest text-white/60">Configurar Alocação</h5>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Nome do Personagem</label>
+                      <input
+                        value={draftName}
+                        onChange={(event) => setDraftName(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                        placeholder="Nome da ficha"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Tipo de Papel</label>
+                      <select
+                        value={draftType}
+                        onChange={(event) => setDraftType(event.target.value as CharacterType)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                      >
+                        <option value="player">Protagonista</option>
+                        <option value="npc">Figura / NPC</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Nível de Detalhe</label>
+                      <select
+                        value={draftTier}
+                        onChange={(event) => setDraftTier(event.target.value as CharacterTier)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                      >
+                        <option value="full">Ficha Completa</option>
+                        <option value="medium">Ficha Mediana</option>
+                        <option value="summary">Ficha Resumida</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Vínculo com Jogador</label>
+                      <select
+                        value={draftOwnerParticipantId}
+                        onChange={(event) => setDraftOwnerParticipantId(event.target.value)}
+                        disabled={draftType !== "player"}
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition disabled:opacity-20 focus:border-amber-300/35"
+                      >
+                        <option value="">Sem vínculo</option>
+                        {participantOptions.map((participant) => (
+                          <option key={participant.id} value={participant.id}>
+                            {participant.displayName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Retrato Visual</label>
+                    <select
+                      value={draftAssetId}
+                      onChange={(event) => setDraftAssetId(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                    >
+                      <option value="">Sem retrato</option>
+                      {assetOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={saveProfile}
+                      disabled={isPending}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-amber-50 transition hover:border-amber-300/45 disabled:opacity-60"
+                    >
+                      {pendingKey === "profile:save" ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}
+                      Salvar Alterações
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetProfileDraft}
+                      className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-6 py-3 text-xs font-black uppercase tracking-widest text-white transition hover:border-white/20"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={deleteCharacter}
+                      disabled={isPending}
+                      className="inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50"
+                      title="Apagar Ficha Permanentemente"
+                    >
+                      {pendingKey === "profile:delete" ? <LoaderCircle size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
-        ))}
+        )}
       </div>
 
-      {canManageInitiative && (
-        <div className="mt-4 flex items-center justify-between rounded-[18px] border border-amber-300/16 bg-amber-300/8 px-3 py-3">
-          <div>
-            <p className="section-label text-amber-100">Iniciativa</p>
-            <p className="mt-1 text-lg font-semibold text-white">{character.initiative >= 0 ? `+${character.initiative}` : character.initiative}</p>
-          </div>
-          <div className="flex gap-2">
-            {[-1, 1].map((delta) => (
-              <button key={`initiative:${delta}`} type="button" onClick={() => updateInitiative(delta)} disabled={isPending} className="rounded-xl border border-white/10 bg-black/18 px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60">
-                {pendingKey === `initiative:${delta}` ? <LoaderCircle size={14} className="animate-spin" /> : delta > 0 ? `+${delta}` : `${delta}`}
-              </button>
-            ))}
-          </div>
-        </div>
+      {isSheetModalOpen && (
+        <CharacterSheetModal
+          sessionCode={sessionCode}
+          character={character}
+          onClose={() => setIsSheetModalOpen(false)}
+          canManage={canManageProfile}
+        />
       )}
     </article>
   );
@@ -358,6 +569,7 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
   const [editingAssetKind, setEditingAssetKind] = useState<AssetKind>("token");
   const [characterName, setCharacterName] = useState("");
   const [characterType, setCharacterType] = useState<CharacterType>("player");
+  const [characterTier, setCharacterTier] = useState<CharacterTier>("medium");
   const [ownerParticipantId, setOwnerParticipantId] = useState("");
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [hpMax, setHpMax] = useState("12");
@@ -524,6 +736,7 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
         sessionCode,
         name: characterName.trim(),
         type: characterType,
+        tier: characterTier,
         ownerParticipantId: ownerParticipantId || null,
         assetId: selectedAssetId || null,
         hpMax: Number(hpMax),
@@ -610,212 +823,357 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="stat-card"><p className="section-label">Corte</p><p className="mt-2 text-2xl font-semibold text-white">{orderedCharacters.length}</p></div>
-        <div className="stat-card"><p className="section-label">Retratos e recursos</p><p className="mt-2 text-2xl font-semibold text-white">{assets.length}</p></div>
-        <div className="stat-card"><p className="section-label">Minha ficha</p><p className="mt-2 text-lg font-semibold text-white">{viewerCharacter?.name ?? "nao vinculada"}</p></div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="stat-card group relative overflow-hidden p-5">
+          <div className="absolute -right-4 -top-4 opacity-10"><Shield size={64} /></div>
+          <p className="section-label">Roster da Mesa</p>
+          <p className="mt-2 text-3xl font-black text-white">{orderedCharacters.length}</p>
+        </div>
+        <div className="stat-card group relative overflow-hidden p-5">
+          <div className="absolute -right-4 -top-4 opacity-10"><UploadCloud size={64} /></div>
+          <p className="section-label">Galeria de Arte</p>
+          <p className="mt-2 text-3xl font-black text-white">{assets.length}</p>
+        </div>
+        <div className="stat-card group relative overflow-hidden p-5 border-amber-400/20 bg-amber-400/[0.03]">
+          <div className="absolute -right-4 -top-4 opacity-10 text-amber-400"><HeartPulse size={64} /></div>
+          <p className="section-label text-amber-200">Sua Identidade</p>
+          <p className="mt-2 text-lg font-bold text-white truncate">{viewerCharacter?.name ?? "Nenhum vínculo"}</p>
+        </div>
       </div>
 
       {canManage && (
-        <div className="grid gap-4 xl:grid-cols-2">
-          <section className="rounded-[20px] border border-white/10 bg-black/18 p-4">
-            <div className="flex items-center gap-2"><UploadCloud size={16} className="text-amber-100" /><h3 className="text-sm font-semibold text-white">Retratos e recursos</h3></div>
-            <div className="mt-4 space-y-3">
-              <input value={assetLabel} onChange={(event) => setAssetLabel(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" placeholder="Ronin ferido" />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <select value={assetKind} onChange={(event) => setAssetKind(event.target.value as AssetKind)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35">
-                  {assetKinds.map((kind) => <option key={kind} value={kind}>{assetKindLabel(kind)}</option>)}
-                </select>
-                <input type="file" accept="image/*" onChange={(event) => setAssetFile(event.target.files?.[0] ?? null)} className="block w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-[color:var(--ink-2)] file:mr-3 file:rounded-xl file:border-0 file:bg-amber-300/14 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-amber-100" />
+        <div className="grid gap-6 xl:grid-cols-2">
+          {/* Asset Upload Form */}
+          <section className="rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-400">
+                <UploadCloud size={20} />
               </div>
-              <button type="button" onClick={handleAssetSubmit} disabled={isAssetPending || !cloudinaryReady} className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60">
-                {isAssetPending ? <LoaderCircle size={16} className="animate-spin" /> : <UploadCloud size={16} />} guardar recurso
+              <div>
+                <h3 className="text-base font-bold text-white">Nova Arte ou Recurso</h3>
+                <p className="text-[10px] font-medium uppercase tracking-widest text-white/40">Sincronizar com Cloudinary</p>
+              </div>
+            </div>
+            
+            <div className="mt-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Rótulo do Recurso</label>
+                <input 
+                  value={assetLabel} 
+                  onChange={(event) => setAssetLabel(event.target.value)} 
+                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" 
+                  placeholder="Ex: Ronin sob a Chuva" 
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Natureza</label>
+                  <select 
+                    value={assetKind} 
+                    onChange={(event) => setAssetKind(event.target.value as AssetKind)} 
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                  >
+                    {assetKinds.map((kind) => <option key={kind} value={kind}>{assetKindLabel(kind)}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Arquivo Local</label>
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={(event) => setAssetFile(event.target.files?.[0] ?? null)} 
+                      className="block w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs text-white/40 file:mr-3 file:rounded-xl file:border-0 file:bg-amber-400/20 file:px-3 file:py-1.5 file:text-[10px] file:font-black file:uppercase file:text-amber-100" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                type="button" 
+                onClick={handleAssetSubmit} 
+                disabled={isAssetPending || !cloudinaryReady} 
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-400/10 py-4 text-xs font-black uppercase tracking-widest text-amber-50 transition hover:border-amber-300/45 hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isAssetPending ? <LoaderCircle size={18} className="animate-spin" /> : <Save size={18} />} 
+                Guardar Recurso na Nuvem
               </button>
-              {assetFeedback && <p className="text-xs text-[color:var(--ink-2)]">{assetFeedback}</p>}
+              {assetFeedback && <p className="text-center text-[10px] font-bold uppercase tracking-wider text-amber-400/60">{assetFeedback}</p>}
             </div>
           </section>
 
-          <section className="rounded-[20px] border border-white/10 bg-black/18 p-4">
-            <div className="flex items-center gap-2"><Plus size={16} className="text-amber-100" /><h3 className="text-sm font-semibold text-white">Nova ficha</h3></div>
-            <div className="mt-4 space-y-3">
-              <input value={characterName} onChange={(event) => setCharacterName(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" placeholder="Akemi" />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <select value={characterType} onChange={(event) => setCharacterType(event.target.value as CharacterType)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35">
-                  <option value="player">protagonista</option><option value="npc">figura</option>
-                </select>
-                <select value={ownerParticipantId} onChange={(event) => setOwnerParticipantId(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35">
-                  <option value="">sem vinculo por enquanto</option>
-                  {playerParticipants.map((participant) => <option key={participant.id} value={participant.id}>{participant.displayName}</option>)}
-                </select>
+          {/* Character Creation Form */}
+          <section className="rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-400">
+                <Plus size={20} />
               </div>
-              <p className="text-xs text-[color:var(--ink-3)]">
-                Você pode criar a ficha agora e decidir depois se ela fica com um jogador ou vira uma figura da mesa.
-              </p>
-              <div className="space-y-3">
-                <label className="block">
-                  <span className="section-label">Retrato ou emblema</span>
-                  <select value={selectedAssetId} onChange={(event) => setSelectedAssetId(event.target.value)} className="mt-2 min-w-0 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35">
-                    <option value="">sem retrato</option>
-                    {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.label}</option>)}
-                  </select>
-                </label>
+              <div>
+                <h3 className="text-base font-bold text-white">Batismo de Nova Ficha</h3>
+                <p className="text-[10px] font-medium uppercase tracking-widest text-white/40">Personagens e Figuras</p>
+              </div>
+            </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <label className="block min-w-0">
-                    <span className="section-label">PV máximo</span>
-                    <input type="number" value={hpMax} onChange={(event) => setHpMax(event.target.value)} className="mt-2 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" />
-                  </label>
-                  <label className="block min-w-0">
-                    <span className="section-label">PF máximo</span>
-                    <input type="number" value={fpMax} onChange={(event) => setFpMax(event.target.value)} className="mt-2 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" />
-                  </label>
-                  <label className="block min-w-0">
-                    <span className="section-label">Iniciativa</span>
-                    <input type="number" value={initiative} onChange={(event) => setInitiative(event.target.value)} className="mt-2 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" />
-                  </label>
+            <div className="mt-6 space-y-4">
+              <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Nome Completo</label>
+                  <input 
+                    value={characterName} 
+                    onChange={(event) => setCharacterName(event.target.value)} 
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" 
+                    placeholder="Ex: Miyamoto Musashi" 
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Tipo</label>
+                  <select 
+                    value={characterType} 
+                    onChange={(event) => setCharacterType(event.target.value as CharacterType)} 
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                  >
+                    <option value="player">Protagonista</option>
+                    <option value="npc">Figura / NPC</option>
+                  </select>
                 </div>
               </div>
-              <button type="button" onClick={handleCharacterSubmit} disabled={isCharacterPending} className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60">
-                {isCharacterPending ? <LoaderCircle size={16} className="animate-spin" /> : <Shield size={16} />} criar ficha
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Nível de Detalhe</label>
+                  <select 
+                    value={characterTier} 
+                    onChange={(event) => setCharacterTier(event.target.value as CharacterTier)} 
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                  >
+                    <option value="full">Ficha Completa</option>
+                    <option value="medium">Ficha Mediana</option>
+                    <option value="summary">Ficha Resumida</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Vínculo com Jogador</label>
+                  <select 
+                    value={ownerParticipantId} 
+                    onChange={(event) => setOwnerParticipantId(event.target.value)} 
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                  >
+                    <option value="">Sem vínculo inicial</option>
+                    {playerParticipants.map((participant) => <option key={participant.id} value={participant.id}>{participant.displayName}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-[1fr_120px_120px_120px]">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Retrato / Arte</label>
+                  <select 
+                    value={selectedAssetId} 
+                    onChange={(event) => setSelectedAssetId(event.target.value)} 
+                    className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                  >
+                    <option value="">Sem retrato visual</option>
+                    {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.label}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-rose-300/40 ml-1">PV Max</label>
+                  <input type="number" value={hpMax} onChange={(event) => setHpMax(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-rose-400/35" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-amber-300/40 ml-1">PF Max</label>
+                  <input type="number" value={fpMax} onChange={(event) => setFpMax(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/30 ml-1">Inic.</label>
+                  <input type="number" value={initiative} onChange={(event) => setInitiative(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" />
+                </div>
+              </div>
+
+              <button 
+                type="button" 
+                onClick={handleCharacterSubmit} 
+                disabled={isCharacterPending} 
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300/28 bg-emerald-400/10 py-4 text-xs font-black uppercase tracking-widest text-emerald-50 transition hover:border-emerald-300/45 hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isCharacterPending ? <LoaderCircle size={18} className="animate-spin" /> : <Shield size={18} />} 
+                Criar Nova Entidade
               </button>
-              {characterFeedback && <p className="text-xs text-[color:var(--ink-2)]">{characterFeedback}</p>}
+              {characterFeedback && <p className="text-center text-[10px] font-bold uppercase tracking-wider text-emerald-400/60">{characterFeedback}</p>}
             </div>
           </section>
         </div>
       )}
 
-      <section className="rounded-[20px] border border-white/10 bg-black/18 p-4">
+      <section className="rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3">
-          <div><h3 className="text-sm font-semibold text-white">Arquivo da mesa</h3><p className="mt-1 text-xs text-[color:var(--ink-3)]">Busque e filtre retratos, emblemas e pinturas sem percorrer tudo.</p></div>
-          <span className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]">{assets.length} recursos</span>
+          <div>
+            <h3 className="text-base font-bold text-white">Arquivo da Mesa</h3>
+            <p className="mt-1 text-[10px] font-medium uppercase tracking-widest text-white/40">Busque e organize artes, retratos e emblemas</p>
+          </div>
+          <span className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] font-bold">{assets.length} recursos</span>
         </div>
-        <div className="mt-4 flex flex-col gap-3">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-            <input value={assetSearchQuery} onChange={(event) => { setAssetSearchQuery(event.target.value); setVisibleAssetCount(12); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" placeholder="buscar retrato ou recurso..." />
-            <select value={assetKindFilter} onChange={(event) => { setAssetKindFilter(event.target.value as AssetKind | "all"); setVisibleAssetCount(12); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35">
-              <option value="all">todas as naturezas</option>{assetKinds.map((kind) => <option key={kind} value={kind}>{assetKindLabel(kind)}</option>)}
+        
+        <div className="mt-6 flex flex-col gap-4">
+          <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
+            <div className="relative">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+              <input 
+                value={assetSearchQuery} 
+                onChange={(event) => { setAssetSearchQuery(event.target.value); setVisibleAssetCount(12); }} 
+                className="w-full rounded-xl border border-white/10 bg-white/[0.04] pl-10 pr-4 py-2.5 text-xs text-white outline-none transition focus:border-amber-300/35 placeholder:text-white/20" 
+                placeholder="Buscar retrato ou recurso..." 
+              />
+            </div>
+            <select 
+              value={assetKindFilter} 
+              onChange={(event) => { setAssetKindFilter(event.target.value as AssetKind | "all"); setVisibleAssetCount(12); }} 
+              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs text-white outline-none transition focus:border-amber-300/35"
+            >
+              <option value="all">Todas as Naturezas</option>
+              {assetKinds.map((kind) => <option key={kind} value={kind}>{assetKindLabel(kind)}</option>)}
             </select>
+            <div className="flex items-center gap-2">
+              <LibrarySortSelect value={assetSortMode} onChange={setAssetSortMode} />
+            </div>
           </div>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-center justify-start border-t border-white/5 pt-3">
             <LibraryFilterPills value={assetStatusFilter} onChange={setAssetStatusFilter} />
-            <LibrarySortSelect value={assetSortMode} onChange={setAssetSortMode} />
           </div>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
           {filteredAssets.slice(0, visibleAssetCount).map((asset) => (
-            <article key={asset.id} className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3">
-              <AssetAvatar imageUrl={asset.secureUrl} label={asset.label} kind={asset.kind} className={asset.kind === "background" || asset.kind === "map" || asset.kind === "grid" ? "h-28 w-full" : "aspect-[3/4] w-full"} />
-              <div className="mt-3 space-y-3">
-                {editingAssetId === asset.id ? (
-                  <>
-                    <input
-                      value={editingAssetLabel}
-                      onChange={(event) => setEditingAssetLabel(event.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-                      placeholder="Nome do recurso"
-                    />
-                    <select
-                      value={editingAssetKind}
-                      onChange={(event) => setEditingAssetKind(event.target.value as AssetKind)}
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+            <article 
+              key={asset.id} 
+              className="group relative flex flex-col overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.02] transition-all duration-300 hover:border-white/20 hover:bg-white/[0.04]"
+            >
+              <div className="relative aspect-square w-full overflow-hidden">
+                <img 
+                  src={asset.secureUrl} 
+                  alt={asset.label}
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent opacity-80" />
+                
+                {/* Kind Badge */}
+                <div className="absolute left-2 top-2">
+                  <span className="rounded-md border border-white/10 bg-black/60 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-white/60 backdrop-blur-md">
+                    {assetKindLabel(asset.kind).split(" ")[0]}
+                  </span>
+                </div>
+
+                {/* Flags Controls - Positioned at bottom right of image */}
+                <div className="absolute right-2 bottom-2 z-20">
+                  <LibraryFlagControls
+                    flags={assetLibraryFlags[asset.id]}
+                    canManage={canManage}
+                    onToggle={(flag) => toggleLibraryFlag(sessionCode, "assets", asset.id, flag)}
+                  />
+                </div>
+              </div>
+
+              <div className="p-2.5">
+                <p className="truncate text-[11px] font-bold tracking-tight text-white/80">{asset.label}</p>
+                
+                {canManage && (
+                  <div className="mt-2 flex gap-1.5">
+                    <button
+                      onClick={() => beginAssetEdit(asset)}
+                      className="flex-1 rounded-lg border border-white/5 bg-white/5 py-1.5 text-[9px] font-black uppercase tracking-tight text-white/30 transition hover:bg-white/10 hover:text-white"
                     >
-                      {assetKinds.map((kind) => (
-                        <option key={kind} value={kind}>
-                          {assetKindLabel(kind)}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={handleAssetEditSave}
-                        disabled={isAssetPending}
-                        className="inline-flex items-center gap-2 rounded-xl border border-amber-300/28 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:opacity-60"
-                      >
-                        {isAssetPending ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}
-                        salvar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingAssetId(null)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
-                      >
-                        cancelar
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <p className="text-sm font-semibold text-white">{asset.label}</p>
-                      <p className="mt-1 text-xs text-[color:var(--ink-3)]">{assetKindLabel(asset.kind)}</p>
-                    </div>
-                    <LibraryFlagControls
-                      flags={assetLibraryFlags[asset.id]}
-                      canManage={canManage}
-                      onToggle={(flag) => toggleLibraryFlag(sessionCode, "assets", asset.id, flag)}
-                    />
-                    {canManage && (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => beginAssetEdit(asset)}
-                          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
-                        >
-                          <PencilLine size={14} />
-                          editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleAssetDelete(asset.id)}
-                          disabled={isAssetPending}
-                          className="inline-flex items-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-xs font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
-                        >
-                          {isAssetPending && editingAssetId === asset.id ? (
-                            <LoaderCircle size={14} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={14} />
-                          )}
-                          excluir
-                        </button>
-                      </div>
-                    )}
-                  </>
+                      Alt
+                    </button>
+                    <button
+                      onClick={() => handleAssetDelete(asset.id)}
+                      className="rounded-lg border border-rose-400/10 bg-rose-400/5 px-2 py-1.5 text-rose-400/30 transition hover:bg-rose-400/10 hover:text-rose-400"
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  </div>
                 )}
               </div>
+
+              {/* Editing Overlay */}
+              {editingAssetId === asset.id && (
+                <div className="absolute inset-0 z-30 bg-black/90 p-3 flex flex-col justify-center gap-2 backdrop-blur-sm">
+                  <input
+                    value={editingAssetLabel}
+                    onChange={(event) => setEditingAssetLabel(event.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[10px] text-white outline-none"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={handleAssetEditSave} className="flex-1 rounded-lg bg-amber-400/10 py-2 text-[9px] font-black uppercase text-amber-300">OK</button>
+                    <button onClick={() => setEditingAssetId(null)} className="px-2 rounded-lg bg-white/5 py-2 text-[9px] font-black uppercase text-white/40">X</button>
+                  </div>
+                </div>
+              )}
             </article>
           ))}
         </div>
-        {filteredAssets.length > visibleAssetCount && <button type="button" onClick={() => setVisibleAssetCount((current) => current + 12)} className="mt-4 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20">carregar mais recursos</button>}
+        
+        {filteredAssets.length > visibleAssetCount && (
+          <button 
+            type="button" 
+            onClick={() => setVisibleAssetCount((current) => current + 12)} 
+            className="mt-8 w-full rounded-2xl border border-white/10 bg-white/[0.04] py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/40 transition hover:border-white/20 hover:text-white hover:bg-white/[0.06]"
+          >
+            Explorar Galeria Completa
+          </button>
+        )}
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-6 pt-4">
         <div className="flex items-center justify-between gap-3">
-          <div><h3 className="text-sm font-semibold text-white">Iniciativa e roster</h3><p className="mt-1 text-xs text-[color:var(--ink-3)]">PV/PF sincronizados e busca por ficha pronta para campanhas maiores.</p></div>
-          <span className="hud-chip border-amber-300/20 bg-amber-300/8 text-amber-100"><RadioTower size={14} /> sincronia viva</span>
-        </div>
-        <div className="flex flex-col gap-3">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-            <input value={characterSearchQuery} onChange={(event) => { setCharacterSearchQuery(event.target.value); setVisibleCharacterCount(10); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35" placeholder="buscar ficha, tipo ou jogador..." />
-            <select value={characterTypeFilter} onChange={(event) => { setCharacterTypeFilter(event.target.value as CharacterType | "all"); setVisibleCharacterCount(10); }} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35">
-              <option value="all">todas as naturezas</option><option value="player">protagonista</option><option value="npc">figura</option>
-            </select>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-400">
+              <Shield size={20} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Iniciativa e Roster</h3>
+              <p className="text-[10px] font-medium uppercase tracking-widest text-white/40">PV/PF Sincronizados em Tempo Real</p>
+            </div>
           </div>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <LibraryFilterPills value={characterStatusFilter} onChange={setCharacterStatusFilter} />
-            <LibrarySortSelect value={characterSortMode} onChange={setCharacterSortMode} />
+          <div className="flex items-center gap-2 hud-chip border-amber-300/20 bg-amber-300/8 text-amber-100 font-bold px-4">
+            <RadioTower size={14} className="animate-pulse" />
+            <span>SINCRO ATIVA</span>
           </div>
         </div>
-        <div className="grid gap-3 xl:grid-cols-2">
-          {filteredCharacters.slice(0, visibleCharacterCount).map((character) => (
-            <div key={character.id} className="space-y-3">
-              <LibraryFlagControls
-                flags={characterLibraryFlags[character.id]}
-                canManage={canManage}
-                onToggle={(flag) =>
-                  toggleLibraryFlag(sessionCode, "characters", character.id, flag)
-                }
+
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
+            <div className="relative">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+              <input 
+                value={characterSearchQuery} 
+                onChange={(event) => { setCharacterSearchQuery(event.target.value); setVisibleCharacterCount(10); }} 
+                className="w-full rounded-xl border border-white/10 bg-white/[0.04] pl-10 pr-4 py-2.5 text-xs text-white outline-none transition focus:border-amber-300/35 placeholder:text-white/20" 
+                placeholder="Buscar ficha, tipo ou jogador..." 
               />
+            </div>
+            <select 
+              value={characterTypeFilter} 
+              onChange={(event) => { setCharacterTypeFilter(event.target.value as CharacterType | "all"); setVisibleCharacterCount(10); }} 
+              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs text-white outline-none transition focus:border-amber-300/35"
+            >
+              <option value="all">Todas as Naturezas</option>
+              <option value="player">Protagonista</option>
+              <option value="npc">Figura / NPC</option>
+            </select>
+            <div className="flex items-center gap-2">
+              <LibrarySortSelect value={characterSortMode} onChange={setCharacterSortMode} />
+            </div>
+          </div>
+          <div className="flex items-center justify-start border-t border-white/5 pt-3">
+            <LibraryFilterPills value={characterStatusFilter} onChange={setCharacterStatusFilter} />
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          {filteredCharacters.slice(0, visibleCharacterCount).map((character) => (
+            <div key={character.id} className="group">
               <CharacterCard
                 character={character}
                 asset={resolveCharacterAsset(character, assets)}
@@ -827,11 +1185,22 @@ export function ActorsPanel({ sessionCode, viewer, participants, party, cloudina
                 participantOptions={playerParticipants}
                 assetOptions={assets}
                 sessionCode={sessionCode}
+                flags={characterLibraryFlags[character.id]}
+                onToggleFlag={(flag) => toggleLibraryFlag(sessionCode, "characters", character.id, flag)}
               />
             </div>
           ))}
         </div>
-        {filteredCharacters.length > visibleCharacterCount && <button type="button" onClick={() => setVisibleCharacterCount((current) => current + 10)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20">carregar mais fichas</button>}
+        
+        {filteredCharacters.length > visibleCharacterCount && (
+          <button 
+            type="button" 
+            onClick={() => setVisibleCharacterCount((current) => current + 10)} 
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/40 transition hover:border-white/20 hover:text-white hover:bg-white/[0.06]"
+          >
+            Carregar Mais Fichas
+          </button>
+        )}
       </section>
     </div>
   );

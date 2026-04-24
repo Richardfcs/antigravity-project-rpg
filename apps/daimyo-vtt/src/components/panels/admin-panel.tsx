@@ -16,6 +16,7 @@ import {
   resetSessionDatasetAction,
   restoreSessionSnapshotAction
 } from "@/app/actions/admin-actions";
+import { cn } from "@/lib/utils";
 import { DiagnosticsPanel } from "@/components/panels/diagnostics-panel";
 import {
   buildSessionSnapshotPayload,
@@ -432,55 +433,49 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-[20px] border border-amber-300/20 bg-amber-300/10 p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-amber-300/20 bg-black/18 text-amber-100">
-            <ShieldAlert size={18} />
+    <div className="space-y-6">
+      <section className="rounded-[28px] border border-amber-400/20 bg-amber-400/5 p-6 backdrop-blur-xl">
+        <div className="flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-400/20 bg-black/40 text-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.1)]">
+            <ShieldAlert size={24} />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white">Administracao total da mesa</h3>
-            <p className="mt-2 text-sm leading-6 text-amber-50/90">
-              Esta area e exclusiva do mestre. As limpezas abaixo apagam dados
-              operacionais em tempo real, e o snapshot oficial garante backup e
-              restauração segura do conteudo jogavel.
+            <h3 className="text-lg font-bold tracking-tight text-white uppercase">Santuário de Controle do Domínio</h3>
+            <p className="mt-2 text-sm leading-relaxed text-amber-100/60">
+              Esta área é restrita aos arquitetos da mesa. Aqui, o mestre manipula as fundações da realidade. As operações de snapshot garantem a preservação do legado, enquanto as limpezas purificam o palco tático e narrativo.
             </p>
           </div>
         </div>
       </section>
 
-      <section className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <section className="rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
+        <header className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between mb-6">
           <div>
-            <p className="section-label">Snapshot oficial</p>
-            <h3 className="mt-2 text-lg font-semibold text-white">
-              Exportar ou restaurar o estado jogavel da mesa
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-              Gera um arquivo JSON com manifesto, palco, fichas, mapas, atlas,
-              trilhas, conversa, notas e memoria. A restauração reaplica os
-              registros no banco sem apagar a mídia remota.
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Registro de Continuidade</p>
+            <h3 className="mt-2 text-2xl font-bold tracking-tight text-white">Snapshot do Universo</h3>
+            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/40">
+              O Snapshot captura toda a essência da mesa — do elenco às memórias — em um manifesto digital. Use para backup preventivo ou para transplantar a campanha para novas instâncias.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={handleExportSnapshot}
               disabled={!canManage}
-              className="inline-flex items-center gap-2 rounded-full border border-amber-300/24 bg-amber-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100 transition hover:border-amber-300/40 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-amber-100 transition hover:bg-amber-400/20 shadow-[0_0_20px_rgba(251,191,36,0.1)] disabled:opacity-20"
             >
               <Download size={14} />
-              exportar snapshot
+              Exportar Snapshot
             </button>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={!canManage}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white/60 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
             >
               <Upload size={14} />
-              escolher snapshot
+              Carregar Arquivo
             </button>
             <input
               ref={fileInputRef}
@@ -492,72 +487,80 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
               }
             />
           </div>
-        </div>
+        </header>
 
-        <div className="mt-4 rounded-[18px] border border-white/10 bg-black/18 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="rounded-[24px] border border-white/5 bg-black/40 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-white/5">
             <div>
-              <p className="text-sm font-semibold text-white">Restore oficial</p>
-              <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-                Use um snapshot exportado pelo Daimyo VTT para reerguer a mesa com
-                o mesmo palco, conteúdo e trilhas.
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-1">Status de Restauração</p>
+              <p className="text-sm font-bold text-white">
+                {restorePreview ? `Pronto para reerguer: ${restorePreview.sessionCode}` : "Aguardando manifesto de snapshot..."}
               </p>
             </div>
             <button
               type="button"
               onClick={handleRestore}
               disabled={isPending || !restorePreview}
-              className="inline-flex items-center gap-2 rounded-full border border-emerald-300/22 bg-emerald-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 transition hover:border-emerald-300/40 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-8 py-3 text-[10px] font-black uppercase tracking-widest text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-20"
             >
               {pendingKey === "restore-snapshot" ? (
                 <LoaderCircle size={14} className="animate-spin" />
               ) : (
                 <RotateCcw size={14} />
               )}
-              restaurar snapshot
+              Iniciar Restauração
             </button>
           </div>
 
-          <div className="mt-4 rounded-[16px] border border-white/8 bg-white/[0.03] p-4 text-sm text-[color:var(--ink-2)]">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {restorePreview ? (
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                <p>Origem: {restorePreview.sessionCode}</p>
-                <p>Cenas: {restorePreview.scenes.length}</p>
-                <p>Mapas: {restorePreview.maps.length}</p>
-                <p>Atlas: {restorePreview.atlasMaps.length}</p>
-                <p>Fichas: {restorePreview.characters.length}</p>
-                <p>Trilhas: {restorePreview.tracks.length}</p>
-                <p>Notas: {restorePreview.notes.length}</p>
-                <p>Memoria: {restorePreview.memoryEvents.length}</p>
-                <p>Exportado em: {restorePreview.exportedAt}</p>
-              </div>
+              <>
+                {[
+                  { label: "Cenas", value: restorePreview.scenes.length },
+                  { label: "Mapas", value: restorePreview.maps.length },
+                  { label: "Atlas", value: restorePreview.atlasMaps.length },
+                  { label: "Fichas", value: restorePreview.characters.length },
+                  { label: "Trilhas", value: restorePreview.tracks.length },
+                  { label: "Notas", value: restorePreview.notes.length },
+                  { label: "Memórias", value: restorePreview.memoryEvents.length }
+                ].map((item, i) => (
+                  <div key={i} className="rounded-xl border border-white/5 bg-white/[0.02] p-3 text-center">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/20 mb-1">{item.label}</p>
+                    <p className="text-lg font-bold text-white">{item.value}</p>
+                  </div>
+                ))}
+                <div className="col-span-full mt-2 pt-4 border-t border-white/5 text-center">
+                  <p className="text-[10px] font-medium text-white/20">Manifesto gerado em: {restorePreview.exportedAt}</p>
+                </div>
+              </>
             ) : (
-              <p>
-                Nenhum snapshot carregado ainda. Escolha um arquivo `.json` para
-                visualizar o pacote antes de restaurar.
-              </p>
+              <div className="col-span-full py-8 text-center text-xs font-medium text-white/10 italic">
+                Nenhum dado de snapshot disponível para visualização.
+              </div>
             )}
           </div>
         </div>
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-2">
+      <section className="grid gap-4 xl:grid-cols-2">
         {datasets.map((dataset) => (
           <article
             key={dataset.id}
-            className="rounded-[20px] border border-white/10 bg-black/18 p-4"
+            className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03] p-5 transition-all hover:border-amber-400/20 hover:bg-white/[0.05]"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-white">{dataset.title}</p>
-                <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h4 className="text-base font-bold text-white mb-1 group-hover:text-amber-400 transition-colors">{dataset.title}</h4>
+                <p className="text-xs leading-relaxed text-white/40">
                   {dataset.description}
                 </p>
               </div>
-              <AlertTriangle size={16} className="mt-1 shrink-0 text-amber-100" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/5 text-amber-400/60">
+                <AlertTriangle size={16} />
+              </div>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_200px]">
+            <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
               <input
                 value={datasetConfirmations[dataset.id] ?? ""}
                 onChange={(event) =>
@@ -566,105 +569,119 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
                     [dataset.id]: event.target.value
                   }))
                 }
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-                placeholder={`digite "${dataset.label}"`}
+                className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.06] placeholder:text-white/10"
+                placeholder={`Confirmar digitando "${dataset.label}"`}
               />
               <button
                 type="button"
                 onClick={() => handleDatasetReset(dataset.id, dataset.label)}
                 disabled={isPending}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-20"
               >
                 {pendingKey === `dataset:${dataset.id}` ? (
-                  <LoaderCircle size={16} className="animate-spin" />
+                  <LoaderCircle size={14} className="animate-spin" />
                 ) : (
-                  <Trash2 size={16} />
+                  <Trash2 size={14} />
                 )}
-                limpar {dataset.label}
+                Expurgar
               </button>
             </div>
           </article>
         ))}
       </section>
 
-      <section className="rounded-[22px] border border-rose-300/18 bg-rose-300/10 p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-rose-300/18 bg-black/18 text-rose-100">
-            <AlertTriangle size={20} />
+      <section className="rounded-[28px] border border-rose-500/30 bg-rose-500/5 p-6 backdrop-blur-xl">
+        <header className="flex items-start gap-4 mb-6">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-rose-500/30 bg-black/60 text-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.2)]">
+            <AlertTriangle size={28} />
           </div>
           <div>
-            <p className="section-label">Reset total do conteudo</p>
-            <h3 className="mt-2 text-lg font-semibold text-white">Apagar tudo da mesa</h3>
-            <p className="mt-2 text-sm leading-6 text-rose-50/90">
-              Preserva a sessao, o codigo, o ownership e os participantes
-              vinculados, mas remove mapas, cenas, atlas, personagens, assets,
-              audio, chat, efeitos, notas e memoria.
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500/50">Operação de Colapso Total</p>
+            <h3 className="mt-1 text-2xl font-bold tracking-tight text-white uppercase">Aniquilação da Realidade</h3>
+            <p className="mt-2 text-sm leading-relaxed text-rose-100/40 italic">
+              Esta é a ação final. Todos os registros operacionais — cenas, fichas, mapas e memórias — serão reduzidos a cinzas. A sessão permanece, mas o mundo será reiniciado.
             </p>
           </div>
-        </div>
+        </header>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 mb-6">
           {[
             [
               confirmScope,
               setConfirmScope,
-              "Entendo que o conteudo jogavel atual sera apagado."
+              "Reconheço que todo o conteúdo jogável será permanentemente apagado."
             ],
             [
               confirmParticipants,
               setConfirmParticipants,
-              "Entendo que jogadores e vinculos de conta permanecem, mas o conteudo some."
+              "Compreendo que a mesa será esvaziada, mantendo apenas os participantes."
             ],
             [
               confirmIrreversible,
               setConfirmIrreversible,
-              "Entendo que esta acao e destrutiva e nao pode ser revertida aqui."
+              "Aceito que este colapso é irreversível e final."
             ]
           ].map(([checked, setChecked, label]) => (
             <label
               key={label as string}
-              className="flex items-start gap-3 rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white"
+              className={cn(
+                "flex items-center gap-4 cursor-pointer rounded-2xl border px-5 py-4 transition-all",
+                checked 
+                  ? "border-rose-500/40 bg-rose-500/10 text-white" 
+                  : "border-white/5 bg-black/20 text-white/40 hover:border-white/10 hover:bg-black/40"
+              )}
             >
+              <div className={cn(
+                "flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-all",
+                checked ? "border-rose-500 bg-rose-500 text-black" : "border-white/20 bg-transparent"
+              )}>
+                {checked && <ShieldAlert size={12} className="stroke-[3px]" />}
+              </div>
               <input
                 type="checkbox"
                 checked={checked as boolean}
                 onChange={(event) =>
                   (setChecked as (value: boolean) => void)(event.target.checked)
                 }
-                className="mt-1"
+                className="hidden"
               />
-              <span>{label as string}</span>
+              <span className="text-xs font-bold uppercase tracking-wide">{label as string}</span>
             </label>
           ))}
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
-          <input
-            value={resetCode}
-            onChange={(event) => setResetCode(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-rose-300/35"
-            placeholder={`digite o codigo ${sessionCode}`}
-          />
+        <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+          <div className="space-y-1.5">
+            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-rose-500/40">Código de Autenticação do Colapso</label>
+            <input
+              value={resetCode}
+              onChange={(event) => setResetCode(event.target.value)}
+              className="w-full rounded-xl border border-rose-500/20 bg-black/40 px-5 py-4 text-sm font-bold text-rose-500 outline-none transition focus:border-rose-500/50 focus:bg-black/60 placeholder:text-rose-900"
+              placeholder={`Digite o código da sessão: ${sessionCode}`}
+            />
+          </div>
           <button
             type="button"
             onClick={handleResetAll}
-            disabled={isPending}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-300/25 bg-rose-300/14 px-4 py-3 text-sm font-semibold text-rose-50 transition hover:border-rose-300/40 disabled:opacity-60"
+            disabled={isPending || !confirmScope || !confirmParticipants || !confirmIrreversible || resetCode !== sessionCode}
+            className="inline-flex h-full items-center justify-center gap-3 rounded-xl border border-rose-500/40 bg-rose-500/20 px-10 py-4 text-[10px] font-black uppercase tracking-[0.25em] text-rose-100 transition hover:bg-rose-500/40 shadow-[0_0_40px_rgba(244,63,94,0.2)] disabled:opacity-10 disabled:grayscale"
           >
             {pendingKey === "reset-all" ? (
-              <LoaderCircle size={16} className="animate-spin" />
+              <LoaderCircle size={18} className="animate-spin" />
             ) : (
-              <Trash2 size={16} />
+              <Trash2 size={18} />
             )}
-            resetar tudo
+            Executar Colapso Total
           </button>
         </div>
       </section>
 
-      <DiagnosticsPanel infra={infra} />
+      <div className="pt-2 border-t border-white/5">
+        <DiagnosticsPanel infra={infra} />
+      </div>
 
       {feedback && (
-        <div className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-[color:var(--ink-2)]">
+        <div className="animate-in fade-in slide-in-from-bottom-2 rounded-2xl border border-amber-400/20 bg-amber-400/5 px-6 py-4 text-xs font-medium text-amber-200/80">
           {feedback}
         </div>
       )}

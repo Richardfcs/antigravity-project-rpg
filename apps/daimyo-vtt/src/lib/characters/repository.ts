@@ -1,14 +1,22 @@
 import "server-only";
 
+import {
+  createEmptySheetProfile,
+  deriveSummaryFromSheetProfile,
+  mirrorSummaryIntoSheetProfile,
+  normalizeSheetProfile
+} from "@/lib/combat/sheet-profile";
 import { sanitizeName } from "@/lib/session/codes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import type { SessionCharacterRecord, CharacterType } from "@/types/character";
+import type { SessionCharacterRecord, CharacterType, CharacterTier } from "@/types/character";
+import type { SessionCharacterSheetProfile } from "@/types/combat";
 
 interface CharacterRow {
   id: string;
   session_id: string;
   name: string;
   type: CharacterType;
+  tier: CharacterTier;
   owner_participant_id: string | null;
   asset_id: string | null;
   hp: number;
@@ -16,6 +24,7 @@ interface CharacterRow {
   fp: number;
   fp_max: number;
   initiative: number;
+  sheet_profile?: unknown | null;
   created_at: string;
   updated_at: string;
 }
@@ -38,12 +47,49 @@ function normalizeInitiative(value: number) {
   return Math.min(999, Math.max(-99, parsed));
 }
 
+function isMissingColumnError(error: { code?: string; message?: string } | null) {
+  const message = error?.message?.toLowerCase() ?? "";
+
+  return (
+    error?.code === "42703" ||
+    message.includes("column") ||
+    message.includes("schema cache")
+  );
+}
+
+function buildSheetProfileMigrationError() {
+  return new Error(
+    "A migration da ficha completa ainda nao foi aplicada no Supabase."
+  );
+}
+
+function resolveSheetProfile(row: CharacterRow) {
+  const fallback = createEmptySheetProfile({
+    name: row.name,
+    attributes: {
+      hpMax: row.hp_max,
+      fpMax: row.fp_max
+    }
+  });
+
+  return mirrorSummaryIntoSheetProfile(
+    normalizeSheetProfile(row.sheet_profile, fallback),
+    {
+      hp: row.hp,
+      hpMax: row.hp_max,
+      fp: row.fp,
+      fpMax: row.fp_max
+    }
+  );
+}
+
 function mapCharacterRow(row: CharacterRow): SessionCharacterRecord {
   return {
     id: row.id,
     sessionId: row.session_id,
     name: row.name,
     type: row.type,
+    tier: row.tier,
     ownerParticipantId: row.owner_participant_id,
     assetId: row.asset_id,
     hp: row.hp,
@@ -51,6 +97,7 @@ function mapCharacterRow(row: CharacterRow): SessionCharacterRecord {
     fp: row.fp,
     fpMax: row.fp_max,
     initiative: row.initiative,
+    sheetProfile: resolveSheetProfile(row),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -105,11 +152,13 @@ export async function createSessionCharacter(input: {
   sessionId: string;
   name: string;
   type: CharacterType;
+  tier: CharacterTier;
   ownerParticipantId?: string | null;
   assetId?: string | null;
   hpMax: number;
   fpMax: number;
   initiative?: number;
+  sheetProfile?: SessionCharacterSheetProfile | null;
 }) {
   const name = sanitizeName(input.name, 64);
 
@@ -117,26 +166,41 @@ export async function createSessionCharacter(input: {
     throw new Error("Informe um nome válido para o personagem.");
   }
 
-  const hpMax = normalizeMax(input.hpMax, 10);
-  const fpMax = normalizeMax(input.fpMax, 10);
+  const profile = normalizeSheetProfile(
+    input.sheetProfile,
+    createEmptySheetProfile({
+      name,
+      attributes: {
+        hpMax: normalizeMax(input.hpMax, 10),
+        fpMax: normalizeMax(input.fpMax, 10)
+      }
+    })
+  );
+  const summary = deriveSummaryFromSheetProfile(profile);
 
   const { data, error } = await getCharacterTable()
     .insert({
       session_id: input.sessionId,
       name,
       type: input.type,
+      tier: input.tier,
       owner_participant_id: input.ownerParticipantId ?? null,
       asset_id: input.assetId ?? null,
-      hp: hpMax,
-      hp_max: hpMax,
-      fp: fpMax,
-      fp_max: fpMax,
-      initiative: normalizeInitiative(input.initiative ?? 0)
+      hp: summary.hp,
+      hp_max: summary.hpMax,
+      fp: summary.fp,
+      fp_max: summary.fpMax,
+      initiative: normalizeInitiative(input.initiative ?? summary.initiative),
+      sheet_profile: profile
     })
     .select("*")
     .single<CharacterRow>();
 
   if (error || !data) {
+    if (isMissingColumnError(error)) {
+      throw buildSheetProfileMigrationError();
+    }
+
     throw error ?? new Error("Falha ao criar o personagem.");
   }
 
@@ -147,10 +211,12 @@ export async function updateSessionCharacterProfile(input: {
   characterId: string;
   name?: string;
   type?: CharacterType;
+  tier?: CharacterTier;
   ownerParticipantId?: string | null;
   assetId?: string | null;
+  sheetProfile?: SessionCharacterSheetProfile | null;
 }) {
-  const patch: Record<string, string | null> = {};
+  const patch: Record<string, unknown> = {};
 
   if (input.name !== undefined) {
     const name = sanitizeName(input.name, 64);
@@ -166,12 +232,44 @@ export async function updateSessionCharacterProfile(input: {
     patch.type = input.type;
   }
 
+  if (input.tier !== undefined) {
+    patch.tier = input.tier;
+  }
+
   if (input.ownerParticipantId !== undefined) {
     patch.owner_participant_id = input.ownerParticipantId;
   }
 
   if (input.assetId !== undefined) {
     patch.asset_id = input.assetId;
+  }
+
+  if (input.sheetProfile !== undefined) {
+    const current = await findSessionCharacterById(input.characterId);
+
+    if (!current) {
+      throw new Error("Ficha nao encontrada para atualizar o perfil completo.");
+    }
+
+    const normalizedProfile = normalizeSheetProfile(
+      input.sheetProfile,
+      current.sheetProfile ??
+        createEmptySheetProfile({
+          name: input.name ?? current.name,
+          attributes: {
+            hpMax: current.hpMax,
+            fpMax: current.fpMax
+          }
+        })
+    );
+    const summary = deriveSummaryFromSheetProfile(normalizedProfile);
+
+    patch.sheet_profile = normalizedProfile;
+    patch.hp = summary.hp;
+    patch.hp_max = summary.hpMax;
+    patch.fp = summary.fp;
+    patch.fp_max = summary.fpMax;
+    patch.initiative = normalizeInitiative(summary.initiative);
   }
 
   const { data, error } = await getCharacterTable()
@@ -181,6 +279,10 @@ export async function updateSessionCharacterProfile(input: {
     .single<CharacterRow>();
 
   if (error || !data) {
+    if (isMissingColumnError(error)) {
+      throw buildSheetProfileMigrationError();
+    }
+
     throw error ?? new Error("Falha ao atualizar a ficha.");
   }
 
@@ -205,8 +307,30 @@ export async function adjustCharacterResource(input: {
 
   const patch =
     input.resource === "hp"
-      ? { hp: nextValue }
-      : { fp: nextValue };
+      ? {
+          hp: nextValue,
+          sheet_profile: mirrorSummaryIntoSheetProfile(
+            current.sheetProfile ?? createEmptySheetProfile({ name: current.name }),
+            {
+              hp: nextValue,
+              hpMax: current.hpMax,
+              fp: current.fp,
+              fpMax: current.fpMax
+            }
+          )
+        }
+      : {
+          fp: nextValue,
+          sheet_profile: mirrorSummaryIntoSheetProfile(
+            current.sheetProfile ?? createEmptySheetProfile({ name: current.name }),
+            {
+              hp: current.hp,
+              hpMax: current.hpMax,
+              fp: nextValue,
+              fpMax: current.fpMax
+            }
+          )
+        };
 
   const { data, error } = await getCharacterTable()
     .update(patch)
@@ -215,6 +339,10 @@ export async function adjustCharacterResource(input: {
     .single<CharacterRow>();
 
   if (error || !data) {
+    if (isMissingColumnError(error)) {
+      throw buildSheetProfileMigrationError();
+    }
+
     throw error ?? new Error("Falha ao atualizar o recurso do personagem.");
   }
 
@@ -244,4 +372,22 @@ export async function adjustCharacterInitiative(input: {
   }
 
   return mapCharacterRow(data);
+}
+
+export async function deleteSessionCharacter(characterId: string) {
+  const current = await findSessionCharacterById(characterId);
+
+  if (!current) {
+    throw new Error("Personagem não encontrado.");
+  }
+
+  const { error } = await getCharacterTable()
+    .delete()
+    .eq("id", characterId);
+
+  if (error) {
+    throw error;
+  }
+
+  return current;
 }

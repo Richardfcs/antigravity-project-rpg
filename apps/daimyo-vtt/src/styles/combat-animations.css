@@ -1,0 +1,215 @@
+@keyframes combat-dice-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-2px, -1px) rotate(-3deg); }
+  20% { transform: translate(2px, 1px) rotate(3deg); }
+  30% { transform: translate(-1px, 2px) rotate(-2deg); }
+  40% { transform: translate(1px, -2px) rotate(2deg); }
+  50% { transform: translate(-2px, 1px) rotate(-1deg); }
+  60% { transform: translate(2px, -1px) rotate(1deg); }
+  70% { transform: translate(-1px, -2px) rotate(-3deg); }
+  80% { transform: translate(1px, 2px) rotate(3deg); }
+  90% { transform: translate(-2px, -1px) rotate(-2deg); }
+}
+
+@keyframes combat-damage-flash {
+  0% { background-color: transparent; }
+  15% { background-color: rgba(239, 68, 68, 0.35); }
+  30% { background-color: transparent; }
+  45% { background-color: rgba(239, 68, 68, 0.2); }
+  60% { background-color: transparent; }
+  100% { background-color: transparent; }
+}
+
+@keyframes combat-critical-glow {
+  0% { box-shadow: 0 0 4px rgba(251, 191, 36, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.9), 0 0 40px rgba(251, 191, 36, 0.4); }
+  100% { box-shadow: 0 0 4px rgba(251, 191, 36, 0.4); }
+}
+
+@keyframes combat-critical-fail-glow {
+  0% { box-shadow: 0 0 4px rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.9), 0 0 40px rgba(239, 68, 68, 0.4); }
+  100% { box-shadow: 0 0 4px rgba(239, 68, 68, 0.4); }
+}
+
+@keyframes combat-hp-drain {
+  0% { transform: scaleX(var(--hp-from, 1)); }
+  100% { transform: scaleX(var(--hp-to, 0.5)); }
+}
+
+@keyframes combat-turn-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(251, 191, 36, 0); }
+}
+
+@keyframes combat-slide-in {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes combat-slide-in-left {
+  0% { opacity: 0; transform: translateX(-20px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes combat-alert-entrance {
+  0% { opacity: 0; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes combat-your-turn {
+  0% { opacity: 0; transform: scale(0.7) rotate(-2deg); }
+  40% { opacity: 1; transform: scale(1.08) rotate(1deg); }
+  70% { transform: scale(0.98) rotate(-0.5deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes combat-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes combat-number-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes combat-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Utility classes */
+.combat-dice-rolling {
+  animation: combat-dice-shake 0.4s ease-in-out 3;
+}
+
+.combat-damage-flash {
+  animation: combat-damage-flash 0.6s ease-out;
+}
+
+.combat-critical-success {
+  animation: combat-critical-glow 1s ease-in-out 2;
+}
+
+.combat-critical-failure {
+  animation: combat-critical-fail-glow 1s ease-in-out 2;
+}
+
+.combat-active-pulse {
+  animation: combat-turn-pulse 2s ease-in-out infinite;
+}
+
+.combat-slide-in {
+  animation: combat-slide-in 0.3s ease-out;
+}
+
+.combat-slide-in-left {
+  animation: combat-slide-in-left 0.3s ease-out;
+}
+
+.combat-alert {
+  animation: combat-alert-entrance 0.4s ease-out;
+}
+
+.combat-your-turn {
+  animation: combat-your-turn 0.6s ease-out;
+}
+
+.combat-fade-in {
+  animation: combat-fade-in 0.3s ease-out;
+}
+
+.combat-number-pop {
+  animation: combat-number-pop 0.35s ease-out;
+}
+
+.combat-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(251, 191, 36, 0.08) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: combat-shimmer 2s ease-in-out infinite;
+}
+
+/* Health bar gradients */
+.combat-hp-bar {
+  transition: width 0.5s ease-out, background-color 0.3s ease;
+  transform-origin: left center;
+}
+
+.combat-hp-full { background: linear-gradient(90deg, #22c55e, #16a34a); }
+.combat-hp-high { background: linear-gradient(90deg, #84cc16, #65a30d); }
+.combat-hp-medium { background: linear-gradient(90deg, #eab308, #ca8a04); }
+.combat-hp-low { background: linear-gradient(90deg, #f97316, #ea580c); }
+.combat-hp-critical { background: linear-gradient(90deg, #ef4444, #dc2626); }
+
+.combat-fp-bar {
+  transition: width 0.5s ease-out;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+}
+
+/* Maneuver card styles */
+.combat-maneuver-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.combat-maneuver-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.combat-maneuver-card[data-selected="true"] {
+  border-color: rgba(251, 191, 36, 0.7);
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.combat-maneuver-card[data-danger="true"] {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* Turn queue */
+.combat-turn-queue-item {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.combat-turn-queue-item[data-active="true"] {
+  transform: scale(1.1);
+}
+
+/* Resolution card */
+.combat-resolution-card {
+  animation: combat-slide-in 0.3s ease-out;
+  border-left: 3px solid rgba(251, 191, 36, 0.5);
+}
+
+.combat-resolution-card[data-success="true"] {
+  border-left-color: #22c55e;
+}
+
+.combat-resolution-card[data-failure="true"] {
+  border-left-color: #ef4444;
+}
+
+/* Overlay backdrop */
+.combat-overlay-backdrop {
+  animation: combat-fade-in 0.2s ease-out;
+  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* Defense prompt shake */
+@keyframes combat-defense-shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 50%, 90% { transform: translateX(-4px); }
+  30%, 70% { transform: translateX(4px); }
+}
+
+.combat-defense-alert {
+  animation: combat-defense-shake 0.5s ease-out;
+}

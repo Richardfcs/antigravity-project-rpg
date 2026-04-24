@@ -195,6 +195,26 @@ body::after {
   }
 }
 
+@keyframes vp-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vp-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 @layer base {
   * {
     border-color: var(--border-panel);
@@ -288,19 +308,19 @@ body::after {
   }
 
   .hud-chip {
-    @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em];
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em];
     border-color: color-mix(in srgb, var(--gold) 26%, var(--border-panel) 74%);
     background: rgba(255, 255, 255, 0.03);
     color: var(--text-secondary);
   }
 
   .section-label {
-    @apply text-[8px] font-semibold uppercase tracking-[0.18em];
+    @apply text-[9px] font-semibold uppercase tracking-[0.2em];
     color: color-mix(in srgb, var(--gold) 48%, var(--text-muted) 52%);
   }
 
   .rail-button {
-    @apply flex h-8 w-8 items-center justify-center rounded-xl border transition;
+    @apply flex h-9 w-9 items-center justify-center rounded-xl border transition;
     border-color: color-mix(in srgb, var(--border-panel) 84%, white 16%);
     background: rgba(255, 255, 255, 0.03);
     color: var(--text-secondary);
@@ -332,7 +352,7 @@ body::after {
   }
 
   .stat-card {
-    @apply rounded-[18px] border p-3;
+    @apply rounded-[20px] border p-4;
     border-color: rgba(255, 255, 255, 0.08);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),

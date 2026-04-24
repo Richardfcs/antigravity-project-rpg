@@ -1,5 +1,9 @@
 "use server";
 
+import {
+  buildSheetProfileFromBaseTemplate,
+  deriveSummaryFromSheetProfile
+} from "@/lib/combat/sheet-profile";
 import { createSessionCharacter } from "@/lib/characters/repository";
 import { getInfraReadiness } from "@/lib/env";
 import {
@@ -15,7 +19,7 @@ import type {
   DaimyoContentManifest,
   EquipmentEntry
 } from "@/lib/content-bridge/contract";
-import type { CharacterType, SessionCharacterRecord } from "@/types/character";
+import type { CharacterType, CharacterTier, SessionCharacterRecord } from "@/types/character";
 
 interface BaseCatalogActionResult {
   ok: boolean;
@@ -37,6 +41,7 @@ interface ImportBaseArchetypeInput {
   sessionCode: string;
   archetypeId: string;
   type: CharacterType;
+  tier: CharacterTier;
   ownerParticipantId?: string | null;
   assetId?: string | null;
 }
@@ -107,19 +112,20 @@ export async function importBaseArchetypeAction(
       }
     }
 
-    const attributes = (archetype.stats.attributes ?? {}) as Record<string, unknown>;
-    const hpMax = Number(attributes.hp ?? 10);
-    const fpMax = Number(attributes.fp ?? 10);
+    const sheetProfile = buildSheetProfileFromBaseTemplate(archetype);
+    const summary = deriveSummaryFromSheetProfile(sheetProfile);
 
     const character = await createSessionCharacter({
       sessionId: session.id,
       name: archetype.name,
       type: input.type,
+      tier: input.tier,
       ownerParticipantId,
       assetId: input.assetId ?? null,
-      hpMax: Number.isFinite(hpMax) ? hpMax : 10,
-      fpMax: Number.isFinite(fpMax) ? fpMax : 10,
-      initiative: 0
+      hpMax: summary.hpMax,
+      fpMax: summary.fpMax,
+      initiative: summary.initiative,
+      sheetProfile
     });
 
     return { ok: true, character };

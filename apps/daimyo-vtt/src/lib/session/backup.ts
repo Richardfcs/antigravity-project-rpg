@@ -110,6 +110,7 @@ export async function restoreSessionSnapshot(input: {
       fp: character.fp,
       fp_max: character.fpMax,
       initiative: character.initiative,
+      sheet_profile: character.sheetProfile ?? null,
       created_at: character.createdAt,
       updated_at: character.updatedAt
     }))
@@ -356,6 +357,7 @@ export async function restoreSessionSnapshot(input: {
       combat_round: payload.snapshot.combatRound,
       combat_turn_index: payload.snapshot.combatTurnIndex,
       combat_active_token_id: payload.snapshot.combatActiveTokenId,
+      combat_flow: payload.snapshot.combatFlow,
       scene_mood: payload.snapshot.sceneMood
     })
     .eq("id", input.sessionId);

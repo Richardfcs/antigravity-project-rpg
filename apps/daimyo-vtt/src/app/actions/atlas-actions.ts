@@ -10,7 +10,8 @@ import {
   findSessionAtlasMapById,
   findSessionAtlasPinById,
   updateSessionAtlasPinDetails,
-  updateSessionAtlasPinPosition
+  updateSessionAtlasPinPosition,
+  updateSessionAtlasMap
 } from "@/lib/atlas/repository";
 import { findSessionCharacterById } from "@/lib/characters/repository";
 import { getInfraReadiness } from "@/lib/env";
@@ -188,7 +189,45 @@ export async function deleteAtlasMapAction(input: {
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Falha ao remover o atlas."
+      message:
+        error instanceof Error ? error.message : "Falha ao remover o atlas."
+    };
+  }
+}
+
+export async function updateAtlasMapAction(input: {
+  sessionCode: string;
+  atlasMapId: string;
+  name?: string;
+  assetId?: string | null;
+}): Promise<AtlasActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    
+    if (input.assetId) {
+      const asset = await findSessionAssetById(input.assetId);
+      if (!asset || asset.sessionId !== session.id) {
+        throw new Error("O mapa-base selecionado nao pertence a esta sessao.");
+      }
+    }
+
+    const atlasMap = await updateSessionAtlasMap({
+      sessionId: session.id,
+      atlasMapId: input.atlasMapId,
+      name: input.name,
+      assetId: input.assetId
+    });
+
+    return { ok: true, atlasMap };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : "Falha ao atualizar o atlas."
     };
   }
 }

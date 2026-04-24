@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { normalizeCombatFlow } from "@/lib/combat/flow";
 import { subscribeToSlice } from "@/lib/realtime/subscribe";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { useSessionStore } from "@/stores/session-store";
@@ -20,6 +21,7 @@ interface SessionSnapshotRowPayload {
   combat_round?: number | null;
   combat_turn_index?: number | null;
   combat_active_token_id?: string | null;
+  combat_flow?: unknown | null;
   scene_mood: string;
 }
 
@@ -62,13 +64,14 @@ export function useSessionSnapshot({
         combatRound: row.combat_round ?? 1,
         combatTurnIndex: row.combat_turn_index ?? 0,
         combatActiveTokenId: row.combat_active_token_id ?? null,
+        combatFlow: row.combat_flow ? normalizeCombatFlow(row.combat_flow) : null,
         sceneMood: row.scene_mood
       });
     };
 
     const readSnapshot = async () => {
       const nextSelect =
-        "id,name,active_scene,active_scene_id,active_map_id,active_atlas_map_id,active_stage_mode,presentation_mode,combat_enabled,combat_round,combat_turn_index,combat_active_token_id,scene_mood";
+        "id,name,active_scene,active_scene_id,active_map_id,active_atlas_map_id,active_stage_mode,presentation_mode,combat_enabled,combat_round,combat_turn_index,combat_active_token_id,combat_flow,scene_mood";
       const fallbackSelect =
         "id,name,active_scene,active_stage_mode,presentation_mode,scene_mood";
       const nextResult = await client

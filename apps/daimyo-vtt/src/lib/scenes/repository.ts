@@ -439,3 +439,73 @@ export async function moveSceneCastEntry(input: {
 
   return updatedEntries.filter(Boolean) as SceneCastRecord[];
 }
+
+export async function updateSessionScene(input: {
+  sessionId: string;
+  sceneId: string;
+  name?: string;
+  moodLabel?: string;
+  backgroundAssetId?: string | null;
+}) {
+  const current = await findSessionSceneById(input.sceneId);
+
+  if (!current || current.sessionId !== input.sessionId) {
+    throw new Error("Cena nao encontrada nesta sessao.");
+  }
+
+  const patch: Partial<SceneRow> = {};
+  if (input.name !== undefined) patch.name = sanitizeName(input.name, 72);
+  if (input.moodLabel !== undefined) patch.mood_label = sanitizeName(input.moodLabel, 72);
+  if (input.backgroundAssetId !== undefined) patch.background_asset_id = input.backgroundAssetId;
+
+  const { data, error } = await getSceneTable()
+    .update(patch)
+    .eq("id", input.sceneId)
+    .select("*")
+    .single<SceneRow>();
+
+  if (error || !data) {
+    throw error ?? new Error("Falha ao atualizar a cena.");
+  }
+
+  const updated = mapSceneRow(data);
+
+  if (updated.isActive) {
+    await syncSessionMirror({
+      sessionId: updated.sessionId,
+      sceneName: updated.name,
+      moodLabel: updated.moodLabel,
+      sceneId: updated.id
+    });
+  }
+
+  return updated;
+}
+
+export async function deleteSessionScene(input: {
+  sessionId: string;
+  sceneId: string;
+}) {
+  const current = await findSessionSceneById(input.sceneId);
+
+  if (!current || current.sessionId !== input.sessionId) {
+    throw new Error("Cena nao encontrada nesta sessao.");
+  }
+
+  if (current.isActive) {
+    throw new Error("Nao e possivel apagar a cena ativa. Mude de cena primeiro.");
+  }
+
+  // Cast entries are deleted by cascade in DB usually, but let's be explicit if needed or just trust DB
+  // For safety and logic, we check if it's the only scene? No, just delete.
+  
+  const { error } = await getSceneTable()
+    .delete()
+    .eq("id", input.sceneId);
+
+  if (error) {
+    throw error;
+  }
+
+  return current;
+}

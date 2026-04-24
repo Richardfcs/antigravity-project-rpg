@@ -58,8 +58,10 @@ export function filterLibraryItemsByStatus<T>(
   return items.filter((item) => matchesLibraryStatusFilter(getFlags(item), statusFilter));
 }
 
+const collator = new Intl.Collator("pt-BR", { sensitivity: "base" });
+
 function compareLabels(left: string, right: string) {
-  return left.localeCompare(right, "pt-BR", { sensitivity: "base" });
+  return collator.compare(left, right);
 }
 
 export function sortLibraryItems<T>(

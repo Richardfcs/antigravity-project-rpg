@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import dynamic from "next/dynamic";
 import { useMemo, useState, useTransition } from "react";
@@ -10,10 +10,19 @@ import {
 } from "lucide-react";
 
 import {
-  setSessionCombatStateAction,
   setSessionPresentationModeAction,
   setSessionStageModeAction
 } from "@/app/actions/session-actions";
+import {
+  advanceCombatTurnAction,
+  executeCombatActionAction,
+  gmTakeOverPlayerTurnAction,
+  processStartOfTurnAction,
+  respondCombatPromptAction,
+  selectCombatantAction,
+  startCombatEncounterAction,
+  stopCombatEncounterAction
+} from "@/app/actions/combat-actions";
 import { moveMapTokenAction } from "@/app/actions/map-actions";
 import { AudioSyncLayer } from "@/components/audio/audio-sync-layer";
 import { AuthSessionBridge } from "@/components/auth/auth-session-bridge";
@@ -82,6 +91,7 @@ import type { SessionMemoryRecord } from "@/types/session-memory";
 import type { SessionNoteRecord } from "@/types/note";
 import type { OnlinePresence } from "@/types/presence";
 import type { SceneCastRecord, SessionSceneRecord } from "@/types/scene";
+import type { CombatDefenseOption, CombatDraftAction } from "@/types/combat";
 import type {
   ExplorerSection,
   PresentationMode,
@@ -217,7 +227,12 @@ export function MasterShell({
       storedPlayback: state.playback
     }))
   );
-  const storedCharacters = useCharacterStore((state) => state.characters);
+  const { storedCharacters, upsertCharacter } = useCharacterStore(
+    useShallow((state) => ({
+      storedCharacters: state.characters,
+      upsertCharacter: state.upsertCharacter
+    }))
+  );
   const storedEffects = useEffectLayerStore((state) => state.effects);
   const storedMemoryEvents = useSessionMemoryStore((state) => state.events);
   const { storedScenes, storedSceneCast } = useSceneStore(
@@ -612,9 +627,17 @@ export function MasterShell({
     setMasterDrawer("closed");
     setStatusDrawerOpen((current) => !current);
   };
-
   const handleToggleSupport = () => {
     setSupportTrayOpen(!supportTrayOpen);
+  };
+
+  const handleGmTakeOver = async (tokenId: string) => {
+    setSessionFeedback(null);
+    const result = await gmTakeOverPlayerTurnAction({
+      sessionCode: session.code,
+      tokenId
+    });
+    handleCombatResult(result, "Falha ao assumir o turno.");
   };
 
   const renderStagePanel = () => (
@@ -632,6 +655,7 @@ export function MasterShell({
       viewer={viewer}
       memoryEvents={liveMemoryEvents}
       combatState={tacticalCombatState}
+      combatFlow={session.combatFlow}
       canManageCombat={viewer?.role === "gm"}
       atlasMapIdOverride={
         navigatedAtlasMapId !== session.activeAtlasMapId ? navigatedAtlasMapId : null
@@ -650,8 +674,12 @@ export function MasterShell({
       onCombatStop={handleCombatStop}
       onCombatAdvance={handleCombatAdvance}
       onSelectCombatant={handleCombatSelect}
+      onExecuteCombatAction={handleExecuteCombatAction}
+      onRespondCombatPrompt={handleRespondCombatPrompt}
+      onGmTakeOver={handleGmTakeOver}
       onStageModeChange={handleStageModeChange}
       onPresentationModeChange={handlePresentationModeChange}
+      onRequestLibrary={handleOpenDrawer}
     />
   );
 
@@ -759,106 +787,89 @@ export function MasterShell({
     });
   };
 
-  const updateCombatState = (
-    nextPatch: Partial<
-      Pick<
-        SessionShellSnapshot,
-        "combatEnabled" | "combatRound" | "combatTurnIndex" | "combatActiveTokenId"
-      >
-    >,
-    fallbackMessage: string
+  const patchCombatSnapshot = (
+    nextSession:
+      | Awaited<ReturnType<typeof startCombatEncounterAction>>["session"]
+      | undefined
   ) => {
-    const previousPatch = {
-      combatEnabled: session.combatEnabled,
-      combatRound: session.combatRound,
-      combatTurnIndex: session.combatTurnIndex,
-      combatActiveTokenId: session.combatActiveTokenId
-    };
+    if (!nextSession) {
+      return;
+    }
 
-    patchSnapshot(nextPatch);
-    setSessionFeedback(null);
-
-    startTransition(async () => {
-      const result = await setSessionCombatStateAction({
-        sessionCode: session.code,
-        combatEnabled: nextPatch.combatEnabled,
-        combatRound: nextPatch.combatRound,
-        combatTurnIndex: nextPatch.combatTurnIndex,
-        combatActiveTokenId: nextPatch.combatActiveTokenId
-      });
-
-      if (!result.ok) {
-        patchSnapshot(previousPatch);
-        setSessionFeedback(result.message ?? fallbackMessage);
-      }
+    patchSnapshot({
+      combatEnabled: nextSession.combatEnabled,
+      combatRound: nextSession.combatRound,
+      combatTurnIndex: nextSession.combatTurnIndex,
+      combatActiveTokenId: nextSession.combatActiveTokenId,
+      combatFlow: nextSession.combatFlow
     });
   };
 
-  const handleCombatStart = () => {
+  const upsertCombatCharacters = (nextCharacters?: SessionCharacterRecord[]) => {
+    nextCharacters?.forEach((character) => {
+      upsertCharacter(character);
+    });
+  };
+
+  const handleCombatResult = (
+    result: Awaited<ReturnType<typeof executeCombatActionAction>>,
+    fallbackMessage: string
+  ) => {
+    if (!result.ok) {
+      setSessionFeedback(result.message ?? fallbackMessage);
+      return;
+    }
+
+    patchCombatSnapshot(result.session);
+    upsertCombatCharacters(result.characters);
+    setSessionFeedback(result.message ?? null);
+  };
+
+  const handleCombatStart = async () => {
     if (tacticalCombatState.turnOrder.length === 0) {
       setSessionFeedback("Adicione pelo menos um token ao campo para iniciar a ordem.");
       return;
     }
 
-    updateCombatState(
-      {
-        combatEnabled: true,
-        combatRound: 1,
-        combatTurnIndex: 0,
-        combatActiveTokenId: tacticalCombatState.turnOrder[0]?.token.id ?? null
-      },
-      "Falha ao iniciar a ordem de turno."
-    );
+    setSessionFeedback(null);
+    const result = await startCombatEncounterAction({
+      sessionCode: session.code
+    });
+    handleCombatResult(result, "Falha ao iniciar a ordem de turno.");
   };
 
-  const handleCombatStop = () => {
-    updateCombatState(
-      {
-        combatEnabled: false,
-        combatRound: 1,
-        combatTurnIndex: 0,
-        combatActiveTokenId: null
-      },
-      "Falha ao encerrar a ordem de turno."
-    );
+  const handleCombatStop = async () => {
+    setSessionFeedback(null);
+    const result = await stopCombatEncounterAction({
+      sessionCode: session.code
+    });
+    handleCombatResult(result, "Falha ao encerrar a ordem de turno.");
   };
 
-  const handleCombatAdvance = (direction: "next" | "previous") => {
+  const handleCombatAdvance = async (direction: "next" | "previous") => {
     if (tacticalCombatState.turnOrder.length === 0) {
       setSessionFeedback("Nao ha combatentes ativos neste campo.");
       return;
     }
 
-    const totalTurns = tacticalCombatState.turnOrder.length;
-    let nextIndex = tacticalCombatState.activeIndex;
-    let nextRound = tacticalCombatState.round;
-
-    if (direction === "next") {
-      nextIndex += 1;
-      if (nextIndex >= totalTurns) {
-        nextIndex = 0;
-        nextRound += 1;
-      }
-    } else {
-      nextIndex -= 1;
-      if (nextIndex < 0) {
-        nextIndex = totalTurns - 1;
-        nextRound = Math.max(1, nextRound - 1);
-      }
+    setSessionFeedback(null);
+    const result = await advanceCombatTurnAction({
+      sessionCode: session.code,
+      direction
+    });
+    
+    if (result.ok && result.session?.combatActiveTokenId && direction === "next") {
+      // Processar efeitos de inicio de turno automaticamente ao avancar
+      await processStartOfTurnAction({
+        sessionCode: session.code,
+        tokenId: result.session.combatActiveTokenId
+      });
     }
 
-    updateCombatState(
-      {
-        combatEnabled: true,
-        combatRound: nextRound,
-        combatTurnIndex: nextIndex,
-        combatActiveTokenId: tacticalCombatState.turnOrder[nextIndex]?.token.id ?? null
-      },
-      "Falha ao avancar a ordem de turno."
-    );
+    handleCombatResult(result, "Falha ao avancar a ordem de turno.");
   };
 
-  const handleCombatSelect = (tokenId: string) => {
+  const handleCombatSelect = async (tokenId: string) => {
     const targetIndex = tacticalCombatState.turnOrder.findIndex(
       (entry) => entry.token.id === tokenId
     );
@@ -867,15 +878,38 @@ export function MasterShell({
       return;
     }
 
-    updateCombatState(
-      {
-        combatEnabled: true,
-        combatRound: tacticalCombatState.round,
-        combatTurnIndex: targetIndex,
-        combatActiveTokenId: tokenId
-      },
-      "Falha ao destacar o combatente."
-    );
+    setSessionFeedback(null);
+    const result = await selectCombatantAction({
+      sessionCode: session.code,
+      tokenId
+    });
+    handleCombatResult(result, "Falha ao destacar o combatente.");
+  };
+
+  const handleExecuteCombatAction = async (action: CombatDraftAction) => {
+    setSessionFeedback(null);
+    const result = await executeCombatActionAction({
+      sessionCode: session.code,
+      action
+    });
+    handleCombatResult(result, "Falha ao executar a acao de combate.");
+  };
+
+  const handleRespondCombatPrompt = async (input: {
+    eventId: string;
+    defenseOption: CombatDefenseOption;
+    retreat?: boolean;
+    acrobatic?: boolean;
+  }) => {
+    setSessionFeedback(null);
+    const result = await respondCombatPromptAction({
+      sessionCode: session.code,
+      eventId: input.eventId,
+      defenseOption: input.defenseOption,
+      retreat: input.retreat,
+      acrobatic: input.acrobatic
+    });
+    handleCombatResult(result, "Falha ao resolver a defesa pendente.");
   };
 
   const renderFocusedStage = () => {
@@ -895,10 +929,13 @@ export function MasterShell({
           assetOptions={liveAssets}
           characterOptions={liveCharacters}
           onMoveToken={handleMoveToken}
+          combatFlow={session.combatFlow}
           onCombatStart={handleCombatStart}
           onCombatStop={handleCombatStop}
           onCombatAdvance={handleCombatAdvance}
           onSelectCombatant={handleCombatSelect}
+          onExecuteCombatAction={handleExecuteCombatAction}
+          onRespondCombatPrompt={handleRespondCombatPrompt}
           viewMode="focus"
         />
       );

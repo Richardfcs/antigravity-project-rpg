@@ -1,10 +1,12 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Dice6, LoaderCircle, MessageSquareText, Send } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { sendChatMessageAction } from "@/app/actions/chat-actions";
 import { useChatStore } from "@/stores/chat-store";
+import type { SessionMessageRecord } from "@/types/message";
 import type { SessionViewerIdentity } from "@/types/session";
 
 interface ChatPanelProps {
@@ -14,14 +16,14 @@ interface ChatPanelProps {
 
 function toneForKind(kind: "chat" | "roll" | "system") {
   if (kind === "roll") {
-    return "border-amber-300/18 bg-amber-300/10";
+    return "border-amber-400/20 bg-amber-400/5 shadow-[0_0_15px_rgba(251,191,36,0.05)]";
   }
 
   if (kind === "system") {
-    return "border-amber-300/18 bg-amber-300/10";
+    return "border-blue-400/20 bg-blue-400/5";
   }
 
-  return "border-white/10 bg-white/[0.04]";
+  return "border-white/5 bg-white/[0.02]";
 }
 
 export function ChatPanel({ sessionCode, viewer }: ChatPanelProps) {
@@ -74,84 +76,106 @@ export function ChatPanel({ sessionCode, viewer }: ChatPanelProps) {
   };
 
   return (
-    <section className="flex h-full flex-col rounded-[20px] border border-white/10 bg-[var(--bg-panel-strong)] p-3">
-      <header className="border-b border-white/8 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
-            <MessageSquareText size={16} />
-          </div>
-          <div>
-            <p className="section-label">Chat</p>
-            <h3 className="text-sm font-semibold text-white">Mesa em tempo real</h3>
-          </div>
-        </div>
-      </header>
-
-      <div ref={listRef} className="scrollbar-thin mt-3 flex-1 space-y-2.5 overflow-y-auto pr-1">
-        {visibleMessages.length === 0 && (
-          <div className="rounded-[16px] border border-dashed border-white/12 bg-white/[0.03] px-3 py-4 text-sm text-[color:var(--ink-2)]">
-            Ainda nao ha mensagens nesta sessao.
-          </div>
-        )}
-
-        {visibleMessages.map((message) => (
-          <article
-            key={message.id}
-            className={`rounded-[16px] border px-3 py-2.5 ${toneForKind(message.kind)}`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-white">{message.displayName}</p>
-                {message.kind === "roll" && (
-                  <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
-                    <Dice6 size={14} />
-                    rolagem
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--ink-3)]">
-                {new Date(message.createdAt).toLocaleTimeString("pt-BR", {
-                  hour: "2-digit",
-                  minute: "2-digit"
-                })}
-              </p>
+    <div className="flex h-full flex-col space-y-4">
+      <section className="flex flex-1 flex-col overflow-hidden rounded-[28px] border border-white/10 bg-black/40 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
+        <header className="shrink-0 p-6 border-b border-white/5 bg-white/[0.02]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.1)]">
+              <MessageSquareText size={24} />
             </div>
-            <p className="mt-1.5 text-sm leading-5 text-[color:var(--ink-2)]">
-              {message.body}
-            </p>
-          </article>
-        ))}
-      </div>
+            <div>
+              <h3 className="text-xl font-bold tracking-tight text-white uppercase">Sussurros do Destino</h3>
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Comunicação em Tempo Real</p>
+            </div>
+          </div>
+        </header>
 
-      <div className="mt-3 space-y-2.5 border-t border-white/8 pt-3">
-        <textarea
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          rows={3}
-          placeholder={viewer ? "Descreva a acao, fale com a mesa ou narre um detalhe..." : "Entre na sala para habilitar o chat"}
-          disabled={!viewer || isPending}
-          className="w-full rounded-[16px] border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition focus:border-amber-300/35 disabled:cursor-not-allowed disabled:opacity-60"
-        />
+        <div 
+          ref={listRef} 
+          className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4"
+        >
+          {visibleMessages.length === 0 && (
+            <div className="flex h-full items-center justify-center rounded-[24px] border border-dashed border-white/5 bg-white/[0.02] p-12 text-center">
+              <p className="text-sm font-medium italic text-white/20">O silêncio ecoa nestas paredes virtuais...</p>
+            </div>
+          )}
 
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs leading-5 text-[color:var(--ink-3)]">
-            Chat publico da sessao. Jogadas feitas no painel de dados tambem aparecem aqui.
-          </p>
-
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isPending || !viewer}
-            className="inline-flex items-center gap-2 rounded-xl border border-amber-300/28 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isPending ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}
-            enviar
-          </button>
+          {visibleMessages.map((message: SessionMessageRecord) => (
+            <article
+              key={message.id}
+              className={cn(
+                "group relative rounded-[20px] border p-4 transition-all hover:bg-white/[0.04]",
+                toneForKind(message.kind)
+              )}
+            >
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold tracking-tight text-white">{message.displayName}</span>
+                  {message.kind === "roll" && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-amber-400">
+                      <Dice6 size={10} />
+                      Rolagem
+                    </span>
+                  )}
+                  {message.kind === "system" && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/30 bg-blue-400/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-blue-400">
+                      Santuário
+                    </span>
+                  )}
+                </div>
+                <time className="text-[9px] font-black uppercase tracking-widest text-white/20">
+                  {new Date(message.createdAt).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })}
+                </time>
+              </div>
+              <p className="text-sm leading-relaxed text-white/70 whitespace-pre-wrap">
+                {message.body}
+              </p>
+            </article>
+          ))}
         </div>
 
-        {feedback && <p className="text-sm text-amber-100">{feedback}</p>}
-      </div>
-    </section>
+        <footer className="shrink-0 p-6 border-t border-white/5 bg-black/20">
+          <div className="relative">
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  handleSubmit();
+                }
+              }}
+              rows={2}
+              placeholder={viewer ? "Digite sua mensagem..." : "Entre na sala para participar..."}
+              disabled={!viewer || isPending}
+              className="w-full resize-none rounded-2xl border border-white/10 bg-black/40 px-5 py-4 text-sm text-white outline-none transition focus:border-amber-400/30 focus:bg-black/60 placeholder:text-white/10 disabled:opacity-50"
+            />
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isPending || !viewer || !draft.trim()}
+              className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/30 bg-amber-400/10 text-amber-400 transition-all hover:bg-amber-400/20 disabled:opacity-20 shadow-[0_0_20px_rgba(251,191,36,0.1)]"
+            >
+              {isPending ? (
+                <LoaderCircle size={18} className="animate-spin" />
+              ) : (
+                <Send size={18} />
+              )}
+            </button>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between">
+            <p className="text-[9px] font-medium text-white/20">Pressione Enter para enviar, Shift+Enter para quebrar linha.</p>
+            {feedback && (
+              <p className="animate-in fade-in slide-in-from-right-1 text-[10px] font-bold text-amber-400/80">{feedback}</p>
+            )}
+          </div>
+        </footer>
+      </section>
+    </div>
   );
 }
 

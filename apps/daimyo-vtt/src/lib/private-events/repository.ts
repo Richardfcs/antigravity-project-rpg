@@ -15,6 +15,7 @@ interface PrivateEventRow {
   title: string;
   body: string;
   image_asset_id: string | null;
+  payload?: unknown | null;
   intensity: number;
   duration_ms: number;
   is_consumed: boolean;
@@ -35,6 +36,10 @@ function mapPrivateEventRow(row: PrivateEventRow): SessionPrivateEventRecord {
     title: row.title,
     body: row.body,
     imageAssetId: row.image_asset_id,
+    payload:
+      typeof row.payload === "object" && row.payload !== null && !Array.isArray(row.payload)
+        ? (row.payload as Record<string, unknown>)
+        : null,
     intensity: Number(row.intensity),
     durationMs: Number(row.duration_ms),
     isConsumed: row.is_consumed,
@@ -51,6 +56,16 @@ function isMissingRelationError(error: { code?: string; message?: string } | nul
     error?.code === "PGRST205" ||
     error?.message?.toLowerCase().includes("could not find the table") === true ||
     error?.message?.toLowerCase().includes("relation") === true
+  );
+}
+
+function isMissingColumnError(error: { code?: string; message?: string } | null) {
+  const message = error?.message?.toLowerCase() ?? "";
+
+  return (
+    error?.code === "42703" ||
+    message.includes("column") ||
+    message.includes("schema cache")
   );
 }
 
@@ -99,6 +114,7 @@ export async function createPrivateEvent(input: {
   title: string;
   body: string;
   imageAssetId?: string | null;
+  payload?: Record<string, unknown> | null;
   intensity?: number;
   durationMs?: number;
 }) {
@@ -118,6 +134,7 @@ export async function createPrivateEvent(input: {
       title,
       body,
       image_asset_id: input.imageAssetId ?? null,
+      ...(input.payload !== undefined ? { payload: input.payload } : {}),
       intensity: clamp(Math.round(input.intensity ?? 3), 1, 5),
       duration_ms: clamp(Math.round(input.durationMs ?? 5000), 800, 30000),
       is_consumed: false
@@ -126,6 +143,12 @@ export async function createPrivateEvent(input: {
     .single<PrivateEventRow>();
 
   if (error || !data) {
+    if (isMissingColumnError(error) && input.payload !== undefined) {
+      throw new Error(
+        "A migration do payload estruturado dos eventos privados ainda nao foi aplicada no Supabase."
+      );
+    }
+
     throw error ?? new Error("Falha ao enviar o evento privado.");
   }
 

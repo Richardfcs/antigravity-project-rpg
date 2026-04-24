@@ -62,6 +62,14 @@ function normalizeSnapshot(rawSnapshot) {
     throw new Error("Fotografia da sessao invalida.");
   }
 
+  if (
+    rawSnapshot.combatFlow !== undefined &&
+    rawSnapshot.combatFlow !== null &&
+    !isObject(rawSnapshot.combatFlow)
+  ) {
+    throw new Error("Campo invalido no snapshot: snapshot.combatFlow.");
+  }
+
   return {
     sessionId: asString(rawSnapshot.sessionId, "snapshot.sessionId"),
     code: asString(rawSnapshot.code, "snapshot.code"),
@@ -87,6 +95,10 @@ function normalizeSnapshot(rawSnapshot) {
       rawSnapshot.combatActiveTokenId,
       "snapshot.combatActiveTokenId"
     ),
+    combatFlow:
+      rawSnapshot.combatFlow === undefined || rawSnapshot.combatFlow === null
+        ? null
+        : rawSnapshot.combatFlow,
     latencyLabel:
       typeof rawSnapshot.latencyLabel === "string" ? rawSnapshot.latencyLabel : "--",
     sceneMood:

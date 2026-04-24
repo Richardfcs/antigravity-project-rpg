@@ -9,6 +9,10 @@ export interface TacticalStageToken {
   label: string;
   ownerParticipantId: string | null;
   initiative: number;
+  initiativeOrder: number;
+  basicSpeed: number;
+  dx: number;
+  iq: number;
 }
 
 export interface TacticalCombatStateView {
@@ -77,7 +81,16 @@ export function listMapStageTokens(
         asset,
         label: token.label || character?.name || "Token",
         ownerParticipantId: character?.ownerParticipantId ?? null,
-        initiative: character?.initiative ?? 0
+        initiative: character?.sheetProfile?.derived.basicSpeed ?? character?.initiative ?? 0,
+        initiativeOrder:
+          character?.sheetProfile
+            ? (character.sheetProfile.derived.basicSpeed * 10000) +
+              (character.sheetProfile.attributes.dx * 100) +
+              character.sheetProfile.attributes.iq
+            : (character?.initiative ?? 0) * 100,
+        basicSpeed: character?.sheetProfile?.derived.basicSpeed ?? 0,
+        dx: character?.sheetProfile?.attributes.dx ?? 0,
+        iq: character?.sheetProfile?.attributes.iq ?? 0
       } satisfies TacticalStageToken;
     })
     .filter(Boolean) as TacticalStageToken[];
@@ -91,8 +104,8 @@ export function buildTacticalCombatState(options: {
   entries: TacticalStageToken[];
 }): TacticalCombatStateView {
   const turnOrder = [...options.entries].sort((left, right) => {
-    if (left.initiative !== right.initiative) {
-      return right.initiative - left.initiative;
+    if (left.initiativeOrder !== right.initiativeOrder) {
+      return right.initiativeOrder - left.initiativeOrder;
     }
 
     if (left.label !== right.label) {

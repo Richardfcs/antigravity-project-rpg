@@ -139,11 +139,45 @@ function mapArchetypeToTemplate(entry: Record<string, unknown>): CharacterTempla
 
 function mapLibraryItemToCodexEntry(item: Record<string, unknown>): CodexEntry {
   const sections = [
-    typeof item.sub === "string" && item.sub ? `Subcategoria: ${item.sub}` : null,
-    typeof item.cust === "string" && item.cust ? `Custo: ${item.cust}` : null,
-    typeof item.fonte === "string" && item.fonte ? `Fonte: ${item.fonte}` : null,
-    typeof item.desc === "string" && item.desc ? item.desc : null
-  ].filter(Boolean);
+    typeof item.sub === "string" && item.sub ? `**Subcategoria:** ${item.sub}` : null,
+    typeof item.cust === "string" && item.cust ? `**Custo:** ${item.cust}` : null,
+    typeof item.fonte === "string" && item.fonte ? `**Fonte:** ${item.fonte}` : null,
+  ].filter(Boolean) as string[];
+  if (typeof item.conceito === "string" && item.conceito) {
+    sections.push(`> ${item.conceito}`);
+  }
+
+  if (typeof item.desc === "string" && item.desc) {
+    let formattedDesc = item.desc.replace(/\\n/g, "\n");
+    
+    if (formattedDesc.includes("|") && !formattedDesc.includes("---|")) {
+      const lines = formattedDesc.split("\n");
+      const firstLine = lines[0] ?? "";
+      
+      if (firstLine.includes("|")) {
+        const colsCount = firstLine.split("|").length;
+        const separator = Array(colsCount).fill("---").join("|");
+        lines.splice(1, 0, separator);
+        formattedDesc = lines.join("\n");
+      }
+    }
+    
+    sections.push(formattedDesc);
+  }
+
+  if (Array.isArray(item.pericias_realistas) && item.pericias_realistas.length > 0) {
+    sections.push(`### Perícias\n${item.pericias_realistas.map(p => `- ${p}`).join("\n")}`);
+  }
+
+  if (Array.isArray(item.tecnicas) && item.tecnicas.length > 0) {
+    const tecnicas = item.tecnicas as Array<{nome: string, dificuldade: string, base: string, desc: string}>;
+    sections.push(`### Técnicas\n${tecnicas.map(t => `- **${t.nome}** (${t.dificuldade} | ${t.base}): ${t.desc}`).join("\n")}`);
+  }
+
+  if (Array.isArray(item.qualidades_estilo) && item.qualidades_estilo.length > 0) {
+    const qualidades = item.qualidades_estilo as Array<{nome: string, desc: string}>;
+    sections.push(`### Qualidades do Estilo\n${qualidades.map(q => `- **${q.nome}:** ${q.desc}`).join("\n")}`);
+  }
 
   return {
     id: String(item.id ?? `codex-${Date.now()}`),

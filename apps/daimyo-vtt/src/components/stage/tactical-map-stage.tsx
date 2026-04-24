@@ -1,14 +1,13 @@
-﻿"use client";
+"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
-  ChevronLeft,
-  ChevronRight,
   Compass,
   Flame,
   Eye,
   EyeOff,
   HeartCrack,
+  Image as ImageIcon,
   LoaderCircle,
   Minus,
   MoonStar,
@@ -19,9 +18,11 @@ import {
   Sparkles,
   Swords,
   Trash2,
+  UserRoundSearch,
   Waves,
   X,
-  Zap
+  Zap,
+  Settings2
 } from "lucide-react";
 
 import { adjustCharacterResourceAction } from "@/app/actions/character-actions";
@@ -32,6 +33,11 @@ import {
   removeMapTokenAction,
   updateMapTokenAction
 } from "@/app/actions/map-actions";
+import { TacticalCombatPanel } from "@/components/combat/tactical-combat-panel";
+import { PlayerTurnOverlay } from "@/components/combat/player-turn-overlay";
+import { DefensePromptOverlay } from "@/components/combat/defense-prompt-overlay";
+import { CharacterVisualPicker } from "@/components/ui/character-visual-picker";
+import { AssetVisualPicker } from "@/components/ui/asset-visual-picker";
 import type {
   TacticalCombatStateView,
   TacticalStageToken
@@ -41,6 +47,11 @@ import { cn } from "@/lib/utils";
 import { useMapStore } from "@/stores/map-store";
 import type { SessionAssetRecord } from "@/types/asset";
 import type { SessionCharacterRecord } from "@/types/character";
+import type {
+  CombatDefenseOption,
+  CombatDraftAction,
+  SessionCombatFlow
+} from "@/types/combat";
 import type {
   SessionMapRecord,
   TokenFaction,
@@ -52,6 +63,7 @@ interface TacticalMapStageProps {
   map: SessionMapRecord | null;
   tokens: TacticalStageToken[];
   combatState?: TacticalCombatStateView;
+  combatFlow?: SessionCombatFlow | null;
   backgroundUrl?: string | null;
   backgroundAsset?: SessionAssetRecord | null;
   compact?: boolean;
@@ -62,10 +74,19 @@ interface TacticalMapStageProps {
   assetOptions?: SessionAssetRecord[];
   characterOptions?: SessionCharacterRecord[];
   onMoveToken?: (tokenId: string, x: number, y: number) => void;
-  onCombatStart?: () => void;
-  onCombatStop?: () => void;
-  onCombatAdvance?: (direction: "next" | "previous") => void;
-  onSelectCombatant?: (tokenId: string) => void;
+  onCombatStart?: () => Promise<void> | void;
+  onCombatStop?: () => Promise<void> | void;
+  onCombatAdvance?: (direction: "next" | "previous") => Promise<void> | void;
+  onSelectCombatant?: (tokenId: string) => Promise<void> | void;
+  onExecuteCombatAction?: (action: CombatDraftAction) => Promise<void> | void;
+  onRespondCombatPrompt?: (input: {
+    eventId: string;
+    defenseOption: CombatDefenseOption;
+    retreat?: boolean;
+    acrobatic?: boolean;
+  }) => Promise<void> | void;
+  onGmTakeOver?: (tokenId: string) => Promise<void> | void;
+  onRequestLibrary?: (section: any) => void;
 }
 
 interface DragState {
@@ -142,6 +163,7 @@ export function TacticalMapStage({
   map,
   tokens,
   combatState,
+  combatFlow = null,
   backgroundUrl,
   backgroundAsset = null,
   compact = false,
@@ -155,7 +177,10 @@ export function TacticalMapStage({
   onCombatStart,
   onCombatStop,
   onCombatAdvance,
-  onSelectCombatant
+  onSelectCombatant,
+  onExecuteCombatAction,
+  onRespondCombatPrompt,
+  onRequestLibrary
 }: TacticalMapStageProps) {
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
   const upsertMapToken = useMapStore((state) => state.upsertMapToken);
@@ -165,6 +190,10 @@ export function TacticalMapStage({
   const zoomRef = useRef(1);
   const [zoom, setZoom] = useState(1);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const panRef = useRef<{ isPanning: boolean; startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
+  const zoomAnchorRef = useRef<{ mapX: number; mapY: number; cursorX: number; cursorY: number } | null>(null);
+  const touchStateRef = useRef<{ initialDistance: number; initialZoom: number; mapCenterX: number; mapCenterY: number; cursorX: number; cursorY: number } | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [tokenMenu, setTokenMenu] = useState<TokenMenuState | null>(null);
   const [isCombatDrawerOpen, setIsCombatDrawerOpen] = useState(false);
@@ -180,6 +209,10 @@ export function TacticalMapStage({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isCharacterPickerOpen, setIsCharacterPickerOpen] = useState(false);
+  const [isNpcAssetPickerOpen, setIsNpcAssetPickerOpen] = useState(false);
+  const [isFreeAssetPickerOpen, setIsFreeAssetPickerOpen] = useState(false);
+  const [isTokenMenuAssetPickerOpen, setIsTokenMenuAssetPickerOpen] = useState(false);
   const isFocus = viewMode === "focus";
   const worldWidth = backgroundAsset?.width ?? map?.width ?? 1600;
   const worldHeight = backgroundAsset?.height ?? map?.height ?? 900;
@@ -218,7 +251,7 @@ export function TacticalMapStage({
 
       const widthRatio = viewport.clientWidth / worldWidth;
       const heightRatio = viewport.clientHeight / worldHeight;
-      const nextZoom = clamp(Number(Math.min(widthRatio, heightRatio).toFixed(2)), 0.15, 2.4);
+      const nextZoom = clamp(Number(Math.min(widthRatio, heightRatio).toFixed(2)), 0.05, 4.0);
 
     setZoom(nextZoom);
     window.requestAnimationFrame(() => {
@@ -329,6 +362,145 @@ export function TacticalMapStage({
     };
   }, [dragState]);
 
+  useLayoutEffect(() => {
+    if (zoomAnchorRef.current && viewportRef.current) {
+      const { mapX, mapY, cursorX, cursorY } = zoomAnchorRef.current;
+      viewportRef.current.scrollLeft = mapX * zoom - cursorX;
+      viewportRef.current.scrollTop = mapY * zoom - cursorY;
+      zoomAnchorRef.current = null;
+    }
+  }, [zoom]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        
+        const surface = surfaceRef.current;
+        if (!surface) return;
+        
+        const currentZoom = zoomRef.current;
+        const zoomDelta = -e.deltaY * 0.002;
+        const nextZoom = clamp(Number((currentZoom + zoomDelta).toFixed(3)), 0.05, 4.0);
+        
+        if (nextZoom === currentZoom) return;
+        
+        const rect = viewport.getBoundingClientRect();
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+        const mapX = (viewport.scrollLeft + cursorX) / currentZoom;
+        const mapY = (viewport.scrollTop + cursorY) / currentZoom;
+        
+        zoomAnchorRef.current = { mapX, mapY, cursorX, cursorY };
+        setZoom(nextZoom);
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        
+        const rect = viewport.getBoundingClientRect();
+        const cursorX = centerX - rect.left;
+        const cursorY = centerY - rect.top;
+        const mapX = (viewport.scrollLeft + cursorX) / zoomRef.current;
+        const mapY = (viewport.scrollTop + cursorY) / zoomRef.current;
+
+        touchStateRef.current = {
+          initialDistance: distance,
+          initialZoom: zoomRef.current,
+          mapCenterX: mapX,
+          mapCenterY: mapY,
+          cursorX,
+          cursorY
+        };
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && touchStateRef.current) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        const scale = distance / touchStateRef.current.initialDistance;
+        const nextZoom = clamp(Number((touchStateRef.current.initialZoom * scale).toFixed(3)), 0.05, 4.0);
+        
+        if (nextZoom !== zoomRef.current) {
+          zoomAnchorRef.current = {
+            mapX: touchStateRef.current.mapCenterX,
+            mapY: touchStateRef.current.mapCenterY,
+            cursorX: touchStateRef.current.cursorX,
+            cursorY: touchStateRef.current.cursorY
+          };
+          setZoom(nextZoom);
+        }
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        touchStateRef.current = null;
+      }
+    };
+
+    viewport.addEventListener("wheel", handleWheel, { passive: false });
+    viewport.addEventListener("touchstart", handleTouchStart, { passive: false });
+    viewport.addEventListener("touchmove", handleTouchMove, { passive: false });
+    viewport.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      viewport.removeEventListener("wheel", handleWheel);
+      viewport.removeEventListener("touchstart", handleTouchStart);
+      viewport.removeEventListener("touchmove", handleTouchMove);
+      viewport.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, []);
+
+  const handleViewportPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.button !== 1) return;
+    
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    
+    e.currentTarget.setPointerCapture(e.pointerId);
+    panRef.current = {
+      isPanning: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollLeft: viewport.scrollLeft,
+      scrollTop: viewport.scrollTop
+    };
+    setIsPanning(true);
+  };
+
+  const handleViewportPointerMove = (e: React.PointerEvent) => {
+    if (!panRef.current?.isPanning || !viewportRef.current) return;
+    
+    const dx = e.clientX - panRef.current.startX;
+    const dy = e.clientY - panRef.current.startY;
+    
+    viewportRef.current.scrollLeft = panRef.current.scrollLeft - dx;
+    viewportRef.current.scrollTop = panRef.current.scrollTop - dy;
+  };
+
+  const handleViewportPointerUp = (e: React.PointerEvent) => {
+    if (!panRef.current) return;
+    panRef.current.isPanning = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    setIsPanning(false);
+  };
+
   const tokenAssetOptions = useMemo(
     () => assetOptions.filter((asset) => ["token", "portrait", "npc"].includes(asset.kind)),
     [assetOptions]
@@ -375,14 +547,14 @@ export function TacticalMapStage({
     visibleTokens.find((entry) => entry.token.id === selectedTokenId) ??
     visibleTokens.find((entry) => entry.token.id === tokenMenu?.tokenId) ??
     null;
-  const activeCombatant = combatState?.activeEntry ?? null;
-
   const runAsync = (key: string, task: () => Promise<void>) => {
     setPendingKey(key);
     setFeedback(null);
     startTransition(async () => {
       try {
         await task();
+      } catch (error) {
+        setFeedback(error instanceof Error ? error.message : "Falha ao concluir a acao.");
       } finally {
         setPendingKey(null);
       }
@@ -644,113 +816,75 @@ export function TacticalMapStage({
     Math.round((map.gridSize * renderedWidth) / Math.max(worldWidth, 1))
   );
   const combatPanel = combatState ? (
-    <div className="flex h-full min-h-0 flex-col rounded-[22px] border border-white/10 bg-[rgba(5,10,18,0.96)] p-4 shadow-[0_24px_80px_rgba(2,6,23,0.55)] backdrop-blur">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="hud-chip border-rose-300/20 bg-rose-300/10 text-rose-100">
-              <Swords size={14} />
-              ordem de turno
-            </span>
-            <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
-              {combatState.totalTurns} combatentes
-            </span>
-            {combatState.enabled ? (
-              <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
-                rodada {combatState.round}
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-            {combatState.enabled
-              ? `Ativo: ${activeCombatant?.label ?? "sem destaque"}.`
-              : "Inicie a ordem para marcar o turno ativo e percorrer o campo."}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsCombatDrawerOpen(false)}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
-        >
-          <X size={14} />
-        </button>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {!combatState.enabled ? (
-          canManageCombat ? (
-            <button
-              type="button"
-              onClick={onCombatStart}
-              className="inline-flex items-center gap-2 rounded-full border border-rose-300/22 bg-rose-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-100 transition hover:border-rose-300/35"
-            >
-              <Swords size={14} />
-              iniciar ordem
-            </button>
-          ) : null
-        ) : canManageCombat ? (
-          <>
-            <button
-              type="button"
-              onClick={() => onCombatAdvance?.("previous")}
-              className="rail-button h-9 px-3 text-xs font-semibold uppercase tracking-[0.16em]"
-            >
-              <ChevronLeft size={14} />
-              anterior
-            </button>
-            <button
-              type="button"
-              onClick={() => onCombatAdvance?.("next")}
-              className="rail-button h-9 px-3 text-xs font-semibold uppercase tracking-[0.16em]"
-            >
-              proximo
-              <ChevronRight size={14} />
-            </button>
-            <button
-              type="button"
-              onClick={onCombatStop}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
-            >
-              encerrar
-            </button>
-          </>
-        ) : null}
-      </div>
-
-      {combatState.turnOrder.length > 0 ? (
-        <div className="scrollbar-thin mt-4 flex-1 space-y-2 overflow-y-auto pr-1">
-          {combatState.turnOrder.map((entry, index) => {
-            const isActive = entry.token.id === combatState.activeTokenId;
-
-            return (
-              <button
-                key={`combat:${entry.token.id}`}
-                type="button"
-                onClick={() => onSelectCombatant?.(entry.token.id)}
-                disabled={!canManageCombat}
-                className={cn(
-                  "w-full rounded-[18px] border px-3 py-3 text-left transition",
-                  isActive
-                    ? "border-amber-300/30 bg-amber-300/12 text-white"
-                    : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]",
-                  canManageCombat ? "hover:border-white/20" : "cursor-default"
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="section-label">turno {index + 1}</p>
-                    <p className="mt-1 text-sm font-semibold text-white">{entry.label}</p>
-                  </div>
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--ink-3)]">
-                    init {entry.initiative >= 0 ? `+${entry.initiative}` : entry.initiative}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
+    <TacticalCombatPanel
+      tokens={tokens}
+      combatState={combatState}
+      combatFlow={combatFlow}
+      canManageCombat={canManageCombat}
+      selectedTokenId={selectedTokenId}
+      isPending={isPending}
+      pendingKey={pendingKey}
+      onClose={() => setIsCombatDrawerOpen(false)}
+      onCombatStart={
+        onCombatStart
+          ? () => {
+              runAsync("combat:start", async () => {
+                await onCombatStart();
+              });
+            }
+          : undefined
+      }
+      onCombatStop={
+        onCombatStop
+          ? () => {
+              runAsync("combat:stop", async () => {
+                await onCombatStop();
+              });
+            }
+          : undefined
+      }
+      onCombatAdvance={
+        onCombatAdvance
+          ? (direction) => {
+              runAsync(`combat:advance:${direction}`, async () => {
+                await onCombatAdvance(direction);
+              });
+            }
+          : undefined
+      }
+      onSelectCombatant={
+        onSelectCombatant
+          ? (tokenId) => {
+              runAsync(`combat:select:${tokenId}`, async () => {
+                await onSelectCombatant(tokenId);
+              });
+            }
+          : undefined
+      }
+      onExecuteCombatAction={
+        onExecuteCombatAction
+          ? (action) => {
+              runAsync(`combat:action:${action.actionType}`, async () => {
+                await onExecuteCombatAction(action);
+              });
+            }
+          : undefined
+      }
+      onRespondCombatPrompt={
+        onRespondCombatPrompt
+          ? (input) => {
+              runAsync(`combat:prompt:${input.eventId}`, async () => {
+                await onRespondCombatPrompt(input);
+              });
+            }
+          : undefined
+      }
+      onRemoveToken={(tokenId) => {
+        runAsync(`delete-token:${tokenId}`, async () => {
+          await handleDeleteToken(tokenId);
+        });
+      }}
+    />
   ) : null;
 
   return (
@@ -780,6 +914,16 @@ export function TacticalMapStage({
                 novo token
               </button>
             )}
+            {canManageTokens && onRequestLibrary && (
+              <button
+                type="button"
+                onClick={() => onRequestLibrary("maps")}
+                className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] transition hover:border-emerald-300/24 hover:bg-emerald-300/10 hover:text-emerald-100 cursor-pointer"
+              >
+                <Settings2 size={14} />
+                gerenciar mapas
+              </button>
+            )}
           </div>
         </div>
 
@@ -807,7 +951,7 @@ export function TacticalMapStage({
               <Swords size={14} />
               {combatState.enabled
                 ? `turno ${combatState.totalTurns === 0 ? 0 : combatState.activeIndex + 1}`
-                : "iniciativa"}
+                : "ordem de combate"}
             </button>
           ) : null}
           {canManageTokens && isFocus && selectedToken ? (
@@ -848,7 +992,7 @@ export function TacticalMapStage({
           <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/18 px-2 py-1.5">
             <button
               type="button"
-              onClick={() => setZoom((current) => clamp(Number((current - 0.2).toFixed(2)), 0.6, 2.4))}
+              onClick={() => setZoom((current) => clamp(Number((current - 0.2).toFixed(2)), 0.05, 4.0))}
               className="rail-button h-9 w-9"
             >
               <Minus size={14} />
@@ -858,7 +1002,7 @@ export function TacticalMapStage({
             </span>
             <button
               type="button"
-              onClick={() => setZoom((current) => clamp(Number((current + 0.2).toFixed(2)), 0.6, 2.4))}
+              onClick={() => setZoom((current) => clamp(Number((current + 0.2).toFixed(2)), 0.05, 4.0))}
               className="rail-button h-9 w-9"
             >
               <Plus size={14} />
@@ -866,6 +1010,44 @@ export function TacticalMapStage({
           </div>
         </div>
       </div>
+
+      {/* Overlays de Combate Gamificados */}
+      {combatFlow && (
+        <>
+          {/* Turno do Jogador */}
+          {combatFlow.phase === "command" && 
+           combatState?.activeTokenId && 
+           visibleTokens.find(t => t.token.id === combatState.activeTokenId)?.ownerParticipantId === viewerParticipantId && (
+            <PlayerTurnOverlay
+              token={visibleTokens.find(t => t.token.id === combatState.activeTokenId)!}
+              combatState={combatState}
+              combatFlow={combatFlow}
+              onExecute={(action) => onExecuteCombatAction?.(action)}
+              onClose={() => setIsCombatDrawerOpen(false)}
+            />
+          )}
+
+          {/* Prompt de Defesa */}
+          {combatFlow.phase === "awaiting-defense" && 
+           combatFlow.pendingPrompt?.participantId === viewerParticipantId && (() => {
+            const prompt = combatFlow.pendingPrompt!;
+            return (
+              <DefensePromptOverlay
+                summary={prompt.payload.summary}
+                options={prompt.payload.options}
+                canRetreat={prompt.payload.canRetreat}
+                canAcrobatic={prompt.payload.canAcrobatic}
+                onResolve={(option, retreat, acrobatic) => onRespondCombatPrompt?.({
+                  eventId: prompt.eventId!,
+                  defenseOption: option,
+                  retreat,
+                  acrobatic
+                })}
+              />
+            );
+          })()}
+        </>
+      )}
 
       {canManageTokens && !isFocus && isCreatorOpen && (
         <div className="shrink-0 grid gap-3 rounded-[22px] border border-amber-300/16 bg-black/24 p-4 xl:grid-cols-[220px_minmax(0,1fr)_220px]">
@@ -898,33 +1080,55 @@ export function TacticalMapStage({
             </p>
 
             {creatorMode === "character" && (
-              <select
-                value={selectedCharacterId}
-                onChange={(event) => setSelectedCharacterId(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-              >
-                <option value="">escolha uma ficha</option>
-                {availableCharacters.map((character) => (
-                  <option key={character.id} value={character.id}>
-                    {character.name}
-                  </option>
-                ))}
-              </select>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsCharacterPickerOpen(true)}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                >
+                  <UserRoundSearch size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                  <span className={selectedCharacterId ? "text-white" : "text-[color:var(--ink-3)]"}
+                  >
+                    {selectedCharacterId
+                      ? (availableCharacters.find((c) => c.id === selectedCharacterId)?.name ?? "personagem selecionado")
+                      : "escolher personagem..."}
+                  </span>
+                </button>
+                <CharacterVisualPicker
+                  open={isCharacterPickerOpen}
+                  onClose={() => setIsCharacterPickerOpen(false)}
+                  onSelect={(id) => setSelectedCharacterId(id)}
+                  characters={characterOptions}
+                  assets={assetOptions}
+                  excludeIds={usedCharacterIds}
+                />
+              </>
             )}
 
             {creatorMode === "npc-asset" && (
-              <select
-                value={selectedNpcAssetId}
-                onChange={(event) => setSelectedNpcAssetId(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-              >
-                <option value="">escolha um asset</option>
-                {tokenAssetOptions.map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.label}
-                  </option>
-                ))}
-              </select>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsNpcAssetPickerOpen(true)}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                >
+                  <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                  <span className={selectedNpcAssetId ? "text-white" : "text-[color:var(--ink-3)]"}
+                  >
+                    {selectedNpcAssetId
+                      ? (tokenAssetOptions.find((a) => a.id === selectedNpcAssetId)?.label ?? "asset selecionado")
+                      : "escolher NPC asset..."}
+                  </span>
+                </button>
+                <AssetVisualPicker
+                  open={isNpcAssetPickerOpen}
+                  onClose={() => setIsNpcAssetPickerOpen(false)}
+                  onSelect={(id) => setSelectedNpcAssetId(id)}
+                  assets={assetOptions}
+                  filterKinds={["token", "portrait", "npc"]}
+                  title="Selecionar NPC Asset"
+                />
+              </>
             )}
 
             {creatorMode === "ad-hoc" && (
@@ -935,30 +1139,49 @@ export function TacticalMapStage({
                   className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
                   placeholder="Sentinela"
                 />
-                <select
-                  value={freeTokenAssetId}
-                  onChange={(event) => setFreeTokenAssetId(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                <button
+                  type="button"
+                  onClick={() => setIsFreeAssetPickerOpen(true)}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
                 >
-                  <option value="">sem imagem</option>
-                  {tokenAssetOptions.map((asset) => (
-                    <option key={asset.id} value={asset.id}>
-                      {asset.label}
-                    </option>
-                    ))}
-                  </select>
-                <select
-                  value={freeTokenFaction}
-                  onChange={(event) =>
-                    setFreeTokenFaction(event.target.value as TokenFaction | "")
-                  }
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-                >
-                  <option value="">sem faccao</option>
-                  <option value="ally">aliado</option>
-                  <option value="enemy">inimigo</option>
-                  <option value="neutral">neutro</option>
-                </select>
+                  <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                  <span className={freeTokenAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                  >
+                    {freeTokenAssetId
+                      ? (tokenAssetOptions.find((a) => a.id === freeTokenAssetId)?.label ?? "imagem")
+                      : "sem imagem"}
+                  </span>
+                </button>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    ["", "sem faccao"],
+                    ["ally", "aliado"],
+                    ["enemy", "inimigo"],
+                    ["neutral", "neutro"]
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setFreeTokenFaction(value as TokenFaction | "")}
+                      className={cn(
+                        "hud-chip transition cursor-pointer",
+                        freeTokenFaction === value
+                          ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                          : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <AssetVisualPicker
+                  open={isFreeAssetPickerOpen}
+                  onClose={() => setIsFreeAssetPickerOpen(false)}
+                  onSelect={(id) => setFreeTokenAssetId(id)}
+                  assets={assetOptions}
+                  filterKinds={["token", "portrait", "npc"]}
+                  title="Selecionar Imagem do Token"
+                />
               </div>
             )}
           </div>
@@ -983,8 +1206,13 @@ export function TacticalMapStage({
 
       <div
         ref={viewportRef}
+        onPointerDown={handleViewportPointerDown}
+        onPointerMove={handleViewportPointerMove}
+        onPointerUp={handleViewportPointerUp}
+        onPointerLeave={handleViewportPointerUp}
         className={cn(
           "scrollbar-thin relative min-h-0 flex-1 overflow-auto rounded-[24px] border border-white/10 bg-black/28",
+          isPanning ? "cursor-grabbing" : "cursor-default",
           compact ? "min-h-[320px]" : isFocus ? "min-h-0" : "min-h-[460px]"
         )}
       >
@@ -1244,42 +1472,60 @@ export function TacticalMapStage({
                 placeholder="Nome do token"
               />
 
-              <select
-                value={tokenMenu.assetId}
-                onChange={(event) =>
-                  setTokenMenu((current) =>
-                    current ? { ...current, assetId: event.target.value } : current
-                  )
-                }
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              <button
+                type="button"
+                onClick={() => setIsTokenMenuAssetPickerOpen(true)}
+                className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
               >
-                <option value="">sem imagem</option>
-                {tokenAssetOptions.map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.label}
-                  </option>
-                ))}
-              </select>
+                <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                <span className={tokenMenu.assetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                >
+                  {tokenMenu.assetId
+                    ? (tokenAssetOptions.find((a) => a.id === tokenMenu.assetId)?.label ?? "imagem")
+                    : "sem imagem"}
+                </span>
+              </button>
+              <AssetVisualPicker
+                open={isTokenMenuAssetPickerOpen}
+                onClose={() => setIsTokenMenuAssetPickerOpen(false)}
+                onSelect={(id) => {
+                  setTokenMenu((current) =>
+                    current ? { ...current, assetId: id } : current
+                  );
+                }}
+                assets={assetOptions}
+                filterKinds={["token", "portrait", "npc"]}
+                title="Selecionar Imagem do Token"
+              />
 
-              <select
-                value={tokenMenu.faction}
-                onChange={(event) =>
-                  setTokenMenu((current) =>
-                    current
-                      ? {
-                          ...current,
-                          faction: event.target.value as TokenFaction | ""
-                        }
-                      : current
-                  )
-                }
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-              >
-                <option value="">sem faccao</option>
-                <option value="ally">aliado</option>
-                <option value="enemy">inimigo</option>
-                <option value="neutral">neutro</option>
-              </select>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  ["", "sem faccao"],
+                  ["ally", "aliado"],
+                  ["enemy", "inimigo"],
+                  ["neutral", "neutro"]
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() =>
+                      setTokenMenu((current) =>
+                        current
+                          ? { ...current, faction: value as TokenFaction | "" }
+                          : current
+                      )
+                    }
+                    className={cn(
+                      "hud-chip transition cursor-pointer",
+                      tokenMenu.faction === value
+                        ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                        : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
 
               <label className="block">
                 <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-[color:var(--ink-3)]">
@@ -1474,42 +1720,60 @@ export function TacticalMapStage({
                   placeholder="Nome do token"
                 />
 
-                <select
-                  value={tokenMenu.assetId}
-                  onChange={(event) =>
-                    setTokenMenu((current) =>
-                      current ? { ...current, assetId: event.target.value } : current
-                    )
-                  }
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                <button
+                  type="button"
+                  onClick={() => setIsTokenMenuAssetPickerOpen(true)}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
                 >
-                  <option value="">sem imagem</option>
-                  {tokenAssetOptions.map((asset) => (
-                    <option key={asset.id} value={asset.id}>
-                      {asset.label}
-                    </option>
-                  ))}
-                </select>
+                  <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                  <span className={tokenMenu.assetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                  >
+                    {tokenMenu.assetId
+                      ? (tokenAssetOptions.find((a) => a.id === tokenMenu.assetId)?.label ?? "imagem")
+                      : "sem imagem"}
+                  </span>
+                </button>
+                <AssetVisualPicker
+                  open={isTokenMenuAssetPickerOpen}
+                  onClose={() => setIsTokenMenuAssetPickerOpen(false)}
+                  onSelect={(id) => {
+                    setTokenMenu((current) =>
+                      current ? { ...current, assetId: id } : current
+                    );
+                  }}
+                  assets={assetOptions}
+                  filterKinds={["token", "portrait", "npc"]}
+                  title="Selecionar Imagem do Token"
+                />
 
-                <select
-                  value={tokenMenu.faction}
-                  onChange={(event) =>
-                    setTokenMenu((current) =>
-                      current
-                        ? {
-                            ...current,
-                            faction: event.target.value as TokenFaction | ""
-                          }
-                        : current
-                    )
-                  }
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-                >
-                  <option value="">sem faccao</option>
-                  <option value="ally">aliado</option>
-                  <option value="enemy">inimigo</option>
-                  <option value="neutral">neutro</option>
-                </select>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    ["", "sem faccao"],
+                    ["ally", "aliado"],
+                    ["enemy", "inimigo"],
+                    ["neutral", "neutro"]
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() =>
+                        setTokenMenu((current) =>
+                          current
+                            ? { ...current, faction: value as TokenFaction | "" }
+                            : current
+                        )
+                      }
+                      className={cn(
+                        "hud-chip transition cursor-pointer",
+                        tokenMenu.faction === value
+                          ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                          : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
 
                 <label className="block">
                   <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-[color:var(--ink-3)]">
@@ -1679,5 +1943,7 @@ export function TacticalMapStage({
     </div>
   );
 }
+
+
 
 

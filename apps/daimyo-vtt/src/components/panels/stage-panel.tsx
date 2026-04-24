@@ -14,6 +14,7 @@ import {
   findActiveAtlasMap,
   listAtlasStagePins
 } from "@/lib/atlas/selectors";
+import type { CombatDefenseOption, CombatDraftAction, SessionCombatFlow } from "@/types/combat";
 import type { TacticalCombatStateView } from "@/lib/maps/selectors";
 import {
   findActiveMap,
@@ -40,7 +41,8 @@ import type {
   PresentationMode,
   SessionShellSnapshot,
   SessionViewerIdentity,
-  StageMode
+  StageMode,
+  ExplorerSection
 } from "@/types/session";
 
 interface StagePanelProps {
@@ -59,13 +61,23 @@ interface StagePanelProps {
   atlasMapIdOverride?: string | null;
   onAtlasMapNavigate?: (atlasMapId: string | null) => void;
   combatState?: TacticalCombatStateView;
+  combatFlow?: SessionCombatFlow | null;
   canManageCombat?: boolean;
-  onCombatStart?: () => void;
-  onCombatStop?: () => void;
-  onCombatAdvance?: (direction: "next" | "previous") => void;
-  onSelectCombatant?: (tokenId: string) => void;
+  onCombatStart?: () => Promise<void> | void;
+  onCombatStop?: () => Promise<void> | void;
+  onCombatAdvance?: (direction: "next" | "previous") => Promise<void> | void;
+  onSelectCombatant?: (tokenId: string) => Promise<void> | void;
+  onExecuteCombatAction?: (action: CombatDraftAction) => Promise<void> | void;
+  onRespondCombatPrompt?: (input: {
+    eventId: string;
+    defenseOption: CombatDefenseOption;
+    retreat?: boolean;
+    acrobatic?: boolean;
+  }) => Promise<void> | void;
+  onGmTakeOver?: (tokenId: string) => Promise<void> | void;
   onStageModeChange: (mode: StageMode) => void;
   onPresentationModeChange: (mode: PresentationMode) => void;
+  onRequestLibrary?: (section: ExplorerSection) => void;
 }
 
 export function StagePanel({
@@ -84,12 +96,17 @@ export function StagePanel({
   atlasMapIdOverride,
   onAtlasMapNavigate,
   combatState,
+  combatFlow = null,
   canManageCombat,
   onCombatStart,
   onCombatStop,
   onCombatAdvance,
   onSelectCombatant,
-  onPresentationModeChange
+  onExecuteCombatAction,
+  onRespondCombatPrompt,
+  onGmTakeOver,
+  onPresentationModeChange,
+  onRequestLibrary
 }: StagePanelProps) {
   const upsertMapToken = useMapStore((state) => state.upsertMapToken);
   const storedAtlasPinCharacters = useAtlasStore((state) => state.atlasPinCharacters);
@@ -255,6 +272,8 @@ export function StagePanel({
               backgroundUrl={backgroundAsset?.secureUrl ?? null}
               entries={activeEntries}
               viewMode="workspace"
+              canManageScenes={viewer?.role === "gm"}
+              onRequestLibrary={onRequestLibrary}
             />
           )}
 
@@ -267,6 +286,7 @@ export function StagePanel({
               backgroundAsset={activeMapBackground}
               tokens={activeMapTokens}
               combatState={combatState}
+              combatFlow={combatFlow}
               canManageCombat={canManageCombat}
               viewerParticipantId={viewer?.participantId}
               canManageTokens={viewer?.role === "gm"}
@@ -277,6 +297,10 @@ export function StagePanel({
               onCombatStop={onCombatStop}
               onCombatAdvance={onCombatAdvance}
               onSelectCombatant={onSelectCombatant}
+              onExecuteCombatAction={onExecuteCombatAction}
+              onRespondCombatPrompt={onRespondCombatPrompt}
+              onGmTakeOver={onGmTakeOver}
+              onRequestLibrary={onRequestLibrary}
               viewMode="workspace"
             />
           )}
@@ -298,6 +322,7 @@ export function StagePanel({
               onOpenSubmap={(atlasMapId) => onAtlasMapNavigate?.(atlasMapId)}
               onResetNavigation={() => onAtlasMapNavigate?.(null)}
               navigatingSubmap={Boolean(atlasMapIdOverride && atlasMapIdOverride !== snapshot.activeAtlasMapId)}
+              onRequestLibrary={onRequestLibrary}
               viewMode="workspace"
             />
           )}

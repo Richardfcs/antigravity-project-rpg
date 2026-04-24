@@ -1,4 +1,4 @@
-import { ImageOff, Sparkles } from "lucide-react";
+import { ImageOff, Sparkles, Settings2 } from "lucide-react";
 
 import { AssetAvatar } from "@/components/media/asset-avatar";
 import { findSpotlightEntry, type SceneStageEntry } from "@/lib/scenes/selectors";
@@ -13,32 +13,37 @@ interface TheaterStageProps {
   entries: SceneStageEntry[];
   compact?: boolean;
   viewMode?: "workspace" | "focus";
+  canManageScenes?: boolean;
+  onRequestLibrary?: (section: any) => void;
 }
 
-function getCardSize(count: number, compact: boolean, isFocus: boolean) {
+function getCardWidth(count: number, compact: boolean, isFocus: boolean) {
   if (count >= 12) {
-    return compact ? "w-[104px]" : isFocus ? "w-[142px]" : "w-[124px]";
+    return compact ? "clamp(72px, 8vw, 104px)" : isFocus ? "clamp(80px, 10vw, 142px)" : "clamp(80px, 9vw, 124px)";
   }
 
   if (count >= 8) {
-    return compact ? "w-[122px]" : isFocus ? "w-[162px]" : "w-[144px]";
+    return compact ? "clamp(84px, 10vw, 122px)" : isFocus ? "clamp(100px, 12vw, 162px)" : "clamp(90px, 11vw, 144px)";
   }
 
   if (count >= 5) {
-    return compact ? "w-[146px]" : isFocus ? "w-[190px]" : "w-[172px]";
+    return compact ? "clamp(100px, 13vw, 146px)" : isFocus ? "clamp(120px, 16vw, 190px)" : "clamp(110px, 14vw, 172px)";
   }
 
-  return compact ? "w-[176px]" : isFocus ? "w-[226px]" : "w-[208px]";
+  return compact ? "clamp(120px, 16vw, 176px)" : isFocus ? "clamp(140px, 20vw, 226px)" : "clamp(130px, 18vw, 208px)";
 }
 
-function getArcOffset(index: number, total: number) {
-  if (total <= 1) {
-    return 0;
-  }
-
+function getArcTransform(index: number, total: number) {
+  if (total <= 1) return { y: 0, r: 0 };
+  
   const center = (total - 1) / 2;
   const distance = Math.abs(index - center);
-  return Math.round(distance * 20);
+  const direction = index < center ? -1 : 1;
+  
+  const y = Math.pow(distance, 1.6) * 12;
+  const r = distance * 4.5 * direction;
+  
+  return { y, r };
 }
 
 function buildCardStyle(input: {
@@ -46,28 +51,38 @@ function buildCardStyle(input: {
   total: number;
   layoutMode: SceneLayoutMode;
   isSpotlight: boolean;
+  baseWidth: string;
 }) {
-  const arcOffset = input.layoutMode === "arc" ? getArcOffset(input.index, input.total) : 0;
-  const spotlightLift = input.isSpotlight ? -10 : 0;
-  const spotlightScale = input.isSpotlight ? 1.045 : 1;
+  let yOffset = 0;
+  let rotate = 0;
+
+  if (input.layoutMode === "arc") {
+    const arc = getArcTransform(input.index, input.total);
+    yOffset = arc.y;
+    rotate = arc.r;
+  }
+
+  const spotlightLift = input.isSpotlight ? -18 : 0;
+  const spotlightScale = input.isSpotlight ? 1.06 : 1;
+  const totalY = yOffset + spotlightLift;
 
   return {
-    transform: `translateY(${spotlightLift}px) scale(${spotlightScale})`,
-    marginTop: input.layoutMode === "arc" ? `${arcOffset}px` : undefined
+    width: input.baseWidth,
+    transform: `translateY(${totalY}px) scale(${spotlightScale}) rotate(${rotate}deg)`,
+    transformOrigin: "bottom center",
+    transition: "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), filter 0.6s ease"
   } satisfies React.CSSProperties;
 }
 
 function CastCard({
   entry,
   isSpotlight,
-  cardSize,
   compact,
   isFocus,
   style
 }: {
   entry: SceneStageEntry;
   isSpotlight: boolean;
-  cardSize: string;
   compact: boolean;
   isFocus: boolean;
   style?: React.CSSProperties;
@@ -75,10 +90,7 @@ function CastCard({
   return (
     <article
       key={entry.entry.id}
-      className={cn(
-        "group relative flex flex-col items-center transition-all duration-500",
-        cardSize
-      )}
+      className="group relative flex flex-col items-center"
       style={style}
     >
       {isSpotlight ? (
@@ -132,11 +144,13 @@ export function TheaterStage({
   backgroundUrl,
   entries,
   compact = false,
-  viewMode = "workspace"
+  viewMode = "workspace",
+  canManageScenes = false,
+  onRequestLibrary
 }: TheaterStageProps) {
   const spotlight = findSpotlightEntry(entries);
   const isFocus = viewMode === "focus";
-  const cardSize = getCardSize(entries.length, compact, isFocus);
+  const baseWidth = getCardWidth(entries.length, compact, isFocus);
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 overflow-hidden rounded-[30px] bg-black">
@@ -174,11 +188,20 @@ export function TheaterStage({
             <span className="hud-chip border-white/10 bg-black/30 text-[color:var(--ink-2)]">
               {moodLabel || "sem clima definido"}
             </span>
+            {canManageScenes && onRequestLibrary && (
+              <button
+                type="button"
+                onClick={() => onRequestLibrary("scenes")}
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-100 transition hover:border-amber-400/60 hover:bg-amber-400/20"
+              >
+                <Settings2 size={12} />
+                gerenciar cenas
+              </button>
+            )}
           </div>
 
-          <div className="mt-3 rounded-full border border-white/10 bg-black/34 px-4 py-1.5 shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-            <p className="section-label text-center">cena em foco</p>
-            <h2 className="mt-1.5 text-balance text-[1.8rem] font-semibold text-white sm:text-[1.95rem]">
+          <div className="mt-2.5 rounded-2xl border border-white/10 bg-black/40 px-5 py-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
+            <h2 className="text-balance text-xl font-bold tracking-tight text-white sm:text-2xl">
               {sceneName}
             </h2>
           </div>
@@ -201,14 +224,14 @@ export function TheaterStage({
                   key={entry.entry.id}
                   entry={entry}
                   isSpotlight={spotlight?.entry.id === entry.entry.id}
-                  cardSize={cardSize}
                   compact={compact}
                   isFocus={isFocus}
                   style={buildCardStyle({
                     index,
                     total: entries.length,
                     layoutMode,
-                    isSpotlight: spotlight?.entry.id === entry.entry.id
+                    isSpotlight: spotlight?.entry.id === entry.entry.id,
+                    baseWidth
                   })}
                 />
               ))}
@@ -220,14 +243,14 @@ export function TheaterStage({
                   key={entry.entry.id}
                   entry={entry}
                   isSpotlight={spotlight?.entry.id === entry.entry.id}
-                  cardSize={cardSize}
                   compact={compact}
                   isFocus={isFocus}
                   style={buildCardStyle({
                     index,
                     total: entries.length,
                     layoutMode,
-                    isSpotlight: spotlight?.entry.id === entry.entry.id
+                    isSpotlight: spotlight?.entry.id === entry.entry.id,
+                    baseWidth
                   })}
                 />
               ))}
@@ -239,14 +262,14 @@ export function TheaterStage({
                   key={entry.entry.id}
                   entry={entry}
                   isSpotlight={spotlight?.entry.id === entry.entry.id}
-                  cardSize={cardSize}
                   compact={compact}
                   isFocus={isFocus}
                   style={buildCardStyle({
                     index,
                     total: entries.length,
                     layoutMode,
-                    isSpotlight: spotlight?.entry.id === entry.entry.id
+                    isSpotlight: spotlight?.entry.id === entry.entry.id,
+                    baseWidth
                   })}
                 />
               ))}

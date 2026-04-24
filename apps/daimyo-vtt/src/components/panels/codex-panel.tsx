@@ -3,17 +3,29 @@
 import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
 import {
   BookOpenText,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  Image as ImageIcon,
+  Info,
   LoaderCircle,
   ScrollText,
+  Settings2,
   ShieldPlus,
   Swords
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
+
+import { AssetVisualPicker } from "@/components/ui/asset-visual-picker";
 
 import {
   importBaseArchetypeAction,
   loadBaseCatalogAction
 } from "@/app/actions/content-bridge-actions";
 import { filterLibraryItems, sliceLibraryItems } from "@/lib/library/query";
+import { cn } from "@/lib/utils";
 import { useAssetStore } from "@/stores/asset-store";
 import { useCharacterStore } from "@/stores/character-store";
 import type {
@@ -21,7 +33,7 @@ import type {
   CodexEntry,
   EquipmentEntry
 } from "@/lib/content-bridge/contract";
-import type { CharacterType } from "@/types/character";
+import type { CharacterType, CharacterTier } from "@/types/character";
 import type {
   SessionParticipantRecord,
   SessionViewerIdentity
@@ -35,9 +47,7 @@ interface CodexPanelProps {
   participants: SessionParticipantRecord[];
 }
 
-function renderMarkdownPreview(markdown: string) {
-  return markdown.split("\n").filter(Boolean).slice(0, 3).join("\n");
-}
+
 
 export function CodexPanel({
   sessionCode,
@@ -61,9 +71,14 @@ export function CodexPanel({
   const [selectedCodexCategory, setSelectedCodexCategory] = useState("all");
   const [selectedEquipmentCategory, setSelectedEquipmentCategory] = useState("all");
   const [importType, setImportType] = useState<CharacterType>("player");
+  const [importTier, setImportTier] = useState<CharacterTier>("full");
   const [importOwnerParticipantId, setImportOwnerParticipantId] = useState("");
   const [importAssetId, setImportAssetId] = useState("");
+  const [isAssetPickerOpen, setIsAssetPickerOpen] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [expandedArchetypeId, setExpandedArchetypeId] = useState<string | null>(null);
+  const [expandedCodexId, setExpandedCodexId] = useState<string | null>(null);
+  const [expandedEquipmentId, setExpandedEquipmentId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
@@ -96,7 +111,12 @@ export function CodexPanel({
       setArchetypes(result.archetypes ?? []);
       setCodexEntries(result.codexEntries ?? []);
       setEquipmentEntries(result.equipmentEntries ?? []);
-      setCodexCategories((result.codexCategories ?? []).map((category) => ({
+      const entries = result.codexEntries ?? [];
+      const validCategories = (result.codexCategories ?? []).filter((category) =>
+        entries.some((entry) => entry.category === category.name)
+      );
+
+      setCodexCategories(validCategories.map((category) => ({
         id: category.id,
         name: category.name
       })));
@@ -160,6 +180,7 @@ export function CodexPanel({
         sessionCode,
         archetypeId,
         type: importType,
+        tier: importTier,
         ownerParticipantId:
           importType === "player" ? importOwnerParticipantId || null : null,
         assetId: importAssetId || null
@@ -254,21 +275,36 @@ export function CodexPanel({
               className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/30"
             >
               <option value="all">todo o arsenal</option>
-              {["Armas", "Armaduras", "Equipamentos"].map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
+              {["Armas", "Armaduras", "Equipamentos"]
+                .filter((category) =>
+                  equipmentEntries.some((entry) => entry.category === category)
+                )
+                .map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
             </select>
           ) : (
-            <select
-              value={importType}
-              onChange={(event) => setImportType(event.target.value as CharacterType)}
-              className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/30"
-            >
-              <option value="player">protagonista</option>
-              <option value="npc">figura</option>
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={importType}
+                onChange={(event) => setImportType(event.target.value as CharacterType)}
+                className="w-full rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/30"
+              >
+                <option value="player">protagonista</option>
+                <option value="npc">figura</option>
+              </select>
+              <select
+                value={importTier}
+                onChange={(event) => setImportTier(event.target.value as CharacterTier)}
+                className="w-full rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/30"
+              >
+                <option value="full">ficha completa</option>
+                <option value="medium">ficha mediana</option>
+                <option value="summary">ficha resumida</option>
+              </select>
+            </div>
           )}
 
           {activeTab === "archetypes" ? (
@@ -286,18 +322,16 @@ export function CodexPanel({
                 ))}
               </select>
             ) : (
-              <select
-                value={importAssetId}
-                onChange={(event) => setImportAssetId(event.target.value)}
-                className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/30"
+              <button
+                type="button"
+                onClick={() => setIsAssetPickerOpen(true)}
+                className="inline-flex items-center gap-2 rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition hover:bg-white/[0.04] focus:border-amber-300/30"
               >
-                <option value="">sem retrato inicial</option>
-                {portraitAssets.map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.label}
-                  </option>
-                ))}
-              </select>
+                <ImageIcon size={16} className="text-[color:var(--ink-2)]" />
+                {importAssetId
+                  ? (portraitAssets.find((a) => a.id === importAssetId)?.label ?? "retrato selecionado")
+                  : "sem retrato inicial"}
+              </button>
             )
           ) : (
             <div className="rounded-[18px] border border-dashed border-white/10 bg-black/12 px-4 py-3 text-sm text-[color:var(--ink-3)]">
@@ -308,18 +342,16 @@ export function CodexPanel({
 
         {activeTab === "archetypes" && importType === "player" && (
           <div className="mt-3">
-            <select
-              value={importAssetId}
-              onChange={(event) => setImportAssetId(event.target.value)}
-              className="w-full rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/30"
+            <button
+              type="button"
+              onClick={() => setIsAssetPickerOpen(true)}
+              className="inline-flex w-full items-center gap-2 rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition hover:bg-white/[0.04] focus:border-amber-300/30"
             >
-              <option value="">sem retrato inicial</option>
-              {portraitAssets.map((asset) => (
-                <option key={asset.id} value={asset.id}>
-                  {asset.label}
-                </option>
-              ))}
-            </select>
+              <ImageIcon size={16} className="text-[color:var(--ink-2)]" />
+              {importAssetId
+                ? (portraitAssets.find((a) => a.id === importAssetId)?.label ?? "retrato selecionado")
+                : "sem retrato inicial"}
+            </button>
           </div>
         )}
       </section>
@@ -344,47 +376,150 @@ export function CodexPanel({
           {displayedArchetypes.map((archetype) => {
             const stats = archetype.stats as Record<string, unknown>;
             const attributes = (stats.attributes ?? {}) as Record<string, unknown>;
+            const isExpanded = expandedArchetypeId === archetype.id;
 
             return (
               <article
                 key={archetype.id}
-                className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4"
+                className={cn(
+                  "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
+                  isExpanded
+                    ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
+                    : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                )}
               >
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="hud-chip border-amber-300/18 bg-amber-300/10 text-amber-100">
-                        {String(stats.clan ?? "sem clan")}
-                      </span>
-                      <span className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]">
+                <div 
+                  className="relative z-10 p-4 cursor-pointer"
+                  onClick={() => setExpandedArchetypeId(prev => prev === archetype.id ? null : archetype.id)}
+                >
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-all",
+                          isExpanded 
+                            ? "border-amber-400/30 bg-amber-400/10 text-amber-300" 
+                            : "border-white/10 bg-white/5 text-white/40"
+                        )}>
+                          <ShieldPlus size={20} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="truncate text-lg font-bold tracking-tight text-white">{archetype.name}</h4>
+                            <span className="hud-chip border-amber-300/18 bg-amber-300/10 text-[9px] text-amber-100 uppercase tracking-widest font-black">
+                              {String(stats.clan ?? "sem clan")}
+                            </span>
+                          </div>
+                          <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50">
+                            <Info size={11} className="text-white/40" />
+                            <span className="truncate italic">{String(stats.concept ?? "Sem conceito registrado.")}</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 sm:justify-start">
+                      <span className="hud-chip border-white/10 bg-black/30 text-[10px] text-white/40">
                         {String(stats.points ?? "--")} pts
                       </span>
-                    </div>
-                    <h4 className="mt-3 text-lg font-semibold text-white">{archetype.name}</h4>
-                    <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-                      {String(stats.concept ?? "Sem conceito registrado.")}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-[color:var(--ink-3)]">
-                      <span>PV {String(attributes.hp ?? 10)}</span>
-                      <span>PF {String(attributes.fp ?? 10)}</span>
-                      <span>DX {String(attributes.dx ?? 10)}</span>
-                      <span>IQ {String(attributes.iq ?? 10)}</span>
+                      
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all group-hover:border-amber-400/30 group-hover:text-amber-300">
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </div>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => runImport(archetype.id)}
-                    disabled={!canManage || isPending}
-                    className="inline-flex items-center gap-2 rounded-full border border-amber-300/24 bg-amber-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100 transition hover:border-amber-300/40 disabled:opacity-60"
-                  >
-                    {pendingKey === archetype.id ? (
-                      <LoaderCircle size={14} className="animate-spin" />
-                    ) : (
-                      <ShieldPlus size={14} />
-                    )}
-                    importar ficha
-                  </button>
+                  {isExpanded && (
+                    <div 
+                      className="mt-5 space-y-5 rounded-[20px] border border-white/5 bg-black/40 p-4 backdrop-blur-xl"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex flex-wrap gap-2 text-xs text-[color:var(--ink-3)] font-medium">
+                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">PV {String(attributes.hp ?? 10)}</span>
+                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">PF {String(attributes.fp ?? 10)}</span>
+                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">ST {String(attributes.st ?? 10)}</span>
+                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">DX {String(attributes.dx ?? 10)}</span>
+                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">IQ {String(attributes.iq ?? 10)}</span>
+                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">HT {String(attributes.ht ?? 10)}</span>
+                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">VON {String(attributes.will ?? 10)}</span>
+                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">PER {String(attributes.per ?? 10)}</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          {Array.isArray(stats.advantages) && stats.advantages.length > 0 && (
+                            <div className="mb-3">
+                              <h5 className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--ink-3)] mb-1.5 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Vantagens
+                              </h5>
+                              <div className="flex flex-wrap gap-1">
+                                {stats.advantages.map((adv: string, i: number) => (
+                                  <span key={i} className="rounded-sm bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[10px] text-emerald-200">
+                                    {adv}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {Array.isArray(stats.disadvantages) && stats.disadvantages.length > 0 && (
+                            <div>
+                              <h5 className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--ink-3)] mb-1.5 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Desvantagens
+                              </h5>
+                              <div className="flex flex-wrap gap-1">
+                                {stats.disadvantages.map((dis: string, i: number) => (
+                                  <span key={i} className="rounded-sm bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-200">
+                                    {dis}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          {Array.isArray(stats.skills) && stats.skills.length > 0 && (
+                            <div className="mb-3">
+                              <h5 className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--ink-3)] mb-1.5 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Perícias
+                              </h5>
+                              <ul className="list-disc pl-4 text-xs text-[color:var(--ink-2)] space-y-0.5">
+                                {stats.skills.map((skill: string, i: number) => (
+                                  <li key={i}>{skill}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {typeof stats.equipment === "string" && stats.equipment.trim().length > 0 && (
+                            <div>
+                              <h5 className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--ink-3)] mb-1.5 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--ink-3)]"></span> Equipamento
+                              </h5>
+                              <p className="text-xs text-[color:var(--ink-2)] leading-relaxed whitespace-pre-wrap pl-2 border-l border-white/10">
+                                {String(stats.equipment).replace(/\s{3,}/g, '\n').trim()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => runImport(archetype.id)}
+                        disabled={!canManage || isPending}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300/24 bg-amber-300/10 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-100 transition hover:border-amber-300/40 disabled:opacity-60"
+                      >
+                        {pendingKey === archetype.id ? (
+                          <LoaderCircle size={14} className="animate-spin" />
+                        ) : (
+                          <ShieldPlus size={14} />
+                        )}
+                        importar para o tabuleiro
+                      </button>
+                    </div>
+                  )}
                 </div>
               </article>
             );
@@ -394,67 +529,159 @@ export function CodexPanel({
 
       {catalogReady && activeTab === "codex" && (
         <div className="space-y-3">
-          {displayedCodexEntries.map((entry) => (
-            <article
-              key={entry.id}
-              className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="hud-chip border-amber-300/18 bg-amber-300/10 text-amber-100">
-                  {entry.category}
-                </span>
-                {entry.tags.slice(0, 3).map((tag) => (
-                  <span
-                    key={tag}
-                    className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <h4 className="mt-3 text-lg font-semibold text-white">{entry.title}</h4>
-              <pre className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[color:var(--ink-2)]">
-                {renderMarkdownPreview(entry.markdown)}
-              </pre>
-            </article>
-          ))}
+          {displayedCodexEntries.map((entry) => {
+            const isExpanded = expandedCodexId === entry.id;
+            return (
+              <article
+                key={entry.id}
+                className={cn(
+                  "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
+                  isExpanded
+                    ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
+                    : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                )}
+              >
+                <div 
+                  className="relative z-10 p-4 cursor-pointer"
+                  onClick={() => setExpandedCodexId(prev => prev === entry.id ? null : entry.id)}
+                >
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all",
+                          isExpanded 
+                            ? "border-amber-400/30 bg-amber-400/10 text-amber-300" 
+                            : "border-white/10 bg-white/5 text-white/40"
+                        )}>
+                          <BookOpenText size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="truncate text-base font-bold tracking-tight text-white">{entry.title}</h4>
+                            <span className="hud-chip border-amber-300/18 bg-amber-300/10 text-[9px] text-amber-100 uppercase tracking-widest font-black">
+                              {entry.category}
+                            </span>
+                          </div>
+                          <p className="mt-1 flex items-center gap-1.5 text-[10px] text-white/40 uppercase tracking-widest font-bold">
+                            {entry.tags.slice(0, 3).join(" • ")}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all group-hover:border-amber-400/30 group-hover:text-amber-300">
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </div>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div 
+                      className="mt-5 rounded-[20px] border border-white/5 bg-black/40 p-5 backdrop-blur-xl"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="text-sm leading-6 text-[color:var(--ink-2)] prose-invert max-w-none">
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          components={{
+                            h3: ({node, ...props}) => <h3 className="text-sm font-bold text-amber-400 mt-4 mb-2 uppercase tracking-wide" {...props} />,
+                            p: ({node, ...props}) => <p className="mb-2" {...props} />,
+                            ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-2 text-[color:var(--ink-3)]" {...props} />,
+                            li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                            blockquote: ({node, ...props}) => <blockquote className="border-l-2 border-amber-500/50 pl-3 italic text-[color:var(--ink-3)] mb-3" {...props} />,
+                            strong: ({node, ...props}) => <strong className="font-semibold text-amber-100" {...props} />,
+                            table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="w-full text-left border-collapse" {...props} /></div>,
+                            thead: ({node, ...props}) => <thead className="border-b border-white/20 bg-white/5" {...props} />,
+                            th: ({node, ...props}) => <th className="p-2 font-semibold text-white text-xs uppercase tracking-wider" {...props} />,
+                            td: ({node, ...props}) => <td className="p-2 border-b border-white/5 text-[color:var(--ink-2)]" {...props} />,
+                          }}
+                        >
+                          {entry.markdown}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 
       {catalogReady && activeTab === "equipment" && (
         <div className="space-y-3">
-          {displayedEquipmentEntries.map((entry) => (
-            <article
-              key={entry.id}
-              className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="hud-chip border-amber-300/18 bg-amber-300/10 text-amber-100">
-                  {entry.category}
-                </span>
-                {entry.tags.slice(0, 2).map((tag) => (
-                  <span
-                    key={tag}
-                    className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <h4 className="mt-3 text-lg font-semibold text-white">{entry.name}</h4>
-              <div className="mt-3 grid gap-2 text-sm text-[color:var(--ink-2)] md:grid-cols-2">
-                {Object.entries(entry.stats)
-                  .filter(([key]) => key !== "id" && key !== "nome")
-                  .slice(0, 6)
-                  .map(([key, value]) => (
-                    <div key={key} className="rounded-[16px] border border-white/8 bg-black/18 px-3 py-2">
-                      <p className="section-label">{key}</p>
-                      <p className="mt-1 text-sm text-white">{String(value)}</p>
+          {displayedEquipmentEntries.map((entry) => {
+            const isExpanded = expandedEquipmentId === entry.id;
+            return (
+              <article
+                key={entry.id}
+                className={cn(
+                  "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
+                  isExpanded
+                    ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
+                    : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                )}
+              >
+                <div 
+                  className="relative z-10 p-4 cursor-pointer"
+                  onClick={() => setExpandedEquipmentId(prev => prev === entry.id ? null : entry.id)}
+                >
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all",
+                          isExpanded 
+                            ? "border-amber-400/30 bg-amber-400/10 text-amber-300" 
+                            : "border-white/10 bg-white/5 text-white/40"
+                        )}>
+                          <Swords size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="truncate text-base font-bold tracking-tight text-white">{entry.name}</h4>
+                            <span className="hud-chip border-amber-300/18 bg-amber-300/10 text-[9px] text-amber-100 uppercase tracking-widest font-black">
+                              {entry.category}
+                            </span>
+                          </div>
+                          <p className="mt-1 flex items-center gap-1.5 text-[10px] text-white/40 uppercase tracking-widest font-bold">
+                            {entry.tags.slice(0, 2).join(" • ")}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-              </div>
-            </article>
-          ))}
+
+                    <div className="flex gap-2">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all group-hover:border-amber-400/30 group-hover:text-amber-300">
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </div>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div 
+                      className="mt-5 rounded-[20px] border border-white/5 bg-black/40 p-4 backdrop-blur-xl"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="grid gap-2 text-sm text-[color:var(--ink-2)] md:grid-cols-2">
+                        {Object.entries(entry.stats)
+                          .filter(([key]) => key !== "id" && key !== "nome")
+                          .slice(0, 8)
+                          .map(([key, value]) => (
+                            <div key={key} className="rounded-xl border border-white/8 bg-black/18 px-3 py-2">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{key}</p>
+                              <p className="mt-1 text-sm font-semibold text-white">{String(value)}</p>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 
@@ -480,6 +707,17 @@ export function CodexPanel({
             carregar mais
           </button>
         )}
+
+      <AssetVisualPicker
+        open={isAssetPickerOpen}
+        onClose={() => setIsAssetPickerOpen(false)}
+        onSelect={(assetId) => setImportAssetId(assetId)}
+        assets={assets}
+        filterKinds={["portrait", "npc", "token"]}
+        title="Selecionar Retrato Inicial"
+        placeholder="buscar retratos ou imagens..."
+        cardAspect="portrait"
+      />
     </section>
   );
 }

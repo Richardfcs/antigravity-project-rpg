@@ -53,7 +53,7 @@ export function BottomDock({
                   type="button"
                   onClick={() => onTabChange(tab.id)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] transition",
+                    "inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition",
                     activeTab === tab.id
                       ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
                       : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
@@ -74,7 +74,7 @@ export function BottomDock({
               type="button"
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] transition",
+                "inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition",
                 activeTab === tab.id
                   ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
                   : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
@@ -90,8 +90,8 @@ export function BottomDock({
       <div
         className={
           embedded
-            ? "scrollbar-thin mt-1.5 min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1"
-            : "scrollbar-thin mt-2 min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1"
+            ? "scrollbar-thin mt-2 min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1"
+            : "scrollbar-thin mt-2.5 min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1"
         }
       >
         {resolvedActiveTab === "chat" && (

@@ -23,7 +23,8 @@ const privateEventKinds = new Set<PrivateEventKind>([
   "kegare",
   "secret",
   "blood",
-  "shake"
+  "shake",
+  "combat"
 ]);
 
 function buildInfraError(): PrivateEventActionResult {
@@ -50,6 +51,7 @@ export async function sendPrivateEventAction(input: {
   title: string;
   body: string;
   imageAssetId?: string | null;
+  payload?: Record<string, unknown> | null;
   intensity?: number;
   durationMs?: number;
 }): Promise<PrivateEventActionResult> {
@@ -86,6 +88,7 @@ export async function sendPrivateEventAction(input: {
       title: input.title,
       body: input.body,
       imageAssetId: input.imageAssetId ?? null,
+      ...(input.payload !== undefined ? { payload: input.payload } : {}),
       intensity: input.intensity,
       durationMs: input.durationMs
     });

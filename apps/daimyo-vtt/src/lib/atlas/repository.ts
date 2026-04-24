@@ -370,6 +370,51 @@ export async function activateSessionAtlasMap(input: {
   return map;
 }
 
+export async function updateSessionAtlasMap(input: {
+  sessionId: string;
+  atlasMapId: string;
+  name?: string;
+  assetId?: string | null;
+}) {
+  const current = await findSessionAtlasMapById(input.atlasMapId);
+
+  if (!current || current.sessionId !== input.sessionId) {
+    throw new Error("Atlas nao encontrado nesta sessao.");
+  }
+
+  const patch: Partial<AtlasMapRow> = {};
+  if (input.name !== undefined) {
+    const name = sanitizeName(input.name, 72);
+    if (!name) throw new Error("Informe um nome valido.");
+    patch.name = name;
+  }
+  if (input.assetId !== undefined) {
+    patch.asset_id = input.assetId;
+  }
+
+  const { data, error } = await getAtlasMapTable()
+    .update(patch)
+    .eq("id", input.atlasMapId)
+    .select("*")
+    .single<AtlasMapRow>();
+
+  if (error || !data) {
+    throw error ?? new Error("Falha ao atualizar o atlas.");
+  }
+
+  const updated = mapAtlasMapRow(data);
+
+  if (updated.isActive) {
+    await syncSessionAtlasMirror({
+      sessionId: updated.sessionId,
+      atlasName: updated.name,
+      atlasMapId: updated.id
+    });
+  }
+
+  return updated;
+}
+
 export async function deleteSessionAtlasMapEntry(atlasMapId: string) {
   const current = await findSessionAtlasMapById(atlasMapId);
 

@@ -2,16 +2,25 @@
 
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import {
+  AlignJustify,
   ArrowDown,
   ArrowUp,
   ChevronDown,
   ChevronUp,
+  CircleDot,
+  Image as ImageIcon,
   ImagePlus,
+  LayoutGrid,
   LoaderCircle,
   Mic2,
   Play,
   Plus,
+  Save,
+  Settings2,
+  Sparkles,
+  Target,
   Trash2,
+  UserRoundSearch,
   UsersRound
 } from "lucide-react";
 
@@ -20,9 +29,11 @@ import {
   addAssetNpcToSceneAction,
   addCharacterToSceneAction,
   createSceneAction,
+  deleteSceneAction,
   moveSceneCastAction,
   removeSceneCastAction,
   spotlightSceneCastAction,
+  updateSceneAction,
   updateSceneLayoutAction
 } from "@/app/actions/scene-actions";
 import {
@@ -31,6 +42,8 @@ import {
   LibrarySortSelect
 } from "@/components/panels/library-controls";
 import { AssetAvatar } from "@/components/media/asset-avatar";
+import { CharacterVisualPicker } from "@/components/ui/character-visual-picker";
+import { AssetVisualPicker } from "@/components/ui/asset-visual-picker";
 import {
   filterLibraryItems,
   filterLibraryItemsByStatus,
@@ -62,18 +75,18 @@ interface ScenesPanelProps {
 const backgroundKinds = new Set(["background", "ambient"]);
 const stageNpcKinds = new Set(["npc", "portrait", "token"]);
 
-function layoutModeLabel(mode: SceneLayoutMode) {
+function layoutModeInfo(mode: SceneLayoutMode) {
   switch (mode) {
     case "line":
-      return "linha";
+      return { label: "linha", icon: AlignJustify };
     case "arc":
-      return "arco";
+      return { label: "arco", icon: CircleDot };
     case "grid":
-      return "grade";
+      return { label: "grade", icon: LayoutGrid };
     case "center":
-      return "centro";
+      return { label: "centro", icon: Target };
     default:
-      return mode;
+      return { label: mode, icon: Target };
   }
 }
 
@@ -85,6 +98,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
   const sceneCast = useSceneStore((state) => state.sceneCast);
   const setScenes = useSceneStore((state) => state.setScenes);
   const upsertScene = useSceneStore((state) => state.upsertScene);
+  const removeScene = useSceneStore((state) => state.removeScene);
   const removeSceneCast = useSceneStore((state) => state.removeSceneCast);
   const setSceneCast = useSceneStore((state) => state.setSceneCast);
   const upsertSceneCast = useSceneStore((state) => state.upsertSceneCast);
@@ -93,8 +107,15 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
   const [moodLabel, setMoodLabel] = useState("");
   const [backgroundAssetId, setBackgroundAssetId] = useState("");
   const [layoutMode, setLayoutMode] = useState<SceneLayoutMode>("line");
+  const [editingSceneId, setEditingSceneId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [draftMood, setDraftMood] = useState("");
+  const [draftAssetId, setDraftAssetId] = useState("");
   const [castSelections, setCastSelections] = useState<Record<string, string>>({});
   const [assetSelections, setAssetSelections] = useState<Record<string, string>>({});
+  const [castPickerSceneId, setCastPickerSceneId] = useState<string | null>(null);
+  const [assetPickerSceneId, setAssetPickerSceneId] = useState<string | null>(null);
+  const [isBackgroundPickerOpen, setIsBackgroundPickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<LibraryStatusFilter>("all");
   const [sortMode, setSortMode] = useState<LibrarySortMode>("name");
@@ -365,8 +386,42 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
     });
   };
 
+  const handleUpdateScene = (sceneId: string) => {
+    runAsync(`update:${sceneId}`, async () => {
+      const result = await updateSceneAction({
+        sessionCode,
+        sceneId,
+        name: draftName,
+        moodLabel: draftMood,
+        backgroundAssetId: draftAssetId || null
+      });
+
+      if (result.ok && result.scene) {
+        upsertScene(result.scene);
+        setEditingSceneId(null);
+      }
+    });
+  };
+
+  const handleDeleteScene = (sceneId: string) => {
+    if (!window.confirm("Tem certeza que deseja apagar permanentemente esta cena?")) {
+      return;
+    }
+
+    runAsync(`delete:${sceneId}`, async () => {
+      const result = await deleteSceneAction({
+        sessionCode,
+        sceneId
+      });
+
+      if (result.ok && result.scene) {
+        removeScene(result.scene.id);
+      }
+    });
+  };
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
         <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
           {orderedScenes.length} cenas
@@ -424,37 +479,52 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
 
                 <label className="block">
                   <span className="section-label">Pintura</span>
-                  <select
-                    value={backgroundAssetId}
-                    onChange={(event) => setBackgroundAssetId(event.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition focus:border-amber-300/35"
+                  <button
+                    type="button"
+                    onClick={() => setIsBackgroundPickerOpen(true)}
+                    className="mt-2 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm transition hover:border-amber-300/25 cursor-pointer"
                   >
-                    <option value="">sem pintura</option>
-                    {backgroundAssets.map((asset) => (
-                      <option key={asset.id} value={asset.id}>
-                        {asset.label}
-                      </option>
-                    ))}
-                  </select>
+                    <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                    <span className={backgroundAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                    >
+                      {backgroundAssetId
+                        ? (backgroundAssets.find((a) => a.id === backgroundAssetId)?.label ?? "pintura")
+                        : "sem pintura"}
+                    </span>
+                  </button>
+                  <AssetVisualPicker
+                    open={isBackgroundPickerOpen}
+                    onClose={() => setIsBackgroundPickerOpen(false)}
+                    onSelect={(id) => setBackgroundAssetId(id)}
+                    assets={assets}
+                    filterKinds={["background", "ambient"]}
+                    title="Selecionar Pintura de Cena"
+                    cardAspect="landscape"
+                  />
                 </label>
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                {(["line", "arc", "grid", "center"] as SceneLayoutMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setLayoutMode(mode)}
-                    className={cn(
-                      "rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition",
-                      layoutMode === mode
-                        ? "border-amber-300/28 bg-amber-300/10 text-amber-100"
-                        : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
-                    )}
-                  >
-                    {layoutModeLabel(mode)}
-                  </button>
-                ))}
+                {(["line", "arc", "grid", "center"] as SceneLayoutMode[]).map((mode) => {
+                  const info = layoutModeInfo(mode);
+                  const Icon = info.icon;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setLayoutMode(mode)}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition",
+                        layoutMode === mode
+                          ? "border-amber-300/40 bg-amber-300/10 text-amber-100"
+                          : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
+                      )}
+                    >
+                      <Icon size={12} />
+                      {info.label}
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -493,7 +563,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
         </div>
       )}
 
-      <section className="flex min-h-0 flex-1 flex-col space-y-3">
+      <section className="flex flex-col space-y-3">
         <div className="flex flex-col gap-3 rounded-[20px] border border-white/10 bg-black/18 p-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0 md:max-w-[120px]">
             <p className="section-label">Biblioteca</p>
@@ -527,7 +597,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
           </div>
         )}
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+        <div className="space-y-3">
         {displayedScenes.map((scene) => {
           const background =
             assets.find((asset) => asset.id === scene.backgroundAssetId) ?? null;
@@ -549,205 +619,320 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
             <article
               key={scene.id}
               className={cn(
-                "rounded-[20px] border p-4",
+                "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
                 scene.isActive
-                  ? "border-amber-300/28 bg-amber-300/10"
-                  : "border-white/10 bg-white/[0.04]"
+                  ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
+                  : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
               )}
             >
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="flex items-start gap-3">
-                  <div
-                    className="h-20 w-28 shrink-0 rounded-[18px] border border-white/10 bg-cover bg-center"
-                    style={
-                      background?.secureUrl
-                        ? { backgroundImage: `url(${background.secureUrl})` }
-                        : undefined
-                    }
-                  />
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-lg font-semibold text-white">{scene.name}</p>
-                      {scene.isActive && (
-                        <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
-                          ativa
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-2 text-sm text-[color:var(--ink-2)]">
-                      {scene.moodLabel || "sem clima definido"}
-                    </p>
-                    <p className="mt-1 text-xs text-[color:var(--ink-3)]">
-                      {background ? `pintura: ${background.label}` : "sem pintura"} - {layoutModeLabel(scene.layoutMode)}
-                    </p>
-                    <div className="mt-3">
-                      <LibraryFlagControls
-                        flags={sceneLibraryFlags[scene.id]}
-                        canManage={canManage}
-                        onToggle={(flag) =>
-                          toggleLibraryFlag(sessionCode, "scenes", scene.id, flag)
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {canManage && (
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleActivateScene(scene.id)}
-                      disabled={isPending}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-black/18 px-3 py-2.5 text-sm font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
-                    >
-                      {pendingKey === `activate:${scene.id}` ? (
-                        <LoaderCircle size={16} className="animate-spin" />
-                      ) : (
-                        <Play size={16} />
-                      )}
-                      tornar ativa
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setExpandedSceneId((current) =>
-                          current === scene.id ? null : scene.id
-                        )
-                      }
-                      className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm font-semibold text-white transition hover:border-white/20"
-                    >
-                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                      {isExpanded ? "recolher" : "detalhes"}
-                    </button>
-                  </div>
+              {/* Background Art Layer */}
+              <div className="absolute inset-0 z-0">
+                {background?.secureUrl ? (
+                  <>
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center transition-opacity duration-700" 
+                      style={{ 
+                        backgroundImage: `url(${background.secureUrl})`,
+                        opacity: scene.isActive ? 0.35 : 0.2
+                      }} 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/40 to-transparent" />
+                  </>
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-20" />
                 )}
               </div>
 
-              {isExpanded && (
-                <div className="mt-4 space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    {(["line", "arc", "grid", "center"] as SceneLayoutMode[]).map((mode) => (
-                      <button
-                        key={`${scene.id}:${mode}`}
-                        type="button"
-                        onClick={() => handleLayoutChange(scene.id, mode)}
-                        disabled={isPending}
-                        className={cn(
-                          "rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition",
-                          scene.layoutMode === mode
-                            ? "border-rose-300/22 bg-rose-300/10 text-rose-100"
-                            : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
-                        )}
-                      >
-                        {pendingKey === `layout:${scene.id}:${mode}` ? (
-                          <LoaderCircle size={14} className="animate-spin" />
+              <div 
+                className="relative z-10 p-4 cursor-pointer"
+                onClick={() => setExpandedSceneId((current) => current === scene.id ? null : scene.id)}
+              >
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border overflow-hidden transition-all",
+                        scene.isActive 
+                          ? "border-amber-400/30 bg-amber-400/10 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.2)]" 
+                          : "border-white/10 bg-white/5 text-white/40"
+                      )}>
+                        {background?.secureUrl ? (
+                          <img src={background.secureUrl} className="h-full w-full object-cover" alt="" />
                         ) : (
-                          layoutModeLabel(mode)
+                          <ImageIcon size={20} />
                         )}
-                      </button>
-                    ))}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-lg font-bold tracking-tight text-white">{scene.name}</p>
+                          {scene.isActive && (
+                            <span className="flex h-5 items-center rounded-full bg-amber-400 px-2 text-[9px] font-black uppercase tracking-widest text-black">
+                              No Palco
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50">
+                          <Sparkles size={11} className={cn(scene.isActive ? "text-amber-400" : "text-white/40")} />
+                          <span className="truncate italic">{scene.moodLabel || "Clima neutro"}</span>
+                        </p>
+                        <p className="mt-1 text-[10px] uppercase tracking-wider text-white/30">
+                          {layoutModeInfo(scene.layoutMode).label} • {entries.length} personagens
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
-                  {entries.length === 0 && (
-                    <div className="rounded-[16px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-4 text-sm text-[color:var(--ink-2)]">
-                      Nenhum personagem no palco desta cena.
-                    </div>
-                  )}
-
-                  {entries.map((entry) => (
-                    <div
-                      key={entry.entry.id}
-                      className={cn(
-                        "rounded-[18px] border px-4 py-3",
-                        entry.entry.isSpotlighted
-                          ? "border-rose-300/22 bg-rose-300/10"
-                          : "border-white/10 bg-black/18"
-                      )}
-                    >
-                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="flex items-center gap-3">
-                          <AssetAvatar
-                            imageUrl={entry.asset?.secureUrl}
-                            label={entry.character.name}
-                            kind={entry.asset?.kind}
-                            className="h-12 w-12"
+                  <div className="flex items-center justify-between gap-3 sm:justify-start">
+                    <div className="flex -space-x-2 overflow-hidden">
+                      {entries.slice(0, 4).map((entry) => (
+                        <div 
+                          key={entry.entry.id}
+                          className="h-8 w-8 rounded-full border-2 border-black ring-1 ring-white/10"
+                        >
+                          <img 
+                            src={entry.asset?.secureUrl} 
+                            className="h-full w-full rounded-full object-cover" 
+                            alt={entry.character.name}
                           />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold text-white">
-                                {entry.character.name}
-                              </p>
-                              {entry.entry.isSpotlighted && (
-                                <span className="hud-chip border-rose-300/20 bg-rose-300/10 text-rose-100">
-                                  <Mic2 size={14} />
-                                  destaque
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-1 text-xs text-[color:var(--ink-3)]">
-                              slot {entry.entry.slotOrder + 1} - init{" "}
-                              {entry.character.initiative >= 0
-                                ? `+${entry.character.initiative}`
-                                : entry.character.initiative}
-                            </p>
-                          </div>
                         </div>
+                      ))}
+                      {entries.length > 4 && (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black bg-white/10 text-[9px] font-bold text-white ring-1 ring-white/10">
+                          +{entries.length - 4}
+                        </div>
+                      )}
+                    </div>
 
-                        {canManage && (
-                          <div className="flex flex-wrap gap-2">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleActivateScene(scene.id);
+                        }}
+                        disabled={scene.isActive || isPending}
+                        className={cn(
+                          "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-[10px] font-bold uppercase tracking-widest transition-all",
+                          scene.isActive
+                            ? "border-amber-400/20 bg-amber-400/5 text-amber-400/40 cursor-default"
+                            : "border-white/10 bg-white/5 text-white hover:border-amber-400/50 hover:bg-amber-400/10"
+                        )}
+                      >
+                        {pendingKey === `activate:${scene.id}` ? (
+                          <LoaderCircle size={14} className="animate-spin" />
+                        ) : scene.isActive ? (
+                          "Ativa"
+                        ) : (
+                          <>
+                            <Play size={12} fill="currentColor" />
+                            Encenar
+                          </>
+                        )}
+                      </button>
+                      
+                      {canManage && (
+                        <div className="flex gap-2">
+                          {!scene.isActive && (
                             <button
                               type="button"
-                              onClick={() => handleSpotlight(scene.id, entry.entry.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteScene(scene.id);
+                              }}
                               disabled={isPending}
-                              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
+                              className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-400 transition-all hover:bg-rose-500/20 hover:text-rose-300 disabled:opacity-50"
+                              title="Arquivar Cena"
                             >
-                              {pendingKey === `spotlight:${entry.entry.id}` ? (
-                                <LoaderCircle size={14} className="animate-spin" />
-                              ) : (
-                                "destaque"
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMoveEntry(entry.entry.id, "up")}
-                              disabled={isPending}
-                              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
-                            >
-                              {pendingKey === `move:${entry.entry.id}:up` ? (
-                                <LoaderCircle size={14} className="animate-spin" />
-                              ) : (
-                                <ArrowUp size={14} />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMoveEntry(entry.entry.id, "down")}
-                              disabled={isPending}
-                              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
-                            >
-                              {pendingKey === `move:${entry.entry.id}:down` ? (
-                                <LoaderCircle size={14} className="animate-spin" />
-                              ) : (
-                                <ArrowDown size={14} />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveEntry(entry.entry.id)}
-                              disabled={isPending}
-                              className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-xs font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
-                            >
-                              {pendingKey === `remove:${entry.entry.id}` ? (
+                              {pendingKey === `delete-scene:${scene.id}` ? (
                                 <LoaderCircle size={14} className="animate-spin" />
                               ) : (
                                 <Trash2 size={14} />
                               )}
                             </button>
-                          </div>
-                        )}
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (editingSceneId === scene.id) {
+                                setEditingSceneId(null);
+                              } else {
+                                setDraftName(scene.name);
+                                setDraftMood(scene.moodLabel);
+                                setDraftAssetId(scene.backgroundAssetId ?? "");
+                                setEditingSceneId(scene.id);
+                                setExpandedSceneId(scene.id);
+                              }
+                            }}
+                            className={cn(
+                              "flex h-10 w-10 items-center justify-center rounded-xl border transition-all",
+                              editingSceneId === scene.id
+                                ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
+                                : "border-white/10 bg-white/5 text-white/40 hover:text-white"
+                            )}
+                          >
+                            <Settings2 size={16} />
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all group-hover:border-amber-400/30 group-hover:text-amber-300">
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </div>
                     </div>
-                  ))}
+                  </div>
+                </div>
+
+                {isExpanded && (
+                  <div 
+                    className="mt-5 space-y-5 rounded-[20px] border border-white/5 bg-black/40 p-4 backdrop-blur-xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {editingSceneId === scene.id ? (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className="block">
+                            <span className="section-label text-[10px]">Nome da Cena</span>
+                            <input
+                              value={draftName}
+                              onChange={(e) => setDraftName(e.target.value)}
+                              className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-amber-400/40"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="section-label text-[10px]">Clima / Mood</span>
+                            <input
+                              value={draftMood}
+                              onChange={(e) => setDraftMood(e.target.value)}
+                              className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-amber-400/40"
+                            />
+                          </label>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateScene(scene.id)}
+                              disabled={isPending}
+                              className="inline-flex items-center gap-2 rounded-xl bg-amber-400/10 border border-amber-400/30 px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber-300 hover:bg-amber-400/20"
+                            >
+                              {pendingKey === `update:${scene.id}` ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}
+                              Salvar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingSceneId(null)}
+                              className="inline-flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white/60 hover:text-white"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+
+                          {!scene.isActive && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteScene(scene.id)}
+                              disabled={isPending}
+                              className="inline-flex items-center gap-2 rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-xs font-bold uppercase tracking-wider text-rose-400 hover:bg-rose-500/20"
+                            >
+                              {pendingKey === `delete:${scene.id}` ? <LoaderCircle size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                              Apagar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap gap-2">
+                      {(["line", "arc", "grid", "center"] as SceneLayoutMode[]).map((mode) => {
+                        const info = layoutModeInfo(mode);
+                        const Icon = info.icon;
+                        return (
+                          <button
+                            key={`${scene.id}:${mode}`}
+                            type="button"
+                            onClick={() => handleLayoutChange(scene.id, mode)}
+                            disabled={isPending}
+                            className={cn(
+                              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition",
+                              scene.layoutMode === mode
+                                ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                                : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
+                            )}
+                          >
+                            {pendingKey === `layout:${scene.id}:${mode}` ? (
+                              <LoaderCircle size={12} className="animate-spin" />
+                            ) : (
+                              <>
+                                <Icon size={12} />
+                                {info.label}
+                              </>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {!scene.isActive && canManage && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteScene(scene.id)}
+                          disabled={isPending}
+                          className="inline-flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
+                        >
+                          <Trash2 size={12} />
+                          Arquivar Cena
+                        </button>
+                      </div>
+                    )}
+
+                    {entries.length === 0 && (
+                      <div className="rounded-[16px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-4 text-sm text-[color:var(--ink-2)] backdrop-blur-sm">
+                        Nenhum personagem no palco desta cena.
+                      </div>
+                    )}
+
+                    {entries.length > 0 && (
+                      <div className="flex flex-wrap gap-3">
+                        {entries.map((entry) => (
+                          <div
+                            key={entry.entry.id}
+                            className={cn(
+                              "group relative flex items-center gap-2 rounded-full border pr-4 pl-1.5 py-1.5 transition-all",
+                              entry.entry.isSpotlighted
+                                ? "border-rose-300/30 bg-rose-300/10"
+                                : "border-white/10 bg-black/40 hover:bg-white/5"
+                            )}
+                          >
+                            <AssetAvatar
+                              imageUrl={entry.asset?.secureUrl}
+                              label={entry.character.name}
+                              kind={entry.asset?.kind}
+                              className="h-10 w-10 rounded-full"
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-sm font-semibold text-white max-w-[100px] truncate">
+                                {entry.character.name}
+                              </span>
+                              <span className="text-[10px] text-white/50">
+                                init {entry.character.initiative >= 0 ? `+${entry.character.initiative}` : entry.character.initiative}
+                              </span>
+                            </div>
+
+                            {canManage && (
+                              <div className="absolute top-12 left-1/2 -translate-x-1/2 hidden flex-wrap gap-1 rounded-xl border border-white/10 bg-black/95 p-1.5 shadow-xl backdrop-blur-md group-hover:flex z-50 w-max">
+                                <button type="button" onClick={() => handleSpotlight(scene.id, entry.entry.id)} className="p-1.5 hover:bg-white/10 rounded-lg text-white" title="Destacar (Spotlight)"><Mic2 size={14}/></button>
+                                <button type="button" onClick={() => handleMoveEntry(entry.entry.id, "up")} className="p-1.5 hover:bg-white/10 rounded-lg text-white" title="Mover para Esquerda"><ArrowUp size={14}/></button>
+                                <button type="button" onClick={() => handleMoveEntry(entry.entry.id, "down")} className="p-1.5 hover:bg-white/10 rounded-lg text-white" title="Mover para Direita"><ArrowDown size={14}/></button>
+                                <button type="button" onClick={() => handleRemoveEntry(entry.entry.id)} className="p-1.5 hover:bg-rose-500/20 rounded-lg text-rose-400" title="Remover da Cena"><Trash2 size={14}/></button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                   {canManage && (
                     <div className="grid gap-3 xl:grid-cols-2">
@@ -757,23 +942,29 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                           <p className="text-sm font-semibold">Escalar ficha existente</p>
                         </div>
                         <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-                          <select
-                            value={castSelections[scene.id] ?? ""}
-                            onChange={(event) =>
-                              setCastSelections((current) => ({
-                                ...current,
-                                [scene.id]: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                          <button
+                            type="button"
+                            onClick={() => setCastPickerSceneId(scene.id)}
+                            className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
                           >
-                            <option value="">escolha uma ficha</option>
-                            {availableCharacters.map((character) => (
-                              <option key={character.id} value={character.id}>
-                                {character.name}
-                              </option>
-                            ))}
-                          </select>
+                            <UserRoundSearch size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                            <span className={castSelections[scene.id] ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                            >
+                              {castSelections[scene.id]
+                                ? (availableCharacters.find((c) => c.id === castSelections[scene.id])?.name ?? "personagem")
+                                : "escolher personagem..."}
+                            </span>
+                          </button>
+                          <CharacterVisualPicker
+                            open={castPickerSceneId === scene.id}
+                            onClose={() => setCastPickerSceneId(null)}
+                            onSelect={(id) => {
+                              setCastSelections((current) => ({ ...current, [scene.id]: id }));
+                            }}
+                            characters={characters}
+                            assets={assets}
+                            excludeIds={new Set(entries.map((e) => e.character.id))}
+                          />
 
                           <button
                             type="button"
@@ -797,23 +988,29 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                           <p className="text-sm font-semibold">Trazer figura do arquivo</p>
                         </div>
                         <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-                          <select
-                            value={assetSelections[scene.id] ?? ""}
-                            onChange={(event) =>
-                              setAssetSelections((current) => ({
-                                ...current,
-                                [scene.id]: event.target.value
-                              }))
-                            }
-                            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-rose-300/35"
+                          <button
+                            type="button"
+                            onClick={() => setAssetPickerSceneId(scene.id)}
+                            className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-rose-300/25 cursor-pointer"
                           >
-                            <option value="">escolha um retrato guardado</option>
-                            {availableNpcAssets.map((asset) => (
-                              <option key={asset.id} value={asset.id}>
-                                {asset.label}
-                              </option>
-                            ))}
-                          </select>
+                            <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                            <span className={assetSelections[scene.id] ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                            >
+                              {assetSelections[scene.id]
+                                ? (availableNpcAssets.find((a) => a.id === assetSelections[scene.id])?.label ?? "figura")
+                                : "escolher retrato guardado..."}
+                            </span>
+                          </button>
+                          <AssetVisualPicker
+                            open={assetPickerSceneId === scene.id}
+                            onClose={() => setAssetPickerSceneId(null)}
+                            onSelect={(id) => {
+                              setAssetSelections((current) => ({ ...current, [scene.id]: id }));
+                            }}
+                            assets={assets}
+                            filterKinds={["npc", "portrait", "token"]}
+                            title="Selecionar Figura do Arquivo"
+                          />
 
                           <button
                             type="button"
@@ -838,11 +1035,14 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                       </div>
                     </div>
                   )}
-                </div>
+                </>
               )}
-            </article>
-          );
-        })}
+              </div>
+            )}
+          </div>
+        </article>
+            );
+          })}
         </div>
 
         {filteredScenes.length > displayedScenes.length && (

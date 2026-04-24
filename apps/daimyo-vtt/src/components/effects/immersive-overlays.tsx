@@ -16,7 +16,8 @@ const iconByKind = {
   kegare: Ghost,
   secret: Eye,
   blood: BellRing,
-  shake: TriangleAlert
+  shake: TriangleAlert,
+  combat: BellRing
 } as const;
 
 export function ImmersiveOverlays({ sessionCode }: ImmersiveOverlaysProps) {
@@ -26,7 +27,7 @@ export function ImmersiveOverlays({ sessionCode }: ImmersiveOverlaysProps) {
   const consumingRef = useRef<string | null>(null);
   const [, startTransition] = useTransition();
 
-  const activeEvent = events[0] ?? null;
+  const activeEvent = events.find((event) => event.kind !== "combat") ?? null;
   const imageAsset = activeEvent?.imageAssetId
     ? assets.find((asset) => asset.id === activeEvent.imageAssetId) ?? null
     : null;

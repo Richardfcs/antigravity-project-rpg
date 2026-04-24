@@ -21,24 +21,24 @@ export function LibraryFilterPills({
     id: LibraryStatusFilter;
     label: string;
   }> = [
-    { id: "all", label: "tudo" },
-    { id: "prepared", label: "pronto" },
-    { id: "favorite", label: "favoritos" },
-    { id: "usedToday", label: "hoje" }
+    { id: "all", label: "Tudo" },
+    { id: "prepared", label: "Pronto" },
+    { id: "favorite", label: "Favoritos" },
+    { id: "usedToday", label: "Hoje" }
   ];
 
   return (
-    <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1">
+    <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 custom-scrollbar">
       {options.map((option) => (
         <button
           key={option.id}
           type="button"
           onClick={() => onChange(option.id)}
           className={cn(
-            "shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition",
+            "shrink-0 rounded-[12px] border px-4 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition-all",
             value === option.id
-              ? "border-amber-300/28 bg-amber-300/10 text-amber-100"
-              : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
+              ? "border-amber-400/40 bg-amber-400/15 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.1)]"
+              : "border-white/10 bg-white/[0.03] text-white/40 hover:border-white/20 hover:text-white/80"
           )}
         >
           {option.label}
@@ -59,12 +59,12 @@ export function LibrarySortSelect({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value as LibrarySortMode)}
-      className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white outline-none transition focus:border-amber-300/35"
+      className="rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-xs font-medium text-white outline-none transition focus:border-amber-400/35 focus:bg-black/60"
     >
-      <option value="name">ordem alfabetica</option>
-      <option value="prepared">pronto primeiro</option>
-      <option value="favorite">favoritos primeiro</option>
-      <option value="recent">tocados por ultimo</option>
+      <option value="name">Ordem Alfabética</option>
+      <option value="prepared">Prontos Primeiro</option>
+      <option value="favorite">Favoritos Primeiro</option>
+      <option value="recent">Acessados por Último</option>
     </select>
   );
 }
@@ -81,26 +81,26 @@ export function LibraryFlagControls({
   const buttons = [
     {
       id: "favorite" as const,
-      label: "favorito",
+      label: "Favorito",
       icon: Star,
       active: Boolean(flags?.favorite)
     },
     {
       id: "prepared" as const,
-      label: "pronto",
+      label: "Pronto",
       icon: BookmarkCheck,
       active: Boolean(flags?.prepared)
     },
     {
       id: "usedToday" as const,
-      label: "hoje",
+      label: "Hoje",
       icon: CalendarClock,
       active: Boolean(flags?.usedToday)
     }
   ];
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-2">
       {buttons.map((button) => (
         <button
           key={button.id}
@@ -108,14 +108,14 @@ export function LibraryFlagControls({
           disabled={!canManage}
           onClick={() => onToggle(button.id)}
           className={cn(
-            "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] transition disabled:cursor-default disabled:opacity-70",
+            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] transition-all disabled:cursor-not-allowed",
             button.active
-              ? "border-amber-300/24 bg-amber-300/10 text-amber-100"
-              : "border-white/10 bg-white/[0.03] text-[color:var(--ink-3)] hover:border-white/20 hover:text-white"
+              ? "border-amber-400/40 bg-amber-400/15 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.1)]"
+              : "border-white/10 bg-white/[0.03] text-white/30 hover:border-white/20 hover:text-white/70"
           )}
           title={button.label}
         >
-          <button.icon size={12} />
+          <button.icon size={12} className={button.active ? "fill-amber-400/20" : ""} />
           {button.label}
         </button>
       ))}

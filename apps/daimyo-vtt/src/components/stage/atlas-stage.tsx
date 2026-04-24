@@ -1,17 +1,19 @@
-﻿"use client";
+"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   Compass,
   Eye,
   EyeOff,
+  Image as ImageIcon,
   LoaderCircle,
   MapPinned,
   Minus,
   Plus,
   ScrollText,
   Sparkles,
-  Trash2
+  Trash2,
+  Settings2
 } from "lucide-react";
 
 import {
@@ -21,6 +23,7 @@ import {
   updateAtlasPinPositionAction
 } from "@/app/actions/atlas-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
+import { AssetVisualPicker } from "@/components/ui/asset-visual-picker";
 import { SessionMemoryFeed } from "@/components/panels/session-memory-feed";
 import type { AtlasStagePin } from "@/lib/atlas/selectors";
 import { useAtlasStore } from "@/stores/atlas-store";
@@ -50,6 +53,7 @@ interface AtlasStageProps {
   onOpenSubmap?: (atlasMapId: string) => void;
   onResetNavigation?: () => void;
   navigatingSubmap?: boolean;
+  onRequestLibrary?: (section: any) => void;
 }
 
 interface DragState {
@@ -93,7 +97,8 @@ export function AtlasStage({
   revealHistory = [],
   onOpenSubmap,
   onResetNavigation,
-  navigatingSubmap = false
+  navigatingSubmap = false,
+  onRequestLibrary
 }: AtlasStageProps) {
   const upsertAtlasPin = useAtlasStore((state) => state.upsertAtlasPin);
   const removeAtlasPin = useAtlasStore((state) => state.removeAtlasPin);
@@ -101,7 +106,13 @@ export function AtlasStage({
     (state) => state.replaceAtlasPinCharacters
   );
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const zoomRef = useRef(1);
   const [zoom, setZoom] = useState(1);
+  const panRef = useRef<{ isPanning: boolean; startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
+  const zoomAnchorRef = useRef<{ mapX: number; mapY: number; cursorX: number; cursorY: number } | null>(null);
+  const touchStateRef = useRef<{ initialDistance: number; initialZoom: number; mapCenterX: number; mapCenterY: number; cursorX: number; cursorY: number } | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -110,27 +121,30 @@ export function AtlasStage({
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [isFocusDrawerOpen, setIsFocusDrawerOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
+  const [isSubmapPickerOpen, setIsSubmapPickerOpen] = useState(false);
   const isFocus = viewMode === "focus";
   const worldWidth = backgroundAsset?.width ?? 1600;
   const worldHeight = backgroundAsset?.height ?? 960;
 
   const centerViewport = useCallback(
-    (targetZoom = zoom) => {
+    (targetZoom?: number) => {
       const viewport = viewportRef.current;
 
       if (!viewport) {
         return;
       }
 
-      const scaledWidth = worldWidth * targetZoom;
-      const scaledHeight = worldHeight * targetZoom;
+      const resolvedZoom = targetZoom ?? zoomRef.current;
+      const scaledWidth = worldWidth * resolvedZoom;
+      const scaledHeight = worldHeight * resolvedZoom;
 
       viewport.scrollTo({
         left: Math.max(0, (scaledWidth - viewport.clientWidth) / 2),
         top: Math.max(0, (scaledHeight - viewport.clientHeight) / 2)
       });
     },
-    [worldHeight, worldWidth, zoom]
+    [worldHeight, worldWidth]
   );
 
   const fitToViewport = useCallback(() => {
@@ -142,7 +156,7 @@ export function AtlasStage({
 
     const widthRatio = viewport.clientWidth / worldWidth;
     const heightRatio = viewport.clientHeight / worldHeight;
-    const nextZoom = clamp(Number(Math.min(widthRatio, heightRatio).toFixed(2)), 0.6, 2.2);
+    const nextZoom = clamp(Number(Math.min(widthRatio, heightRatio).toFixed(2)), 0.05, 4.0);
 
     setZoom(nextZoom);
     window.requestAnimationFrame(() => {
@@ -151,10 +165,150 @@ export function AtlasStage({
   }, [centerViewport, worldHeight, worldWidth]);
 
   useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  useLayoutEffect(() => {
+    if (zoomAnchorRef.current && viewportRef.current) {
+      const { mapX, mapY, cursorX, cursorY } = zoomAnchorRef.current;
+      viewportRef.current.scrollLeft = mapX * zoom - cursorX;
+      viewportRef.current.scrollTop = mapY * zoom - cursorY;
+      zoomAnchorRef.current = null;
+    }
+  }, [zoom]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        
+        const currentZoom = zoomRef.current;
+        const zoomDelta = -e.deltaY * 0.002;
+        const nextZoom = clamp(Number((currentZoom + zoomDelta).toFixed(3)), 0.05, 4.0);
+        
+        if (nextZoom === currentZoom) return;
+        
+        const rect = viewport.getBoundingClientRect();
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+        const mapX = (viewport.scrollLeft + cursorX) / currentZoom;
+        const mapY = (viewport.scrollTop + cursorY) / currentZoom;
+        
+        zoomAnchorRef.current = { mapX, mapY, cursorX, cursorY };
+        setZoom(nextZoom);
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        
+        const rect = viewport.getBoundingClientRect();
+        const cursorX = centerX - rect.left;
+        const cursorY = centerY - rect.top;
+        const mapX = (viewport.scrollLeft + cursorX) / zoomRef.current;
+        const mapY = (viewport.scrollTop + cursorY) / zoomRef.current;
+
+        touchStateRef.current = {
+          initialDistance: distance,
+          initialZoom: zoomRef.current,
+          mapCenterX: mapX,
+          mapCenterY: mapY,
+          cursorX,
+          cursorY
+        };
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && touchStateRef.current) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        const scale = distance / touchStateRef.current.initialDistance;
+        const nextZoom = clamp(Number((touchStateRef.current.initialZoom * scale).toFixed(3)), 0.05, 4.0);
+        
+        if (nextZoom !== zoomRef.current) {
+          zoomAnchorRef.current = {
+            mapX: touchStateRef.current.mapCenterX,
+            mapY: touchStateRef.current.mapCenterY,
+            cursorX: touchStateRef.current.cursorX,
+            cursorY: touchStateRef.current.cursorY
+          };
+          setZoom(nextZoom);
+        }
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        touchStateRef.current = null;
+      }
+    };
+
+    viewport.addEventListener("wheel", handleWheel, { passive: false });
+    viewport.addEventListener("touchstart", handleTouchStart, { passive: false });
+    viewport.addEventListener("touchmove", handleTouchMove, { passive: false });
+    viewport.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      viewport.removeEventListener("wheel", handleWheel);
+      viewport.removeEventListener("touchstart", handleTouchStart);
+      viewport.removeEventListener("touchmove", handleTouchMove);
+      viewport.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, []);
+
+  const handleViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button === 1 || e.pointerType === "touch") {
+      panRef.current = {
+        isPanning: true,
+        startX: e.clientX,
+        startY: e.clientY,
+        scrollLeft: viewportRef.current?.scrollLeft ?? 0,
+        scrollTop: viewportRef.current?.scrollTop ?? 0
+      };
+      if (e.button === 1) {
+        e.preventDefault();
+        setIsPanning(true);
+      }
+    }
+  };
+
+  const handleViewportPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (panRef.current?.isPanning && viewportRef.current) {
+      if (e.pointerType !== "touch" || !touchStateRef.current) {
+        const dx = e.clientX - panRef.current.startX;
+        const dy = e.clientY - panRef.current.startY;
+        viewportRef.current.scrollLeft = panRef.current.scrollLeft - dx;
+        viewportRef.current.scrollTop = panRef.current.scrollTop - dy;
+      }
+    }
+  };
+
+  const handleViewportPointerUp = () => {
+    if (panRef.current) {
+      panRef.current = null;
+      setIsPanning(false);
+    }
+  };
+
+  useEffect(() => {
     window.requestAnimationFrame(() => {
       fitToViewport();
     });
-  }, [atlasMap?.id, fitToViewport, worldHeight, worldWidth]);
+  }, [atlasMap?.id, fitToViewport]);
 
   useEffect(() => {
     if (!dragState || !atlasMap || !canEdit || !sessionCode) {
@@ -584,38 +738,60 @@ export function AtlasStage({
               marcar como pista ou objetivo em destaque
             </label>
           </div>
-          <select
-            value={editor.imageAssetId}
-            onChange={(event) =>
+          <button
+            type="button"
+            onClick={() => setIsImagePickerOpen(true)}
+            className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
+          >
+            <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+            <span className={editor.imageAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+            >
+              {editor.imageAssetId
+                ? (imageAssetOptions.find((a) => a.id === editor.imageAssetId)?.label ?? "pintura do local")
+                : "sem pintura do local"}
+            </span>
+          </button>
+          <AssetVisualPicker
+            open={isImagePickerOpen}
+            onClose={() => setIsImagePickerOpen(false)}
+            onSelect={(id) =>
               setEditor((current) =>
-                current ? { ...current, imageAssetId: event.target.value } : current
+                current ? { ...current, imageAssetId: id } : current
               )
             }
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+            assets={assetOptions ?? []}
+            filterKinds={["background", "ambient"]}
+            title="Selecionar Pintura do Local"
+            cardAspect="landscape"
+          />
+
+          <button
+            type="button"
+            onClick={() => setIsSubmapPickerOpen(true)}
+            className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
           >
-            <option value="">sem pintura do local</option>
-            {imageAssetOptions.map((asset) => (
-              <option key={asset.id} value={asset.id}>
-                {asset.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={editor.submapAssetId}
-            onChange={(event) =>
+            <MapPinned size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+            <span className={editor.submapAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+            >
+              {editor.submapAssetId
+                ? (submapAssetOptions.find((a) => a.id === editor.submapAssetId)?.label ?? "submapa")
+                : "sem submapa vinculado"}
+            </span>
+          </button>
+          <AssetVisualPicker
+            open={isSubmapPickerOpen}
+            onClose={() => setIsSubmapPickerOpen(false)}
+            onSelect={(id) =>
               setEditor((current) =>
-                current ? { ...current, submapAssetId: event.target.value } : current
+                current ? { ...current, submapAssetId: id } : current
               )
             }
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-          >
-            <option value="">sem submapa</option>
-            {submapAssetOptions.map((asset) => (
-              <option key={asset.id} value={asset.id}>
-                {asset.label}
-              </option>
-            ))}
-          </select>
+            assets={assetOptions ?? []}
+            filterKinds={["map"]}
+            title="Selecionar Submapa"
+            cardAspect="landscape"
+          />
+
           <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3">
             <p className="section-label">Personagens relacionados</p>
             <p className="mt-2 text-xs text-[color:var(--ink-3)]">
@@ -926,6 +1102,16 @@ export function AtlasStage({
                 {editMode ? "editando" : "editar atlas"}
               </button>
             )}
+            {canEdit && onRequestLibrary && (
+              <button
+                type="button"
+                onClick={() => onRequestLibrary("atlas")}
+                className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] transition hover:border-amber-300/24 hover:bg-amber-300/10 hover:text-amber-100 cursor-pointer"
+              >
+                <Settings2 size={14} />
+                gerenciar atlas
+              </button>
+            )}
             {navigatingSubmap && onResetNavigation && (
               <button
                 type="button"
@@ -997,15 +1183,17 @@ export function AtlasStage({
           ref={viewportRef}
           className={cn(
             "scrollbar-thin relative overflow-auto rounded-[24px] border border-white/10 bg-black/28",
-            isFocus
-              ? "h-full min-h-0"
-              : compact
-                ? "min-h-[320px]"
-                : "min-h-[460px] h-full"
+            isPanning ? "cursor-grabbing" : "cursor-default",
+            compact ? "h-[320px] md:h-[400px]" : "h-full min-h-0"
           )}
+          onPointerDown={handleViewportPointerDown}
+          onPointerMove={handleViewportPointerMove}
+          onPointerUp={handleViewportPointerUp}
+          onPointerLeave={handleViewportPointerUp}
         >
           <div className="flex min-h-full min-w-full p-3 md:p-4">
             <div
+              ref={surfaceRef}
               className="relative m-auto shrink-0 overflow-hidden"
               style={{ width: `${renderedWidth}px`, height: `${renderedHeight}px` }}
               onClick={handleSurfaceClick}
@@ -1098,4 +1286,6 @@ export function AtlasStage({
     </div>
   );
 }
+
+
 

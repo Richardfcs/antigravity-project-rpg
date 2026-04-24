@@ -16,7 +16,9 @@ import {
   findSessionSceneById,
   moveSceneCastEntry,
   setSceneSpotlight,
-  updateSessionSceneLayout
+  updateSessionSceneLayout,
+  updateSessionScene,
+  deleteSessionScene
 } from "@/lib/scenes/repository";
 import { requireSessionViewer } from "@/lib/session/access";
 import type { SessionCharacterRecord } from "@/types/character";
@@ -219,6 +221,7 @@ export async function addAssetNpcToSceneAction(input: {
         sessionId: session.id,
         name: asset.label,
         type: "npc",
+        tier: "summary",
         assetId: asset.id,
         hpMax: 10,
         fpMax: 10,
@@ -333,6 +336,70 @@ export async function spotlightSceneCastAction(input: {
         error instanceof Error
           ? error.message
           : "Falha ao destacar o personagem."
+    };
+  }
+}
+
+export async function updateSceneAction(input: {
+  sessionCode: string;
+  sceneId: string;
+  name?: string;
+  moodLabel?: string;
+  backgroundAssetId?: string | null;
+}): Promise<SceneActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    
+    if (input.backgroundAssetId) {
+      const asset = await findSessionAssetById(input.backgroundAssetId);
+      if (!asset || asset.sessionId !== session.id) {
+        throw new Error("O background selecionado nao pertence a esta sessao.");
+      }
+    }
+
+    const scene = await updateSessionScene({
+      sessionId: session.id,
+      sceneId: input.sceneId,
+      name: input.name,
+      moodLabel: input.moodLabel,
+      backgroundAssetId: input.backgroundAssetId
+    });
+
+    return { ok: true, scene };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : "Falha ao atualizar a cena."
+    };
+  }
+}
+
+export async function deleteSceneAction(input: {
+  sessionCode: string;
+  sceneId: string;
+}): Promise<SceneActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const scene = await deleteSessionScene({
+      sessionId: session.id,
+      sceneId: input.sceneId
+    });
+
+    return { ok: true, scene };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : "Falha ao apagar a cena."
     };
   }
 }

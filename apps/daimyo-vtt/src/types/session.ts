@@ -1,4 +1,5 @@
 import type { PresenceRole } from "@/types/presence";
+import type { SessionCombatFlow } from "@/types/combat";
 
 export type StageMode = "theater" | "tactical" | "atlas";
 export type PresentationMode = "standard" | "immersive";
@@ -40,6 +41,7 @@ export interface SessionRecord {
   combatRound: number;
   combatTurnIndex: number;
   combatActiveTokenId: string | null;
+  combatFlow: SessionCombatFlow | null;
   sceneMood: string;
   createdAt: string;
   updatedAt: string;
@@ -79,6 +81,7 @@ export interface SessionShellSnapshot {
   combatRound: number;
   combatTurnIndex: number;
   combatActiveTokenId: string | null;
+  combatFlow: SessionCombatFlow | null;
   latencyLabel: string;
   sceneMood: string;
   syncState: SyncState;

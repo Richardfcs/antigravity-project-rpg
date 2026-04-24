@@ -4,6 +4,7 @@ import {
   adjustCharacterInitiative,
   adjustCharacterResource,
   createSessionCharacter,
+  deleteSessionCharacter,
   findSessionCharacterById,
   updateSessionCharacterProfile
 } from "@/lib/characters/repository";
@@ -11,7 +12,8 @@ import { getInfraReadiness } from "@/lib/env";
 import { requireSessionViewer } from "@/lib/session/access";
 import { findParticipantById } from "@/lib/session/repository";
 import { findSessionAssetById } from "@/lib/assets/repository";
-import type { SessionCharacterRecord, CharacterType } from "@/types/character";
+import type { SessionCharacterRecord, CharacterType, CharacterTier } from "@/types/character";
+import type { SessionCharacterSheetProfile } from "@/types/combat";
 
 interface CharacterActionResult {
   ok: boolean;
@@ -23,11 +25,13 @@ interface CreateCharacterInput {
   sessionCode: string;
   name: string;
   type: CharacterType;
+  tier: CharacterTier;
   ownerParticipantId?: string | null;
   assetId?: string | null;
   hpMax: number;
   fpMax: number;
   initiative?: number;
+  sheetProfile?: SessionCharacterSheetProfile | null;
 }
 
 interface AdjustCharacterResourceInput {
@@ -48,8 +52,10 @@ interface UpdateCharacterProfileInput {
   characterId: string;
   name?: string;
   type?: CharacterType;
+  tier?: CharacterTier;
   ownerParticipantId?: string | null;
   assetId?: string | null;
+  sheetProfile?: SessionCharacterSheetProfile | null;
 }
 
 function buildInfraError() {
@@ -91,11 +97,13 @@ export async function createCharacterAction(
       sessionId: session.id,
       name: input.name,
       type: input.type,
+      tier: input.tier,
       ownerParticipantId,
       assetId: input.assetId ?? null,
       hpMax: input.hpMax,
       fpMax: input.fpMax,
-      initiative: input.initiative ?? 0
+      initiative: input.initiative ?? 0,
+      sheetProfile: input.sheetProfile ?? null
     });
 
     return { ok: true, character };
@@ -226,8 +234,10 @@ export async function updateCharacterProfileAction(
       characterId: character.id,
       name: input.name,
       type: nextType,
+      tier: input.tier ?? character.tier,
       ownerParticipantId: nextOwnerParticipantId,
-      assetId: input.assetId
+      assetId: input.assetId,
+      sheetProfile: input.sheetProfile
     });
 
     return { ok: true, character: updated };
@@ -238,6 +248,34 @@ export async function updateCharacterProfileAction(
         error instanceof Error
           ? error.message
           : "Falha ao atualizar a ficha."
+    };
+  }
+}
+
+export async function deleteCharacterAction(input: {
+  sessionCode: string;
+  characterId: string;
+}): Promise<CharacterActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const character = await findSessionCharacterById(input.characterId);
+
+    if (!character || character.sessionId !== session.id) {
+      throw new Error("Ficha nao encontrada nesta sessao.");
+    }
+
+    const removed = await deleteSessionCharacter(input.characterId);
+
+    return { ok: true, character: removed };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : "Falha ao remover a ficha."
     };
   }
 }

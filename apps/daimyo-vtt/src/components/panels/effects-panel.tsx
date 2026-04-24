@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState, useTransition } from "react";
 import { Eye, LoaderCircle, Sparkles, Trash2, Waves } from "lucide-react";
@@ -12,6 +12,7 @@ import type {
   SessionEffectLayerRecord,
   SessionEffectPreset
 } from "@/types/immersive-event";
+import { cn } from "@/lib/utils";
 import type {
   SessionParticipantRecord,
   SessionViewerIdentity
@@ -187,175 +188,191 @@ export function EffectsPanel({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="stat-card">
-          <p className="section-label">Camadas ativas</p>
-          <p className="mt-2 text-2xl font-semibold text-white">{activeEffects.length}</p>
-        </div>
-        <div className="stat-card">
-          <p className="section-label">Escopo</p>
-          <p className="mt-2 text-lg font-semibold text-white">
-            {targetParticipantId ? "alvo individual" : "todos na mesa"}
-          </p>
-        </div>
-        <div className="stat-card">
-          <p className="section-label">Preview local</p>
-          <p className="mt-2 text-lg font-semibold text-white">
-            {previewEffect ? effectLabel(previewEffect.preset) : "desligado"}
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        {[
+          { label: "Camadas Ativas", value: activeEffects.length, icon: Waves, color: "text-amber-400" },
+          { label: "Escopo Atual", value: targetParticipantId ? "Alvo Individual" : "Global", icon: Sparkles, color: "text-emerald-400" },
+          { label: "Preview Local", value: previewEffect ? effectLabel(previewEffect.preset) : "Desligado", icon: Eye, color: "text-indigo-400" }
+        ].map((stat, i) => (
+          <div key={i} className="rounded-[22px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
+            <div className="flex items-center gap-2 mb-3">
+              <stat.icon size={14} className={cn("opacity-60", stat.color)} />
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{stat.label}</p>
+            </div>
+            <p className="text-xl font-bold text-white truncate">{stat.value}</p>
+          </div>
+        ))}
       </div>
 
-      <section className="rounded-[20px] border border-white/10 bg-black/18 p-4">
-        <div className="flex items-center gap-2">
-          <Waves size={16} className="text-amber-100" />
-          <h3 className="text-sm font-semibold text-white">Efeitos imersivos</h3>
-        </div>
-        <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
-          Aplique clima, atmosfera, estados emocionais ou pressagios subjetivos para todos ou para um alvo especifico.
-        </p>
+      <section className="rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
+        <header className="flex items-center gap-3 mb-6">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/10 text-amber-400">
+            <Waves size={20} />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold tracking-tight text-white">Invocação Imersiva</h3>
+            <p className="text-xs text-white/40">Modele a atmosfera, o clima e a percepção dos jogadores.</p>
+          </div>
+        </header>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <select
-            value={targetParticipantId}
-            onChange={(event) => setTargetParticipantId(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-          >
-            <option value="">todos da mesa</option>
-            {participants.map((participant) => (
-              <option key={participant.id} value={participant.id}>
-                {participant.role === "gm" ? `mestre · ${participant.displayName}` : participant.displayName}
-              </option>
-            ))}
-          </select>
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Destinatário do Fenômeno</label>
+            <select
+              value={targetParticipantId}
+              onChange={(event) => setTargetParticipantId(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+            >
+              <option value="">Todos os presentes (Global)</option>
+              {participants.map((participant) => (
+                <option key={participant.id} value={participant.id}>
+                  {participant.role === "gm" ? `Mestre · ${participant.displayName}` : participant.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            value={preset}
-            onChange={(event) => setPreset(event.target.value as SessionEffectPreset)}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-          >
-            {presetGroups.map((group) => (
-              <optgroup key={group.label} label={group.label}>
-                {group.options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+          <div className="space-y-1.5">
+            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Preset de Efeito</label>
+            <select
+              value={preset}
+              onChange={(event) => setPreset(event.target.value as SessionEffectPreset)}
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+            >
+              {presetGroups.map((group) => (
+                <optgroup key={group.label} label={group.label.toUpperCase()} className="bg-black text-[10px] text-white/40">
+                  {group.options.map((option) => (
+                    <option key={option.value} value={option.value} className="text-sm text-white">
+                      {option.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
 
-          <label className="block">
-            <span className="section-label">Intensidade</span>
+          <div className="space-y-1.5">
+            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Intensidade do Pulso</label>
             <input
               value={intensity}
               onChange={(event) => setIntensity(event.target.value)}
               inputMode="numeric"
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-              placeholder="3"
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+              placeholder="Ex: 3"
             />
-          </label>
+          </div>
 
-          <label className="block">
-            <span className="section-label">Duracao (ms, opcional)</span>
+          <div className="space-y-1.5">
+            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Duração Vital (ms)</label>
             <input
               value={durationMs}
               onChange={(event) => setDurationMs(event.target.value)}
               inputMode="numeric"
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-              placeholder="vazio = permanente"
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+              placeholder="Vazio para Permanente"
             />
-          </label>
+          </div>
         </div>
 
-        <label className="mt-3 block">
-          <span className="section-label">Observacao curta</span>
+        <div className="mt-5 space-y-1.5">
+          <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Notas de Ambientação</label>
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value)}
             rows={3}
-            className="mt-2 w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-            placeholder="chuva fina e luz fria, ferimento leve, presenca estranha..."
+            className="w-full rounded-[24px] border border-white/10 bg-white/[0.04] px-5 py-4 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08] placeholder:text-white/10 custom-scrollbar"
+            placeholder="Descreva detalhes como ventos, temperatura ou sensações..."
           />
-        </label>
+        </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handlePreview}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/12 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20"
-          >
-            <Eye size={16} />
-            ver preview
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setPreviewEffect(null)}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/12 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20"
-          >
-            <Trash2 size={16} />
-            limpar preview
-          </button>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <div className="flex gap-2 mr-auto">
+            <button
+              type="button"
+              onClick={handlePreview}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-white/10"
+            >
+              <Eye size={14} />
+              Preview
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewEffect(null)}
+              className="inline-flex items-center justify-center rounded-xl border border-white/5 bg-white/2 h-10 w-10 text-white/40 transition hover:text-rose-400"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
 
           <button
             type="button"
             onClick={handleApply}
             disabled={isPending}
-            className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-amber-100 transition hover:bg-amber-400/20 shadow-[0_0_20px_rgba(251,191,36,0.1)] disabled:opacity-50"
           >
             {pendingKey === "create-effect" ? (
               <LoaderCircle size={16} className="animate-spin" />
             ) : (
               <Sparkles size={16} />
             )}
-            aplicar efeito
+            Consolidar Fenômeno
           </button>
         </div>
+
+        {feedback && (
+          <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 rounded-2xl border border-amber-400/20 bg-amber-400/5 px-5 py-4 text-xs font-medium text-amber-200/80">
+            {feedback}
+          </div>
+        )}
       </section>
 
-      <section className="rounded-[20px] border border-white/10 bg-black/18 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-semibold text-white">Camadas ativas</h3>
-            <p className="mt-1 text-xs text-[color:var(--ink-2)]">
-              Remova ou revise rapidamente os efeitos que estao vivos na sessao.
-            </p>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-2">
+            <Waves size={14} className="text-white/30" />
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Camadas Ativas na Realidade</h4>
           </div>
-          <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
-            {activeEffects.length} ativos
+          <span className="text-[10px] font-bold text-white/20">
+            {activeEffects.length} {activeEffects.length === 1 ? "Efeito" : "Efeitos"}
           </span>
         </div>
 
-        <div className="mt-4 space-y-3">
+        <div className="grid gap-3">
           {activeEffects.length === 0 && (
-            <div className="rounded-[18px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-4 text-sm text-[color:var(--ink-2)]">
-              Nenhum efeito persistente ativo neste momento.
+            <div className="rounded-[24px] border border-dashed border-white/5 bg-white/[0.02] px-6 py-8 text-center">
+              <p className="text-sm text-white/20 font-medium">A realidade segue sem interferências imersivas.</p>
             </div>
           )}
 
           {activeEffects.map((effect) => {
             const target = effect.targetParticipantId
-              ? participants.find((participant) => participant.id === effect.targetParticipantId)
+              ? participants.find((p) => p.id === effect.targetParticipantId)
               : null;
 
             return (
               <article
                 key={effect.id}
-                className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-4"
+                className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03] p-4 transition-all hover:border-amber-400/30 hover:bg-white/[0.05]"
               >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {effectLabel(effect.preset)}
-                    </p>
-                    <p className="mt-1 text-xs text-[color:var(--ink-3)]">
-                      {target ? `alvo ${target.displayName}` : "todos da mesa"} · intensidade {effect.intensity}
-                      {effect.durationMs ? ` · ${Math.round(effect.durationMs / 1000)}s` : " · persistente"}
-                    </p>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h5 className="text-sm font-bold text-white">{effectLabel(effect.preset)}</h5>
+                      <span className={cn(
+                        "hud-chip border-white/10 bg-black/30 text-[9px]",
+                        target ? "text-indigo-300" : "text-emerald-300"
+                      )}>
+                        {target ? target.displayName : "Global"}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] font-bold text-white/30 uppercase tracking-wider">
+                      <span>Intensidade {effect.intensity}</span>
+                      <span className="text-white/10">•</span>
+                      <span>{effect.durationMs ? `${Math.round(effect.durationMs / 1000)}s` : "Persistente"}</span>
+                    </div>
                     {effect.note && (
-                      <p className="mt-2 text-sm text-[color:var(--ink-2)]">{effect.note}</p>
+                      <p className="mt-2 text-xs leading-relaxed text-white/50 italic border-l border-white/10 pl-3">{effect.note}</p>
                     )}
                   </div>
 
@@ -363,14 +380,13 @@ export function EffectsPanel({
                     type="button"
                     onClick={() => handleRemove(effect.id)}
                     disabled={isPending}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-400 opacity-40 transition-all hover:opacity-100 hover:bg-rose-500/20"
                   >
                     {pendingKey === `delete-effect:${effect.id}` ? (
                       <LoaderCircle size={16} className="animate-spin" />
                     ) : (
                       <Trash2 size={16} />
                     )}
-                    remover
                   </button>
                 </div>
               </article>
@@ -378,8 +394,6 @@ export function EffectsPanel({
           })}
         </div>
       </section>
-
-      {feedback && <p className="text-sm text-[color:var(--ink-2)]">{feedback}</p>}
     </div>
   );
 }

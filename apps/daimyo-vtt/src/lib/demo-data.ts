@@ -57,6 +57,7 @@ export function buildDemoSession(
     combatRound: 1,
     combatTurnIndex: 0,
     combatActiveTokenId: null,
+    combatFlow: null,
     latencyLabel: "24ms",
     sceneMood: "chuva fina + lanternas frias",
     syncState: "booting"

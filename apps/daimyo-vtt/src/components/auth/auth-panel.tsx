@@ -58,6 +58,14 @@ function formatFriendlyAuthError(message: string) {
     return "Email ou senha invalidos.";
   }
 
+  if (normalized.includes("password should be at least")) {
+    return "A senha precisa ter pelo menos 6 caracteres.";
+  }
+
+  if (normalized.includes("unable to validate email address")) {
+    return "Informe um email valido.";
+  }
+
   return message;
 }
 
@@ -163,43 +171,52 @@ export function AuthPanel({
       return;
     }
 
-    if (!email.trim() || !password.trim()) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password.trim();
+
+    if (!normalizedEmail || !normalizedPassword) {
       setFeedback("Informe email e senha para entrar.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setFeedback("Informe um email valido.");
+      return;
+    }
+
+    if (normalizedPassword.length < 6) {
+      setFeedback("A senha precisa ter pelo menos 6 caracteres.");
       return;
     }
 
     setPendingKey("auth");
     setFeedback(null);
     startTransition(async () => {
-      const normalizedEmail = email.trim().toLowerCase();
+      const ensureResult = await ensurePasswordAccountAction({
+        email: normalizedEmail,
+        password: normalizedPassword
+      });
       let signIn = await client.auth.signInWithPassword({
         email: normalizedEmail,
-        password
+        password: normalizedPassword
       });
 
-      if (signIn.error) {
-        const ensureResult = await ensurePasswordAccountAction({
-          email: normalizedEmail,
-          password
-        });
-
-        if (!ensureResult.ok && !ensureResult.existing) {
-          setFeedback(
-            ensureResult.message ??
-              formatFriendlyAuthError(signIn.error.message)
-          );
-          setPendingKey(null);
-          return;
-        }
-
-        signIn = await client.auth.signInWithPassword({
-          email: normalizedEmail,
-          password
-        });
+      if (signIn.error && ensureResult.existing) {
+        setFeedback(
+          ensureResult.message ?? formatFriendlyAuthError(signIn.error.message)
+        );
+        setPendingKey(null);
+        return;
       }
 
       if (signIn.error) {
-        setFeedback(formatFriendlyAuthError(signIn.error.message));
+        setFeedback(
+          ensureResult.existing
+            ? ensureResult.message ?? formatFriendlyAuthError(signIn.error.message)
+            : ensureResult.ok
+              ? formatFriendlyAuthError(signIn.error.message)
+              : ensureResult.message ?? formatFriendlyAuthError(signIn.error.message)
+        );
       } else {
         setPassword("");
         setFeedback("Conta conectada.");

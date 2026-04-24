@@ -369,6 +369,7 @@ export async function addAssetNpcToMapAction(input: {
         sessionId: session.id,
         name: asset.label,
         type: "npc",
+        tier: "summary",
         assetId: asset.id,
         hpMax: 10,
         fpMax: 10,

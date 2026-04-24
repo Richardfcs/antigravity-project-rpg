@@ -16,6 +16,7 @@ interface PrivateEventRowPayload {
   title: string;
   body: string;
   image_asset_id: string | null;
+  payload?: unknown | null;
   intensity: number;
   duration_ms: number;
   is_consumed: boolean;
@@ -39,6 +40,10 @@ function mapPrivateEventPayload(row: PrivateEventRowPayload): SessionPrivateEven
     title: row.title,
     body: row.body,
     imageAssetId: row.image_asset_id,
+    payload:
+      typeof row.payload === "object" && row.payload !== null && !Array.isArray(row.payload)
+        ? (row.payload as Record<string, unknown>)
+        : null,
     intensity: Number(row.intensity),
     durationMs: Number(row.duration_ms),
     isConsumed: row.is_consumed,
@@ -77,7 +82,21 @@ export function usePrivateEvents({
       client,
       channelName: `private-events:${sessionId}:${participantId}`,
       reconcile: async () => {
-        const { data, error } = await client
+        const nextResult = await client
+          .from("session_private_events")
+          .select(
+            "id,session_id,target_participant_id,source_participant_id,kind,title,body,image_asset_id,payload,intensity,duration_ms,is_consumed,created_at"
+          )
+          .eq("session_id", sessionId)
+          .eq("target_participant_id", participantId)
+          .order("created_at", { ascending: true });
+
+        if (!nextResult.error && nextResult.data) {
+          setEvents((nextResult.data as PrivateEventRowPayload[]).map(mapPrivateEventPayload));
+          return;
+        }
+
+        const fallbackResult = await client
           .from("session_private_events")
           .select(
             "id,session_id,target_participant_id,source_participant_id,kind,title,body,image_asset_id,intensity,duration_ms,is_consumed,created_at"
@@ -86,8 +105,8 @@ export function usePrivateEvents({
           .eq("target_participant_id", participantId)
           .order("created_at", { ascending: true });
 
-        if (!error && data) {
-          setEvents((data as PrivateEventRowPayload[]).map(mapPrivateEventPayload));
+        if (!fallbackResult.error && fallbackResult.data) {
+          setEvents((fallbackResult.data as PrivateEventRowPayload[]).map(mapPrivateEventPayload));
         }
       },
       register: (channel) =>
@@ -122,4 +141,3 @@ export function usePrivateEvents({
     });
   }, [enabled, participantId, removeEvent, sessionId, setEvents, upsertEvent]);
 }
-

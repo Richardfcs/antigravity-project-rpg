@@ -267,7 +267,7 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
 
   if (!viewer) {
     return (
-      <section className="rounded-[20px] border border-white/10 bg-black/18 p-3 text-sm leading-5 text-[color:var(--ink-2)]">
+      <section className="rounded-[22px] border border-white/10 bg-black/18 p-4 text-sm leading-6 text-[color:var(--ink-2)]">
         Entre na sessao para abrir as notas do palco ou o seu caderno.
       </section>
     );
@@ -275,12 +275,12 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
 
   if (!context) {
     return (
-      <section className="rounded-[20px] border border-white/10 bg-black/18 p-3">
+      <section className="rounded-[22px] border border-white/10 bg-black/18 p-4">
         <div className="flex items-center gap-2 text-white">
           <ScrollText size={16} className="text-amber-100" />
           <h3 className="text-sm font-semibold">Notas da mesa</h3>
         </div>
-        <p className="mt-2 text-sm leading-5 text-[color:var(--ink-2)]">
+        <p className="mt-3 text-sm leading-6 text-[color:var(--ink-2)]">
           Abra uma cena, um campo tatico ou um local do atlas para anotar o tom deste momento.
         </p>
       </section>
@@ -288,89 +288,98 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
   }
 
   return (
-    <section className="space-y-3 rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(243,236,223,0.035),transparent),rgba(8,6,5,0.78)] p-3 shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
-      <header className="flex flex-wrap items-start justify-between gap-2.5 border-b border-white/8 pb-3">
-        <div className="min-w-0">
-          <p className="section-label">{viewer.role === "gm" ? "memoria do mestre" : "caderno do jogador"}</p>
-          <h3 className="mt-1 break-words text-base font-semibold text-white">
+    <section className="space-y-6 rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-white/5 pb-6">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-400/10 text-amber-400">
+              <ScrollText size={16} />
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+              {viewer.role === "gm" ? "Memória do Mestre" : "Caderno do Jogador"}
+            </p>
+          </div>
+          <h3 className="mt-3 break-words text-2xl font-bold tracking-tight text-white">
             {context.label}
           </h3>
-          <p className="mt-1.5 max-w-2xl text-sm leading-5 text-[color:var(--ink-2)]">
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/40">
             {context.helper}
           </p>
         </div>
-        <div className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-100">
-          {currentNote ? "guardado" : "rascunho"}
+        <div className={cn(
+          "rounded-full border px-4 py-1.5 text-[9px] font-black uppercase tracking-widest backdrop-blur-md transition-colors",
+          currentNote 
+            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" 
+            : "border-amber-400/20 bg-amber-400/5 text-amber-400/60"
+        )}>
+          {currentNote ? "Sincronizado" : "Rascunho Local"}
         </div>
       </header>
 
-      <div className="rounded-[18px] border border-white/8 bg-black/16 p-3">
-        <div className="space-y-3">
-          <label className="block">
-            <span className="section-label">titulo</span>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value.slice(0, 120))}
-              placeholder={context.titlePlaceholder}
-              className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-amber-300/35"
-            />
-          </label>
+      <div className="space-y-5">
+        <div className="space-y-2">
+          <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Título do Registro</label>
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value.slice(0, 120))}
+            placeholder={context.titlePlaceholder}
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-sm font-bold text-white outline-none transition focus:border-amber-400/40 focus:bg-white/[0.05] placeholder:text-white/10"
+          />
+        </div>
 
-          <label className="block">
-            <span className="section-label">registro</span>
-            <textarea
-              value={body}
-              onChange={(event) => setBody(event.target.value.slice(0, 12000))}
-              placeholder={context.bodyPlaceholder}
-              className="mt-1.5 min-h-[170px] w-full rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.02))] px-3 py-3 text-sm leading-6 text-white outline-none transition focus:border-amber-300/35"
-            />
-          </label>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between ml-1">
+            <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Corpo da Crônica</label>
+            <span className="text-[9px] font-medium text-white/10">{bodyCount} / 12.000</span>
+          </div>
+          <textarea
+            value={body}
+            onChange={(event) => setBody(event.target.value.slice(0, 12000))}
+            placeholder={context.bodyPlaceholder}
+            className="min-h-[300px] w-full resize-y rounded-[24px] border border-white/10 bg-white/[0.02] px-6 py-6 text-base leading-relaxed text-white/80 outline-none transition focus:border-amber-400/40 focus:bg-white/[0.04] placeholder:text-white/10 custom-scrollbar"
+          />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs text-[color:var(--ink-3)]">
-          <span>{titleCount} / 120 no titulo</span>
-          <span className="mx-2 opacity-40">|</span>
-          <span>{bodyCount} / 12000 no corpo</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+        <div className="flex gap-3">
           <button
             type="button"
             onClick={handleClear}
             disabled={!canEdit || isPending}
             className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition",
+              "inline-flex items-center gap-2 rounded-xl border px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all",
               !canEdit || isPending
-                ? "cursor-not-allowed border-white/8 bg-white/[0.03] text-[color:var(--ink-3)]"
-                : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
+                ? "cursor-not-allowed border-white/5 bg-white/2 text-white/10"
+                : "border-rose-400/10 bg-rose-400/5 text-rose-400/40 hover:border-rose-400/30 hover:bg-rose-400/10 hover:text-rose-400"
             )}
           >
             {pendingAction === "clear" ? <LoaderCircle size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            limpar
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!canEdit || isPending}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition",
-              !canEdit || isPending
-                ? "cursor-not-allowed border-amber-300/14 bg-amber-300/8 text-amber-100/60"
-                : "border-amber-300/30 bg-amber-300/12 text-amber-100 hover:border-amber-300/45 hover:bg-amber-300/18"
-            )}
-          >
-            {pendingAction === "save" ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}
-            guardar
+            Limpar Registro
           </button>
         </div>
+        
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!canEdit || isPending}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-xl border px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all",
+            !canEdit || isPending
+              ? "cursor-not-allowed border-amber-400/10 bg-amber-400/5 text-amber-400/20"
+              : "border-amber-400/30 bg-amber-400/10 text-amber-400 hover:border-amber-400/50 hover:bg-amber-400/20 shadow-[0_0_20px_rgba(251,191,36,0.1)]"
+          )}
+        >
+          {pendingAction === "save" ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}
+          Guardar no Destino
+        </button>
       </div>
 
-      {feedback ? (
-        <div className="rounded-[16px] border border-amber-300/15 bg-amber-300/8 px-3 py-2.5 text-sm text-amber-50">
+      {feedback && (
+        <div className="animate-in fade-in slide-in-from-bottom-2 rounded-2xl border border-amber-400/20 bg-amber-400/5 px-5 py-4 text-xs font-medium text-amber-200/80">
           {feedback}
         </div>
-      ) : null}
+      )}
     </section>
   );
 }

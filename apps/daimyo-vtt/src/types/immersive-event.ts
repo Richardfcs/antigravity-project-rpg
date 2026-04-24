@@ -1,4 +1,10 @@
-export type PrivateEventKind = "panic" | "kegare" | "secret" | "blood" | "shake";
+export type PrivateEventKind =
+  | "panic"
+  | "kegare"
+  | "secret"
+  | "blood"
+  | "shake"
+  | "combat";
 
 export type SessionEffectPreset =
   | "sunny"
@@ -37,6 +43,7 @@ export interface SessionPrivateEventRecord {
   title: string;
   body: string;
   imageAssetId: string | null;
+  payload: Record<string, unknown> | null;
   intensity: number;
   durationMs: number;
   isConsumed: boolean;

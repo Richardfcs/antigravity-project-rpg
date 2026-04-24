@@ -1,5 +1,6 @@
 import "server-only";
 
+import { normalizeCombatFlow } from "@/lib/combat/flow";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   generateSessionCode,
@@ -40,6 +41,7 @@ interface SessionRow {
   combat_round?: number | null;
   combat_turn_index?: number | null;
   combat_active_token_id?: string | null;
+  combat_flow?: unknown | null;
   scene_mood: string;
   created_at: string;
   updated_at: string;
@@ -82,6 +84,7 @@ function mapSessionRow(row: SessionRow): SessionRecord {
     combatRound: row.combat_round ?? 1,
     combatTurnIndex: row.combat_turn_index ?? 0,
     combatActiveTokenId: row.combat_active_token_id ?? null,
+    combatFlow: row.combat_flow ? normalizeCombatFlow(row.combat_flow) : null,
     sceneMood: row.scene_mood,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -120,6 +123,7 @@ function mapSessionToSnapshot(
     combatRound: session.combatRound,
     combatTurnIndex: session.combatTurnIndex,
     combatActiveTokenId: session.combatActiveTokenId,
+    combatFlow: session.combatFlow,
     latencyLabel: "--",
     sceneMood: session.sceneMood,
     syncState: "booting"
@@ -204,8 +208,9 @@ export async function updateSessionCombatState(input: {
   combatRound?: number;
   combatTurnIndex?: number;
   combatActiveTokenId?: string | null;
+  combatFlow?: SessionRecord["combatFlow"];
 }) {
-  const payload: Record<string, boolean | number | string | null> = {};
+  const payload: Record<string, unknown> = {};
 
   if (input.combatEnabled !== undefined) {
     payload.combat_enabled = input.combatEnabled;
@@ -221,6 +226,11 @@ export async function updateSessionCombatState(input: {
 
   if (input.combatActiveTokenId !== undefined) {
     payload.combat_active_token_id = input.combatActiveTokenId;
+  }
+
+  if (input.combatFlow !== undefined) {
+    payload.combat_flow =
+      input.combatFlow === null ? null : normalizeCombatFlow(input.combatFlow);
   }
 
   const { data, error } = await getSessionTable()
@@ -281,25 +291,6 @@ export async function findParticipantById(participantId: string) {
   }
 
   return data ? mapParticipantRow(data) : null;
-}
-
-export async function removeSessionParticipant(input: {
-  sessionId: string;
-  participantId: string;
-}) {
-  const { data, error } = await getParticipantTable()
-    .delete()
-    .eq("id", input.participantId)
-    .eq("session_id", input.sessionId)
-    .eq("role", "player")
-    .select("*")
-    .maybeSingle<ParticipantRow>();
-
-  if (error || !data) {
-    throw error ?? new Error("Falha ao remover o jogador da sessao.");
-  }
-
-  return mapParticipantRow(data);
 }
 
 export async function linkParticipantToAuthUser(input: {

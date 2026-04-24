@@ -17,6 +17,7 @@ import {
 
 import { moveMapTokenAction } from "@/app/actions/map-actions";
 import { AudioSyncLayer } from "@/components/audio/audio-sync-layer";
+import { PlayerCombatPromptOverlay } from "@/components/combat/player-combat-prompt-overlay";
 import { AuthSessionBridge } from "@/components/auth/auth-session-bridge";
 import { ImmersiveOverlays } from "@/components/effects/immersive-overlays";
 import { SessionEffectOverlays } from "@/components/effects/session-effect-overlays";
@@ -615,6 +616,7 @@ export function PlayerShell({
         backgroundAsset={activeMapBackground}
         tokens={activeMapTokens}
         combatState={tacticalCombatState}
+        combatFlow={session.combatFlow}
         viewerParticipantId={viewer?.participantId}
         canManageTokens={false}
         onMoveToken={handleMoveToken}
@@ -666,6 +668,7 @@ export function PlayerShell({
         backgroundAsset={activeMapBackground}
         tokens={activeMapTokens}
         combatState={tacticalCombatState}
+        combatFlow={session.combatFlow}
         viewerParticipantId={viewer?.participantId}
         canManageTokens={false}
         onMoveToken={handleMoveToken}
@@ -754,6 +757,11 @@ export function PlayerShell({
       <AudioSyncLayer />
       <SessionEffectOverlays viewerParticipantId={viewer?.participantId} />
       <ImmersiveOverlays sessionCode={session.code} />
+      <PlayerCombatPromptOverlay
+        sessionCode={session.code}
+        events={pendingPrivateEvents}
+        heroName={currentCharacter?.name ?? null}
+      />
       <div className="mx-auto max-w-6xl">
         <AuthSessionBridge sessionCode={session.code} role="player" viewer={viewer} />
       </div>

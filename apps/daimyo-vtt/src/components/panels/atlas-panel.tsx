@@ -1,21 +1,31 @@
-﻿"use client";
+"use client";
 
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import {
   BellRing,
+  ChevronDown,
+  ChevronUp,
+  Compass,
+  Image as ImageIcon,
   LoaderCircle,
+  Map as MapIcon,
   Play,
   Plus,
+  Save,
+  Settings2,
+  Sparkles,
   Trash2
 } from "lucide-react";
 
 import {
   activateAtlasMapAction,
   createAtlasMapAction,
-  deleteAtlasMapAction
+  deleteAtlasMapAction,
+  updateAtlasMapAction
 } from "@/app/actions/atlas-actions";
 import { sendPrivateEventAction } from "@/app/actions/private-event-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
+import { AssetVisualPicker } from "@/components/ui/asset-visual-picker";
 import { findActiveAtlasMap, listAtlasStagePins } from "@/lib/atlas/selectors";
 import {
   LibraryFilterPills,
@@ -74,8 +84,15 @@ export function AtlasPanel({
   const [visibleCount, setVisibleCount] = useState(8);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [expandedAtlasId, setExpandedAtlasId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [editingAtlasId, setEditingAtlasId] = useState<string | null>(null);
+  const [draftAtlasName, setDraftAtlasName] = useState("");
+  const [draftAtlasAssetId, setDraftAtlasAssetId] = useState("");
+  const [isEditAtlasAssetPickerOpen, setIsEditAtlasAssetPickerOpen] = useState(false);
+  const [isAtlasAssetPickerOpen, setIsAtlasAssetPickerOpen] = useState(false);
+  const [isEventImagePickerOpen, setIsEventImagePickerOpen] = useState(false);
 
   const activeAtlasMap = useMemo(() => findActiveAtlasMap(atlasMaps), [atlasMaps]);
   const mapAssets = useMemo(
@@ -213,6 +230,26 @@ export function AtlasPanel({
     });
   };
 
+  const handleUpdateAtlas = (atlasMapId: string) => {
+    runAsync(`update-atlas:${atlasMapId}`, async () => {
+      const result = await updateAtlasMapAction({
+        sessionCode,
+        atlasMapId,
+        name: draftAtlasName.trim(),
+        assetId: draftAtlasAssetId || null
+      });
+
+      if (!result.ok || !result.atlasMap) {
+        setFeedback(result.message || "Falha ao atualizar o atlas.");
+        return;
+      }
+
+      upsertAtlasMap(result.atlasMap);
+      setEditingAtlasId(null);
+      setFeedback("Atlas atualizado.");
+    });
+  };
+
   const handleSendEvent = () => {
     if (!canManage) {
       setFeedback("Apenas o mestre pode enviar alertas privados.");
@@ -294,18 +331,28 @@ export function AtlasPanel({
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
                 placeholder="Atlas de Kamamura"
               />
-              <select
-                value={atlasAssetId}
-                onChange={(event) => setAtlasAssetId(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              <button
+                type="button"
+                onClick={() => setIsAtlasAssetPickerOpen(true)}
+                className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
               >
-                <option value="">sem mapa-base</option>
-                {mapAssets.map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.label}
-                  </option>
-                ))}
-              </select>
+                <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                <span className={atlasAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                >
+                  {atlasAssetId
+                    ? (mapAssets.find((a) => a.id === atlasAssetId)?.label ?? "mapa-base")
+                    : "sem mapa-base"}
+                </span>
+              </button>
+              <AssetVisualPicker
+                open={isAtlasAssetPickerOpen}
+                onClose={() => setIsAtlasAssetPickerOpen(false)}
+                onSelect={(id) => setAtlasAssetId(id)}
+                assets={assets}
+                filterKinds={["map"]}
+                title="Selecionar Mapa-Base"
+                cardAspect="landscape"
+              />
             </div>
 
             <button
@@ -333,30 +380,51 @@ export function AtlasPanel({
             </p>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <select
-                value={targetParticipantId}
-                onChange={(event) => setTargetParticipantId(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-              >
-                <option value="">escolha o alvo</option>
-                {playerParticipants.map((participant) => (
-                  <option key={participant.id} value={participant.id}>
-                    {participant.displayName}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-wrap gap-2">
+                {playerParticipants.length === 0 ? (
+                  <p className="text-xs text-[color:var(--ink-3)]">Nenhum jogador conectado.</p>
+                ) : (
+                  playerParticipants.map((participant) => (
+                    <button
+                      key={participant.id}
+                      type="button"
+                      onClick={() => setTargetParticipantId(participant.id)}
+                      className={cn(
+                        "hud-chip transition cursor-pointer",
+                        targetParticipantId === participant.id
+                          ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                          : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
+                      )}
+                    >
+                      {participant.displayName}
+                    </button>
+                  ))
+                )}
+              </div>
 
-              <select
-                value={eventKind}
-                onChange={(event) => setEventKind(event.target.value as PrivateEventKind)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-              >
-                <option value="secret">segredo</option>
-                <option value="panic">panico</option>
-                <option value="kegare">kegare</option>
-                <option value="blood">sangue</option>
-                <option value="shake">tremor</option>
-              </select>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  ["secret", "segredo"],
+                  ["panic", "panico"],
+                  ["kegare", "kegare"],
+                  ["blood", "sangue"],
+                  ["shake", "tremor"]
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setEventKind(value as PrivateEventKind)}
+                    className={cn(
+                      "hud-chip transition cursor-pointer",
+                      eventKind === value
+                        ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                        : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
 
               <input
                 value={eventTitle}
@@ -365,18 +433,26 @@ export function AtlasPanel({
                 placeholder="Voce ouviu algo..."
               />
 
-              <select
-                value={eventImageAssetId}
-                onChange={(event) => setEventImageAssetId(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              <button
+                type="button"
+                onClick={() => setIsEventImagePickerOpen(true)}
+                className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
               >
-                <option value="">sem imagem</option>
-                {assets.map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.label}
-                  </option>
-                ))}
-              </select>
+                <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                <span className={eventImageAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                >
+                  {eventImageAssetId
+                    ? (assets.find((a) => a.id === eventImageAssetId)?.label ?? "imagem")
+                    : "sem imagem"}
+                </span>
+              </button>
+              <AssetVisualPicker
+                open={isEventImagePickerOpen}
+                onClose={() => setIsEventImagePickerOpen(false)}
+                onSelect={(id) => setEventImageAssetId(id)}
+                assets={assets}
+                title="Selecionar Imagem do Alerta"
+              />
 
               <input
                 value={eventIntensity}
@@ -458,42 +534,266 @@ export function AtlasPanel({
         )}
 
         {displayedAtlasMaps.map((atlasMap) => {
-          const atlasAsset = assets.find((asset) => asset.id === atlasMap.assetId) ?? null;
+          const mapAsset =
+            assets.find((asset) => asset.id === atlasMap.assetId) ?? null;
           const pins = listAtlasStagePins(atlasMap.id, atlasPins, assets);
+          const isExpanded = expandedAtlasId === atlasMap.id;
 
           return (
             <article
               key={atlasMap.id}
               className={cn(
-                "rounded-[20px] border p-4",
+                "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
                 atlasMap.isActive
-                  ? "border-amber-300/28 bg-amber-300/10"
-                  : "border-white/10 bg-white/[0.04]"
+                  ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
+                  : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
               )}
             >
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="flex items-start gap-3">
-                  <AssetAvatar
-                    imageUrl={atlasAsset?.secureUrl}
-                    label={atlasMap.name}
-                    kind={atlasAsset?.kind}
-                    className="h-20 w-28 shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-lg font-semibold text-white">{atlasMap.name}</p>
-                      {atlasMap.isActive && (
-                        <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
-                          ativo
-                        </span>
+              {/* Background Art Layer */}
+              <div className="absolute inset-0 z-0">
+                {mapAsset?.secureUrl ? (
+                  <>
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" 
+                      style={{ 
+                        backgroundImage: `url(${mapAsset.secureUrl})`,
+                        opacity: atlasMap.isActive ? 0.35 : 0.2
+                      }} 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/40 to-transparent" />
+                  </>
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-20" />
+                )}
+              </div>
+
+              <div 
+                className="relative z-10 p-4 cursor-pointer"
+                onClick={() => setExpandedAtlasId((current) => current === atlasMap.id ? null : atlasMap.id)}
+              >
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "flex h-12 w-20 shrink-0 items-center justify-center rounded-2xl border overflow-hidden transition-all",
+                        atlasMap.isActive 
+                          ? "border-amber-400/30 bg-amber-400/10 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.2)]" 
+                          : "border-white/10 bg-white/5 text-white/40"
+                      )}>
+                        {mapAsset?.secureUrl ? (
+                          <img src={mapAsset.secureUrl} className="h-full w-full object-cover" alt="" />
+                        ) : (
+                          <MapIcon size={20} />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-lg font-bold tracking-tight text-white">{atlasMap.name}</p>
+                          {atlasMap.isActive && (
+                            <span className="flex h-5 items-center rounded-full bg-amber-400 px-2 text-[9px] font-black uppercase tracking-widest text-black">
+                              No Palco
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50">
+                          <Compass size={11} className={cn(atlasMap.isActive ? "text-amber-400" : "text-white/40")} />
+                          <span className="truncate italic">Exploração de Atlas</span>
+                        </p>
+                        <p className="mt-1 text-[10px] uppercase tracking-wider text-white/30">
+                          {mapAsset?.label || "sem pintura base"} • {pins.length} marcações
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 sm:justify-start">
+                    <div className="flex -space-x-2 overflow-hidden">
+                      {pins.slice(0, 4).map((pin) => (
+                        <div 
+                          key={pin.pin.id}
+                          className="h-8 w-8 rounded-full border-2 border-black ring-1 ring-white/10"
+                        >
+                          <img 
+                            src={pin.imageAsset?.secureUrl} 
+                            className="h-full w-full rounded-full object-cover" 
+                            alt={pin.pin.title || "pin"}
+                          />
+                        </div>
+                      ))}
+                      {pins.length > 4 && (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black bg-white/10 text-[9px] font-bold text-white ring-1 ring-white/10">
+                          +{pins.length - 4}
+                        </div>
                       )}
                     </div>
-                    <p className="mt-2 text-sm text-[color:var(--ink-2)]">
-                      {atlasAsset ? `mapa-base: ${atlasAsset.label}` : "sem mapa-base"}
-                    </p>
-                    <p className="mt-1 text-xs text-[color:var(--ink-3)]">
-                      {pins.length} pins neste atlas
-                    </p>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleActivateAtlas(atlasMap.id);
+                        }}
+                        disabled={atlasMap.isActive || isPending}
+                        className={cn(
+                          "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-[10px] font-bold uppercase tracking-widest transition-all",
+                          atlasMap.isActive
+                            ? "border-amber-400/20 bg-amber-400/5 text-amber-400/40 cursor-default"
+                            : "border-white/10 bg-white/5 text-white hover:border-amber-400/50 hover:bg-amber-400/10"
+                        )}
+                      >
+                        {pendingKey === `activate:${atlasMap.id}` ? (
+                          <LoaderCircle size={14} className="animate-spin" />
+                        ) : atlasMap.isActive ? (
+                          "Ativo"
+                        ) : (
+                          <>
+                            <Play size={12} fill="currentColor" />
+                            Exibir
+                          </>
+                        )}
+                      </button>
+
+                      {canManage && (
+                        <div className="flex gap-2">
+                          {!atlasMap.isActive && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteAtlas(atlasMap.id);
+                              }}
+                              disabled={isPending}
+                              className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-400 transition-all hover:bg-rose-500/20 hover:text-rose-300 disabled:opacity-50"
+                              title="Arquivar Atlas"
+                            >
+                              {pendingKey === `delete-atlas:${atlasMap.id}` ? (
+                                <LoaderCircle size={14} className="animate-spin" />
+                              ) : (
+                                <Trash2 size={14} />
+                              )}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (editingAtlasId === atlasMap.id) {
+                                setEditingAtlasId(null);
+                              } else {
+                                setDraftAtlasName(atlasMap.name);
+                                setDraftAtlasAssetId(atlasMap.assetId ?? "");
+                                setEditingAtlasId(atlasMap.id);
+                                setExpandedAtlasId(atlasMap.id);
+                              }
+                            }}
+                            className={cn(
+                              "flex h-10 w-10 items-center justify-center rounded-xl border transition-all",
+                              editingAtlasId === atlasMap.id
+                                ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
+                                : "border-white/10 bg-white/5 text-white/40 hover:text-white"
+                            )}
+                          >
+                            <Settings2 size={16} />
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all group-hover:border-amber-400/30 group-hover:text-amber-300">
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {isExpanded && (
+                  <div 
+                    className="mt-5 space-y-5 rounded-[20px] border border-white/5 bg-black/40 p-4 backdrop-blur-xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {editingAtlasId === atlasMap.id ? (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className="block">
+                            <span className="section-label text-[10px]">Nome do Atlas</span>
+                            <input
+                              value={draftAtlasName}
+                              onChange={(e) => setDraftAtlasName(e.target.value)}
+                              className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-amber-400/40"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="section-label text-[10px]">Mapa Base</span>
+                            <button
+                              type="button"
+                              onClick={() => setIsEditAtlasAssetPickerOpen(true)}
+                              className="mt-1.5 flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                            >
+                              <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                              <span className={draftAtlasAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}>
+                                {draftAtlasAssetId
+                                  ? (mapAssets.find((a) => a.id === draftAtlasAssetId)?.label ?? "mapa")
+                                  : "sem mapa base"}
+                              </span>
+                            </button>
+                          </label>
+                          <AssetVisualPicker
+                            open={isEditAtlasAssetPickerOpen}
+                            onClose={() => setIsEditAtlasAssetPickerOpen(false)}
+                            onSelect={(id) => setDraftAtlasAssetId(id)}
+                            assets={assets}
+                            filterKinds={["map"]}
+                            title="Trocar Mapa Base"
+                            cardAspect="landscape"
+                          />
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/5 mt-2">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateAtlas(atlasMap.id)}
+                              disabled={isPending}
+                              className="inline-flex items-center gap-2 rounded-xl bg-amber-400/10 border border-amber-400/30 px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber-300 hover:bg-amber-400/20"
+                            >
+                              {pendingKey === `update-atlas:${atlasMap.id}` ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}
+                              Salvar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingAtlasId(null)}
+                              className="inline-flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white/60 hover:text-white"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+
+                          {!atlasMap.isActive && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAtlas(atlasMap.id)}
+                              disabled={isPending}
+                              className="inline-flex items-center gap-2 rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-xs font-bold uppercase tracking-wider text-rose-400 hover:bg-rose-500/20"
+                            >
+                              {pendingKey === `delete-atlas:${atlasMap.id}` ? <LoaderCircle size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                              Apagar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAtlas(atlasMap.id)}
+                          disabled={isPending}
+                          className="inline-flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
+                        >
+                          <Trash2 size={12} />
+                          Arquivar Atlas
+                        </button>
+                      </div>
+                    )}
                     <div className="mt-3">
                       <LibraryFlagControls
                         flags={atlasLibraryFlags[atlasMap.id]}
@@ -503,37 +803,6 @@ export function AtlasPanel({
                         }
                       />
                     </div>
-                  </div>
-                </div>
-
-                {canManage && (
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleActivateAtlas(atlasMap.id)}
-                      disabled={isPending}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-black/18 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
-                    >
-                      {pendingKey === `activate-atlas:${atlasMap.id}` ? (
-                        <LoaderCircle size={16} className="animate-spin" />
-                      ) : (
-                        <Play size={16} />
-                      )}
-                      tornar ativo
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteAtlas(atlasMap.id)}
-                      disabled={isPending}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
-                    >
-                      {pendingKey === `delete-atlas:${atlasMap.id}` ? (
-                        <LoaderCircle size={16} className="animate-spin" />
-                      ) : (
-                        <Trash2 size={16} />
-                      )}
-                      remover atlas
-                    </button>
                   </div>
                 )}
               </div>
