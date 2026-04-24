@@ -1,0 +1,30 @@
+
+> @daimyo/vtt@0.1.0 build
+> next build
+
+▲ Next.js 16.2.4 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 5.9s
+  Running TypeScript ...
+Failed to type check.
+
+./src/app/actions/combat-actions.ts:1088:76
+Type error: 'prepared.resolution.damage' is possibly 'null' or 'undefined'.
+
+  [90m1086 |[0m ...mbatantStates[target.tokenId];
+  [90m1087 |[0m ...ing) {
+[31m[1m>[0m [90m1088 |[0m ...oncentrationBreak(prepared.targetProfile, prepared.resolution.damage.injury);
+  [90m     |[0m                                              [31m[1m^[0m
+  [90m1089 |[0m ...
+  [90m1090 |[0m ...rget.tokenId] = { ...targetState, concentrating: [36mfalse[0m };
+  [90m1091 |[0m ...
+Next.js build worker exited with code: 1 and signal: null
+npm error Lifecycle script `build` failed with error:
+npm error code 1
+npm error path C:\Users\richa\Documents\Programação 2026.1\antigravity-project\apps\daimyo-vtt
+npm error workspace @daimyo/vtt@0.1.0
+npm error location C:\Users\richa\Documents\Programação 2026.1\antigravity-project\apps\daimyo-vtt
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c next build

@@ -18,7 +18,7 @@ import type {
   SessionCombatFlow
 } from "@/types/combat";
 
-import { createEmptyCombatantTurnState } from "@/lib/combat/engine";
+import { advanceTurnState } from "@/lib/combat/engine";
 
 const combatActionTypes = new Set<CombatActionType>([
   "move",
@@ -81,9 +81,9 @@ const allOutDefenseVariants = new Set<AllOutDefenseVariant>([
 ]);
 
 const feintTypes = new Set<FeintType>([
-  "basic",
-  "beat",
-  "mental"
+  "dx",
+  "st",
+  "iq"
 ]);
 
 const hitLocations = new Set<CombatTargetModifiers["hitLocation"]>([
@@ -308,6 +308,10 @@ function normalizeDraftAction(raw: unknown): CombatDraftAction | null {
         allOutDefenseVariants.has(candidate.allOutVariant as AllOutDefenseVariant))
         ? (candidate.allOutVariant as AllOutAttackVariant | AllOutDefenseVariant)
         : null,
+    evaluateBonus:
+      candidate.evaluateBonus === null || candidate.evaluateBonus === undefined
+        ? null
+        : Math.min(3, Math.max(0, Math.floor(asNumber(candidate.evaluateBonus, 0)))),
     feintAttribute:
       typeof candidate.feintAttribute === "string" &&
       feintTypes.has(candidate.feintAttribute as FeintType)
@@ -350,7 +354,12 @@ function normalizePromptPayload(raw: unknown): CombatPromptPayload | null {
     expiresAt:
       candidate.expiresAt === undefined || candidate.expiresAt === null
         ? null
-        : asString(candidate.expiresAt)
+        : asString(candidate.expiresAt),
+    maneuverOptions: Array.isArray(candidate.maneuverOptions)
+      ? candidate.maneuverOptions
+          .map((option) => normalizeActionType(option))
+          .filter((option, index, array) => array.indexOf(option) === index)
+      : null
   };
 }
 
@@ -441,6 +450,7 @@ function normalizeCombatantStates(
           ? (stateObj.allOutDefenseVariant as AllOutDefenseVariant)
           : null,
       feintPenalty: Math.max(0, asNumber(stateObj.feintPenalty, 0)),
+      feintPenaltyBy: asString(stateObj.feintPenaltyBy),
       isWaiting: asBoolean(stateObj.isWaiting, false),
       waitTrigger: asString(stateObj.waitTrigger),
       concentrating: asBoolean(stateObj.concentrating, false),
@@ -500,4 +510,8 @@ export function pushCombatResolution(
     log,
     updatedAt: resolution.createdAt
   } satisfies SessionCombatFlow;
+}
+
+export function resetTurnState(state: CombatantTurnState): CombatantTurnState {
+  return advanceTurnState(state);
 }

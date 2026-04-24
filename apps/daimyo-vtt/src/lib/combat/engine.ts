@@ -69,6 +69,7 @@ export interface ContestResult extends ResolvedCombatExchange {
 export interface FeintResult {
   resolution: CombatResolutionRecord;
   feintPenalty: number;
+  feintPenaltyBy: string | null;
   actorProfile: SessionCharacterSheetProfile | null;
   targetProfile: SessionCharacterSheetProfile | null;
 }
@@ -368,7 +369,8 @@ function getManualAttackModifier(
     rangePenalty +
     postureAttackPenalty(profile.combat.posture) +
     getHitLocationAttackModifier(action.hitLocation) -
-    profile.combat.shock
+    profile.combat.shock +
+    profile.combat.evaluateBonus
   );
 }
 
@@ -849,6 +851,7 @@ export function prepareAttackResolution(input: {
   target: CombatTokenContext;
   draftAction: CombatDraftAction;
   promptPlayerDefense: boolean;
+  targetState?: CombatantTurnState | null;
   random?: () => number;
 }): PreparedAttackResult {
   const random = input.random ?? Math.random;
@@ -936,6 +939,7 @@ export function prepareAttackResolution(input: {
       draftAction: input.draftAction,
       attackRoll,
       defenseResponse: { option: "none" },
+      targetState: input.targetState,
       random
     });
 
@@ -970,18 +974,19 @@ export function prepareAttackResolution(input: {
     };
   }
 
-  const resolved = finishAttackResolution({
-    actor: input.actor,
-    target: input.target,
-    draftAction: input.draftAction,
-    attackRoll,
-    defenseResponse: {
-      option: input.draftAction.selectedDefense ?? "none",
-      retreat: input.draftAction.modifiers.retreat,
-      acrobatic: input.draftAction.modifiers.acrobatic
-    },
-    random
-  });
+const resolved = finishAttackResolution({
+      actor: input.actor,
+      target: input.target,
+      draftAction: input.draftAction,
+      attackRoll,
+      defenseResponse: {
+        option: input.draftAction.selectedDefense ?? "none",
+        retreat: input.draftAction.modifiers.retreat,
+        acrobatic: input.draftAction.modifiers.acrobatic
+      },
+      targetState: input.targetState,
+      random
+    });
 
   return {
     status: "resolved",
@@ -998,6 +1003,7 @@ export function finishAttackResolution(input: {
   draftAction: CombatDraftAction;
   attackRoll: CombatRollRecord;
   defenseResponse?: DefenseResponseInput;
+  targetState?: CombatantTurnState | null;
   random?: () => number;
 }): ResolvedCombatExchange {
   const random = input.random ?? Math.random;
@@ -1033,7 +1039,7 @@ export function finishAttackResolution(input: {
       : input.defenseResponse?.option ?? "none";
   const defenseRoll =
     defenseOption !== "none"
-      ? buildRollRecord(getDefenseTarget(targetProfile, defenseOption, input.defenseResponse), random)
+      ? buildRollRecord(getDefenseTargetWithModifiers(targetProfile, defenseOption, input.targetState ?? null, input.defenseResponse), random)
       : null;
   const baseSummary = buildAttackSummary({
     actor: input.actor,
@@ -1311,6 +1317,7 @@ export function resolveFeint(input: {
   if (!actorProfile || !targetProfile) {
     return {
       feintPenalty: 0,
+      feintPenaltyBy: null,
       actorProfile,
       targetProfile,
       resolution: {
@@ -1340,6 +1347,7 @@ export function resolveFeint(input: {
 
   return {
     feintPenalty,
+    feintPenaltyBy: feintPenalty > 0 ? input.actor.tokenId : null,
     actorProfile,
     targetProfile,
     resolution: {
@@ -1365,6 +1373,7 @@ export function resolveAllOutAttack(input: {
   draftAction: CombatDraftAction;
   variant: AllOutAttackVariant;
   promptPlayerDefense: boolean;
+  targetState?: CombatantTurnState | null;
   random?: () => number;
 }): PreparedAttackResult {
   const random = input.random ?? Math.random;
@@ -1389,6 +1398,7 @@ export function resolveAllOutAttack(input: {
     target: input.target,
     draftAction: modifiedAction,
     promptPlayerDefense: input.promptPlayerDefense,
+    targetState: input.targetState,
     random
   });
 
@@ -1432,6 +1442,7 @@ export function resolveAllOutAttackDouble(input: {
   target: CombatTokenContext;
   draftAction: CombatDraftAction;
   promptPlayerDefense: boolean;
+  targetState?: CombatantTurnState | null;
   random?: () => number;
 }): PreparedAttackResult[] {
   const random = input.random ?? Math.random;
@@ -1440,6 +1451,7 @@ export function resolveAllOutAttackDouble(input: {
     target: input.target,
     draftAction: input.draftAction,
     promptPlayerDefense: input.promptPlayerDefense,
+    targetState: input.targetState,
     random
   });
 
@@ -1452,6 +1464,7 @@ export function resolveAllOutAttackDouble(input: {
     target: input.target,
     draftAction: input.draftAction,
     promptPlayerDefense: false,
+    targetState: input.targetState,
     random
   });
 
@@ -1812,6 +1825,7 @@ export function createEmptyCombatantTurnState(): CombatantTurnState {
     allOutAttackVariant: null,
     allOutDefenseVariant: null,
     feintPenalty: 0,
+    feintPenaltyBy: null,
     isWaiting: false,
     waitTrigger: null,
     concentrating: false,
@@ -1829,6 +1843,7 @@ export function advanceTurnState(
     aimTurns:
       state.lastManeuver === "aim" ? state.aimTurns : 0,
     feintPenalty: state.feintPenalty,
+    feintPenaltyBy: state.feintPenaltyBy,
     isWaiting: state.isWaiting,
     waitTrigger: state.waitTrigger,
     concentrating: state.lastManeuver === "concentrate"

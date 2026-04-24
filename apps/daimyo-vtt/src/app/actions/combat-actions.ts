@@ -3,6 +3,8 @@
 import {
   applyStartOfTurnEffects,
   applyTechniqueSwap,
+  checkConcentrationBreak,
+  checkStunFromHit,
   createEmptyCombatantTurnState,
   advanceTurnState,
   finishAttackResolution,
@@ -23,12 +25,13 @@ import {
 import type {
   AllOutAttackVariant,
   AllOutDefenseVariant,
-  CombatActionType,
   CombatantTurnState,
   CombatDefenseOption,
   CombatDraftAction,
+  CombatHitLocationId,
   CombatResolutionRecord,
   FeintType,
+  SessionCharacterSheetProfile,
   SessionCombatFlow
 } from "@/types/combat";
 import { createEmptyCombatFlow, normalizeCombatFlow } from "@/lib/combat/flow";
@@ -63,6 +66,26 @@ function buildInfraError() {
   } satisfies CombatActionResult;
 }
 
+async function applyPostDamageChecks(input: {
+  targetProfile: SessionCharacterSheetProfile;
+  targetCharacterId: string;
+  targetTokenId: string;
+  hitLocation: CombatHitLocationId;
+  damageInjury: number;
+}) {
+  if (!input.targetProfile || input.damageInjury <= 0) return;
+
+  if (input.hitLocation === "skull" || input.hitLocation === "face") {
+    const stunResult = checkStunFromHit(input.targetProfile, input.hitLocation);
+    if (stunResult.stunned) {
+      await updateSessionCharacterProfile({
+        characterId: input.targetCharacterId,
+        sheetProfile: stunResult.nextProfile
+      });
+    }
+  }
+}
+
 interface OrderedCombatToken {
   id: string;
   createdAt: string;
@@ -91,6 +114,30 @@ function appendResolution(
     updatedAt: resolution.createdAt,
     ...patch
   } satisfies SessionCombatFlow;
+}
+
+function consumeFeintPenaltyForDefense(
+  states: Record<string, CombatantTurnState>,
+  targetTokenId: string,
+  actorTokenId: string
+) {
+  const targetState = states[targetTokenId];
+
+  if (
+    !targetState?.feintPenalty ||
+    (targetState.feintPenaltyBy && targetState.feintPenaltyBy !== actorTokenId)
+  ) {
+    return states;
+  }
+
+  return {
+    ...states,
+    [targetTokenId]: {
+      ...targetState,
+      feintPenalty: 0,
+      feintPenaltyBy: null
+    }
+  };
 }
 
 async function listActiveMapTokens(sessionId: string, activeMapId: string | null) {
@@ -335,11 +382,12 @@ export async function advanceCombatTurnAction(input: {
     const previousTokenId = session.combatActiveTokenId;
     const nextCombatantStates = { ...flow.combatantStates };
 
-    if (previousTokenId && nextCombatantStates[previousTokenId]) {
-      nextCombatantStates[previousTokenId] = advanceTurnState(nextCombatantStates[previousTokenId]);
-    }
-
     const nextTokenId = activeTokens[nextIndex]?.id ?? null;
+
+    if (previousTokenId && nextCombatantStates[previousTokenId]) {
+      const previousState = nextCombatantStates[previousTokenId];
+      nextCombatantStates[previousTokenId] = advanceTurnState(previousState);
+    }
 
     if (nextTokenId && nextCombatantStates[nextTokenId]) {
       const ts = nextCombatantStates[nextTokenId];
@@ -350,6 +398,30 @@ export async function advanceCombatTurnAction(input: {
         noDefenseThisTurn: false,
         allOutAttackVariant: null
       };
+
+      if (nextTokenId && nextTokenId !== previousTokenId) {
+        const nextToken = await buildCombatTokenContext(nextTokenId);
+        if (nextToken.character?.sheetProfile) {
+          const profile = normalizeSheetProfile(nextToken.character.sheetProfile);
+          const sotResult = applyStartOfTurnEffects({ profile });
+          if (sotResult.effects.summary) {
+            await updateSessionCharacterProfile({
+              characterId: nextToken.character.id,
+              sheetProfile: sotResult.nextProfile
+            });
+            const resolution: CombatResolutionRecord = {
+              id: `combat-resolution-${Date.now()}`,
+              createdAt: new Date().toISOString(),
+              actorTokenId: nextTokenId,
+              targetTokenId: null,
+              actionType: "do-nothing",
+              summary: `[Inicio de Turno] ${nextToken.label}: ${sotResult.effects.summary}`,
+              appliedConditions: []
+            };
+            flow.log = [...flow.log, resolution].slice(-40);
+          }
+        }
+      }
     }
 
     const updatedSession = await syncCombatSession({
@@ -432,7 +504,7 @@ export async function executeCombatActionAction(input: {
   }
 
   try {
-    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode);
 
     if (!session.combatEnabled) {
       throw new Error("Inicie o combate antes de executar uma acao.");
@@ -445,6 +517,10 @@ export async function executeCombatActionAction(input: {
 
     if (!actor.character) {
       throw new Error("O token ativo precisa ter uma ficha vinculada.");
+    }
+
+    if (viewer.role !== "gm" && actor.ownerParticipantId !== viewer.participantId) {
+      throw new Error("Voce nao controla este combatente.");
     }
 
     if (
@@ -661,7 +737,11 @@ export async function executeCombatActionAction(input: {
       });
       const targetState = flow.combatantStates[target.tokenId] ?? createEmptyCombatantTurnState();
       const nextActorState: CombatantTurnState = { ...actorState, hasActed: true, lastManeuver: input.action.actionType };
-      const nextTargetState: CombatantTurnState = { ...targetState, feintPenalty: targetState.feintPenalty + result.feintPenalty };
+      const nextTargetState: CombatantTurnState = {
+        ...targetState,
+        feintPenalty: targetState.feintPenalty + result.feintPenalty,
+        feintPenaltyBy: result.feintPenalty > 0 ? actor.tokenId : targetState.feintPenaltyBy
+      };
       const updatedSession = await syncCombatSession({
         sessionId: session.id,
         combatEnabled: true,
@@ -773,9 +853,11 @@ export async function executeCombatActionAction(input: {
       };
 
       if (variant === "double") {
+        const targetState = flow.combatantStates[target.tokenId] ?? null;
         const results = resolveAllOutAttackDouble({
           actor, target, draftAction: input.action,
-          promptPlayerDefense: false
+          promptPlayerDefense: false,
+          targetState
         });
         const lastResult = results[results.length - 1];
         if (lastResult?.actorProfile) {
@@ -785,6 +867,28 @@ export async function executeCombatActionAction(input: {
             targetCharacterId: target.character?.id,
             targetProfile: lastResult.targetProfile
           });
+          if (lastResult.targetProfile && target.character?.id) {
+            for (const r of results) {
+              if (r.targetProfile && r.resolution?.damage && r.resolution.damage.injury > 0) {
+                const hitLoc = r.resolution.damage.hitLocation;
+                await applyPostDamageChecks({
+                  targetProfile: r.targetProfile,
+                  targetCharacterId: target.character.id,
+                  targetTokenId: target.tokenId,
+                  hitLocation: hitLoc,
+                  damageInjury: r.resolution.damage.injury
+                });
+                if (r.resolution.damage.injury > 0) {
+                  if (flow.combatantStates[target.tokenId]?.concentrating) {
+                    const concResult = checkConcentrationBreak(r.targetProfile, r.resolution.damage.injury);
+                    if (concResult.broken) {
+                      flow.combatantStates[target.tokenId] = { ...flow.combatantStates[target.tokenId], concentrating: false };
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
         let currentFlow = cloneFlow(session.combatFlow);
         for (const r of results) {
@@ -792,7 +896,14 @@ export async function executeCombatActionAction(input: {
             currentFlow = appendResolution(currentFlow, r.resolution);
           }
         }
-        currentFlow = { ...currentFlow, combatantStates: { ...currentFlow.combatantStates, [actor.tokenId]: nextActorState } };
+        currentFlow = {
+          ...currentFlow,
+          combatantStates: consumeFeintPenaltyForDefense(
+            { ...currentFlow.combatantStates, [actor.tokenId]: nextActorState },
+            target.tokenId,
+            actor.tokenId
+          )
+        };
         const updatedSession = await syncCombatSession({
           sessionId: session.id,
           combatEnabled: true,
@@ -806,9 +917,11 @@ export async function executeCombatActionAction(input: {
 
       const defenses = listValidDefenseOptions(target, input.action.actionType).filter((o) => o !== "none");
       const targetIsPlayerControlled = Boolean(target.ownerParticipantId);
+      const targetState = flow.combatantStates[target.tokenId] ?? null;
       const prepared = resolveAllOutAttack({
         actor, target, draftAction: input.action, variant,
-        promptPlayerDefense: targetIsPlayerControlled && defenses.length > 0 && viewer.participantId !== target.ownerParticipantId
+        promptPlayerDefense: targetIsPlayerControlled && defenses.length > 0 && viewer.participantId !== target.ownerParticipantId,
+        targetState
       });
 
       if (prepared.status === "awaiting-defense" && prepared.prompt && target.ownerParticipantId) {
@@ -869,6 +982,27 @@ export async function executeCombatActionAction(input: {
         targetCharacterId: target.character?.id,
         targetProfile: prepared.targetProfile
       });
+
+      if (prepared.targetProfile && target.character?.id && prepared.resolution) {
+        const resolution = prepared.resolution;
+        const damage = resolution.damage;
+        const hitLocation = damage?.hitLocation ?? input.action.hitLocation;
+        const injury = damage?.injury ?? 0;
+        await applyPostDamageChecks({
+          targetProfile: prepared.targetProfile,
+          targetCharacterId: target.character.id,
+          targetTokenId: target.tokenId,
+          hitLocation,
+          damageInjury: injury
+        });
+        if (flow.combatantStates[target.tokenId]?.concentrating && injury > 0) {
+          const concResult = checkConcentrationBreak(prepared.targetProfile, injury);
+          if (concResult.broken) {
+            flow.combatantStates[target.tokenId] = { ...flow.combatantStates[target.tokenId], concentrating: false };
+          }
+        }
+      }
+
       const updatedSession = await syncCombatSession({
         sessionId: session.id,
         combatEnabled: true,
@@ -876,7 +1010,11 @@ export async function executeCombatActionAction(input: {
         combatTurnIndex: session.combatTurnIndex,
         combatActiveTokenId: session.combatActiveTokenId,
         combatFlow: appendResolution(session.combatFlow, prepared.resolution, {
-          combatantStates: { ...flow.combatantStates, [actor.tokenId]: nextActorState }
+          combatantStates: consumeFeintPenaltyForDefense(
+            { ...flow.combatantStates, [actor.tokenId]: nextActorState },
+            target.tokenId,
+            actor.tokenId
+          )
         })
       });
       return { ok: true, session: updatedSession, resolution: prepared.resolution };
@@ -886,12 +1024,14 @@ export async function executeCombatActionAction(input: {
       (option) => option !== "none"
     );
     const targetIsPlayerControlled = Boolean(target.ownerParticipantId);
+    const targetState = flow.combatantStates[target.tokenId] ?? null;
     const prepared = prepareAttackResolution({
       actor,
       target,
       draftAction: input.action,
       promptPlayerDefense:
-        targetIsPlayerControlled && defenses.length > 0 && viewer.participantId !== target.ownerParticipantId
+        targetIsPlayerControlled && defenses.length > 0 && viewer.participantId !== target.ownerParticipantId,
+      targetState
     });
 
     if (prepared.status === "awaiting-defense" && prepared.prompt && target.ownerParticipantId) {
@@ -920,7 +1060,6 @@ export async function executeCombatActionAction(input: {
         intensity: 4,
         durationMs: 120000
       });
-      const flow = cloneFlow(session.combatFlow);
       const updatedSession = await syncCombatSession({
         sessionId: session.id,
         combatEnabled: true,
@@ -958,13 +1097,48 @@ export async function executeCombatActionAction(input: {
       targetProfile: prepared.targetProfile
     });
 
+    const damage = prepared.resolution.damage;
+    if (prepared.targetProfile && target.character?.id && damage && damage.injury > 0) {
+      const damageHitLocation = damage.hitLocation;
+      if (damageHitLocation === "skull" || damageHitLocation === "face") {
+        const stunResult = checkStunFromHit(prepared.targetProfile, damageHitLocation);
+        if (stunResult.stunned) {
+          await updateSessionCharacterProfile({
+            characterId: target.character.id,
+            sheetProfile: stunResult.nextProfile
+          });
+          prepared.resolution = {
+            ...prepared.resolution,
+            appliedConditions: [...prepared.resolution.appliedConditions, "Atordoado"]
+          };
+        }
+      }
+      const targetState = flow.combatantStates[target.tokenId];
+      if (targetState?.concentrating) {
+        const concResult = checkConcentrationBreak(prepared.targetProfile, damage.injury);
+        if (concResult.broken) {
+          flow.combatantStates[target.tokenId] = { ...targetState, concentrating: false };
+          prepared.resolution = {
+            ...prepared.resolution,
+            appliedConditions: [...prepared.resolution.appliedConditions, "Concentracao quebrada"]
+          };
+        }
+      }
+    }
+
     const updatedSession = await syncCombatSession({
       sessionId: session.id,
       combatEnabled: true,
       combatRound: session.combatRound,
       combatTurnIndex: session.combatTurnIndex,
       combatActiveTokenId: session.combatActiveTokenId,
-      combatFlow: appendResolution(session.combatFlow, prepared.resolution)
+      combatFlow: appendResolution(flow, prepared.resolution, {
+        combatantStates: consumeFeintPenaltyForDefense(
+          { ...flow.combatantStates },
+          target.tokenId,
+          actor.tokenId
+        )
+      })
     });
 
     return {
@@ -1023,6 +1197,8 @@ export async function respondCombatPromptAction(input: {
       throw new Error("A rolagem de ataque pendente nao foi encontrada.");
     }
 
+    const targetState = flow.combatantStates[target.tokenId] ?? null;
+
     const finished = finishAttackResolution({
       actor,
       target,
@@ -1032,7 +1208,8 @@ export async function respondCombatPromptAction(input: {
         option: input.defenseOption ?? "none",
         retreat: input.retreat,
         acrobatic: input.acrobatic
-      }
+      },
+      targetState
     });
 
     await consumePrivateEvent(event.id).catch(() => undefined);
@@ -1043,13 +1220,36 @@ export async function respondCombatPromptAction(input: {
       targetProfile: finished.targetProfile
     });
 
+    if (finished.targetProfile && finished.resolution.damage && finished.resolution.damage.injury > 0) {
+      const hitLoc = finished.resolution.damage.hitLocation;
+      await applyPostDamageChecks({
+        targetProfile: finished.targetProfile,
+        targetCharacterId: target.character.id,
+        targetTokenId: target.tokenId,
+        hitLocation: hitLoc,
+        damageInjury: finished.resolution.damage.injury
+      });
+      if (flow.combatantStates[target.tokenId]?.concentrating) {
+        const concResult = checkConcentrationBreak(finished.targetProfile, finished.resolution.damage.injury);
+        if (concResult.broken) {
+          flow.combatantStates[target.tokenId] = { ...flow.combatantStates[target.tokenId], concentrating: false };
+        }
+      }
+    }
+
     const updatedSession = await syncCombatSession({
       sessionId: session.id,
       combatEnabled: true,
       combatRound: session.combatRound,
       combatTurnIndex: session.combatTurnIndex,
       combatActiveTokenId: session.combatActiveTokenId,
-      combatFlow: appendResolution(session.combatFlow, finished.resolution)
+      combatFlow: appendResolution(session.combatFlow, finished.resolution, {
+        combatantStates: consumeFeintPenaltyForDefense(
+          { ...flow.combatantStates },
+          target.tokenId,
+          actor.tokenId
+        )
+      })
     });
 
     return {

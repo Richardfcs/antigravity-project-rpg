@@ -4,6 +4,7 @@ import { AssetAvatar } from "@/components/media/asset-avatar";
 import { findSpotlightEntry, type SceneStageEntry } from "@/lib/scenes/selectors";
 import { cn } from "@/lib/utils";
 import type { SceneLayoutMode } from "@/types/scene";
+import type { ExplorerSection } from "@/types/session";
 
 interface TheaterStageProps {
   sceneName: string;
@@ -14,7 +15,7 @@ interface TheaterStageProps {
   compact?: boolean;
   viewMode?: "workspace" | "focus";
   canManageScenes?: boolean;
-  onRequestLibrary?: (section: any) => void;
+  onRequestLibrary?: (section: ExplorerSection) => void;
 }
 
 function getCardWidth(count: number, compact: boolean, isFocus: boolean) {

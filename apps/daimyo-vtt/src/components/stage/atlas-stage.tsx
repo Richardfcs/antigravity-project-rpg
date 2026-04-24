@@ -35,6 +35,7 @@ import type {
 } from "@/types/atlas";
 import type { SessionCharacterRecord } from "@/types/character";
 import type { SessionMemoryRecord } from "@/types/session-memory";
+import type { ExplorerSection } from "@/types/session";
 
 interface AtlasStageProps {
   sessionCode?: string;
@@ -53,7 +54,7 @@ interface AtlasStageProps {
   onOpenSubmap?: (atlasMapId: string) => void;
   onResetNavigation?: () => void;
   navigatingSubmap?: boolean;
-  onRequestLibrary?: (section: any) => void;
+  onRequestLibrary?: (section: ExplorerSection) => void;
 }
 
 interface DragState {

@@ -52,7 +52,12 @@ import {
 } from "@/stores/library-organization-store";
 import type { AssetKind, SessionAssetRecord } from "@/types/asset";
 import type { CharacterType, CharacterTier, SessionCharacterRecord } from "@/types/character";
-import type { LibrarySortMode, LibraryStatusFilter } from "@/types/library";
+import type {
+  LibraryEntryFlags,
+  LibraryPreparedFlags,
+  LibrarySortMode,
+  LibraryStatusFilter
+} from "@/types/library";
 import type { OnlinePresence } from "@/types/presence";
 import type { SessionParticipantRecord, SessionViewerIdentity } from "@/types/session";
 
@@ -137,8 +142,8 @@ function CharacterCard({
   participantOptions: SessionParticipantRecord[];
   assetOptions: SessionAssetRecord[];
   sessionCode: string;
-  flags?: any;
-  onToggleFlag?: (flag: any) => void;
+  flags?: LibraryEntryFlags;
+  onToggleFlag?: (flag: keyof LibraryPreparedFlags) => void;
 }) {
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
   const removeCharacter = useCharacterStore((state) => state.removeCharacter);

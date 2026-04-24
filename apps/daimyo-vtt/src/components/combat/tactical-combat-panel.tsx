@@ -30,11 +30,14 @@ import type {
   TacticalStageToken
 } from "@/lib/maps/selectors";
 import type {
+  AllOutAttackVariant,
+  AllOutDefenseVariant,
   CombatActionType,
   CombatDefenseOption,
   CombatDraftAction,
   CombatHitLocationId,
   CharacterTechniqueRecord,
+  FeintType,
   SessionCombatFlow
 } from "@/types/combat";
 
@@ -70,6 +73,7 @@ const actionMeta: Array<{
   requiresTarget: boolean;
   description?: string;
 }> = [
+  { id: "move", label: "mover", requiresTarget: false },
   { id: "attack", label: "ataque", requiresTarget: true },
   { id: "ranged-attack", label: "distancia", requiresTarget: true },
   { id: "all-out-attack", label: "ataque total", requiresTarget: true },
@@ -178,13 +182,14 @@ export function TacticalCombatPanel({
   
   // Novas states para manobras automatizadas
   const [waitTrigger, setWaitTrigger] = useState("");
-  const [allOutVariant, setAllOutVariant] = useState<string>("determined");
+  const [allOutVariant, setAllOutVariant] =
+    useState<AllOutAttackVariant | AllOutDefenseVariant>("determined");
   const [roundsNeeded, setRoundsNeeded] = useState(2);
-  const [feintAttribute, setFeintAttribute] = useState<"dx" | "st" | "iq">("dx");
+  const [feintAttribute, setFeintAttribute] = useState<FeintType>("dx");
 
   const availableTargets = useMemo(
     () => tokens.filter((entry) => entry.token.id !== activeEntry?.token.id),
-    [activeEntry?.token.id, tokens]
+    [activeEntry?.token, tokens]
   );
   const selectedTarget =
     availableTargets.find((entry) => entry.token.id === targetTokenId) ?? null;
@@ -210,7 +215,7 @@ export function TacticalCombatPanel({
   const currentActionMeta =
     actionMeta.find((entry) => entry.id === actionType) ?? actionMeta[0];
 
-
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const nextWeaponId = actorProfile?.combat.activeWeaponId ?? actorProfile?.weapons[0]?.id ?? null;
     const nextWeapon =
@@ -263,6 +268,7 @@ export function TacticalCombatPanel({
     setPromptRetreat(false);
     setPromptAcrobatic(false);
   }, [pendingPrompt?.eventId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleExecute = () => {
     if (!activeEntry || !onExecuteCombatAction) {
@@ -302,7 +308,7 @@ export function TacticalCombatPanel({
       selectedDefense,
       contestLabel: contestLabel.trim() || null,
       // Novos campos
-      allOutVariant: actionType.includes("all-out") ? (allOutVariant as any) : undefined,
+      allOutVariant: actionType.includes("all-out") ? allOutVariant : undefined,
       feintAttribute: actionType.startsWith("feint") ? feintAttribute : undefined,
       waitTrigger: actionType === "wait" ? waitTrigger : undefined,
       roundsNeeded: actionType === "regular-contest" ? roundsNeeded : undefined
@@ -436,6 +442,41 @@ export function TacticalCombatPanel({
           />
         </section>
 
+        {combatFlow?.regularContest && (
+          <section className="rounded-[22px] border border-purple-500/30 bg-purple-500/5 p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
+                  <Swords size={14} />
+                </div>
+                <span className="text-xs font-black uppercase tracking-widest text-purple-400">
+                  Disputa Regular em Andamento
+                </span>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/30">
+                {combatFlow.regularContest.roundsNeeded} vit. necessarias
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-black/20 p-3 text-center">
+                <p className="text-2xl font-black text-white">{combatFlow.regularContest.actorWins}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/30">
+                  {combatState.turnOrder.find(t => t.token.id === combatFlow.regularContest?.actorTokenId)?.label ?? "Atacante"}
+                </p>
+              </div>
+              <div className="rounded-xl bg-black/20 p-3 text-center">
+                <p className="text-2xl font-black text-white">{combatFlow.regularContest.targetWins}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/30">
+                  {combatState.turnOrder.find(t => t.token.id === combatFlow.regularContest?.targetTokenId)?.label ?? "Defensor"}
+                </p>
+              </div>
+            </div>
+            <p className="mt-2 text-center text-[10px] font-bold text-purple-400/60">
+              Continue a disputa com &quot;Disputa Regular&quot; selecionada
+            </p>
+          </section>
+        )}
+
         <section className="space-y-2">
           {activeEntry ? (
             <div className="rounded-[22px] border border-amber-500/20 bg-amber-500/5 p-4 transition-all duration-500 animate-in fade-in slide-in-from-bottom-2">
@@ -529,11 +570,11 @@ export function TacticalCombatPanel({
                     <span className="section-label">tipo de finta</span>
                     <div className="flex flex-wrap gap-2 mt-1">
                       {[
-                        { id: "dx", label: "DX (basica)" },
-                        { id: "st", label: "ST (batida)" },
-                        { id: "iq", label: "IQ (mental)" },
+                        { id: "dx" as FeintType, label: "DX (basica)" },
+                        { id: "st" as FeintType, label: "ST (batida)" },
+                        { id: "iq" as FeintType, label: "IQ (mental)" },
                       ].map((attr) => (
-                        <ToggleChip key={attr.id} active={feintAttribute === attr.id} onClick={() => setFeintAttribute(attr.id as any)}>
+                        <ToggleChip key={attr.id} active={feintAttribute === attr.id} onClick={() => setFeintAttribute(attr.id)}>
                           {attr.label}
                         </ToggleChip>
                       ))}
@@ -547,7 +588,7 @@ export function TacticalCombatPanel({
                     <div className="flex flex-wrap gap-2 mt-1">
                       {actionType === "all-out-attack" ? (
                         <>
-                          {["determined", "strong", "double", "long"].map((v) => (
+                          {(["determined", "strong", "double", "long"] as AllOutAttackVariant[]).map((v) => (
                             <ToggleChip key={v} active={allOutVariant === v} onClick={() => setAllOutVariant(v)}>
                               {v === "determined" ? "determinado" : v === "strong" ? "forte" : v === "double" ? "duplo" : "longo"}
                             </ToggleChip>
@@ -555,7 +596,7 @@ export function TacticalCombatPanel({
                         </>
                       ) : (
                         <>
-                          {["increased", "double"].map((v) => (
+                          {(["increased", "double"] as AllOutDefenseVariant[]).map((v) => (
                             <ToggleChip key={v} active={allOutVariant === v} onClick={() => setAllOutVariant(v)}>
                               {v === "increased" ? "aumentada" : "dupla"}
                             </ToggleChip>
@@ -612,6 +653,11 @@ export function TacticalCombatPanel({
 
                 {actionType === "swap-technique" ? (
                   <>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-black uppercase tracking-wide">
+                      <Ban size={12} />
+                      Custa o Turno Inteiro — voce nao podera se defender
+                    </div>
+
                     <label className="space-y-1.5 text-sm">
                       <span className="section-label">nova tecnica</span>
                       <select

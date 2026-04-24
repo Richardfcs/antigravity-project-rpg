@@ -1,34 +1,45 @@
-# Revisão e Integração do Fluxo de Combate (Arsenal)
+# Plano de Correção: Daimyo VTT Combat Bugs
 
-## 1. Problema Identificado
-Atualmente, as armas na Ficha Completa e Mediana são meras caixas de texto (`raw.weapon1`, `raw.weapon2`), que são salvas no banco mas **não populam o array oficial `profile.weapons`**. Isso quebra a integração com o *Card de Combate* do Mapa Tático, onde o Mestre tenta selecionar uma arma ativa e o sistema exibe "Sem armas cadastradas". Além disso, características vitais como Qualidade da Arma (enferrujada, balanceada, fina), e Armas Improvisadas não estão bem modeladas no frontend.
+Este plano detalha as correções para os erros de tipagem e lógica encontrados no módulo de combate do Daimyo VTT.
 
-## 2. Objetivos da Orquestração
-- Garantir a conexão de mão dupla perfeita entre a Ficha (Edição) e o HUD de Combate (Uso).
-- Suportar todos os modificadores narrativos e mecânicos de arsenal exigidos pelo usuário.
-- Substituir textareas simplistas por um CRUD ágil de Armas compatível com a fluidez do Daimyo VTT.
+## 🛠️ Problemas Identificados
 
-## 3. Plano de Implementação (Fases)
+1.  **`player-turn-overlay.tsx`**:
+    *   **Acesso Inválido**: Tentativa de acessar `token.token.character` em vez de `token.character`.
+    *   **Incompatibilidade de Contrato**: O objeto enviado para `onExecute` não possui propriedades obrigatórias da interface `CombatDraftAction` (`weaponId`, `weaponModeId`, `techniqueId`, `hitLocation` no nível superior).
+2.  **`flow.ts`**:
+    *   **Erro de Set**: O `Set<FeintType>` está sendo inicializado com strings (`"basic"`, `"beat"`, `"mental"`) que não existem no tipo `FeintType` (`"dx"`, `"st"`, `"iq"`).
+3.  **`globals.css`**:
+    *   **Avisos de Linter**: Avisos de `@apply` desconhecido (comum em Tailwind v4 quando a IDE não está configurada).
 
-### Fase 1: Atualização do Modelo (Backend Specialist)
-- **`src/types/combat.ts`**: Confirmar se `CharacterWeaponRecord` suporta totalmente os casos de "arma improvisada" (pode ser via categoria ou tag) e modificadores (já possui `quality`, mas precisamos garantir a renderização).
+## 📋 Plano de Ação
 
-### Fase 2: Componente de Edição do Arsenal (Frontend Specialist)
-- **`src/components/panels/character-sheet-modal.tsx`**: 
-  - Remover as antigas textareas (`char-weapon-1`).
-  - Implementar uma interface limpa onde o Mestre adiciona um `CharacterWeaponRecord`.
-  - Campos a incluir no form rápido: `Nome`, `Qualidade` (Enferrujada, Comum, Fina), `Categoria` (Lâmina, Improvisada, etc.), e `Dano Bruto` (`rawDamage`).
+### Fase 1: Correção de Tipos e Lógica (Core)
 
-### Fase 3: HUD de Combate (Frontend Specialist / Test Engineer)
-- **`src/components/combat/combat-sheet-card.tsx`**:
-  - Exibir a qualidade da arma (ex: `Katana (Fina)`).
-  - Permitir que o Mestre, direto no combate, mude o `estado` da arma (de *ready* para *broken* ou *spent*) se aplicável, ou pelo menos exiba as notas da arma improvisada.
+1.  **`apps/daimyo-vtt/src/components/combat/player-turn-overlay.tsx`**:
+    *   Corrigir o acesso ao perfil do personagem para `token.character?.sheetProfile`.
+    *   Atualizar a função `handleConfirm` para incluir todos os campos obrigatórios de `CombatDraftAction`.
+    *   Garantir que `hitLocation` seja passado tanto no nível superior quanto dentro de `modifiers`.
 
-## 4. Agentes a Serem Utilizados (Pós-Aprovação)
-- `@backend-specialist`: Para alinhar a interface `combat.ts`.
-- `@frontend-specialist`: Para construir o Editor de Arsenal na Ficha.
-- `@test-engineer`: Para garantir a verificação estrita via `typecheck:vtt` e revisão de erros de hidratação.
+2.  **`apps/daimyo-vtt/src/lib/combat/flow.ts`**:
+    *   Corrigir a inicialização do `Set<FeintType>` para usar as chaves corretas: `"dx"`, `"st"`, `"iq"`.
 
-## 5. Perguntas em Aberto para o Mestre
-- Você prefere que a criação da arma na ficha seja um formulário minucioso (com vários botões) ou apenas um bloco limpo onde você digita Nome, Dano e Qualidade rapidamente?
-- Deseja que a arma tenha "durabilidade" visível ou apenas o campo de "Qualidade/Enferrujada" já basta para você gerenciar na narrativa?
+### Fase 2: Estabilização de Estilos
+
+1.  **`apps/daimyo-vtt/src/styles/globals.css`**:
+    *   Confirmar que os avisos são apenas de linter e não afetam a funcionalidade. Como o projeto usa Tailwind v4, a sintaxe está correta.
+
+### Fase 3: Verificação
+
+1.  Executar o script de lint para garantir que não restam erros.
+2.  Executar o typecheck (`npm run typecheck`).
+
+## 👥 Agentes Envolvidos
+
+*   `@[frontend-specialist]`: Responsável pelas correções no componente React e CSS.
+*   `@[backend-specialist]`: Responsável pela correção na lógica de normalização do fluxo de combate.
+*   `@[test-engineer]`: Responsável por rodar os scripts de verificação (lint/typecheck).
+
+---
+
+Aprovas este plano para prosseguirmos com a implementação?

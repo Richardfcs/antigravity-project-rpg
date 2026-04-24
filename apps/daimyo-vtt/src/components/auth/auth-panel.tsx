@@ -196,7 +196,7 @@ export function AuthPanel({
         email: normalizedEmail,
         password: normalizedPassword
       });
-      let signIn = await client.auth.signInWithPassword({
+      const signIn = await client.auth.signInWithPassword({
         email: normalizedEmail,
         password: normalizedPassword
       });

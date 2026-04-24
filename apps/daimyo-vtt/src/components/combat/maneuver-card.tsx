@@ -12,6 +12,7 @@ import {
   Crosshair,
   Ban
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import "@/styles/combat-animations.css";
 
 interface ManeuverCardProps {
@@ -22,9 +23,10 @@ interface ManeuverCardProps {
   disabled?: boolean;
   onClick: () => void;
   shortcut?: string;
+  badges?: string[];
 }
 
-const maneuverIcons: Record<string, any> = {
+const maneuverIcons: Partial<Record<CombatActionType, LucideIcon>> = {
   "move": Footprints,
   "attack": Sword,
   "ranged-attack": Crosshair,
@@ -38,6 +40,9 @@ const maneuverIcons: Record<string, any> = {
   "ready": Timer,
   "concentrate": Brain,
   "wait": Timer,
+  "swap-technique": Timer,
+  "quick-contest": Zap,
+  "regular-contest": Zap,
   "do-nothing": Ban
 };
 
@@ -48,7 +53,8 @@ export function ManeuverCard({
   selected,
   disabled,
   onClick,
-  shortcut
+  shortcut,
+  badges = []
 }: ManeuverCardProps) {
   const Icon = maneuverIcons[type] || Sword;
 
@@ -87,6 +93,18 @@ export function ManeuverCard({
         <p className="text-[11px] leading-tight text-white/40 font-medium line-clamp-2">
           {description}
         </p>
+        {badges.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {badges.map((badge) => (
+              <span
+                key={badge}
+                className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-white/35"
+              >
+                {badge}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {selected && (

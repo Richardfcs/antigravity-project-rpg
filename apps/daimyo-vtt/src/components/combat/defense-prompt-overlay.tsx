@@ -73,7 +73,7 @@ export function DefensePromptOverlay({
               <Target size={16} />
             </div>
             <p className="text-sm font-medium text-white/80 leading-relaxed italic">
-              "{summary}"
+              &quot;{summary}&quot;
             </p>
           </div>
 

@@ -61,7 +61,8 @@ export function CharacterSheetModal({
       loadoutTechniqueIds: [],
       posture: "standing",
       shock: 0,
-      bleeding: 0
+      bleeding: 0,
+      evaluateBonus: 0
     },
     raw: {
       totalPoints: 150,

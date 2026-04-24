@@ -625,6 +625,7 @@ export function createEmptySheetProfile(input?: {
       posture: "standing",
       shock: 0,
       bleeding: 0,
+      evaluateBonus: 0,
       pendingTechniqueSwapId: null,
       lastTechniqueSwapRound: null
     },
@@ -729,6 +730,7 @@ export function normalizeSheetProfile(
           : "standing",
       shock: clamp(toNumber(candidateCombat?.shock, 0), 0, 4),
       bleeding: clamp(toNumber(candidateCombat?.bleeding, 0), 0, 999),
+      evaluateBonus: clamp(toNumber(candidateCombat?.evaluateBonus, 0), 0, 3),
       pendingTechniqueSwapId:
         typeof candidateCombat?.pendingTechniqueSwapId === "string"
           ? candidateCombat.pendingTechniqueSwapId
@@ -833,20 +835,23 @@ export function buildSheetProfileFromBaseTemplate(template: CharacterTemplate) {
       currentFp: attributes.fpMax,
       activeWeaponId: weapons[0]?.id ?? "fists",
       activeWeaponModeId: weapons[0]?.modes[0]?.id ?? "fists-mode",
-      loadoutTechniqueIds: [],
+loadoutTechniqueIds: [],
       posture: "standing",
       shock: 0,
       bleeding: 0,
+      evaluateBonus: 0,
       pendingTechniqueSwapId: null,
       lastTechniqueSwapRound: null
     },
     raw: {
-      ...stats,
-      summaryTraits: [
-        ...(Array.isArray(stats.advantages) ? stats.advantages.map(String) : []),
-        ...(Array.isArray(stats.disadvantages) ? stats.disadvantages.map(String) : []),
-        ...(Array.isArray(stats.skills) ? stats.skills.map(String) : [])
-      ].join("\n")
+      totalPoints: 0,
+      concept: "Naked NPC",
+      clan: "",
+      advantages: "",
+      disadvantages: "",
+      skills: "",
+      equipment: "",
+      spells: ""
     }
   };
   const ensured = ensureTechniqueLoadout(profile);

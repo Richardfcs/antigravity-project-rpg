@@ -175,6 +175,7 @@ export interface CharacterCombatStateProfile {
   posture: CombatPosture;
   shock: number;
   bleeding: number;
+  evaluateBonus: number;
   pendingTechniqueSwapId?: string | null;
   lastTechniqueSwapRound?: number | null;
 }
@@ -222,6 +223,7 @@ export interface CombatDraftAction {
   selectedDefense?: CombatDefenseOption | null;
   contestLabel?: string | null;
   allOutVariant?: AllOutAttackVariant | AllOutDefenseVariant | null;
+  evaluateBonus?: number | null;
   feintAttribute?: FeintType | null;
   waitTrigger?: string | null;
   roundsNeeded?: number | null;
@@ -266,6 +268,14 @@ export interface CombatResolutionRecord {
   appliedConditions: string[];
 }
 
+export interface FeintResult {
+  resolution: CombatResolutionRecord;
+  feintPenalty: number;
+  feintPenaltyBy: string | null;
+  actorProfile: SessionCharacterSheetProfile | null;
+  targetProfile: SessionCharacterSheetProfile | null;
+}
+
 export interface CombatPromptPayload {
   promptKind: CombatPromptKind;
   sessionId: string;
@@ -306,6 +316,7 @@ export interface CombatantTurnState {
   allOutAttackVariant: AllOutAttackVariant | null;
   allOutDefenseVariant: AllOutDefenseVariant | null;
   feintPenalty: number;
+  feintPenaltyBy: string | null;
   isWaiting: boolean;
   waitTrigger: string | null;
   concentrating: boolean;

@@ -88,12 +88,14 @@ export function PlayerCombatPromptOverlay({
     [combatEvent?.payload]
   );
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setDefenseOption(payload?.options[0] ?? "none");
     setRetreat(false);
     setAcrobatic(false);
     setFeedback(null);
   }, [combatEvent?.id, payload?.options]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!combatEvent || !payload) {
     return null;

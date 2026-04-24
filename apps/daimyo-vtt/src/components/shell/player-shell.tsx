@@ -15,6 +15,7 @@ import {
   Sparkles
 } from "lucide-react";
 
+import { playerExecuteManeuverAction } from "@/app/actions/combat-actions";
 import { moveMapTokenAction } from "@/app/actions/map-actions";
 import { AudioSyncLayer } from "@/components/audio/audio-sync-layer";
 import { PlayerCombatPromptOverlay } from "@/components/combat/player-combat-prompt-overlay";
@@ -92,6 +93,7 @@ import type { SessionMemoryRecord } from "@/types/session-memory";
 import type { SessionNoteRecord } from "@/types/note";
 import type { OnlinePresence } from "@/types/presence";
 import type { SceneCastRecord, SessionSceneRecord } from "@/types/scene";
+import type { CombatDraftAction } from "@/types/combat";
 import type {
   PresentationMode,
   SessionParticipantRecord,
@@ -162,9 +164,15 @@ export function PlayerShell({
   viewer
 }: PlayerShellProps) {
   const storedSnapshot = useSessionStore((state) => state.snapshot);
+  const patchSnapshot = useSessionStore((state) => state.patchSnapshot);
   const members = usePresenceStore((state) => state.members);
   const storedAssets = useAssetStore((state) => state.assets);
-  const storedCharacters = useCharacterStore((state) => state.characters);
+  const { storedCharacters, upsertCharacter } = useCharacterStore(
+    useShallow((state) => ({
+      storedCharacters: state.characters,
+      upsertCharacter: state.upsertCharacter
+    }))
+  );
   const { storedScenes, storedSceneCast } = useSceneStore(
     useShallow((state) => ({
       storedScenes: state.scenes,
@@ -538,6 +546,42 @@ export function PlayerShell({
     });
   };
 
+  const patchCombatSnapshot = (
+    nextSession: Awaited<ReturnType<typeof playerExecuteManeuverAction>>["session"]
+  ) => {
+    if (!nextSession) {
+      return;
+    }
+
+    patchSnapshot({
+      combatEnabled: nextSession.combatEnabled,
+      combatRound: nextSession.combatRound,
+      combatTurnIndex: nextSession.combatTurnIndex,
+      combatActiveTokenId: nextSession.combatActiveTokenId,
+      combatFlow: nextSession.combatFlow
+    });
+  };
+
+  const handleExecuteCombatAction = (action: CombatDraftAction) => {
+    setFeedback(null);
+
+    startTransition(async () => {
+      const result = await playerExecuteManeuverAction({
+        sessionCode: session.code,
+        action
+      });
+
+      if (!result.ok) {
+        setFeedback(result.message ?? "Falha ao executar a manobra.");
+        return;
+      }
+
+      patchCombatSnapshot(result.session);
+      result.characters?.forEach((character) => upsertCharacter(character));
+      setSyncNotice(result.message ?? "Manobra enviada para a mesa.");
+    });
+  };
+
   const effectiveStageMode = wikiOpen
     ? "atlas"
     : followMaster
@@ -620,6 +664,7 @@ export function PlayerShell({
         viewerParticipantId={viewer?.participantId}
         canManageTokens={false}
         onMoveToken={handleMoveToken}
+        onExecuteCombatAction={handleExecuteCombatAction}
         viewMode="workspace"
       />
     ) : effectiveStageMode === "atlas" ? (
@@ -672,6 +717,7 @@ export function PlayerShell({
         viewerParticipantId={viewer?.participantId}
         canManageTokens={false}
         onMoveToken={handleMoveToken}
+        onExecuteCombatAction={handleExecuteCombatAction}
         viewMode="focus"
       />
     ) : effectiveStageMode === "atlas" ? (

@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { HealthBar } from "./health-bar";
 import type { TacticalStageToken } from "@/lib/maps/selectors";
@@ -20,7 +19,7 @@ export function CombatTurnQueue({
     <div className="scrollbar-none flex gap-3 overflow-x-auto pb-2 px-1">
       {tokens.map((entry, index) => {
         const isActive = entry.token.id === activeTokenId;
-        const profile = entry.character?.sheetProfile as any;
+        const profile = entry.character?.sheetProfile;
         const hp = profile?.combat?.currentHp ?? 10;
         const hpMax = profile?.attributes?.hpMax ?? 10;
         const fp = profile?.combat?.currentFp ?? 10;

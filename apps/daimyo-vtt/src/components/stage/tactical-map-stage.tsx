@@ -57,6 +57,7 @@ import type {
   TokenFaction,
   TokenStatusPreset
 } from "@/types/map";
+import type { ExplorerSection } from "@/types/session";
 
 interface TacticalMapStageProps {
   sessionCode: string;
@@ -86,7 +87,7 @@ interface TacticalMapStageProps {
     acrobatic?: boolean;
   }) => Promise<void> | void;
   onGmTakeOver?: (tokenId: string) => Promise<void> | void;
-  onRequestLibrary?: (section: any) => void;
+  onRequestLibrary?: (section: ExplorerSection) => void;
 }
 
 interface DragState {
@@ -197,6 +198,7 @@ export function TacticalMapStage({
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [tokenMenu, setTokenMenu] = useState<TokenMenuState | null>(null);
   const [isCombatDrawerOpen, setIsCombatDrawerOpen] = useState(false);
+  const [dismissedPlayerTurnTokenId, setDismissedPlayerTurnTokenId] = useState<string | null>(null);
   const [isTokenDrawerOpen, setIsTokenDrawerOpen] = useState(false);
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const [creatorMode, setCreatorMode] = useState<CreatorMode>("character");
@@ -220,6 +222,10 @@ export function TacticalMapStage({
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
+
+  useEffect(() => {
+    setDismissedPlayerTurnTokenId(null);
+  }, [combatState?.activeTokenId]);
 
   const centerViewport = useCallback(
     (targetZoom?: number) => {
@@ -1017,13 +1023,14 @@ export function TacticalMapStage({
           {/* Turno do Jogador */}
           {combatFlow.phase === "command" && 
            combatState?.activeTokenId && 
+           dismissedPlayerTurnTokenId !== combatState.activeTokenId &&
            visibleTokens.find(t => t.token.id === combatState.activeTokenId)?.ownerParticipantId === viewerParticipantId && (
             <PlayerTurnOverlay
               token={visibleTokens.find(t => t.token.id === combatState.activeTokenId)!}
               combatState={combatState}
               combatFlow={combatFlow}
               onExecute={(action) => onExecuteCombatAction?.(action)}
-              onClose={() => setIsCombatDrawerOpen(false)}
+              onClose={() => setDismissedPlayerTurnTokenId(combatState.activeTokenId ?? null)}
             />
           )}
 

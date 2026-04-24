@@ -63,6 +63,7 @@ export function VisualPickerModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open) {
       setQuery("");
@@ -70,6 +71,7 @@ export function VisualPickerModal({
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!open) return;
