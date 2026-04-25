@@ -14,6 +14,7 @@ import type {
   CombatTargetModifiers,
   AllOutAttackVariant,
   AllOutDefenseVariant,
+  AttackVariant,
   FeintType,
   SessionCombatFlow
 } from "@/types/combat";
@@ -65,7 +66,8 @@ const combatPromptKinds = new Set<CombatPromptKind>([
   "defense",
   "quick-contest",
   "regular-contest",
-  "player-command"
+  "player-command",
+  "ht-check"
 ]);
 
 const allOutAttackVariants = new Set<AllOutAttackVariant>([
@@ -75,10 +77,8 @@ const allOutAttackVariants = new Set<AllOutAttackVariant>([
   "long"
 ]);
 
-const allOutDefenseVariants = new Set<AllOutDefenseVariant>([
-  "increased",
-  "double"
-]);
+const allOutDefenseVariants = new Set<AllOutDefenseVariant>(["increased", "double"]);
+const attackVariants = new Set<AttackVariant>(["standard", "defensive", "committed", "deceptive"]);
 
 const feintTypes = new Set<FeintType>([
   "dx",
@@ -154,7 +154,8 @@ function normalizeTargetModifiers(raw: unknown): CombatTargetModifiers {
   const candidate = asObject(raw);
 
   return {
-    manual: asNumber(candidate?.manual, 0),
+    manualToHit: asNumber(candidate?.manualToHit, 0),
+    manualDamage: asNumber(candidate?.manualDamage, 0),
     hitLocation: normalizeHitLocation(candidate?.hitLocation),
     rangeMeters:
       candidate?.rangeMeters === null || candidate?.rangeMeters === undefined
@@ -304,10 +305,17 @@ function normalizeDraftAction(raw: unknown): CombatDraftAction | null {
     contestLabel: asString(candidate.contestLabel),
     allOutVariant:
       typeof candidate.allOutVariant === "string" &&
-      (allOutAttackVariants.has(candidate.allOutVariant as AllOutAttackVariant) ||
-        allOutDefenseVariants.has(candidate.allOutVariant as AllOutDefenseVariant))
-        ? (candidate.allOutVariant as AllOutAttackVariant | AllOutDefenseVariant)
+      allOutAttackVariants.has(candidate.allOutVariant as AllOutAttackVariant)
+        ? (candidate.allOutVariant as AllOutAttackVariant)
         : null,
+    allOutDefenseVariant:
+      typeof candidate.allOutDefenseVariant === "string" &&
+      allOutDefenseVariants.has(candidate.allOutDefenseVariant as AllOutDefenseVariant)
+        ? (candidate.allOutDefenseVariant as AllOutDefenseVariant)
+        : typeof candidate.allOutVariant === "string" &&
+          allOutDefenseVariants.has(candidate.allOutVariant as AllOutDefenseVariant)
+          ? (candidate.allOutVariant as AllOutDefenseVariant)
+          : null,
     evaluateBonus:
       candidate.evaluateBonus === null || candidate.evaluateBonus === undefined
         ? null
@@ -317,6 +325,14 @@ function normalizeDraftAction(raw: unknown): CombatDraftAction | null {
       feintTypes.has(candidate.feintAttribute as FeintType)
         ? (candidate.feintAttribute as FeintType)
         : null,
+    attackVariant:
+      typeof candidate.attackVariant === "string" &&
+      attackVariants.has(candidate.attackVariant as AttackVariant)
+        ? (candidate.attackVariant as AttackVariant)
+        : null,
+    deceptiveLevel: asNumber(candidate.deceptiveLevel, 0),
+    rapidStrike: asBoolean(candidate.rapidStrike, false),
+    dualWeapon: asBoolean(candidate.dualWeapon, false),
     waitTrigger: asString(candidate.waitTrigger),
     roundsNeeded:
       candidate.roundsNeeded === null || candidate.roundsNeeded === undefined
@@ -359,7 +375,18 @@ function normalizePromptPayload(raw: unknown): CombatPromptPayload | null {
       ? candidate.maneuverOptions
           .map((option) => normalizeActionType(option))
           .filter((option, index, array) => array.indexOf(option) === index)
-      : null
+      : null,
+    htCheck: candidate.htCheck
+      ? (() => {
+          const ht = asObject(candidate.htCheck);
+          if (!ht) return undefined;
+          return {
+            kind: ht.kind === "survival" ? ("survival" as const) : ("consciousness" as const),
+            targetValue: asNumber(ht.targetValue, 10),
+            threshold: asString(ht.threshold) ?? undefined
+          };
+        })()
+      : undefined
   };
 }
 
@@ -449,6 +476,12 @@ function normalizeCombatantStates(
         allOutDefenseVariants.has(stateObj.allOutDefenseVariant as AllOutDefenseVariant)
           ? (stateObj.allOutDefenseVariant as AllOutDefenseVariant)
           : null,
+      attackVariant:
+        typeof stateObj.attackVariant === "string" &&
+        attackVariants.has(stateObj.attackVariant as AttackVariant)
+          ? (stateObj.attackVariant as AttackVariant)
+          : null,
+      deceptiveLevel: asNumber(stateObj.deceptiveLevel, 0),
       feintPenalty: Math.max(0, asNumber(stateObj.feintPenalty, 0)),
       feintPenaltyBy: asString(stateObj.feintPenaltyBy),
       isWaiting: asBoolean(stateObj.isWaiting, false),

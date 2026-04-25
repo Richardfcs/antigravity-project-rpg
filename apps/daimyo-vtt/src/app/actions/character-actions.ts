@@ -6,8 +6,14 @@ import {
   createSessionCharacter,
   deleteSessionCharacter,
   findSessionCharacterById,
-  updateSessionCharacterProfile
+  updateSessionCharacterProfile,
+  updateCharacterResource
 } from "@/lib/characters/repository";
+import {
+  buildSheetProfileFromBaseTemplate,
+  deriveSummaryFromSheetProfile
+} from "@/lib/combat/sheet-profile";
+import { findBaseArchetypeById, loadBaseCatalog } from "@/lib/content-bridge/base-loader";
 import { getInfraReadiness } from "@/lib/env";
 import { requireSessionViewer } from "@/lib/session/access";
 import { findParticipantById } from "@/lib/session/repository";
@@ -39,6 +45,13 @@ interface AdjustCharacterResourceInput {
   characterId: string;
   resource: "hp" | "fp";
   delta: number;
+}
+
+interface UpdateCharacterResourceInput {
+  sessionCode: string;
+  characterId: string;
+  resource: "hp" | "fp";
+  value: number;
 }
 
 interface AdjustCharacterInitiativeInput {
@@ -143,6 +156,45 @@ export async function adjustCharacterResourceAction(
       characterId: input.characterId,
       resource: input.resource,
       delta: input.delta
+    });
+
+    return { ok: true, character: updated };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Falha ao atualizar PV/PF."
+    };
+  }
+}
+
+export async function updateCharacterResourceAction(
+  input: UpdateCharacterResourceInput
+): Promise<CharacterActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session, viewer } = await requireSessionViewer(input.sessionCode);
+    const character = await findSessionCharacterById(input.characterId);
+
+    if (!character || character.sessionId !== session.id) {
+      throw new Error("Personagem não encontrado nesta sessão.");
+    }
+
+    const ownsCharacter = character.ownerParticipantId === viewer.participantId;
+
+    if (viewer.role !== "gm" && !ownsCharacter) {
+      throw new Error("Você só pode alterar a ficha vinculada ao seu navegador.");
+    }
+
+    const updated = await updateCharacterResource({
+      characterId: input.characterId,
+      resource: input.resource,
+      value: input.value
     });
 
     return { ok: true, character: updated };
@@ -276,6 +328,60 @@ export async function deleteCharacterAction(input: {
       ok: false,
       message:
         error instanceof Error ? error.message : "Falha ao remover a ficha."
+    };
+  }
+}
+
+export async function applyBaseArchetypeAction(input: {
+  sessionCode: string;
+  characterId: string;
+  archetypeId: string;
+}): Promise<CharacterActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const character = await findSessionCharacterById(input.characterId);
+
+    if (!character || character.sessionId !== session.id) {
+      throw new Error("Ficha não encontrada nesta sessão.");
+    }
+
+    const archetype = await findBaseArchetypeById(input.archetypeId);
+    if (!archetype) {
+      throw new Error("Arquétipo não encontrado.");
+    }
+
+    const sheetProfile = buildSheetProfileFromBaseTemplate(archetype);
+
+    const updated = await updateSessionCharacterProfile({
+      characterId: character.id,
+      sheetProfile
+    });
+
+    return { ok: true, character: updated };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Falha ao aplicar arquétipo."
+    };
+  }
+}
+
+export async function getBaseArchetypesAction(input: {
+  sessionCode: string;
+}): Promise<{ ok: boolean; archetypes: any[]; message?: string }> {
+  try {
+    await requireSessionViewer(input.sessionCode, "gm");
+    const catalog = await loadBaseCatalog();
+    return { ok: true, archetypes: catalog.archetypes };
+  } catch (error) {
+    return {
+      ok: false,
+      archetypes: [],
+      message: error instanceof Error ? error.message : "Falha ao carregar arquétipos."
     };
   }
 }

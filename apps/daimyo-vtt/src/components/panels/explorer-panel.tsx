@@ -7,13 +7,15 @@ import {
   MessageSquare,
   Music,
   Settings,
+  Shield,
   Sparkles,
   Users
 } from "lucide-react";
 
 import { CompactPanelHeader } from "@/components/layout/compact-panel-header";
 import { cn } from "@/lib/utils";
-import { ActorsPanel } from "@/components/panels/actors-panel";
+import { AssetsPanel } from "./assets-panel";
+import { CharactersPanel } from "./characters-panel";
 import { AdminPanel } from "@/components/panels/admin-panel";
 import { AudioPanel } from "@/components/panels/audio-panel";
 import { AtlasPanel } from "@/components/panels/atlas-panel";
@@ -47,9 +49,10 @@ interface ExplorerPanelProps {
 const sectionMeta = {
   scenes: { title: "Cenas", icon: ImageIcon },
   maps: { title: "Campos", icon: Map },
+  actors: { title: "Fichas", icon: Shield },
+  assets: { title: "Galeria", icon: ImageIcon },
   codex: { title: "Oficina", icon: BookOpen },
   notes: { title: "Notas", icon: FileText },
-  actors: { title: "Fichas", icon: Users },
   atlas: { title: "Atlas", icon: Compass },
   effects: { title: "Efeitos", icon: Sparkles },
   admin: { title: "Dominio", icon: Settings },
@@ -130,7 +133,16 @@ export function ExplorerPanel({
         )}
 
         {activeSection === "actors" && (
-          <ActorsPanel
+          <CharactersPanel
+            sessionCode={snapshot.code}
+            viewer={viewer}
+            participants={participants}
+            party={party}
+          />
+        )}
+        
+        {activeSection === "assets" && (
+          <AssetsPanel
             sessionCode={snapshot.code}
             viewer={viewer}
             participants={participants}

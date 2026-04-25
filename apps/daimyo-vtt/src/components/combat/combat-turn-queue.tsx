@@ -16,7 +16,7 @@ export function CombatTurnQueue({
   onSelect
 }: CombatTurnQueueProps) {
   return (
-    <div className="scrollbar-none flex gap-3 overflow-x-auto pb-2 px-1">
+    <div className="scrollbar-none flex gap-3 overflow-x-auto pb-2 px-1 pt-4">
       {tokens.map((entry, index) => {
         const isActive = entry.token.id === activeTokenId;
         const profile = entry.character?.sheetProfile;

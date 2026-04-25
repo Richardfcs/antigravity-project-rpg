@@ -75,6 +75,8 @@ interface StagePanelProps {
     acrobatic?: boolean;
   }) => Promise<void> | void;
   onGmTakeOver?: (tokenId: string) => Promise<void> | void;
+  onSkipTurn?: () => Promise<void> | void;
+  onAdjustResource?: (tokenId: string, resource: "hp" | "fp", delta: number) => Promise<void> | void;
   onStageModeChange: (mode: StageMode) => void;
   onPresentationModeChange: (mode: PresentationMode) => void;
   onRequestLibrary?: (section: ExplorerSection) => void;
@@ -105,6 +107,9 @@ export function StagePanel({
   onExecuteCombatAction,
   onRespondCombatPrompt,
   onGmTakeOver,
+  onSkipTurn,
+  onAdjustResource,
+  onStageModeChange,
   onPresentationModeChange,
   onRequestLibrary
 }: StagePanelProps) {
@@ -300,6 +305,8 @@ export function StagePanel({
               onExecuteCombatAction={onExecuteCombatAction}
               onRespondCombatPrompt={onRespondCombatPrompt}
               onGmTakeOver={onGmTakeOver}
+              onSkipTurn={onSkipTurn}
+              onAdjustResource={onAdjustResource}
               onRequestLibrary={onRequestLibrary}
               viewMode="workspace"
             />
@@ -323,6 +330,7 @@ export function StagePanel({
               onResetNavigation={() => onAtlasMapNavigate?.(null)}
               navigatingSubmap={Boolean(atlasMapIdOverride && atlasMapIdOverride !== snapshot.activeAtlasMapId)}
               onRequestLibrary={onRequestLibrary}
+              onOpenScene={() => onStageModeChange("theater")}
               viewMode="workspace"
             />
           )}

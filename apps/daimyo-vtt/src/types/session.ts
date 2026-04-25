@@ -10,6 +10,7 @@ export type ExplorerSection =
   | "scenes"
   | "maps"
   | "actors"
+  | "assets"
   | "codex"
   | "notes"
   | "atlas"

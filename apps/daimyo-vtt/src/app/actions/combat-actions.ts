@@ -6,12 +6,10 @@ import {
   checkConcentrationBreak,
   checkStunFromHit,
   createEmptyCombatantTurnState,
-  advanceTurnState,
   finishAttackResolution,
   listValidDefenseOptions,
   prepareAttackResolution,
   resolveAim,
-  resolveAllOutAttack,
   resolveAllOutAttackDouble,
   resolveAllOutDefense,
   resolveConcentrate,
@@ -20,7 +18,10 @@ import {
   resolveFeint,
   resolveQuickContest,
   resolveReady,
-  resolveRegularContestRound
+  resolveRegularContestRound,
+  resolveHTCheck,
+  resolveRapidStrike,
+  resolveDualWeaponAttack
 } from "@/lib/combat/engine";
 import type {
   AllOutAttackVariant,
@@ -32,7 +33,8 @@ import type {
   CombatResolutionRecord,
   FeintType,
   SessionCharacterSheetProfile,
-  SessionCombatFlow
+  SessionCombatFlow,
+  CombatPromptPayload
 } from "@/types/combat";
 import { createEmptyCombatFlow, normalizeCombatFlow } from "@/lib/combat/flow";
 import { normalizeSheetProfile } from "@/lib/combat/sheet-profile";
@@ -334,7 +336,7 @@ export async function stopCombatEncounterAction(input: {
     return {
       ok: false,
       message:
-        error instanceof Error ? error.message : "Falha ao encerrar o encontro de combate."
+        error instanceof Error ? error.message : "Falha ao destacar o combatente."
     };
   }
 }
@@ -349,78 +351,59 @@ export async function advanceCombatTurnAction(input: {
 
   try {
     const { session } = await requireSessionViewer(input.sessionCode, "gm");
-    const activeTokens = await listOrderedCombatTokens(session.id, session.activeMapId);
 
-    if (activeTokens.length === 0) {
-      throw new Error("Nao ha combatentes ativos neste mapa.");
+    if (!session.combatEnabled) {
+      throw new Error("Inicie o combate antes de avancar o turno.");
     }
 
-    const flow = cloneFlow(session.combatFlow);
+    const currentTokenId = session.combatActiveTokenId;
+    const flow = session.combatFlow ? cloneFlow(session.combatFlow) : createEmptyCombatFlow();
 
-    if (flow.pendingPrompt?.eventId) {
+    if (flow?.pendingPrompt?.eventId) {
       await consumePrivateEvent(flow.pendingPrompt.eventId).catch(() => undefined);
     }
 
-    const totalTurns = activeTokens.length;
-    let nextIndex = Math.min(Math.max(session.combatTurnIndex, 0), totalTurns - 1);
-    let nextRound = Math.max(1, session.combatRound);
-
-    if (input.direction === "next") {
-      nextIndex += 1;
-      if (nextIndex >= totalTurns) {
-        nextIndex = 0;
-        nextRound += 1;
-      }
-    } else {
-      nextIndex -= 1;
-      if (nextIndex < 0) {
-        nextIndex = totalTurns - 1;
-        nextRound = Math.max(1, nextRound - 1);
-      }
-    }
-
-    const previousTokenId = session.combatActiveTokenId;
-    const nextCombatantStates = { ...flow.combatantStates };
-
+    const activeTokens = await listOrderedCombatTokens(session.id, session.activeMapId);
+    const isForward = input.direction === "next";
+    const currentIndex = activeTokens.findIndex((t) => t.id === currentTokenId);
+    const nextIndex = isForward
+      ? currentIndex >= 0
+        ? currentIndex + 1 >= activeTokens.length
+          ? 0
+          : currentIndex + 1
+        : 0
+      : currentIndex > 0
+        ? currentIndex - 1
+        : activeTokens.length - 1;
     const nextTokenId = activeTokens[nextIndex]?.id ?? null;
 
-    if (previousTokenId && nextCombatantStates[previousTokenId]) {
-      const previousState = nextCombatantStates[previousTokenId];
-      nextCombatantStates[previousTokenId] = advanceTurnState(previousState);
+    let nextRound = session.combatRound;
+    if (isForward && nextIndex === 0 && currentIndex > 0) {
+      const turnIndexToCheck = activeTokens.findIndex((t) => t.id === currentTokenId);
+      if (turnIndexToCheck >= 0 && turnIndexToCheck < activeTokens.length - 1) {
+        nextRound = session.combatRound + 1;
+      }
     }
 
-    if (nextTokenId && nextCombatantStates[nextTokenId]) {
-      const ts = nextCombatantStates[nextTokenId];
-      nextCombatantStates[nextTokenId] = {
-        ...ts,
-        hasActed: false,
-        defenseUsedThisTurn: [],
-        noDefenseThisTurn: false,
-        allOutAttackVariant: null
-      };
+    if (!nextTokenId) {
+      throw new Error("Nenhum combatente encontrado.");
+    }
 
-      if (nextTokenId && nextTokenId !== previousTokenId) {
-        const nextToken = await buildCombatTokenContext(nextTokenId);
-        if (nextToken.character?.sheetProfile) {
-          const profile = normalizeSheetProfile(nextToken.character.sheetProfile);
-          const sotResult = applyStartOfTurnEffects({ profile });
-          if (sotResult.effects.summary) {
-            await updateSessionCharacterProfile({
-              characterId: nextToken.character.id,
-              sheetProfile: sotResult.nextProfile
-            });
-            const resolution: CombatResolutionRecord = {
-              id: `combat-resolution-${Date.now()}`,
-              createdAt: new Date().toISOString(),
-              actorTokenId: nextTokenId,
-              targetTokenId: null,
-              actionType: "do-nothing",
-              summary: `[Inicio de Turno] ${nextToken.label}: ${sotResult.effects.summary}`,
-              appliedConditions: []
-            };
-            flow.log = [...flow.log, resolution].slice(-40);
-          }
-        }
+    const nextCombatantStates: Record<string, CombatantTurnState> = {};
+
+    if (isForward) {
+      const currentActorState = flow.combatantStates[currentTokenId ?? ""];
+      if (currentActorState && currentActorState.isWaiting) {
+        const waitingResolution: CombatResolutionRecord = {
+          id: `combat-resolution-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          actorTokenId: currentTokenId ?? "",
+          targetTokenId: null,
+          actionType: "wait",
+          summary: `O combatente estava esperando e o gatilho '${currentActorState.waitTrigger}' ocorreu.`,
+          appliedConditions: []
+        };
+        flow.log = [...flow.log, waitingResolution].slice(-40);
       }
     }
 
@@ -448,7 +431,8 @@ export async function advanceCombatTurnAction(input: {
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Falha ao avancar o turno."
+      message:
+        error instanceof Error ? error.message : "Falha ao avancar o turno."
     };
   }
 }
@@ -490,7 +474,84 @@ export async function selectCombatantAction(input: {
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Falha ao destacar o combatente."
+      message:
+        error instanceof Error ? error.message : "Falha ao destacar o combatente."
+    };
+  }
+}
+
+export async function skipTurnAction(input: {
+  sessionCode: string;
+}): Promise<CombatActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+
+    if (!session.combatEnabled) {
+      throw new Error("Nenhum combate ativo.");
+    }
+
+    const currentTokenId = session.combatActiveTokenId;
+    if (!currentTokenId) {
+      throw new Error("Nenhum combatente ativo no momento.");
+    }
+
+    const actor = await buildCombatTokenContext(currentTokenId);
+    const resolution: CombatResolutionRecord = {
+      id: `combat-resolution-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      actorTokenId: actor.tokenId,
+      targetTokenId: null,
+      actionType: "do-nothing",
+      summary: `${actor.label} pula o turno (acao ignorada pelo GM).`,
+      appliedConditions: []
+    };
+
+    const flow = cloneFlow(session.combatFlow);
+    const actorState = flow.combatantStates[actor.tokenId] ?? createEmptyCombatantTurnState();
+    const nextActorState: CombatantTurnState = {
+      ...actorState,
+      hasActed: true,
+      lastManeuver: null
+    };
+
+    const activeTokens = await listOrderedCombatTokens(session.id, session.activeMapId);
+    const currentIndex = activeTokens.findIndex((t) => t.id === currentTokenId);
+    const nextIndex = currentIndex >= 0 && currentIndex + 1 < activeTokens.length ? currentIndex + 1 : 0;
+    const nextTokenId = activeTokens[nextIndex]?.id ?? activeTokens[0]?.id ?? null;
+    const nextRound = currentIndex >= 0 && currentIndex + 1 >= activeTokens.length ? session.combatRound + 1 : session.combatRound;
+
+    const nextFlow = cloneFlow(session.combatFlow);
+    nextFlow.combatantStates = { ...flow.combatantStates, [actor.tokenId]: nextActorState };
+    nextFlow.phase = "command";
+    nextFlow.activeAction = null;
+    nextFlow.pendingPrompt = null;
+    nextFlow.lastResolution = resolution;
+    nextFlow.log = [...flow.log, resolution].slice(-40);
+    nextFlow.updatedAt = new Date().toISOString();
+
+    const updatedSession = await syncCombatSession({
+      sessionId: session.id,
+      combatEnabled: true,
+      combatRound: nextRound,
+      combatTurnIndex: nextIndex,
+      combatActiveTokenId: nextTokenId,
+      combatFlow: nextFlow
+    });
+
+    return {
+      ok: true,
+      session: updatedSession,
+      resolution
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : "Falha ao pular o turno."
     };
   }
 }
@@ -701,8 +762,8 @@ export async function executeCombatActionAction(input: {
     }
 
     if (input.action.actionType === "all-out-defense") {
-      const variant = (input.action.allOutVariant === "increased" || input.action.allOutVariant === "double")
-        ? input.action.allOutVariant as AllOutDefenseVariant
+      const variant = (input.action.allOutDefenseVariant === "increased" || input.action.allOutDefenseVariant === "double")
+        ? input.action.allOutDefenseVariant as AllOutDefenseVariant
         : "increased" as const;
       const resolution = resolveAllOutDefense({ actor, variant });
       const nextState: CombatantTurnState = { ...actorState, hasActed: true, lastManeuver: "all-out-defense", allOutDefenseVariant: variant };
@@ -725,9 +786,10 @@ export async function executeCombatActionAction(input: {
 
     if (input.action.actionType === "feint" || input.action.actionType === "feint-beat" || input.action.actionType === "feint-mental") {
       const feintType: FeintType =
-        input.action.actionType === "feint-beat" ? "st"
+        input.action.feintType ||
+        (input.action.actionType === "feint-beat" ? "st"
         : input.action.actionType === "feint-mental" ? "iq"
-        : "dx";
+        : "dx");
       const result = resolveFeint({ actor, target, draftAction: input.action, feintType });
       await persistCombatProfiles({
         actorCharacterId: actor.character.id,
@@ -915,10 +977,10 @@ export async function executeCombatActionAction(input: {
         return { ok: true, session: updatedSession, resolution: lastResult?.resolution ?? null };
       }
 
-      const defenses = listValidDefenseOptions(target, input.action.actionType).filter((o) => o !== "none");
-      const targetIsPlayerControlled = Boolean(target.ownerParticipantId);
       const targetState = flow.combatantStates[target.tokenId] ?? null;
-      const prepared = resolveAllOutAttack({
+      const defenses = listValidDefenseOptions(target, input.action.actionType, targetState).filter((o) => o !== "none");
+      const targetIsPlayerControlled = Boolean(target.ownerParticipantId);
+      const prepared = prepareAttackResolution({
         actor, target, draftAction: input.action, variant,
         promptPlayerDefense: targetIsPlayerControlled && defenses.length > 0 && viewer.participantId !== target.ownerParticipantId,
         targetState
@@ -1020,21 +1082,94 @@ export async function executeCombatActionAction(input: {
       return { ok: true, session: updatedSession, resolution: prepared.resolution };
     }
 
+    if ((input.action.actionType === "attack" || input.action.actionType === "ranged-attack") && (input.action.rapidStrike || input.action.dualWeapon)) {
+      const targetState = flow.combatantStates[target.tokenId] ?? null;
+      const results = input.action.rapidStrike
+        ? resolveRapidStrike({ actor, target, draftAction: input.action, promptPlayerDefense: false, targetState })
+        : resolveDualWeaponAttack({ actor, target, draftAction: input.action, promptPlayerDefense: false, targetState });
+      
+      const lastResult = results[results.length - 1];
+      if (lastResult?.actorProfile) {
+        await persistCombatProfiles({
+          actorCharacterId: actor.character.id,
+          actorProfile: lastResult.actorProfile,
+          targetCharacterId: target.character?.id,
+          targetProfile: lastResult.targetProfile
+        });
+        if (lastResult.targetProfile && target.character?.id) {
+          for (const r of results) {
+            if (r.targetProfile && r.resolution?.damage && r.resolution.damage.injury > 0) {
+              await applyPostDamageChecks({
+                targetProfile: r.targetProfile,
+                targetCharacterId: target.character.id,
+                targetTokenId: target.tokenId,
+                hitLocation: r.resolution.damage.hitLocation,
+                damageInjury: r.resolution.damage.injury
+              });
+            }
+          }
+        }
+      }
+
+      let currentFlow = cloneFlow(session.combatFlow);
+      for (const r of results) {
+        if (r.resolution) {
+          currentFlow = appendResolution(currentFlow, r.resolution);
+        }
+      }
+
+      const nextActorState: CombatantTurnState = {
+        ...actorState,
+        hasActed: true,
+        lastManeuver: input.action.actionType,
+        attackVariant: input.action.attackVariant || null
+      };
+
+      currentFlow = {
+        ...currentFlow,
+        combatantStates: consumeFeintPenaltyForDefense(
+          { ...currentFlow.combatantStates, [actor.tokenId]: nextActorState },
+          target.tokenId,
+          actor.tokenId
+        )
+      };
+
+      const updatedSession = await syncCombatSession({
+        sessionId: session.id,
+        combatEnabled: true,
+        combatRound: session.combatRound,
+        combatTurnIndex: session.combatTurnIndex,
+        combatActiveTokenId: session.combatActiveTokenId,
+        combatFlow: currentFlow
+      });
+
+      return { ok: true, session: updatedSession, resolution: lastResult?.resolution ?? null };
+    }
+
     const defenses = listValidDefenseOptions(target, input.action.actionType).filter(
       (option) => option !== "none"
     );
     const targetIsPlayerControlled = Boolean(target.ownerParticipantId);
     const targetState = flow.combatantStates[target.tokenId] ?? null;
+    
+    // Mestre sempre pode optar pela defesa (NPC vs NPC ou NPC vs Player)
+    const shouldPrompt = defenses.length > 0 && (
+      (targetIsPlayerControlled && viewer.participantId !== target.ownerParticipantId) ||
+      viewer.role === "gm"
+    );
+
     const prepared = prepareAttackResolution({
       actor,
       target,
       draftAction: input.action,
-      promptPlayerDefense:
-        targetIsPlayerControlled && defenses.length > 0 && viewer.participantId !== target.ownerParticipantId,
-      targetState
+      promptPlayerDefense: shouldPrompt,
+      targetState,
+      variant: input.action.allOutVariant as AllOutAttackVariant
     });
 
-    if (prepared.status === "awaiting-defense" && prepared.prompt && target.ownerParticipantId) {
+    const targetOwnerId = target.ownerParticipantId ?? (viewer.role === "gm" ? viewer.participantId : null);
+
+    if (prepared.status === "awaiting-defense" && prepared.prompt && targetOwnerId) {
       const promptPayload = {
         promptKind: "defense" as const,
         sessionId: session.id,
@@ -1051,7 +1186,7 @@ export async function executeCombatActionAction(input: {
       };
       const event = await createPrivateEvent({
         sessionId: session.id,
-        targetParticipantId: target.ownerParticipantId,
+        targetParticipantId: targetOwnerId,
         sourceParticipantId: viewer.participantId,
         kind: "combat",
         title: "Defesa ativa",
@@ -1072,7 +1207,7 @@ export async function executeCombatActionAction(input: {
           activeAction: prepared.draftAction,
           pendingPrompt: {
             eventId: event.id,
-            participantId: target.ownerParticipantId,
+            participantId: targetOwnerId,
             payload: promptPayload
           },
           updatedAt: new Date().toISOString()
@@ -1161,6 +1296,8 @@ export async function respondCombatPromptAction(input: {
   defenseOption?: CombatDefenseOption;
   retreat?: boolean;
   acrobatic?: boolean;
+  feverish?: boolean;
+  manualModifier?: number;
 }): Promise<CombatActionResult> {
   if (!getInfraReadiness().serviceRole) {
     return buildInfraError();
@@ -1180,8 +1317,55 @@ export async function respondCombatPromptAction(input: {
 
     const flow = cloneFlow(session.combatFlow);
 
-    if (!flow.pendingPrompt || flow.pendingPrompt.eventId !== event.id || !flow.activeAction) {
+    if (!flow.pendingPrompt || flow.pendingPrompt.eventId !== event.id) {
       throw new Error("O fluxo de combate nao esta aguardando esta resposta.");
+    }
+
+    if (flow.pendingPrompt.payload.promptKind === "ht-check") {
+      const actor = await buildCombatTokenContext(flow.pendingPrompt.payload.actorTokenId);
+      if (!actor.character || !actor.character.sheetProfile) {
+        throw new Error("Ficha nao encontrada.");
+      }
+      
+      const profile = normalizeSheetProfile(actor.character.sheetProfile);
+      const htData = flow.pendingPrompt.payload.htCheck;
+      if (!htData) throw new Error("Dados de HT nao encontrados.");
+
+      const result = resolveHTCheck({
+        profile,
+        kind: htData.kind,
+        threshold: htData.threshold
+      });
+
+      await consumePrivateEvent(event.id).catch(() => undefined);
+      await updateSessionCharacterProfile({
+        characterId: actor.character.id,
+        sheetProfile: result.nextProfile
+      });
+
+      const resolution = {
+        ...result.resolution,
+        actorTokenId: actor.tokenId
+      };
+
+      const updatedSession = await syncCombatSession({
+        sessionId: session.id,
+        combatEnabled: true,
+        combatRound: session.combatRound,
+        combatTurnIndex: session.combatTurnIndex,
+        combatActiveTokenId: session.combatActiveTokenId,
+        combatFlow: {
+          ...appendResolution(session.combatFlow, resolution),
+          pendingPrompt: null,
+          updatedAt: new Date().toISOString()
+        }
+      });
+
+      return { ok: true, session: updatedSession, resolution };
+    }
+
+    if (!flow.activeAction) {
+      throw new Error("O fluxo de combate nao possui uma acao ativa para resolver.");
     }
 
     const actor = await buildCombatTokenContext(flow.activeAction.actorTokenId);
@@ -1207,7 +1391,9 @@ export async function respondCombatPromptAction(input: {
       defenseResponse: {
         option: input.defenseOption ?? "none",
         retreat: input.retreat,
-        acrobatic: input.acrobatic
+        acrobatic: input.acrobatic,
+        feverish: input.feverish,
+        manualModifier: input.manualModifier
       },
       targetState
     });
@@ -1275,7 +1461,7 @@ export async function processStartOfTurnAction(input: {
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
 
     if (!session.combatEnabled) {
       throw new Error("O combate nao esta ativo.");
@@ -1318,6 +1504,53 @@ export async function processStartOfTurnAction(input: {
       combatActiveTokenId: session.combatActiveTokenId,
       combatFlow: appendResolution(session.combatFlow, resolution)
     });
+
+    // Se houver testes de HT pendentes, criar o prompt
+    if (result.effects.requiredChecks.length > 0) {
+      const check = result.effects.requiredChecks[0];
+      const promptPayload: CombatPromptPayload = {
+        promptKind: "ht-check",
+        sessionId: session.id,
+        actorTokenId: input.tokenId,
+        targetTokenId: input.tokenId,
+        actionType: "do-nothing",
+        options: [],
+        summary: check.label,
+        requestedAt: new Date().toISOString(),
+        htCheck: {
+          kind: check.kind,
+          targetValue: check.targetValue,
+          threshold: check.threshold
+        }
+      };
+
+      const participantId = tokenCtx.ownerParticipantId ?? viewer.participantId;
+      const event = await createPrivateEvent({
+        sessionId: session.id,
+        targetParticipantId: participantId,
+        kind: "combat",
+        payload: promptPayload as any,
+        title: "Teste de HT",
+        body: check.label
+      });
+
+      await syncCombatSession({
+        sessionId: session.id,
+        combatEnabled: true,
+        combatRound: session.combatRound,
+        combatTurnIndex: session.combatTurnIndex,
+        combatActiveTokenId: session.combatActiveTokenId,
+        combatFlow: {
+          ...updatedSession.combatFlow!,
+          pendingPrompt: {
+            eventId: event.id,
+            participantId,
+            payload: promptPayload
+          },
+          updatedAt: new Date().toISOString()
+        }
+      });
+    }
 
     return { ok: true, session: updatedSession, resolution };
   } catch (error) {

@@ -33,13 +33,21 @@ export function matchesLibraryStatusFilter(
   flags: LibraryEntryFlags | undefined,
   filter: LibraryStatusFilter
 ) {
+  const isTrash = Boolean(flags?.trash);
+
   switch (filter) {
+    case "active":
+      return !isTrash && !flags?.dead;
+    case "trash":
+      return isTrash;
+    case "dead":
+      return Boolean(flags?.dead) && !isTrash;
     case "prepared":
-      return Boolean(flags?.prepared);
+      return Boolean(flags?.prepared) && !isTrash;
     case "favorite":
-      return Boolean(flags?.favorite);
+      return Boolean(flags?.favorite) && !isTrash;
     case "usedToday":
-      return Boolean(flags?.usedToday);
+      return Boolean(flags?.usedToday) && !isTrash;
     case "all":
     default:
       return true;

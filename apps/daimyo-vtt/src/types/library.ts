@@ -8,9 +8,12 @@ export type LibraryCollectionKey =
   | "assets";
 export type LibraryStatusFilter =
   | "all"
+  | "active"
+  | "trash"
   | "prepared"
   | "favorite"
-  | "usedToday";
+  | "usedToday"
+  | "dead";
 export type LibrarySortMode = "name" | "favorite" | "prepared" | "recent";
 
 export interface LibraryQueryState {
@@ -26,6 +29,8 @@ export interface LibraryPreparedFlags {
   usedToday?: boolean;
   hidden?: boolean;
   revealed?: boolean;
+  trash?: boolean;
+  dead?: boolean;
 }
 
 export interface LibraryEntryFlags extends LibraryPreparedFlags {

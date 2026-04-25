@@ -5,7 +5,16 @@ import {
   MoonStar,
   Shield,
   Sparkles,
-  Swords
+  Swords,
+  Plus,
+  Minus,
+  Skull,
+  Zap,
+  Waves,
+  Flame,
+  Moon,
+  EyeOff,
+  AlertTriangle
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -15,6 +24,8 @@ interface CombatSheetCardProps {
   title: string;
   entry: TacticalStageToken | null;
   tone?: "amber" | "sky" | "rose";
+  onAdjustResource?: (resource: "hp" | "fp", delta: number) => void;
+  onUpdateResource?: (resource: "hp" | "fp", value: number) => void;
 }
 
 const toneClassByTone = {
@@ -41,7 +52,9 @@ function StatChip({
 export function CombatSheetCard({
   title,
   entry,
-  tone = "amber"
+  tone = "amber",
+  onAdjustResource,
+  onUpdateResource
 }: CombatSheetCardProps) {
   const profile = entry?.character?.sheetProfile ?? null;
 
@@ -80,23 +93,99 @@ export function CombatSheetCard({
       ) : (
         <div className="mt-3 space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-2xl border border-rose-300/18 bg-rose-300/8 px-3 py-2">
-              <div className="flex items-center gap-2 text-rose-100">
-                <HeartPulse size={14} />
-                <p className="section-label text-current">PV</p>
+            <div className="group relative rounded-2xl border border-rose-400/20 bg-rose-400/5 px-3 py-2 transition-all hover:bg-rose-400/10">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2 text-rose-400">
+                  <HeartPulse size={14} className="animate-pulse" />
+                  <p className="text-[10px] font-black uppercase tracking-widest">PV</p>
+                </div>
+                {onAdjustResource && (
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => onAdjustResource("hp", -1)}
+                      className="p-1 rounded-md hover:bg-rose-500/20 text-rose-400/60 hover:text-rose-400 transition"
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <button
+                      onClick={() => onAdjustResource("hp", 1)}
+                      className="p-1 rounded-md hover:bg-rose-500/20 text-rose-400/60 hover:text-rose-400 transition"
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                )}
               </div>
-              <p className="mt-1 text-sm font-semibold text-white">
-                {profile.combat.currentHp}/{profile.attributes.hpMax}
-              </p>
+              <div className="flex items-baseline gap-1">
+                <input
+                  type="number"
+                  value={profile.combat.currentHp}
+                  onChange={(e) => onUpdateResource?.("hp", parseInt(e.target.value) || 0)}
+                  className={cn(
+                    "w-20 bg-transparent text-xl font-black outline-none transition-colors focus:text-white",
+                    profile.combat.currentHp < 0 ? "text-rose-500" : "text-white"
+                  )}
+                />
+                <p className="text-[10px] font-bold text-rose-400/40">
+                  / {profile.attributes.hpMax}
+                </p>
+              </div>
+              <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-rose-950/40">
+                <div
+                  className={cn(
+                    "h-full transition-all duration-500",
+                    profile.combat.currentHp < 0 
+                      ? "bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.5)]" 
+                      : "bg-gradient-to-r from-rose-600 to-rose-400"
+                  )}
+                  style={{ width: `${Math.max(0, Math.min(100, (profile.combat.currentHp / profile.attributes.hpMax) * 100))}%` }}
+                />
+              </div>
             </div>
-            <div className="rounded-2xl border border-amber-300/18 bg-amber-300/8 px-3 py-2">
-              <div className="flex items-center gap-2 text-amber-100">
-                <MoonStar size={14} />
-                <p className="section-label text-current">PF</p>
+            
+            <div className="group relative rounded-2xl border border-amber-400/20 bg-amber-400/5 px-3 py-2 transition-all hover:bg-amber-400/10">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2 text-amber-400">
+                  <MoonStar size={14} />
+                  <p className="text-[10px] font-black uppercase tracking-widest">PF</p>
+                </div>
+                {onAdjustResource && (
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => onAdjustResource("fp", -1)}
+                      className="p-1 rounded-md hover:bg-amber-500/20 text-amber-400/60 hover:text-amber-400 transition"
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <button
+                      onClick={() => onAdjustResource("fp", 1)}
+                      className="p-1 rounded-md hover:bg-amber-500/20 text-amber-400/60 hover:text-amber-400 transition"
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                )}
               </div>
-              <p className="mt-1 text-sm font-semibold text-white">
-                {profile.combat.currentFp}/{profile.attributes.fpMax}
-              </p>
+              <div className="flex items-baseline gap-1">
+                <input
+                  type="number"
+                  value={profile.combat.currentFp}
+                  onChange={(e) => onUpdateResource?.("fp", parseInt(e.target.value) || 0)}
+                  className={cn(
+                    "w-20 bg-transparent text-xl font-black outline-none transition-colors focus:text-white",
+                    profile.combat.currentFp < 0 ? "text-amber-500" : "text-white"
+                  )}
+                />
+                <p className="text-[10px] font-bold text-amber-400/40">
+                  / {profile.attributes.fpMax}
+                </p>
+              </div>
+              <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-amber-950/40">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-600 to-amber-400 transition-all duration-500"
+                  style={{ width: `${Math.max(0, Math.min(100, (profile.combat.currentFp / profile.attributes.fpMax) * 100))}%` }}
+                />
+              </div>
             </div>
           </div>
 
@@ -209,15 +298,35 @@ export function CombatSheetCard({
                   )}
                 </div>
                 {profile.conditions.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {profile.conditions.map((condition) => (
-                      <span
-                        key={condition.id}
-                        className="hud-chip border-rose-300/20 bg-rose-300/10 text-rose-100"
-                      >
-                        {condition.label}
-                      </span>
-                    ))}
+                  <div className="mt-3 space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 px-1">Condições</p>
+                    <div className="flex flex-wrap gap-2">
+                      {profile.conditions.map((condition) => {
+                        const label = condition.label.toLowerCase();
+                        const isStunned = label.includes("atordoado");
+                        const isDead = label.includes("morto");
+                        const isBleeding = label.includes("sangrando");
+                        const isProne = label.includes("caido") || label.includes("prone");
+                        
+                        return (
+                          <span
+                            key={condition.id}
+                            className={cn(
+                              "hud-chip transition-all hover:scale-105",
+                              isDead ? "border-rose-500/40 bg-rose-500/20 text-rose-200" :
+                              isStunned ? "border-amber-400/40 bg-amber-400/20 text-amber-100" :
+                              isBleeding ? "border-red-600/40 bg-red-600/20 text-red-100" :
+                              "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]"
+                            )}
+                          >
+                            {isDead && <Skull size={10} />}
+                            {isStunned && <Zap size={10} />}
+                            {isBleeding && <Waves size={10} />}
+                            {condition.label}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : null}
               </div>

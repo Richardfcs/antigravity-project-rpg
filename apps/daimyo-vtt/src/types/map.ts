@@ -8,7 +8,9 @@ export type TokenStatusPreset =
   | "stunned"
   | "hidden"
   | "burning"
-  | "cursed";
+  | "cursed"
+  | "collapsed"
+  | "below_zero";
 
 export interface SessionMapRecord {
   id: string;

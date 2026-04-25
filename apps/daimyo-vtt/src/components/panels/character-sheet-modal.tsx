@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import {
   X,
   Save,
   Shield,
   HeartPulse,
-  MoonStar,
   Zap,
   Swords,
   Brain,
@@ -15,12 +14,21 @@ import {
   User,
   Package,
   ScrollText,
-  Dumbbell
+  Dumbbell,
+  Sparkles,
+  Search,
+  ChevronDown,
+  LayoutGrid,
+  RotateCcw
 } from "lucide-react";
 
 import type { SessionCharacterRecord } from "@/types/character";
 import type { SessionCharacterSheetProfile } from "@/types/combat";
-import { updateCharacterProfileAction } from "@/app/actions/character-actions";
+import { 
+  updateCharacterProfileAction, 
+  getBaseArchetypesAction, 
+  applyBaseArchetypeAction 
+} from "@/app/actions/character-actions";
 import { useCharacterStore } from "@/stores/character-store";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +48,17 @@ export function CharacterSheetModal({
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [archetypes, setArchetypes] = useState<any[]>([]);
+  const [showArchetypeSelector, setShowArchetypeSelector] = useState(false);
+  const [archetypeSearch, setArchetypeSearch] = useState("");
+
+  useEffect(() => {
+    if (canManage) {
+      getBaseArchetypesAction({ sessionCode }).then(res => {
+        if (res.ok) setArchetypes(res.archetypes);
+      });
+    }
+  }, [sessionCode, canManage]);
 
   const defaultProfile: SessionCharacterSheetProfile = {
     version: 1,
@@ -81,9 +100,40 @@ export function CharacterSheetModal({
       weapon1: "",
       weapon2: "",
       weapon3: "",
-      equipmentText: ""
+      equipmentText: "",
+      unlockedLevel2: false,
+      unlockedLevel3: false,
+      hpBonus: 0,
+      fpBonus: 0,
+      willBonus: 0,
+      perBonus: 0,
+      speedBonus: 0,
+      moveBonus: 0,
+      dodgeBonus: 0
     }
   };
+
+  const MANEUVER_CATALOG = [
+    { id: "m1-attack", name: "Ataque Padrão", level: 1, desc: "Golpe direto" },
+    { id: "m1-all-out", name: "Ataque Total", level: 1, desc: "+4 acerto ou +2 dano" },
+    { id: "m1-all-out-def", name: "Defesa Total", level: 1, desc: "+2 em todas as defesas" },
+    { id: "m1-move-attack", name: "Mover e Atacar", level: 1, desc: "Penalidade -4" },
+    { id: "m1-ready", name: "Preparar", level: 1, desc: "Sacar ou preparar arma" },
+    { id: "m1-move", name: "Mover", level: 1, desc: "Apenas deslocamento" },
+    
+    { id: "m2-deceptive", name: "Ataque Deceptivo", level: 2, req: 12, desc: "-2 acerto p/ -1 defesa" },
+    { id: "m2-defensive", name: "Ataque Defensivo", level: 2, req: 12, desc: "+1 defesa, -2 dano" },
+    { id: "m2-committed", name: "Ataque Comprometido", level: 2, req: 12, desc: "+1 dano, sem aparar" },
+    { id: "m2-evaluate", name: "Avaliar", level: 2, req: 12, desc: "+1 acerto p/ turno" },
+    { id: "m2-wait", name: "Aguardar", level: 2, req: 12, desc: "Interrupção" },
+    
+    { id: "m3-feint", name: "Finta", level: 3, req: 14, desc: "Enganar oponente" },
+    { id: "m3-beat", name: "Batida", level: 3, req: 14, desc: "Afastar arma (ST)" },
+    { id: "m3-ruse", name: "Truque", level: 3, req: 14, desc: "Distração (IQ)" },
+    { id: "m3-riposte", name: "Riposta", level: 3, req: 14, desc: "Contra-ataque" },
+    { id: "m3-rapid", name: "Ataque Rápido", level: 3, req: 14, desc: "Dois golpes (-6)" },
+    { id: "m3-cross", name: "Aparar Cruzado", level: 3, req: 14, desc: "Duas armas" }
+  ];
 
   const [draftProfile, setDraftProfile] = useState<SessionCharacterSheetProfile>(
     character.sheetProfile || defaultProfile
@@ -92,32 +142,80 @@ export function CharacterSheetModal({
   const updateAttribute = (attr: keyof typeof draftProfile.attributes, value: string) => {
     const num = parseInt(value, 10);
     if (isNaN(num)) return;
-    setDraftProfile((prev) => ({
-      ...prev,
-      attributes: { ...prev.attributes, [attr]: num }
-    }));
+    setDraftProfile((prev: SessionCharacterSheetProfile) => {
+      const nextAttrs = { ...prev.attributes, [attr]: num };
+      const nextDerived = { ...prev.derived };
+      const nextDefenses = { ...prev.defenses };
+      
+      const getRawBonus = (key: string, isFloat = false) => {
+        const val = prev.raw?.[key];
+        if (typeof val === "number") return val;
+        return isFloat ? parseFloat(String(val || "0")) : parseInt(String(val || "0"), 10);
+      };
+      
+      // Regras GURPS: Atributos secundários baseados nos principais + bônus manuais
+      if (attr === "st") nextAttrs.hpMax = num + getRawBonus("hpBonus");
+      if (attr === "ht" || attr === "dx") {
+        nextDerived.basicSpeed = (nextAttrs.dx + nextAttrs.ht) / 4 + getRawBonus("speedBonus", true);
+        const factor = [1, 0.8, 0.6, 0.4, 0.2][prev.derived.encumbranceLevel] || 1;
+        nextDerived.move = Math.floor(nextDerived.basicSpeed * factor) + getRawBonus("moveBonus");
+        nextDefenses.dodge = Math.floor(nextDerived.basicSpeed) + 3 - prev.derived.encumbranceLevel + getRawBonus("dodgeBonus");
+      }
+      if (attr === "ht") nextAttrs.fpMax = num + getRawBonus("fpBonus");
+      if (attr === "iq") {
+        nextAttrs.will = num + getRawBonus("willBonus");
+        nextAttrs.per = num + getRawBonus("perBonus");
+      }
+      
+      return {
+        ...prev,
+        attributes: nextAttrs,
+        derived: nextDerived,
+        defenses: nextDefenses
+      };
+    });
   };
 
   const updateDerived = (field: keyof typeof draftProfile.derived, value: string) => {
     const num = parseFloat(value);
     if (isNaN(num)) return;
-    setDraftProfile((prev) => ({
+    setDraftProfile((prev: SessionCharacterSheetProfile) => {
+      const nextDerived = { ...prev.derived, [field]: num };
+      const nextDefenses = { ...prev.defenses };
+      const getRawBonus = (key: string) => parseInt(String(prev.raw?.[key] || "0"), 10);
+
+      if (field === "encumbranceLevel") {
+        const factor = [1, 0.8, 0.6, 0.4, 0.2][Math.min(4, Math.max(0, Math.floor(num)))] || 1;
+        nextDerived.move = Math.max(1, Math.floor(prev.derived.basicSpeed * factor)) + getRawBonus("moveBonus");
+        nextDefenses.dodge = Math.floor(prev.derived.basicSpeed) + 3 - Math.floor(num) + getRawBonus("dodgeBonus");
+      }
+      
+      return {
+        ...prev,
+        derived: nextDerived,
+        defenses: nextDefenses
+      };
+    });
+  };
+
+  const updateCombat = (field: keyof typeof draftProfile.combat, value: any) => {
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
       ...prev,
-      derived: { ...prev.derived, [field]: num }
+      combat: { ...prev.combat, [field]: value }
     }));
   };
 
   const updateDefense = (field: keyof typeof draftProfile.defenses, value: string) => {
     const num = parseInt(value, 10);
     if (isNaN(num)) return;
-    setDraftProfile((prev) => ({
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
       ...prev,
       defenses: { ...prev.defenses, [field]: num }
     }));
   };
 
   const addWeapon = () => {
-    setDraftProfile((prev) => ({
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
       ...prev,
       weapons: [
         ...prev.weapons,
@@ -127,27 +225,95 @@ export function CharacterSheetModal({
   };
 
   const updateWeapon = (id: string, field: "name" | "quality" | "rawDamage", value: string) => {
-    setDraftProfile((prev) => ({
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
       ...prev,
-      weapons: prev.weapons.map(w => w.id === id ? { ...w, [field]: value } : w)
+      weapons: prev.weapons.map((w) => {
+        if (w.id === id) {
+          const updated = { ...w, [field]: value };
+          // Sincroniza o primeiro modo se o dano bruto mudar
+          if (field === "rawDamage") {
+            if (updated.modes.length === 0) {
+              updated.modes = [{ 
+                id: crypto.randomUUID(), 
+                label: "Principal", 
+                skill: "Combate", 
+                damage: { base: value.toLowerCase().includes("geb") ? "swing" : "thrust", dice: 0, adds: 0, damageType: "cr", raw: value },
+                reach: "1",
+                parry: "0",
+                tags: []
+              }];
+            } else {
+              updated.modes = updated.modes.map((m, i) => i === 0 ? { ...m, damage: { ...m.damage, raw: value } } : m);
+            }
+          }
+          return updated;
+        }
+        return w;
+      })
     }));
   };
 
   const removeWeapon = (id: string) => {
-    setDraftProfile((prev) => ({
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
       ...prev,
-      weapons: prev.weapons.filter(w => w.id !== id)
+      weapons: prev.weapons.filter((w) => w.id !== id)
     }));
   };
 
-  const updateRaw = (field: string, value: string | number) => {
-    setDraftProfile((prev) => ({
-      ...prev,
-      raw: {
-        ...(prev.raw || {}),
-        [field]: value
+  const updateRaw = (field: string, value: string | number | boolean) => {
+    setDraftProfile((prev: SessionCharacterSheetProfile) => {
+      const nextRaw = { ...(prev.raw || {}), [field]: value };
+      const nextAttrs = { ...prev.attributes };
+      const nextDerived = { ...prev.derived };
+      const nextDefenses = { ...prev.defenses };
+      
+      const getVal = (k: string, isFloat = false) => {
+        const v = nextRaw[k];
+        if (typeof v === "number") return v;
+        return isFloat ? parseFloat(String(v || "0")) : parseInt(String(v || "0"), 10);
+      };
+
+      // Recalcula se for um campo de bônus
+      if (field.endsWith("Bonus")) {
+        nextAttrs.hpMax = nextAttrs.st + getVal("hpBonus");
+        nextAttrs.fpMax = nextAttrs.ht + getVal("fpBonus");
+        nextAttrs.will = nextAttrs.iq + getVal("willBonus");
+        nextAttrs.per = nextAttrs.iq + getVal("perBonus");
+        
+        nextDerived.basicSpeed = (nextAttrs.dx + nextAttrs.ht) / 4 + getVal("speedBonus", true);
+        const factor = [1, 0.8, 0.6, 0.4, 0.2][nextDerived.encumbranceLevel] || 1;
+        nextDerived.move = Math.floor(nextDerived.basicSpeed * factor) + getVal("moveBonus");
+        nextDefenses.dodge = Math.floor(nextDerived.basicSpeed) + 3 - nextDerived.encumbranceLevel + getVal("dodgeBonus");
       }
-    }));
+
+      return {
+        ...prev,
+        raw: nextRaw,
+        attributes: nextAttrs,
+        derived: nextDerived,
+        defenses: nextDefenses
+      };
+    });
+  };
+
+  const handleApplyArchetype = async (archetypeId: string) => {
+    setFeedback(null);
+    startTransition(async () => {
+      const res = await applyBaseArchetypeAction({
+        sessionCode,
+        characterId: character.id,
+        archetypeId
+      });
+
+      if (res.ok && res.character?.sheetProfile) {
+        setDraftProfile(res.character.sheetProfile);
+        setShowArchetypeSelector(false);
+        setFeedback("Arquétipo aplicado com sucesso!");
+        setTimeout(() => setFeedback(null), 3000);
+      } else {
+        setFeedback(res.message || "Falha ao aplicar arquétipo.");
+      }
+    });
   };
 
   const handleSave = () => {
@@ -155,10 +321,30 @@ export function CharacterSheetModal({
 
     setFeedback(null);
     startTransition(async () => {
+      // Sincroniza RD dos campos raw para o array de armor
+      const drTop = parseInt(String(draftProfile.raw?.drTop || "0"), 10);
+      const drMiddle = parseInt(String(draftProfile.raw?.drMiddle || "0"), 10);
+      const drBottom = parseInt(String(draftProfile.raw?.drBottom || "0"), 10);
+
+      const nextArmor = [
+        { id: "dr-top", name: "Proteção Superior", zone: "head", dr: drTop },
+        { id: "dr-face", name: "Proteção Facial", zone: "face", dr: drTop },
+        { id: "dr-neck", name: "Proteção Pescoço", zone: "neck", dr: drTop },
+        { id: "dr-torso", name: "Proteção Tronco", zone: "torso", dr: drMiddle },
+        { id: "dr-vitals", name: "Proteção Vitais", zone: "vitals", dr: drMiddle },
+        { id: "dr-arms", name: "Proteção Braços", zone: "all", dr: drMiddle }, // Simplificado
+        { id: "dr-legs", name: "Proteção Pernas", zone: "all", dr: drBottom }  // Simplificado
+      ].filter(a => a.dr > 0);
+
+      const finalProfile = {
+        ...draftProfile,
+        armor: nextArmor as any
+      };
+
       const result = await updateCharacterProfileAction({
         sessionCode,
         characterId: character.id,
-        sheetProfile: draftProfile
+        sheetProfile: finalProfile
       });
 
       if (result.ok && result.character) {
@@ -181,6 +367,7 @@ export function CharacterSheetModal({
   };
 
   const getGURPSDamage = (stVal: number) => {
+    // Tabela GURPS: [GdP (Thrust), GeB (Swing)]
     const table: Record<number, [string, string]> = {
       1: ['1d-6', '1d-5'], 2: ['1d-6', '1d-5'], 3: ['1d-5', '1d-4'], 4: ['1d-5', '1d-4'],
       5: ['1d-4', '1d-3'], 6: ['1d-4', '1d-3'], 7: ['1d-3', '1d-2'], 8: ['1d-3', '1d-2'],
@@ -188,448 +375,822 @@ export function CharacterSheetModal({
       13: ['1d', '2d-1'], 14: ['1d', '2d'], 15: ['1d+1', '2d+1'], 16: ['1d+1', '2d+2'],
       17: ['1d+2', '3d-1'], 18: ['1d+2', '3d'], 19: ['2d-1', '3d+1'], 20: ['2d-1', '3d+2']
     };
-    if (stVal < 1) return { geb: '1d-6', gdp: '1d-5' };
+    if (stVal < 1) return { gdp: '1d-6', geb: '1d-5' };
     if (stVal > 20) {
       const dice = Math.floor(stVal / 10);
-      return { geb: `${dice}d`, gdp: `${dice + 2}d` }; 
+      return { gdp: `${dice}d`, geb: `${dice + 2}d` }; 
     }
-    return { geb: table[stVal][0], gdp: table[stVal][1] };
+    return { gdp: table[stVal][0], geb: table[stVal][1] };
   };
 
-  // derived calculations for display
-  const st = draftProfile.attributes.st || 10;
-  const maxSlots = st * 10;
-  const slotsUsed = getRawNumber("slotsUsed", 0);
-  const dmg = getGURPSDamage(st);
+  const resolveDynamicDamage = (raw: string | null | undefined, stVal: number) => {
+    if (!raw) return "";
+    const currentDmg = getGURPSDamage(stVal);
+    let result = raw.toUpperCase();
+    
+    // Substitui GeB e GdP pelos valores da tabela
+    result = result.replace(/\bGEB\b/g, currentDmg.geb);
+    result = result.replace(/\bGDP\b/g, currentDmg.gdp);
+    
+    return result;
+  };
 
-  const thresholds = [
-    { label: 'Nenhuma', mult: 1, mov: '100%', esq: '0', color: 'text-white/50' },
-    { label: 'Leve', mult: 2, mov: '80%', esq: '-1', color: 'text-amber-500' },
-    { label: 'Média', mult: 3, mov: '60%', esq: '-2', color: 'text-orange-400' },
-    { label: 'Pesada', mult: 6, mov: '40%', esq: '-3', color: 'text-orange-600' },
-    { label: 'Muito P.', mult: 10, mov: '20%', esq: '-4', color: 'text-rose-500' }
-  ];
+  const st = draftProfile.attributes.st || 10;
+  const dmg = getGURPSDamage(st);
+  const [activeTab, setActiveTab] = useState<"bio" | "combat" | "traits">("bio");
+  
+  const tabs = [
+    { id: "bio", label: "Guerreiro", icon: User },
+    { id: "combat", label: "Arsenal", icon: Swords },
+    { id: "traits", label: "Crônicas", icon: Brain }
+  ] as const;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="flex h-full max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[color:var(--bg-panel)] shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-amber-500 uppercase">
-              Registro de Bushido - {character.name}
-            </h2>
-            <p className="text-xs font-semibold text-[color:var(--ink-3)] uppercase tracking-widest mt-1">
-              Forja de Lendas — Era das Espadas Quebradas
-            </p>
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-0 sm:p-4 backdrop-blur-md">
+      <div className="relative flex h-full max-h-full w-full max-w-5xl flex-col overflow-hidden bg-[#0a0a0b] shadow-[0_0_100px_rgba(0,0,0,1)] sm:h-[90vh] sm:rounded-[32px] border-white/5">
+        
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-amber-500/10 to-transparent pointer-events-none" />
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-amber-500/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-rose-500/5 rounded-full blur-[120px] pointer-events-none" />
+
+        <header className="relative z-10 flex items-center justify-between border-b border-white/5 px-6 py-5 bg-black/20 backdrop-blur-sm">
           <div className="flex items-center gap-4">
-            <div className="flex flex-col items-center">
-              <label className="text-[9px] font-bold uppercase tracking-widest text-amber-300/60 mb-1">Custo Total</label>
-              <div className="flex items-baseline gap-1">
-                <input
-                  type="number"
-                  value={getRawNumber("totalPoints", 150)}
-                  onChange={(e) => updateRaw("totalPoints", parseInt(e.target.value, 10))}
-                  disabled={!canManage}
-                  className="w-20 rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-center font-bold text-rose-500 outline-none focus:border-amber-500"
-                />
-                <span className="text-[10px] font-bold text-white/50">PTS</span>
+            <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20">
+              <ScrollText className="text-amber-500" size={24} />
+            </div>
+            <div>
+              <h2 className="text-lg sm:text-xl font-black tracking-tight text-white uppercase flex items-center gap-2">
+                <span className="text-amber-500">Registro:</span> {character.name}
+              </h2>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="h-1 w-1 rounded-full bg-amber-500/40" />
+                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">
+                  Forja de Lendas — Era das Espadas
+                </p>
               </div>
             </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            {canManage && (
+              <div className="hidden md:flex flex-col items-end">
+                <label className="text-[9px] font-black uppercase tracking-widest text-white/20 mb-1">Custo do Bushido</label>
+                <div className="flex items-center gap-2 bg-white/5 rounded-xl border border-white/5 px-3 py-1">
+                  <input
+                    type="number"
+                    value={getRawNumber("totalPoints", 150)}
+                    onChange={(e) => updateRaw("totalPoints", parseInt(e.target.value, 10))}
+                    className="w-12 bg-transparent text-center font-black text-rose-500 outline-none text-sm"
+                  />
+                  <span className="text-[10px] font-black text-white/30">PTS</span>
+                </div>
+              </div>
+            )}
             <button
               onClick={onClose}
-              className="ml-2 rounded-full p-2 text-white/50 transition hover:bg-white/10 hover:text-white"
+              className="group flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white/40 transition hover:bg-rose-500/20 hover:text-rose-400 border border-white/5"
             >
-              <X size={20} />
+              <X size={20} className="transition-transform group-hover:rotate-90" />
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+        <nav className="relative z-10 flex border-b border-white/5 bg-black/10">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-widest transition-all relative",
+                activeTab === tab.id ? "text-amber-500" : "text-white/30 hover:text-white/60"
+              )}
+            >
+              <tab.icon size={14} />
+              <span className={cn(activeTab === tab.id ? "inline" : "hidden sm:inline")}>{tab.label}</span>
+              {activeTab === tab.id && (
+                <div className="absolute bottom-0 left-0 h-0.5 w-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+              )}
+            </button>
+          ))}
+        </nav>
+
+        <main className="relative z-10 flex-1 overflow-y-auto custom-scrollbar p-6">
           {feedback && (
-            <div className="mb-6 rounded-2xl bg-rose-500/10 p-4 text-sm text-rose-300">
+            <div className="mb-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 p-4 text-xs font-bold text-rose-400 uppercase tracking-wider animate-in fade-in slide-in-from-top-2">
               {feedback}
             </div>
           )}
 
-          <div className="grid gap-x-8 gap-y-10 lg:grid-cols-2">
-            
-            {/* LEFT COLUMN: IDENTITY, ATTRIBUTES, VITALS, DEFENSES */}
-            <div className="space-y-8">
-              
-              {/* Identity */}
-              <section>
-                <div className="mb-4 flex items-center gap-2 text-indigo-200">
-                  <User size={18} />
-                  <h3 className="font-semibold text-white uppercase tracking-wider text-sm">Identidade do Guerreiro</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-2xl border border-white/10 bg-black/18 p-3">
-                    <label className="section-label">Conceito / Papel</label>
+          <div className="mx-auto max-w-4xl">
+            {activeTab === "bio" && (
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                
+                {/* Archetype Selector */}
+                {canManage && (
+                  <section className="relative">
+                    <div className="mb-4 flex items-center justify-between px-2">
+                      <div className="flex items-center gap-2 text-amber-500/60">
+                        <Sparkles size={14} />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest">Base de Dados de Arquétipos</h4>
+                      </div>
+                      <button 
+                        onClick={() => setShowArchetypeSelector(!showArchetypeSelector)}
+                        className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white/40 transition hover:bg-white/10 hover:text-white"
+                      >
+                        {showArchetypeSelector ? "Fechar Biblioteca" : "Explorar Arquétipos"}
+                        <ChevronDown size={14} className={cn("transition-transform", showArchetypeSelector && "rotate-180")} />
+                      </button>
+                    </div>
+
+                    {showArchetypeSelector && (
+                      <div className="mb-8 rounded-[32px] border border-amber-500/20 bg-amber-500/5 p-6 animate-in zoom-in-95 duration-300">
+                        <div className="relative mb-6">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={18} />
+                          <input 
+                            type="text" 
+                            value={archetypeSearch}
+                            onChange={(e) => setArchetypeSearch(e.target.value)}
+                            placeholder="Buscar arquétipo (ex: Samurai, Ronin, Camponês...)" 
+                            className="w-full rounded-2xl bg-black/40 border border-white/5 py-4 pl-12 pr-6 text-sm text-white outline-none focus:border-amber-500/40"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[320px] overflow-y-auto custom-scrollbar pr-2">
+                          {archetypes
+                            .filter((a: any) => a.name.toLowerCase().includes(archetypeSearch.toLowerCase()))
+                            .map((a: any) => (
+                              <button
+                                key={a.id}
+                                onClick={() => handleApplyArchetype(a.id)}
+                                disabled={isPending}
+                                className="group relative flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/5 bg-black/40 p-4 transition hover:border-amber-500/40 hover:bg-amber-500/10 active:scale-95 disabled:opacity-50"
+                              >
+                                <div className="rounded-xl bg-white/5 p-3 group-hover:bg-amber-500/20 transition-colors">
+                                  <User size={20} className="text-white/40 group-hover:text-amber-500" />
+                                </div>
+                                <span className="text-[10px] font-black text-center text-white/60 group-hover:text-white uppercase leading-tight">{a.name}</span>
+                                {isPending && <Activity size={12} className="absolute top-2 right-2 animate-spin text-amber-500" />}
+                              </button>
+                            ))}
+                        </div>
+                        {archetypes.length === 0 && (
+                          <div className="py-12 text-center text-white/10 text-xs font-black uppercase tracking-widest">
+                            Carregando Arquétipos...
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="group rounded-3xl border border-white/5 bg-white/[0.02] p-5 transition hover:border-white/10 hover:bg-white/[0.04]">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-white/20 mb-3 block">Conceito do Guerreiro</label>
                     <input
                       type="text"
                       value={getRawString("concept")}
                       onChange={(e) => updateRaw("concept", e.target.value)}
                       disabled={!canManage}
                       placeholder="Ex: Ronin Errante"
-                      className="mt-1 w-full bg-transparent text-sm text-white outline-none disabled:opacity-50"
+                      className="w-full bg-transparent text-lg font-black text-white outline-none placeholder:text-white/5"
                     />
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/18 p-3">
-                    <label className="section-label">Clã / Afiliação</label>
+                  <div className="group rounded-3xl border border-white/5 bg-white/[0.02] p-5 transition hover:border-white/10 hover:bg-white/[0.04]">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-white/20 mb-3 block">Clã ou Afiliação</label>
                     <input
                       type="text"
                       value={getRawString("clan")}
                       onChange={(e) => updateRaw("clan", e.target.value)}
                       disabled={!canManage}
-                      placeholder="Ex: Taira"
-                      className="mt-1 w-full bg-transparent text-sm text-white outline-none disabled:opacity-50"
+                      placeholder="Ex: Taira / Minamoto"
+                      className="w-full bg-transparent text-lg font-black text-amber-500 outline-none placeholder:text-amber-500/5"
                     />
                   </div>
                 </div>
-              </section>
 
-              {/* Core Attributes */}
-              <section>
-                <div className="mb-4 flex items-center gap-2 text-amber-200">
-                  <BicepsFlexed size={18} />
-                  <h3 className="font-semibold text-white uppercase tracking-wider text-sm">Atributos Básicos</h3>
-                </div>
-                <div className="grid grid-cols-4 gap-3">
-                  {/* Fixed the overlap by removing the parenthesis in the label */}
-                  <div className="rounded-2xl border border-white/10 bg-black/18 p-3 text-center transition hover:border-amber-500/50">
-                    <label className="block text-[10px] font-bold text-white/50 tracking-widest mb-1">ST</label>
-                    <input type="number" value={draftProfile.attributes.st} onChange={(e) => updateAttribute("st", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-2xl font-black text-white outline-none disabled:opacity-50" />
-                    <span className="block text-[8px] text-amber-500/70 mt-1 uppercase">10 pts/+1</span>
+                 <section>
+                  <div className="mb-6 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/5" />
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Essência do Bushido</h3>
+                    <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/5" />
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/18 p-3 text-center transition hover:border-amber-500/50">
-                    <label className="block text-[10px] font-bold text-white/50 tracking-widest mb-1">DX</label>
-                    <input type="number" value={draftProfile.attributes.dx} onChange={(e) => updateAttribute("dx", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-2xl font-black text-white outline-none disabled:opacity-50" />
-                    <span className="block text-[8px] text-amber-500/70 mt-1 uppercase">20 pts/+1</span>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/18 p-3 text-center transition hover:border-amber-500/50">
-                    <label className="block text-[10px] font-bold text-white/50 tracking-widest mb-1">IQ</label>
-                    <input type="number" value={draftProfile.attributes.iq} onChange={(e) => updateAttribute("iq", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-2xl font-black text-white outline-none disabled:opacity-50" />
-                    <span className="block text-[8px] text-amber-500/70 mt-1 uppercase">20 pts/+1</span>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/18 p-3 text-center transition hover:border-amber-500/50">
-                    <label className="block text-[10px] font-bold text-white/50 tracking-widest mb-1">HT</label>
-                    <input type="number" value={draftProfile.attributes.ht} onChange={(e) => updateAttribute("ht", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-2xl font-black text-white outline-none disabled:opacity-50" />
-                    <span className="block text-[8px] text-amber-500/70 mt-1 uppercase">10 pts/+1</span>
-                  </div>
-                </div>
-              </section>
-
-              {/* Vitals */}
-              <section>
-                <div className="mb-4 flex items-center gap-2 text-rose-200">
-                  <Activity size={18} />
-                  <h3 className="font-semibold text-white uppercase tracking-wider text-sm">Estatísticas Vitais</h3>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-3 text-center">
-                    <label className="block text-[10px] font-bold text-rose-200 tracking-widest mb-1">PV [ST]</label>
-                    <input type="number" value={draftProfile.attributes.hpMax} onChange={(e) => updateAttribute("hpMax", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none disabled:opacity-50" />
-                  </div>
-                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3 text-center">
-                    <label className="block text-[10px] font-bold text-amber-200 tracking-widest mb-1">PF [HT]</label>
-                    <input type="number" value={draftProfile.attributes.fpMax} onChange={(e) => updateAttribute("fpMax", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none disabled:opacity-50" />
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/18 p-3 text-center">
-                    <label className="block text-[10px] font-bold text-white/50 tracking-widest mb-1">VON [IQ]</label>
-                    <input type="number" value={draftProfile.attributes.will} onChange={(e) => updateAttribute("will", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none disabled:opacity-50" />
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/18 p-3 text-center">
-                    <label className="block text-[10px] font-bold text-white/50 tracking-widest mb-1">PER [IQ]</label>
-                    <input type="number" value={draftProfile.attributes.per} onChange={(e) => updateAttribute("per", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none disabled:opacity-50" />
-                  </div>
-                </div>
-              </section>
-
-              {/* Defenses and Move */}
-              <section>
-                <div className="mb-4 flex items-center gap-2 text-sky-200">
-                    <Shield size={18} />
-                    <h3 className="font-semibold text-white uppercase tracking-wider text-sm">Defesas Ativas</h3>
-                  </div>
-                  <div className="grid grid-cols-4 gap-3">
-                    <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 text-center">
-                      <label className="block text-[10px] font-bold text-amber-400 tracking-widest mb-1">VEL. BÁSICA</label>
-                      <input type="number" step="0.25" value={draftProfile.derived.basicSpeed} onChange={(e) => updateDerived("basicSpeed", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none disabled:opacity-50" />
-                    </div>
-                    <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-center">
-                      <label className="block text-[10px] font-bold text-rose-300 tracking-widest mb-1">ESQUIVA</label>
-                      <input type="number" value={draftProfile.defenses.dodge} onChange={(e) => updateDefense("dodge", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none disabled:opacity-50" />
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-black/18 p-3 text-center">
-                      <label className="block text-[10px] font-bold text-white/50 tracking-widest mb-1">APARAR</label>
-                      <input type="number" value={draftProfile.defenses.parry} onChange={(e) => updateDefense("parry", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none disabled:opacity-50" />
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-black/18 p-3 text-center">
-                      <label className="block text-[10px] font-bold text-white/50 tracking-widest mb-1">BLOQUEIO</label>
-                      <input type="number" value={draftProfile.defenses.block} onChange={(e) => updateDefense("block", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none disabled:opacity-50" />
-                    </div>
-                  </div>
-                </section>
-
-              {/* Encumbrance Table & Slots - Full Only */}
-              {character.tier === 'full' && (
-                <section>
-                  <div className="mb-4 flex items-center gap-2 text-emerald-200">
-                    <Package size={18} />
-                    <h3 className="font-semibold text-white uppercase tracking-wider text-sm">Capacidade de Carga e Slots</h3>
-                  </div>
-                  <p className="text-[11px] text-[color:var(--ink-3)] mb-4">
-                    Sua capacidade de Slots é igual a sua <strong>ST</strong>. Cada 1kg = 1 Slot.
-                  </p>
-                  <div className="grid grid-cols-3 gap-4 items-start">
-                    <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-center">
-                      <label className="block text-[10px] font-bold text-amber-400 tracking-widest mb-2">SLOTS OCUPADOS</label>
-                      <input type="number" value={slotsUsed} onChange={(e) => updateRaw("slotsUsed", parseInt(e.target.value, 10))} disabled={!canManage} className="w-full bg-transparent text-center text-3xl font-black text-white outline-none disabled:opacity-50" />
-                      <span className="block text-[10px] text-amber-500/70 mt-2 font-bold uppercase">Limite Max: {maxSlots}</span>
-                    </div>
-                    
-                    <div className="col-span-2 rounded-2xl border border-white/10 bg-black/18 p-3">
-                      <table className="w-full text-left text-[11px] border-collapse">
-                        <thead>
-                          <tr className="text-amber-500 border-b border-white/10">
-                            <th className="pb-2">Nível</th>
-                            <th className="pb-2">Limite</th>
-                            <th className="pb-2">Mov</th>
-                            <th className="pb-2">Esq</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {thresholds.map((t, i) => {
-                            const limit = t.mult * st;
-                            const prevLimit = i === 0 ? -1 : thresholds[i - 1].mult * st;
-                            const active = slotsUsed <= limit && slotsUsed > prevLimit;
-                            
-                            return (
-                              <tr key={t.label} className={cn("border-b border-white/5 last:border-0", active ? `bg-amber-500/10 font-bold ${t.color}` : "text-[color:var(--ink-3)]")}>
-                                <td className="py-1.5">{t.label}</td>
-                                <td className="py-1.5">Até {limit}</td>
-                                <td className="py-1.5">{t.mov}</td>
-                                <td className="py-1.5">{t.esq}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {/* Memory / Postures - Full and Medium */}
-              {character.tier !== 'summary' && (
-                <section>
-                  <div className="mb-4 flex items-center gap-2 text-fuchsia-300">
-                    <Dumbbell size={18} />
-                    <h3 className="font-semibold text-white uppercase tracking-wider text-sm">Memória Muscular (Posturas)</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="text-[10px] text-[color:var(--ink-3)] font-bold uppercase mb-2">Básicas (ON)</h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        {['Ataque', 'Total', 'Defesa', 'Mover'].map(p => (
-                          <span key={p} className="rounded border border-white/10 bg-black/30 px-2 py-0.5 text-[10px] text-[color:var(--ink-2)]">{p}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="text-[10px] text-amber-500 font-bold uppercase mb-2">Postura (Mão de 3)</h4>
-                      <div className="flex flex-col gap-1.5">
-                        <input type="text" value={getRawString("maneuver1")} onChange={(e) => updateRaw("maneuver1", e.target.value)} disabled={!canManage} placeholder="Manobra 1" className="rounded-lg border border-white/10 bg-black/18 px-3 py-1.5 text-[11px] text-white outline-none" />
-                        <input type="text" value={getRawString("maneuver2")} onChange={(e) => updateRaw("maneuver2", e.target.value)} disabled={!canManage} placeholder="Manobra 2" className="rounded-lg border border-white/10 bg-black/18 px-3 py-1.5 text-[11px] text-white outline-none" />
-                        <input type="text" value={getRawString("maneuver3")} onChange={(e) => updateRaw("maneuver3", e.target.value)} disabled={!canManage} placeholder="Manobra 3" className="rounded-lg border border-white/10 bg-black/18 px-3 py-1.5 text-[11px] text-white outline-none" />
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-            </div>
-
-              {/* RIGHT COLUMN: TRAITS, SKILLS, HISTORY, WEAPONS */}
-            <div className="space-y-8">
-
-              {character.tier !== 'summary' && (
-                <section>
-                  <div className="mb-4 flex items-center gap-2 text-emerald-200">
-                    <Swords size={18} />
-                    <h3 className="font-semibold text-white uppercase tracking-wider text-sm">Arsenal e Equipamento</h3>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-3 text-center">
-                      <label className="block text-[10px] font-bold text-rose-300 tracking-widest mb-1">GdP (Perfuração)</label>
-                      <input type="text" value={dmg.gdp} readOnly disabled className="w-full bg-transparent text-center text-lg font-bold text-white outline-none cursor-default" />
-                    </div>
-                    <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 text-center">
-                      <label className="block text-[10px] font-bold text-amber-400 tracking-widest mb-1">GeB (Balanço)</label>
-                      <input type="text" value={dmg.geb} readOnly disabled className="w-full bg-transparent text-center text-lg font-bold text-white outline-none cursor-default" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="rounded-2xl border border-white/10 bg-black/18 p-4 flex flex-col">
-                      <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
-                        <label className="section-label">Armas Registradas</label>
-                        {canManage && (
-                          <button onClick={addWeapon} className="text-[9px] text-amber-400 font-bold px-2 py-1 rounded bg-amber-400/10 hover:bg-amber-400/20 uppercase tracking-wider">
-                            + Adicionar
-                          </button>
-                        )}
-                      </div>
-                      <div className="space-y-2 flex-1 custom-scrollbar overflow-y-auto">
-                        {draftProfile.weapons.map(w => (
-                          <div key={w.id} className="flex gap-2 items-center border-b border-white/5 pb-2 last:border-0 last:pb-0">
-                            <input value={w.name} onChange={(e) => updateWeapon(w.id, "name", e.target.value)} disabled={!canManage} placeholder="Nome (ex: Katana)" className="flex-1 min-w-0 bg-transparent text-[11px] font-bold text-white outline-none disabled:opacity-50" />
-                            <input value={w.quality || ""} onChange={(e) => updateWeapon(w.id, "quality", e.target.value)} disabled={!canManage} placeholder="Qualid." className="w-16 bg-transparent text-[10px] text-[color:var(--ink-2)] outline-none disabled:opacity-50 uppercase" />
-                            <input value={w.rawDamage || ""} onChange={(e) => updateWeapon(w.id, "rawDamage", e.target.value)} disabled={!canManage} placeholder="Dano" className="w-20 bg-transparent text-[11px] text-amber-400 font-bold outline-none disabled:opacity-50 text-right" />
-                            {canManage && (
-                              <button onClick={() => removeWeapon(w.id)} className="text-white/30 hover:text-rose-500 transition-colors ml-1">
-                                <X size={12} />
-                              </button>
-                            )}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { key: "st", label: "ST", desc: "Força", color: "amber", cost: "10 pts/nível", help: "Dano e Carga" },
+                      { key: "dx", label: "DX", desc: "Destreza", color: "sky", cost: "20 pts/nível", help: "Agilidade e Esquiva" },
+                      { key: "iq", label: "IQ", desc: "Inteligência", color: "emerald", cost: "20 pts/nível", help: "Mente e Perícias" },
+                      { key: "ht", label: "HT", desc: "Vigor", color: "rose", cost: "10 pts/nível", help: "Saúde e Fadiga" }
+                    ].map((attr) => (
+                      <div key={attr.key} className="relative group overflow-hidden rounded-3xl border border-white/5 bg-black/40 p-5 text-center transition hover:border-amber-500/30">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                        <label className="block text-[9px] font-black text-white/20 tracking-widest mb-1">{attr.desc}</label>
+                        <input
+                          type="number"
+                          value={draftProfile.attributes[attr.key as keyof typeof draftProfile.attributes]}
+                          onChange={(e) => updateAttribute(attr.key as any, e.target.value)}
+                          disabled={!canManage}
+                          className="w-full bg-transparent text-center text-4xl font-black text-white outline-none"
+                        />
+                        <div className="mt-2 flex flex-col items-center gap-1">
+                          <div className="inline-block rounded-full bg-white/5 px-3 py-1 text-[8px] font-black text-amber-500/60 uppercase">
+                            {attr.label}
                           </div>
-                        ))}
-                        {draftProfile.weapons.length === 0 && (
-                          <p className="text-[10px] text-white/30 italic text-center mt-4">Nenhuma arma cadastrada.</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-4">
-                      <div>
-                        <label className="section-label mb-2 block">Resistência (RD)</label>
-                        <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-black/18 p-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[10px] font-bold text-white/50 uppercase">Cabeça/Ombro</span>
-                            <input type="number" value={getRawNumber("drTop")} onChange={(e) => updateRaw("drTop", parseInt(e.target.value, 10))} disabled={!canManage} className="w-12 rounded bg-white/5 p-1 text-center text-sm font-bold text-white outline-none" />
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[10px] font-bold text-white/50 uppercase">Tronco/Braços</span>
-                            <input type="number" value={getRawNumber("drMiddle")} onChange={(e) => updateRaw("drMiddle", parseInt(e.target.value, 10))} disabled={!canManage} className="w-12 rounded bg-white/5 p-1 text-center text-sm font-bold text-white outline-none" />
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[10px] font-bold text-white/50 uppercase">Pernas/Pés</span>
-                            <input type="number" value={getRawNumber("drBottom")} onChange={(e) => updateRaw("drBottom", parseInt(e.target.value, 10))} disabled={!canManage} className="w-12 rounded bg-white/5 p-1 text-center text-sm font-bold text-white outline-none" />
-                          </div>
+                          <span className="text-[7px] font-bold text-white/10 uppercase tracking-tighter">{attr.cost}</span>
+                          <span className="text-[6px] font-medium text-white/5 uppercase hidden group-hover:block">{attr.help}</span>
                         </div>
                       </div>
-                      <div className="flex-1 rounded-2xl border border-white/10 bg-black/18 p-4">
-                        <label className="section-label mb-2 block">Inventário e Suprimentos</label>
-                        <textarea value={getRawString("equipmentText")} onChange={(e) => updateRaw("equipmentText", e.target.value)} disabled={!canManage} rows={4} placeholder="Armadura de Bambu, Rações..." className="w-full h-full resize-none bg-transparent text-sm text-white outline-none custom-scrollbar" />
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </section>
-              )}
-              
-              {/* Traits & Skills */}
-              <section>
-                <div className="mb-4 flex items-center gap-2 text-indigo-200">
-                  <Brain size={18} />
-                  <h3 className="font-semibold text-white uppercase tracking-wider text-sm">Crônicas e Traços</h3>
-                </div>
-                
-                {character.tier === 'full' ? (
-                  <div className="space-y-3">
-                    <div className="rounded-2xl border border-white/10 bg-black/18 p-4">
-                      <label className="section-label mb-2 block">Vantagens e Qualidades</label>
-                      <textarea
-                        value={getRawString("advantages")}
-                        onChange={(e) => updateRaw("advantages", e.target.value)}
-                        disabled={!canManage}
-                        rows={3}
-                        placeholder="Reflexos em Combate [15], Sentidos Aguçados..."
-                        className="w-full resize-none bg-transparent text-sm text-white outline-none disabled:opacity-50 custom-scrollbar"
-                      />
-                    </div>
-                    
-                    <div className="rounded-2xl border border-white/10 bg-black/18 p-4">
-                      <label className="section-label mb-2 block">Desvantagens e Peculiaridades</label>
-                      <textarea
-                        value={getRawString("disadvantages")}
-                        onChange={(e) => updateRaw("disadvantages", e.target.value)}
-                        disabled={!canManage}
-                        rows={3}
-                        placeholder="Senso de Dever [-5], Sede de Sangue [-10]..."
-                        className="w-full resize-none bg-transparent text-sm text-white outline-none disabled:opacity-50 custom-scrollbar"
-                      />
-                    </div>
-                    
-                    <div className="rounded-2xl border border-white/10 bg-black/18 p-4">
-                      <label className="section-label mb-2 block">Perícias e Técnicas</label>
-                      <textarea
-                        value={getRawString("skills")}
-                        onChange={(e) => updateRaw("skills", e.target.value)}
-                        disabled={!canManage}
-                        rows={4}
-                        placeholder="Katana-14, Acrobacia-12, Furtividade-13..."
-                        className="w-full resize-none bg-transparent text-sm text-white outline-none disabled:opacity-50 custom-scrollbar"
-                      />
-                    </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-black/18 p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <ScrollText size={14} className="text-white/50" />
-                        <label className="section-label block">História e Anotações do Mestre</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-2 px-2">
+                      <HeartPulse size={14} className="text-rose-500" />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white/60">Vitalidade</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="rounded-3xl border border-rose-500/20 bg-rose-500/5 p-4 text-center">
+                        <span className="text-[8px] font-black text-rose-500/60 uppercase tracking-widest mb-1 block">Vida [PV]</span>
+                        <div className="flex items-center justify-center gap-1">
+                          <input type="number" value={draftProfile.attributes.hpMax} onChange={(e) => updateAttribute("hpMax", e.target.value)} disabled={!canManage} className="w-16 bg-transparent text-center text-2xl font-black text-white outline-none" />
+                          <div className="flex flex-col items-center">
+                            <span className="text-[7px] font-black text-white/20">±</span>
+                            <input type="number" value={getRawNumber("hpBonus")} onChange={(e) => updateRaw("hpBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-rose-400 text-center outline-none" />
+                          </div>
+                        </div>
+                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: ST + Bônus</span>
                       </div>
-                      <textarea
-                        value={getRawString("history")}
-                        onChange={(e) => updateRaw("history", e.target.value)}
-                        disabled={!canManage}
-                        rows={4}
-                        placeholder="Descreva o passado e segredos do samurai..."
-                        className="w-full resize-none bg-transparent text-sm text-white outline-none disabled:opacity-50 custom-scrollbar"
-                      />
+                      <div className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4 text-center">
+                        <span className="text-[8px] font-black text-amber-500/60 uppercase tracking-widest mb-1 block">Fadiga [PF]</span>
+                        <div className="flex items-center justify-center gap-1">
+                          <input type="number" value={draftProfile.attributes.fpMax} onChange={(e) => updateAttribute("fpMax", e.target.value)} disabled={!canManage} className="w-16 bg-transparent text-center text-2xl font-black text-white outline-none" />
+                          <div className="flex flex-col items-center">
+                            <span className="text-[7px] font-black text-white/20">±</span>
+                            <input type="number" value={getRawNumber("fpBonus")} onChange={(e) => updateRaw("fpBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-amber-400 text-center outline-none" />
+                          </div>
+                        </div>
+                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: HT + Bônus</span>
+                      </div>
+                      <div className="rounded-3xl border border-white/5 bg-black/40 p-4 text-center">
+                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 block">Vontade</span>
+                        <div className="flex items-center justify-center gap-1">
+                          <input type="number" value={draftProfile.attributes.will} onChange={(e) => updateAttribute("will", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-xl font-bold text-white outline-none" />
+                          <input type="number" value={getRawNumber("willBonus")} onChange={(e) => updateRaw("willBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-emerald-400 text-center outline-none" />
+                        </div>
+                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: IQ + Bônus</span>
+                      </div>
+                      <div className="rounded-3xl border border-white/5 bg-black/40 p-4 text-center">
+                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 block">Percepção</span>
+                        <div className="flex items-center justify-center gap-1">
+                          <input type="number" value={draftProfile.attributes.per} onChange={(e) => updateAttribute("per", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-xl font-bold text-white outline-none" />
+                          <input type="number" value={getRawNumber("perBonus")} onChange={(e) => updateRaw("perBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-emerald-400 text-center outline-none" />
+                        </div>
+                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: IQ + Bônus</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-2 px-2">
+                      <Shield size={14} className="text-sky-500" />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white/60">Defesas Ativas</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4 text-center">
+                        <span className="text-[8px] font-black text-amber-500/60 uppercase tracking-widest mb-1 block">Velocidade</span>
+                        <div className="flex items-center justify-center gap-1">
+                          <input type="number" step="0.25" value={draftProfile.derived.basicSpeed} onChange={(e) => updateDerived("basicSpeed", e.target.value)} disabled={!canManage} className="w-16 bg-transparent text-center text-2xl font-black text-white outline-none" />
+                          <div className="flex flex-col items-center">
+                            <span className="text-[7px] font-black text-white/20">±</span>
+                            <input type="number" step="0.25" value={getRawNumber("speedBonus")} onChange={(e) => updateRaw("speedBonus", parseFloat(e.target.value))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-amber-400 text-center outline-none" />
+                          </div>
+                        </div>
+                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: (DX+HT)/4</span>
+                      </div>
+                      <div className="rounded-3xl border border-sky-500/20 bg-sky-500/5 p-4 text-center">
+                        <span className="text-[8px] font-black text-sky-500/60 uppercase tracking-widest mb-1 block">Esquiva</span>
+                        <div className="flex items-center justify-center gap-1">
+                          <input type="number" value={draftProfile.defenses.dodge} onChange={(e) => updateDefense("dodge", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-2xl font-black text-white outline-none" />
+                          <div className="flex flex-col items-center">
+                            <span className="text-[7px] font-black text-white/20">±</span>
+                            <input type="number" value={getRawNumber("dodgeBonus")} onChange={(e) => updateRaw("dodgeBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-sky-400 text-center outline-none" />
+                          </div>
+                        </div>
+                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: Vel+3-Carga</span>
+                      </div>
+                      <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
+                        <span className="text-[8px] font-black text-emerald-500/60 uppercase tracking-widest mb-1 block">Deslocamento</span>
+                        <div className="flex items-center justify-center gap-1">
+                          <input type="number" value={draftProfile.derived.move} onChange={(e) => updateDerived("move", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-2xl font-black text-white outline-none" />
+                          <div className="flex flex-col items-center">
+                            <span className="text-[7px] font-black text-white/20">±</span>
+                            <input type="number" value={getRawNumber("moveBonus")} onChange={(e) => updateRaw("moveBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-emerald-400 text-center outline-none" />
+                          </div>
+                        </div>
+                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: Vel * Carga</span>
+                      </div>
+                      <div className="rounded-3xl border border-white/5 bg-black/40 p-4 text-center">
+                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 block">Aparar</span>
+                        <input type="number" value={draftProfile.defenses.parry} onChange={(e) => updateDefense("parry", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none" />
+                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">(Skill / 2) + 3</span>
+                      </div>
+                      <div className="rounded-3xl border border-white/5 bg-black/40 p-4 text-center">
+                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 block">Bloqueio</span>
+                        <input type="number" value={draftProfile.defenses.block} onChange={(e) => updateDefense("block", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none" />
+                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">(Skill / 2) + 3</span>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "combat" && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Status em Tempo Real */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="rounded-[40px] border border-rose-500/20 bg-rose-500/5 p-8 flex flex-col items-center justify-center text-center">
+                    <span className="text-[10px] font-black text-rose-500/60 uppercase tracking-[0.2em] mb-4">Pontos de Vida Atuais</span>
+                    <div className="flex items-center gap-6">
+                      <div className="flex flex-col">
+                        <input 
+                          type="number" 
+                          value={draftProfile.combat.currentHp} 
+                          onChange={(e) => updateCombat("currentHp", parseInt(e.target.value, 10))}
+                          className="w-24 bg-transparent text-center text-5xl font-black text-white outline-none"
+                        />
+                        <span className="text-[8px] font-bold text-white/20 uppercase mt-2">ATUAL</span>
+                      </div>
+                      <div className="h-12 w-px bg-white/10" />
+                      <div className="flex flex-col">
+                        <span className="text-3xl font-black text-white/40">{draftProfile.attributes.hpMax}</span>
+                        <span className="text-[8px] font-bold text-white/20 uppercase mt-2">MÁXIMO</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => updateCombat("currentHp", draftProfile.attributes.hpMax)}
+                      className="text-[8px] font-black text-rose-500/40 hover:text-rose-500 uppercase tracking-widest mt-4 transition-colors"
+                    >
+                      Restaurar Vitalidade
+                    </button>
+                  </div>
+
+                  <div className="rounded-[40px] border border-amber-500/20 bg-amber-500/5 p-8 flex flex-col items-center justify-center text-center">
+                    <span className="text-[10px] font-black text-amber-500/60 uppercase tracking-[0.2em] mb-4">Pontos de Fadiga Atuais</span>
+                    <div className="flex items-center gap-6">
+                      <div className="flex flex-col">
+                        <input 
+                          type="number" 
+                          value={draftProfile.combat.currentFp} 
+                          onChange={(e) => updateCombat("currentFp", parseInt(e.target.value, 10))}
+                          className="w-24 bg-transparent text-center text-5xl font-black text-white outline-none"
+                        />
+                        <span className="text-[8px] font-bold text-white/20 uppercase mt-2">ATUAL</span>
+                      </div>
+                      <div className="h-12 w-px bg-white/10" />
+                      <div className="flex flex-col">
+                        <span className="text-3xl font-black text-white/40">{draftProfile.attributes.fpMax}</span>
+                        <span className="text-[8px] font-bold text-white/20 uppercase mt-2">MÁXIMO</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => updateCombat("currentFp", draftProfile.attributes.fpMax)}
+                      className="text-[8px] font-black text-sky-500/40 hover:text-sky-500 uppercase tracking-widest mt-4 transition-colors"
+                    >
+                      Restaurar Energia
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-[32px] border border-white/5 bg-black/40 p-6 flex flex-col items-center justify-center text-center">
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">Dano de Balanço (GeB)</span>
+                    <span className="text-3xl font-black text-amber-500">{dmg.geb}</span>
+                  </div>
+                  <div className="rounded-[32px] border border-white/5 bg-black/40 p-6 flex flex-col items-center justify-center text-center">
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">Dano de Perfuração (GdP)</span>
+                    <span className="text-3xl font-black text-amber-500">{dmg.gdp}</span>
+                  </div>
+                </div>
+
+                {/* Condições Temporárias */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="h-10 w-10 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20">
+                        <Zap size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black uppercase tracking-widest text-white">Choque & Penalidades</h4>
+                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-tighter">Redução em testes no próximo turno</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between bg-white/[0.02] p-4 rounded-2xl border border-white/5">
+                      <span className="text-[10px] font-black text-white/40 uppercase">Penalidade de Choque</span>
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="range" min="0" max="4" step="1"
+                          value={draftProfile.combat.shock}
+                          onChange={(e) => updateCombat("shock", parseInt(e.target.value, 10))}
+                          className="w-32 accent-rose-500"
+                        />
+                        <span className="w-8 text-center text-xl font-black text-rose-500">-{draftProfile.combat.shock}</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="h-10 w-10 rounded-2xl bg-sky-500/10 flex items-center justify-center text-sky-500 border border-sky-500/20">
+                        <Dumbbell size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black uppercase tracking-widest text-white">Nível de Carga</h4>
+                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-tighter">Afeta Deslocamento e Esquiva</p>
+                      </div>
+                    </div>
+                    <select
+                      value={draftProfile.derived.encumbranceLevel}
+                      onChange={(e) => updateDerived("encumbranceLevel", e.target.value)}
+                      className="w-full rounded-2xl bg-black/60 border border-white/10 p-4 text-xs font-bold text-white outline-none focus:border-sky-500/40"
+                    >
+                      <option value="0">Nenhuma (x1.0)</option>
+                      <option value="1">Leve (x0.8, -1 Esquiva)</option>
+                      <option value="2">Média (x0.6, -2 Esquiva)</option>
+                      <option value="3">Pesada (x0.4, -3 Esquiva)</option>
+                      <option value="4">Mto. Pesada (x0.2, -4 Esquiva)</option>
+                    </select>
+                  </section>
+                </div>
+
+                {/* Memória Muscular e Manobras */}
+                <section className="rounded-[40px] border border-sky-500/10 bg-sky-500/5 p-8">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-2xl bg-sky-500/10 flex items-center justify-center text-sky-500 border border-sky-500/20">
+                        <Brain size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black uppercase tracking-widest text-white">Memória Muscular</h4>
+                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-tighter">Slots de Manobras Avançadas (Nível 2 e 3)</p>
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="rounded-2xl border border-white/10 bg-black/18 p-4">
-                    <label className="section-label mb-2 block">Resumo de Traços e Perícias</label>
-                    <textarea
-                      value={getRawString("summaryTraits")}
-                      onChange={(e) => updateRaw("summaryTraits", e.target.value)}
-                      disabled={!canManage}
-                      rows={8}
-                      placeholder="Anote aqui as principais vantagens, desvantagens e perícias deste NPC..."
-                      className="w-full resize-none bg-transparent text-sm text-white outline-none disabled:opacity-50 custom-scrollbar leading-relaxed"
+
+                  {/* Gestão de Maestria */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                    <div className={cn(
+                      "flex items-center justify-between p-4 rounded-3xl border transition-all cursor-pointer",
+                      draftProfile.raw?.unlockedLevel2 ? "bg-sky-500/10 border-sky-500/20" : "bg-black/40 border-white/5"
+                    )} onClick={() => updateRaw("unlockedLevel2", !draftProfile.raw?.unlockedLevel2)}>
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-5 h-5 rounded-lg border flex items-center justify-center transition-all", draftProfile.raw?.unlockedLevel2 ? "bg-sky-500 border-sky-400" : "bg-white/5 border-white/10")}>
+                          {!!draftProfile.raw?.unlockedLevel2 && <Save size={12} className="text-sky-950" />}
+                        </div>
+                        <div>
+                          <h5 className="text-[10px] font-black text-white uppercase tracking-widest">Nível 2: Chuden</h5>
+                          <p className="text-[8px] font-bold text-white/30 uppercase">Perícia 12+ ou 5pts Estilo</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={cn(
+                      "flex items-center justify-between p-4 rounded-3xl border transition-all cursor-pointer",
+                      draftProfile.raw?.unlockedLevel3 ? "bg-amber-500/10 border-amber-500/20" : "bg-black/40 border-white/5"
+                    )} onClick={() => updateRaw("unlockedLevel3", !draftProfile.raw?.unlockedLevel3)}>
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-5 h-5 rounded-lg border flex items-center justify-center transition-all", draftProfile.raw?.unlockedLevel3 ? "bg-amber-500 border-amber-400" : "bg-white/5 border-white/10")}>
+                          {!!draftProfile.raw?.unlockedLevel3 && <Save size={12} className="text-amber-950" />}
+                        </div>
+                        <div>
+                          <h5 className="text-[10px] font-black text-white uppercase tracking-widest">Nível 3: Okuden</h5>
+                          <p className="text-[8px] font-bold text-white/30 uppercase">Perícia 14+ e Estilo Luta</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Nível 1 - Sempre Disponíveis */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Shoden (Básico)</span>
+                      <div className="h-px flex-1 bg-sky-500/10" />
+                      <span className="text-[8px] font-bold text-white/20 uppercase">Sempre Ativas</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {MANEUVER_CATALOG.filter(m => m.level === 1).map(m => (
+                        <div key={m.id} className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
+                          <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">{m.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Slots para Nível 2 e 3 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {[0, 1, 2].map((slotIdx) => {
+                      const selectedId = draftProfile.combat.loadoutTechniqueIds[slotIdx];
+                      const isL2Unlocked = !!draftProfile.raw?.unlockedLevel2;
+                      const isL3Unlocked = !!draftProfile.raw?.unlockedLevel3;
+                      
+                      return (
+                        <div key={slotIdx} className="relative group">
+                          <select 
+                            value={selectedId || ""} 
+                            onChange={(e) => {
+                              const nextIds = [...draftProfile.combat.loadoutTechniqueIds];
+                              nextIds[slotIdx] = e.target.value;
+                              updateCombat("loadoutTechniqueIds", nextIds.filter(Boolean));
+                            }}
+                            className="w-full appearance-none rounded-2xl border border-white/10 bg-black/60 px-4 py-4 text-xs font-bold text-white outline-none focus:border-sky-500/40 transition-all cursor-pointer"
+                          >
+                            <option value="">-- Kamae --</option>
+                            <optgroup label="Nível 2: Chuden" className="bg-neutral-900">
+                              {MANEUVER_CATALOG.filter(m => m.level === 2).map(m => {
+                                const isLocked = !isL2Unlocked;
+                                const isSelectedElsewhere = draftProfile.combat.loadoutTechniqueIds.includes(m.id) && selectedId !== m.id;
+                                return (
+                                  <option key={m.id} value={m.id} disabled={isLocked || isSelectedElsewhere}>
+                                    {isLocked ? "🔒 " : ""}{m.name} {isSelectedElsewhere ? "[EM USO]" : ""}
+                                  </option>
+                                );
+                              })}
+                            </optgroup>
+                            <optgroup label="Nível 3: Okuden" className="bg-neutral-900">
+                              {MANEUVER_CATALOG.filter(m => m.level === 3).map(m => {
+                                const isLocked = !isL3Unlocked;
+                                const isSelectedElsewhere = draftProfile.combat.loadoutTechniqueIds.includes(m.id) && selectedId !== m.id;
+                                return (
+                                  <option key={m.id} value={m.id} disabled={isLocked || isSelectedElsewhere}>
+                                    {isLocked ? "🔒 " : ""}{m.name} {isSelectedElsewhere ? "[EM USO]" : ""}
+                                  </option>
+                                );
+                              })}
+                            </optgroup>
+                          </select>
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
+                            <ChevronDown size={14} />
+                          </div>
+                          <div className="mt-2 text-[8px] font-black uppercase tracking-widest text-white/20 text-center">
+                            MUSCULAR {slotIdx + 1}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-6 flex items-center justify-center gap-2 rounded-2xl bg-amber-500/5 p-4 border border-amber-500/10">
+                    <RotateCcw size={14} className="text-amber-500" />
+                    <p className="text-[9px] font-bold text-amber-500/60 uppercase tracking-widest">A troca de postura mental gasta 1 turno de concentração</p>
+                  </div>
+                </section>
+
+                {/* Postura e Condição */}
+                <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="h-10 w-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                      <Activity size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-widest text-white">Postura de Combate</h4>
+                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-tighter">Afeta defesas e ataques</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: "standing", label: "Em Pé" },
+                      { id: "crouching", label: "Agachado" },
+                      { id: "kneeling", label: "Ajoelhado" },
+                      { id: "sitting", label: "Sentado" },
+                      { id: "prone", label: "Caído / Deitado" }
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => updateCombat("posture", p.id)}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                          draftProfile.combat.posture === p.id 
+                            ? "bg-amber-500 border-amber-400 text-amber-950 shadow-lg shadow-amber-500/20" 
+                            : "bg-white/5 border-white/5 text-white/40 hover:bg-white/10"
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                        <Swords size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black uppercase tracking-widest text-white">Arsenal de Armas</h4>
+                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-tighter">Armas prontas para combate</p>
+                      </div>
+                    </div>
+                    {canManage && (
+                      <button onClick={addWeapon} className="rounded-2xl bg-amber-500 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-amber-950 transition hover:bg-amber-400 active:scale-95 shadow-lg shadow-amber-500/20">
+                        Novo Registro
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    {draftProfile.weapons.map((w) => (
+                      <div key={w.id} className="grid grid-cols-1 sm:grid-cols-[1fr_100px_100px_48px] items-center gap-4 rounded-[24px] border border-white/5 bg-white/[0.02] p-3 transition-all hover:bg-white/[0.04] hover:border-amber-500/20">
+                        <div className="px-2">
+                          <label className="block sm:hidden text-[7px] font-black text-white/20 uppercase mb-1">Nome da Arma</label>
+                          <input 
+                            value={w.name} 
+                            onChange={(e) => updateWeapon(w.id, "name", e.target.value)} 
+                            disabled={!canManage} 
+                            placeholder="Katana, Arco, etc..." 
+                            className="w-full bg-transparent text-sm font-black text-white outline-none" 
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 sm:contents gap-4">
+                          <div>
+                            <label className="block sm:hidden text-[7px] font-black text-white/20 uppercase mb-1">Qualidade</label>
+                            <input 
+                              value={w.quality || ""} 
+                              onChange={(e) => updateWeapon(w.id, "quality", e.target.value)} 
+                              disabled={!canManage} 
+                              placeholder="Fina" 
+                              className="w-full rounded-xl bg-black/40 px-3 py-2 text-[10px] font-bold text-white/60 outline-none text-center border border-white/5" 
+                            />
+                          </div>
+                          <div className="relative group/dmg">
+                            <label className="block sm:hidden text-[7px] font-black text-white/20 uppercase mb-1">Dano</label>
+                            <input 
+                              value={w.rawDamage || ""} 
+                              onChange={(e) => updateWeapon(w.id, "rawDamage", e.target.value)} 
+                              disabled={!canManage} 
+                              placeholder="GeB+2" 
+                              className="w-full rounded-xl bg-black/40 px-3 py-2 text-[10px] font-bold text-amber-500 outline-none text-right border border-white/5" 
+                            />
+                            {w.rawDamage && (w.rawDamage.includes("GeB") || w.rawDamage.includes("GdP") || w.rawDamage.includes("geb") || w.rawDamage.includes("gdp")) && (
+                              <div className="absolute -bottom-1 right-0 translate-y-full opacity-0 group-hover/dmg:opacity-100 transition-opacity bg-amber-500 text-amber-950 text-[8px] font-black px-2 py-0.5 rounded-md pointer-events-none z-20 shadow-xl whitespace-nowrap">
+                                TOTAL: {resolveDynamicDamage(w.rawDamage, st)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex justify-center border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
+                          {canManage && (
+                            <button onClick={() => removeWeapon(w.id)} className="rounded-xl p-2 text-white/10 transition hover:bg-rose-500/20 hover:text-rose-400">
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {draftProfile.weapons.length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-12 rounded-[32px] border border-dashed border-white/5 bg-white/[0.01] text-white/10">
+                        <Swords size={32} strokeWidth={1} />
+                        <p className="mt-4 text-[10px] font-black uppercase tracking-[0.4em]">Arsenal Vazio</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                      <Shield className="text-sky-500" size={18} />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white/60">Resistência de Dano (RD)</h4>
+                    </div>
+                    <div className="space-y-3">
+                      {[
+                        { key: "drTop", label: "Cabeça & Ombros" },
+                        { key: "drMiddle", label: "Tronco & Braços" },
+                        { key: "drBottom", label: "Pernas & Pés" }
+                      ].map(dr => (
+                        <div key={dr.key} className="flex items-center justify-between rounded-2xl bg-white/[0.02] p-4 border border-white/5 transition hover:bg-white/[0.04]">
+                          <span className="text-[10px] font-bold text-white/40 uppercase">{dr.label}</span>
+                          <input 
+                            type="number" 
+                            value={getRawNumber(dr.key)} 
+                            onChange={(e) => updateRaw(dr.key, parseInt(e.target.value, 10))} 
+                            disabled={!canManage} 
+                            className="w-16 rounded-xl bg-black/60 p-2 text-center text-sm font-black text-white outline-none border border-white/5 focus:border-sky-500/40" 
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[40px] border border-white/5 bg-black/40 p-8 flex flex-col">
+                    <div className="flex items-center gap-3 mb-6">
+                      <Package className="text-emerald-500" size={18} />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white/60">Inventário Geral</h4>
+                    </div>
+                    <textarea 
+                      value={getRawString("equipmentText")} 
+                      onChange={(e) => updateRaw("equipmentText", e.target.value)} 
+                      disabled={!canManage} 
+                      className="w-full flex-1 min-h-[160px] resize-none bg-transparent text-sm text-white/80 outline-none custom-scrollbar leading-relaxed placeholder:text-white/5" 
+                      placeholder="Descreva aqui seus pertences, rações e itens diversos..."
                     />
                   </div>
-                )}
-              </section>
+                </div>
+              </div>
+            )}
 
-            </div>
+            {activeTab === "traits" && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                      <Activity className="text-amber-500" size={18} />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white">Vantagens & Qualidades</h4>
+                    </div>
+                    <textarea
+                      value={getRawString("advantages")}
+                      onChange={(e) => updateRaw("advantages", e.target.value)}
+                      disabled={!canManage}
+                      rows={6}
+                      className="w-full resize-none bg-transparent text-sm text-white outline-none custom-scrollbar leading-relaxed"
+                      placeholder="Reflexos em Combate [15], Visão Noturna..."
+                    />
+                  </section>
+                  <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                      <Activity className="text-rose-500" size={18} />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white">Desvantagens</h4>
+                    </div>
+                    <textarea
+                      value={getRawString("disadvantages")}
+                      onChange={(e) => updateRaw("disadvantages", e.target.value)}
+                      disabled={!canManage}
+                      rows={6}
+                      className="w-full resize-none bg-transparent text-sm text-white outline-none custom-scrollbar leading-relaxed"
+                      placeholder="Senso de Dever [-5], Código de Honra..."
+                    />
+                  </section>
+                </div>
+
+                <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Brain className="text-sky-500" size={18} />
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white">Perícias & Técnicas</h4>
+                  </div>
+                  <textarea
+                    value={getRawString("skills")}
+                    onChange={(e) => updateRaw("skills", e.target.value)}
+                    disabled={!canManage}
+                    rows={8}
+                    className="w-full resize-none bg-transparent text-sm text-white outline-none custom-scrollbar leading-relaxed"
+                    placeholder="Katana-14, Furtividade-13, Liderança-12..."
+                  />
+                </section>
+
+                <section className="rounded-[40px] border border-white/5 bg-[#0e0e10] p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <ScrollText className="text-amber-500/40" size={18} />
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">História & Notas</h4>
+                  </div>
+                  <textarea
+                    value={getRawString("history")}
+                    onChange={(e) => updateRaw("history", e.target.value)}
+                    disabled={!canManage}
+                    rows={10}
+                    className="w-full resize-none bg-transparent text-sm text-white/60 italic outline-none custom-scrollbar leading-relaxed"
+                    placeholder="O passado deste guerreiro está envolto em névoas..."
+                  />
+                </section>
+              </div>
+            )}
           </div>
-        </div>
+        </main>
 
-        {/* Footer */}
-        {canManage && (
-          <div className="flex items-center justify-end gap-3 border-t border-white/10 bg-black/20 px-6 py-4">
+        <footer className="relative z-10 border-t border-white/5 bg-black/40 backdrop-blur-xl px-6 py-5 flex items-center justify-between">
+          <div className="hidden sm:block">
+             <p className="text-[8px] font-black text-white/10 uppercase tracking-[0.5em]">Bushido System v2.0</p>
+          </div>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             <button
-              type="button"
               onClick={onClose}
               disabled={isPending}
-              className="rounded-full px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+              className="flex-1 sm:flex-none rounded-2xl px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white/40 transition hover:bg-white/5 hover:text-white"
             >
               Cancelar
             </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isPending}
-              className="flex items-center gap-2 rounded-full bg-amber-500 px-6 py-2.5 text-sm font-bold text-amber-950 transition hover:bg-amber-400 disabled:opacity-50"
-            >
-              <Save size={16} />
-              {isPending ? "Salvando..." : "Salvar Ficha"}
-            </button>
+            {canManage && (
+              <button
+                onClick={handleSave}
+                disabled={isPending}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-3 rounded-2xl bg-amber-500 px-8 py-3 text-[10px] font-black uppercase tracking-widest text-amber-950 transition hover:bg-amber-400 hover:shadow-[0_0_20px_rgba(245,158,11,0.2)] active:scale-95 disabled:opacity-50"
+              >
+                {isPending ? <Activity size={16} className="animate-spin" /> : <Save size={16} />}
+                {isPending ? "Gravando..." : "Sincronizar Bushido"}
+              </button>
+            )}
           </div>
-        )}
+        </footer>
       </div>
     </div>
   );

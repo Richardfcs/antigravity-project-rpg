@@ -143,7 +143,9 @@ function sanitizeStatusEffects(statusEffects?: TokenStatusPreset[]) {
     "stunned",
     "hidden",
     "burning",
-    "cursed"
+    "cursed",
+    "collapsed",
+    "below_zero"
   ]);
 
   return [...new Set(statusEffects.filter((status) => allowed.has(status)))];

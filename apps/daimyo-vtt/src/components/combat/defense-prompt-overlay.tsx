@@ -18,7 +18,7 @@ interface DefensePromptOverlayProps {
   options: CombatDefenseOption[];
   canRetreat?: boolean;
   canAcrobatic?: boolean;
-  onResolve: (option: CombatDefenseOption, retreat: boolean, acrobatic: boolean) => void;
+  onResolve: (option: CombatDefenseOption, retreat: boolean, acrobatic: boolean, manualModifier: number, feverish: boolean) => void;
 }
 
 export function DefensePromptOverlay({
@@ -31,6 +31,8 @@ export function DefensePromptOverlay({
   const [selected, setSelected] = useState<CombatDefenseOption>(options[0] || "none");
   const [retreat, setRetreat] = useState(false);
   const [acrobatic, setAcrobatic] = useState(false);
+  const [feverish, setFeverish] = useState(false);
+  const [manualModifier, setManualModifier] = useState(0);
 
   const getOptionLabel = (opt: CombatDefenseOption) => {
     switch (opt) {
@@ -113,40 +115,61 @@ export function DefensePromptOverlay({
           </div>
 
           {/* Modificadores Especiais */}
-          <div className="flex gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {canRetreat && (
               <button
                 onClick={() => setRetreat(!retreat)}
                 className={`
-                  flex-1 p-4 rounded-2xl border flex flex-col items-center gap-1 transition-all
+                  p-4 rounded-2xl border flex flex-col items-center gap-1 transition-all
                   ${retreat 
-                    ? 'bg-sky-500/10 border-sky-500/50 text-sky-400 shadow-[0_0_15px_rgba(14,165,233,0.1)]' 
+                    ? 'bg-sky-500/10 border-sky-500/50 text-sky-400' 
                     : 'bg-white/5 border-white/5 text-white/20 hover:border-white/20'}
                 `}
               >
                 <Zap size={16} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Recuar (+3)</span>
+                <span className="text-[10px] font-black uppercase">Recuar (+3)</span>
               </button>
             )}
             {canAcrobatic && (
               <button
                 onClick={() => setAcrobatic(!acrobatic)}
                 className={`
-                  flex-1 p-4 rounded-2xl border flex flex-col items-center gap-1 transition-all
+                  p-4 rounded-2xl border flex flex-col items-center gap-1 transition-all
                   ${acrobatic 
-                    ? 'bg-purple-500/10 border-purple-500/50 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.1)]' 
+                    ? 'bg-purple-500/10 border-purple-500/50 text-purple-400' 
                     : 'bg-white/5 border-white/5 text-white/20 hover:border-white/20'}
                 `}
               >
                 <Sparkles size={16} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Acrobática (+2)</span>
+                <span className="text-[10px] font-black uppercase">Acrobática (+2)</span>
               </button>
             )}
+            <button
+              onClick={() => setFeverish(!feverish)}
+              className={`
+                p-4 rounded-2xl border flex flex-col items-center gap-1 transition-all
+                ${feverish 
+                  ? 'bg-amber-500/10 border-amber-500/50 text-amber-400' 
+                  : 'bg-white/5 border-white/5 text-white/20 hover:border-white/20'}
+              `}
+            >
+              <Zap size={16} fill={feverish ? "currentColor" : "none"} />
+              <span className="text-[10px] font-black uppercase">Febril (+2)</span>
+            </button>
+            <div className="bg-white/5 border border-white/5 rounded-2xl p-2 flex flex-col items-center gap-1">
+              <span className="text-[8px] font-black uppercase text-white/20">Manual</span>
+              <input 
+                type="number"
+                value={manualModifier}
+                onChange={(e) => setManualModifier(parseInt(e.target.value) || 0)}
+                className="w-full bg-transparent text-center text-sm font-bold text-white outline-none"
+              />
+            </div>
           </div>
 
           {/* Confirmar */}
           <button
-            onClick={() => onResolve(selected, retreat, acrobatic)}
+            onClick={() => onResolve(selected, retreat, acrobatic, manualModifier, feverish)}
             className="w-full py-5 rounded-2xl bg-red-500 text-black flex items-center justify-center gap-3 text-sm font-black uppercase tracking-[0.2em] transition-all hover:bg-red-400 hover:scale-[1.02] active:scale-[0.98] shadow-[0_8px_32px_rgba(239,68,68,0.25)] mt-4"
           >
             <Shield size={18} fill="currentColor" />

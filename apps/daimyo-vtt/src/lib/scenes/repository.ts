@@ -152,6 +152,20 @@ export async function findSessionSceneById(sceneId: string) {
   return data ? mapSceneRow(data) : null;
 }
 
+export async function findSessionSceneByBackgroundAssetId(sessionId: string, assetId: string) {
+  const { data, error } = await getSceneTable()
+    .select("*")
+    .eq("session_id", sessionId)
+    .eq("background_asset_id", assetId)
+    .maybeSingle<SceneRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? mapSceneRow(data) : null;
+}
+
 export async function listSceneCast(sessionId: string) {
   const { data, error } = await getSceneCastTable()
     .select("*")

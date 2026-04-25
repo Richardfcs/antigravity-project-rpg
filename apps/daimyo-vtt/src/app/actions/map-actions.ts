@@ -45,7 +45,9 @@ const allowedTokenStatuses = new Set<TokenStatusPreset>([
   "stunned",
   "hidden",
   "burning",
-  "cursed"
+  "cursed",
+  "collapsed",
+  "below_zero"
 ]);
 
 function buildInfraError(): MapActionResult {

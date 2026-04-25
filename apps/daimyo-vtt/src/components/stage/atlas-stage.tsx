@@ -11,10 +11,12 @@ import {
   Minus,
   Plus,
   ScrollText,
+  ScanSearch,
   Sparkles,
   Trash2,
   Settings2
 } from "lucide-react";
+import { useMobile } from "@/hooks/use-mobile";
 
 import {
   createAtlasPinAction,
@@ -22,6 +24,7 @@ import {
   updateAtlasPinDetailsAction,
   updateAtlasPinPositionAction
 } from "@/app/actions/atlas-actions";
+import { getOrCreateSceneFromAtlasPinAction } from "@/app/actions/scene-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
 import { AssetVisualPicker } from "@/components/ui/asset-visual-picker";
 import { SessionMemoryFeed } from "@/components/panels/session-memory-feed";
@@ -55,6 +58,7 @@ interface AtlasStageProps {
   onResetNavigation?: () => void;
   navigatingSubmap?: boolean;
   onRequestLibrary?: (section: ExplorerSection) => void;
+  onOpenScene?: (sceneId: string) => void;
 }
 
 interface DragState {
@@ -99,7 +103,8 @@ export function AtlasStage({
   onOpenSubmap,
   onResetNavigation,
   navigatingSubmap = false,
-  onRequestLibrary
+  onRequestLibrary,
+  onOpenScene
 }: AtlasStageProps) {
   const upsertAtlasPin = useAtlasStore((state) => state.upsertAtlasPin);
   const removeAtlasPin = useAtlasStore((state) => state.removeAtlasPin);
@@ -122,6 +127,7 @@ export function AtlasStage({
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [isFocusDrawerOpen, setIsFocusDrawerOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const isMobile = useMobile();
   const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
   const [isSubmapPickerOpen, setIsSubmapPickerOpen] = useState(false);
   const isFocus = viewMode === "focus";
@@ -613,6 +619,27 @@ export function AtlasStage({
     });
   };
 
+  const handleAtlasToScene = () => {
+    if (!sessionCode || !selectedPin || !selectedPin.imageAsset) return;
+
+    setPendingKey("atlas-to-scene");
+    startTransition(async () => {
+      const result = await getOrCreateSceneFromAtlasPinAction({
+        sessionCode,
+        pinTitle: selectedPin.pin.title,
+        backgroundAssetId: selectedPin.imageAsset!.id,
+        characterIds: selectedPin.linkedCharacters.map(c => c.id)
+      });
+
+      if (!result.ok || !result.scene) {
+        setFeedback(result.message || "Falha ao preparar cena.");
+      } else {
+        onOpenScene?.(result.scene.id);
+      }
+      setPendingKey(null);
+    });
+  };
+
   const revealHistoryEntries = useMemo(() => {
     if (!canEdit || !atlasMap) {
       return [];
@@ -990,11 +1017,27 @@ export function AtlasStage({
           )}
           {canSeeSelectedPinDetails && selectedPin.imageAsset?.secureUrl && (
             <div
-              className="h-40 rounded-[20px] border border-white/10 bg-center bg-cover"
+              className="h-40 rounded-[20px] border border-white/10 bg-center bg-cover relative group overflow-hidden"
               style={{
                 backgroundImage: `linear-gradient(180deg, rgba(2,6,23,0.16), rgba(2,6,23,0.52)), url(${selectedPin.imageAsset.secureUrl})`
               }}
-            />
+            >
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={handleAtlasToScene}
+                  disabled={isPending}
+                  className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-950/60 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-sky-100 backdrop-blur-md transition hover:bg-sky-400/40 opacity-0 group-hover:opacity-100 shadow-xl disabled:opacity-50"
+                >
+                  {pendingKey === "atlas-to-scene" ? (
+                    <LoaderCircle size={12} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={12} />
+                  )}
+                  Usar na Cena
+                </button>
+              )}
+            </div>
           )}
           {canSeeSelectedPinDetails && selectedPin.submapAsset && (
             <div className="rounded-[18px] border border-amber-300/18 bg-amber-300/10 px-4 py-3">
@@ -1078,9 +1121,9 @@ export function AtlasStage({
       <div className="shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
-              <Compass size={14} />
-              modo atlas
+            <span className="hud-chip h-9 px-3 border-amber-300/20 bg-amber-300/10 text-amber-100">
+              <Compass size={22} className="xl:size-[14] xl:mr-1.5" />
+              <span className="hidden xl:inline whitespace-nowrap">modo atlas</span>
             </span>
             <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
               {atlasMap.name}
@@ -1093,84 +1136,93 @@ export function AtlasStage({
                   setEditor(null);
                 }}
                 className={cn(
-                  "hud-chip",
+                  "hud-chip h-11 px-4 md:h-9 md:px-3 transition",
                   editMode
                     ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
                     : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]"
                 )}
               >
-                <Sparkles size={14} />
-                {editMode ? "editando" : "editar atlas"}
+                <Sparkles size={22} className="xl:size-[14] xl:mr-1.5" />
+                <span className="hidden xl:inline whitespace-nowrap">{editMode ? "editando" : "editar atlas"}</span>
               </button>
             )}
             {canEdit && onRequestLibrary && (
               <button
                 type="button"
                 onClick={() => onRequestLibrary("atlas")}
-                className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] transition hover:border-amber-300/24 hover:bg-amber-300/10 hover:text-amber-100 cursor-pointer"
+                className="hud-chip h-11 px-4 md:h-9 md:px-3 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] transition hover:border-amber-300/24 hover:bg-amber-300/10 hover:text-amber-100 cursor-pointer"
               >
-                <Settings2 size={14} />
-                gerenciar atlas
+                <Settings2 size={16} className="xl:size-[14] xl:mr-1.5" />
+                <span className="hidden xl:inline whitespace-nowrap">gerenciar atlas</span>
               </button>
             )}
             {navigatingSubmap && onResetNavigation && (
               <button
                 type="button"
                 onClick={onResetNavigation}
-                className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]"
+                className="hud-chip h-11 px-4 md:h-9 md:px-3 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]"
               >
-                <Compass size={14} />
-                voltar ao atlas ativo
+                <Compass size={16} className="xl:size-[14] xl:mr-1.5" />
+                <span className="hidden xl:inline whitespace-nowrap">voltar ao atlas ativo</span>
               </button>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/18 px-2 py-1.5">
+        <div className="flex items-center gap-1 rounded-full border border-white/10 bg-black/18 p-1 shadow-inner">
           {isFocus && canOpenFocusDrawer ? (
             <button
               type="button"
               onClick={() => setIsFocusDrawerOpen((current) => !current)}
               className={cn(
-                "rail-button h-9 px-3 text-xs font-semibold uppercase tracking-[0.16em]",
+                "rail-button h-11 w-11 xl:h-9 xl:w-auto xl:px-3 text-[9px] font-bold uppercase tracking-normal xl:tracking-wider",
                 isFocusDrawerOpen && "border-amber-300/22 bg-amber-300/10 text-amber-100"
               )}
             >
-              <ScrollText size={14} />
-              {editor ? "editor" : "detalhes"}
+              <ScrollText size={18} className="xl:size-[14] xl:mr-1.5" />
+              <span className="hidden xl:inline whitespace-nowrap">{editor ? "editor" : "detalhes"}</span>
             </button>
           ) : null}
           <button
             type="button"
             onClick={fitToViewport}
-            className="rail-button h-9 px-3 text-xs font-semibold uppercase tracking-[0.16em]"
+            title="Ajustar ao tamanho da tela"
+            className="rail-button h-11 w-11 xl:h-9 xl:w-auto xl:px-3 text-[9px] font-bold uppercase tracking-normal xl:tracking-wider"
           >
-            fit
+            <ScanSearch size={18} className="xl:size-[14] xl:mr-1.5" />
+            <span className="hidden xl:inline whitespace-nowrap">inteiro</span>
           </button>
           <button
             type="button"
             onClick={() => centerViewport()}
-            className="rail-button h-9 px-3 text-xs font-semibold uppercase tracking-[0.16em]"
+            title="Centralizar mapa"
+            className="rail-button h-11 w-11 xl:h-9 xl:w-auto xl:px-3 text-[9px] font-bold uppercase tracking-normal xl:tracking-wider"
           >
-            centro
+            <Compass size={18} className="xl:size-[14] xl:mr-1.5" />
+            <span className="hidden xl:inline whitespace-nowrap">centro</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setZoom((current) => clamp(Number((current - 0.2).toFixed(2)), 0.6, 2.2))}
-            className="rail-button h-9 w-9"
-          >
-            <Minus size={14} />
-          </button>
-          <span className="min-w-[52px] text-center text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)]">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={() => setZoom((current) => clamp(Number((current + 0.2).toFixed(2)), 0.6, 2.2))}
-            className="rail-button h-9 w-9"
-          >
-            <Plus size={14} />
-          </button>
+
+          <div className="mx-1 h-4 w-[1px] bg-white/10" />
+
+          <div className="flex items-center gap-1.5 px-1">
+            <button
+              type="button"
+              onClick={() => setZoom((current) => clamp(Number((current - 0.2).toFixed(2)), 0.6, 2.2))}
+              className="rail-button h-11 w-11 md:h-9 md:w-9"
+            >
+              <Minus size={14} />
+            </button>
+            <span className="min-w-[48px] text-center text-[10px] font-bold uppercase tracking-widest text-[color:var(--ink-2)]">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              type="button"
+              onClick={() => setZoom((current) => clamp(Number((current + 0.2).toFixed(2)), 0.6, 2.2))}
+              className="rail-button h-11 w-11 md:h-9 md:w-9"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1249,8 +1301,13 @@ export function AtlasStage({
                     {(canEdit ||
                       entry.pin.isVisibleToPlayers ||
                       entry.pin.isNameVisibleToPlayers) && (
-                      <div className="mt-2 min-w-[96px] rounded-full border border-white/10 bg-black/60 px-3 py-1 text-[11px] font-semibold tracking-[0.08em] text-white shadow-[0_8px_18px_rgba(2,6,23,0.35)]">
-                        <span className="block truncate">{entry.pin.title}</span>
+                      <div className={cn(
+                        "mt-1.5 rounded-full border border-white/10 bg-black/60 text-white shadow-[0_8px_18px_rgba(2,6,23,0.35)]",
+                        isMobile 
+                          ? "min-w-[64px] px-1.5 py-0.5 text-[7px] tracking-tight" 
+                          : "min-w-[96px] px-3 py-1 text-[9px] font-semibold tracking-[0.08em]"
+                      )}>
+                        <span className="block truncate text-center">{entry.pin.title}</span>
                       </div>
                     )}
                   </button>
@@ -1262,12 +1319,15 @@ export function AtlasStage({
 
         {isFocus ? (
           canOpenFocusDrawer && isFocusDrawerOpen && (
-            <div className="pointer-events-none absolute inset-y-3 right-3 z-[20] flex w-[min(380px,calc(100%-1.5rem))] justify-end md:w-[360px]">
+            <div className={cn(
+              "pointer-events-none z-[80] flex justify-end",
+              "fixed inset-0 p-4 md:absolute md:inset-y-3 md:right-3 md:z-[20] md:w-[360px] md:p-0"
+            )}>
               <div className="pointer-events-auto relative h-full max-h-full w-full overflow-hidden">
                 <button
                   type="button"
                   onClick={() => setIsFocusDrawerOpen(false)}
-                  className="absolute right-3 top-3 z-[2] inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[rgba(5,10,18,0.82)] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
+                  className="absolute right-3 top-3 z-[10] inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[rgba(5,10,18,0.82)] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
                 >
                   <EyeOff size={14} />
                 </button>

@@ -17,14 +17,16 @@ export function LibraryFilterPills({
   value: LibraryStatusFilter;
   onChange: (value: LibraryStatusFilter) => void;
 }) {
-  const options: Array<{
+    const options: Array<{
     id: LibraryStatusFilter;
     label: string;
   }> = [
-    { id: "all", label: "Tudo" },
+    { id: "active", label: "Ativos" },
     { id: "prepared", label: "Pronto" },
     { id: "favorite", label: "Favoritos" },
-    { id: "usedToday", label: "Hoje" }
+    { id: "trash", label: "Lixeira" },
+    { id: "dead", label: "Mortos" },
+    { id: "all", label: "Tudo" }
   ];
 
   return (

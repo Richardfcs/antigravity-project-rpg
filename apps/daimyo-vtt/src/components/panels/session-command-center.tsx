@@ -124,7 +124,7 @@ export function SessionCommandCenter({
                 onClick={() => onStageModeChange(mode)}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.75 text-[9px] font-semibold uppercase tracking-[0.12em] transition",
-                  state.stageMode === mode
+                  !libraryWorkspaceActive && state.stageMode === mode
                     ? "border-amber-300/28 bg-amber-300/10 text-amber-100"
                     : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
                 )}

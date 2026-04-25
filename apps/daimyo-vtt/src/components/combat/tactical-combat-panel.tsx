@@ -17,18 +17,21 @@ import {
   Timer,
   Footprints,
   Ban,
-  LoaderCircle
+  LoaderCircle,
+  HeartPulse,
+  SkipForward,
+  Power
 } from "lucide-react";
 import { HealthBar } from "@/components/combat/health-bar";
-import { CombatResolutionCard } from "@/components/combat/combat-resolution-card";
 import { CombatTurnQueue } from "@/components/combat/combat-turn-queue";
+import { CombatantStatusCard } from "@/components/combat/combatant-status-card";
 
-import { CombatSheetCard } from "@/components/combat/combat-sheet-card";
 import { cn } from "@/lib/utils";
 import type {
   TacticalCombatStateView,
   TacticalStageToken
 } from "@/lib/maps/selectors";
+import type { TokenStatusPreset } from "@/types/map";
 import type {
   AllOutAttackVariant,
   AllOutDefenseVariant,
@@ -46,6 +49,7 @@ interface PromptResponseInput {
   defenseOption: CombatDefenseOption;
   retreat?: boolean;
   acrobatic?: boolean;
+  feverish?: boolean;
 }
 
 interface TacticalCombatPanelProps {
@@ -61,7 +65,11 @@ interface TacticalCombatPanelProps {
   onExecuteCombatAction?: (action: CombatDraftAction) => void;
   onRespondCombatPrompt?: (input: PromptResponseInput) => void;
   onGmTakeOver?: (tokenId: string) => void;
+  onSkipTurn?: () => void;
   onRemoveToken?: (tokenId: string) => void;
+  onAdjustResource?: (tokenId: string, resource: "hp" | "fp", delta: number) => void;
+  onUpdateResource?: (tokenId: string, resource: "hp" | "fp", value: number) => void;
+  onToggleStatus?: (tokenId: string, status: TokenStatusPreset) => void;
   selectedTokenId?: string | null;
   isPending?: boolean;
   pendingKey?: string | null;
@@ -140,6 +148,12 @@ function ToggleChip({
   );
 }
 
+const isAttackManeuver = (type: CombatActionType) =>
+  type === "attack" || type === "ranged-attack" || type === "all-out-attack";
+
+const isRangedManeuver = (type: CombatActionType) =>
+  type === "ranged-attack" || type === "aim";
+
 export function TacticalCombatPanel({
   tokens,
   combatState,
@@ -153,7 +167,11 @@ export function TacticalCombatPanel({
   onExecuteCombatAction,
   onRespondCombatPrompt,
   onGmTakeOver,
+  onSkipTurn,
   onRemoveToken,
+  onAdjustResource,
+  onUpdateResource,
+  onToggleStatus,
   selectedTokenId,
   isPending = false,
   pendingKey = null
@@ -167,7 +185,8 @@ export function TacticalCombatPanel({
   const [techniqueId, setTechniqueId] = useState<string | null>(null);
   const [replaceTechniqueId, setReplaceTechniqueId] = useState<string | null>(null);
   const [hitLocation, setHitLocation] = useState<CombatHitLocationId>("torso");
-  const [manualModifier, setManualModifier] = useState("0");
+  const [manualToHit, setManualToHit] = useState("0");
+  const [manualDamage, setManualDamage] = useState("0");
   const [rangeMeters, setRangeMeters] = useState("");
   const [aimTurns, setAimTurns] = useState("");
   const [contestLabel, setContestLabel] = useState("");
@@ -179,6 +198,8 @@ export function TacticalCombatPanel({
   const [promptDefense, setPromptDefense] = useState<CombatDefenseOption>("none");
   const [promptRetreat, setPromptRetreat] = useState(false);
   const [promptAcrobatic, setPromptAcrobatic] = useState(false);
+  const [promptFeverish, setPromptFeverish] = useState(false);
+  const [feverish, setFeverish] = useState(false);
   
   // Novas states para manobras automatizadas
   const [waitTrigger, setWaitTrigger] = useState("");
@@ -267,6 +288,7 @@ export function TacticalCombatPanel({
     setPromptDefense(options[0] ?? "none");
     setPromptRetreat(false);
     setPromptAcrobatic(false);
+    setPromptFeverish(false);
   }, [pendingPrompt?.eventId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -294,7 +316,8 @@ export function TacticalCombatPanel({
       replaceTechniqueId: actionType === "swap-technique" ? replaceTechniqueId : null,
       hitLocation,
       modifiers: {
-        manual: readNumber(manualModifier),
+        manualToHit: readNumber(manualToHit),
+        manualDamage: readNumber(manualDamage),
         hitLocation,
         rangeMeters: rangeMeters.trim() ? readNumber(rangeMeters) : null,
         aimTurns: aimTurns.trim() ? readNumber(aimTurns) : null,
@@ -302,13 +325,15 @@ export function TacticalCombatPanel({
         determined,
         retreat,
         acrobatic,
+        feverish,
         recoil: false,
         sizeModifier: null
       },
       selectedDefense,
       contestLabel: contestLabel.trim() || null,
       // Novos campos
-      allOutVariant: actionType.includes("all-out") ? allOutVariant : undefined,
+      allOutVariant: actionType === "all-out-attack" ? allOutVariant as AllOutAttackVariant : undefined,
+      allOutDefenseVariant: actionType === "all-out-defense" ? allOutVariant as AllOutDefenseVariant : undefined,
       feintAttribute: actionType.startsWith("feint") ? feintAttribute : undefined,
       waitTrigger: actionType === "wait" ? waitTrigger : undefined,
       roundsNeeded: actionType === "regular-contest" ? roundsNeeded : undefined
@@ -327,7 +352,8 @@ export function TacticalCombatPanel({
       eventId: pendingPrompt.eventId,
       defenseOption: promptDefense,
       retreat: promptRetreat,
-      acrobatic: promptAcrobatic
+      acrobatic: promptAcrobatic,
+      feverish: promptFeverish
     });
   };
 
@@ -377,62 +403,101 @@ export function TacticalCombatPanel({
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-4 grid grid-cols-2 gap-2">
         {!combatState.enabled ? (
-          canManageCombat ? (
+          canManageCombat && (
             <button
               type="button"
               onClick={onCombatStart}
-              className="inline-flex items-center gap-2 rounded-full border border-rose-300/22 bg-rose-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rose-100 transition hover:border-rose-300/35"
+              className="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/10 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-rose-100 transition hover:border-rose-300/40 active:scale-95"
             >
               <Swords size={14} />
-              iniciar ordem
+              iniciar ordem de combate
             </button>
-          ) : null
+          )
         ) : canManageCombat ? (
           <>
-            <button
-              type="button"
-              onClick={() => onCombatAdvance?.("previous")}
-              disabled={isPending}
-              className="rail-button h-9 px-3 text-xs font-semibold uppercase tracking-[0.16em] disabled:opacity-50"
-            >
-              {isPending && pendingKey === "combat:advance:previous" ? (
-                <LoaderCircle size={14} className="animate-spin" />
-              ) : (
-                <ChevronLeft size={14} />
-              )}
-              anterior
-            </button>
-            <button
-              type="button"
-              onClick={() => onCombatAdvance?.("next")}
-              disabled={isPending}
-              className="rail-button h-9 px-3 text-xs font-semibold uppercase tracking-[0.16em] disabled:opacity-50"
-            >
-              {isPending && pendingKey === "combat:advance:next" ? (
-                <LoaderCircle size={14} className="animate-spin" />
-              ) : (
-                <ChevronRight size={14} />
-              )}
-              proximo
-            </button>
-            <button
-              type="button"
-              onClick={onCombatStop}
-              disabled={isPending}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white disabled:opacity-50"
-            >
-              {isPending && pendingKey === "combat:stop" ? (
-                <LoaderCircle size={14} className="animate-spin" />
-              ) : null}
-              encerrar
-            </button>
+            <div className="col-span-2 grid grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => onCombatAdvance?.("previous")}
+                disabled={isPending}
+                title="Voltar Turno"
+                className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.05] py-3 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-white/10 hover:border-white/30 disabled:opacity-30"
+              >
+                {isPending && pendingKey === "combat:advance:previous" ? (
+                  <LoaderCircle size={16} className="animate-spin" />
+                ) : (
+                  <ChevronLeft size={16} />
+                )}
+                <span className="opacity-70">Ant</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onCombatAdvance?.("next")}
+                disabled={isPending}
+                title="Próximo Turno"
+                className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.05] py-3 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-white/10 hover:border-white/30 disabled:opacity-30"
+              >
+                {isPending && pendingKey === "combat:advance:next" ? (
+                  <LoaderCircle size={16} className="animate-spin" />
+                ) : (
+                  <ChevronRight size={16} />
+                )}
+                <span className="opacity-70">Prox</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onSkipTurn}
+                disabled={isPending}
+                title="Pular Turno"
+                className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-amber-500/20 bg-amber-500/10 py-3 text-[10px] font-black uppercase tracking-widest text-amber-200 transition hover:bg-amber-500/20 hover:border-amber-500/40 disabled:opacity-30"
+              >
+                {isPending && pendingKey === "combat:skip" ? (
+                  <LoaderCircle size={16} className="animate-spin" />
+                ) : (
+                  <SkipForward size={16} />
+                )}
+                <span className="opacity-70">Pular</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onCombatStop}
+                disabled={isPending}
+                title="Encerrar Combate"
+                className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 py-3 text-[10px] font-black uppercase tracking-widest text-rose-200 transition hover:bg-rose-500/20 hover:border-rose-500/40 disabled:opacity-30"
+              >
+                {isPending && pendingKey === "combat:stop" ? (
+                  <LoaderCircle size={16} className="animate-spin" />
+                ) : (
+                  <Power size={16} />
+                )}
+                <span className="opacity-70">Fim</span>
+              </button>
+            </div>
           </>
         ) : null}
+
+        {combatState.enabled && activeEntry && (
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('daimyo:show-turn-overlay', { detail: { tokenId: activeEntry.token.id } }));
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-sky-300 transition-all hover:bg-sky-400/20 hover:scale-105 active:scale-95"
+            >
+              <Sparkles size={14} className="animate-pulse" />
+              Gamificação
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="scrollbar-thin mt-4 flex-1 space-y-4 overflow-y-auto pr-1">
+      <div className="scrollbar-thin mt-4 flex-1 space-y-4 overflow-y-auto pr-1 pt-4">
         <section className="mb-2">
           <p className="section-label mb-2 px-1">Fila de Turnos</p>
           <CombatTurnQueue
@@ -477,49 +542,25 @@ export function TacticalCombatPanel({
           </section>
         )}
 
-        <section className="space-y-2">
-          {activeEntry ? (
-            <div className="rounded-[22px] border border-amber-500/20 bg-amber-500/5 p-4 transition-all duration-500 animate-in fade-in slide-in-from-bottom-2">
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full border border-amber-500/30 bg-black/40 flex items-center justify-center text-xs font-black text-amber-500">
-                    {combatState.activeIndex + 1}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-white">
-                      {activeEntry.label}
-                    </h3>
-                    <p className="text-[10px] font-bold text-amber-500/60 uppercase tracking-tight">
-                      Ativo no Turno
-                    </p>
-                  </div>
-                </div>
-                {canManageCombat && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveToken?.(activeEntry.token.id);
-                    }}
-                    className="rounded-xl border border-rose-500/10 bg-rose-500/5 p-2 text-rose-400/40 transition hover:bg-rose-500/20 hover:text-rose-400"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
-              <CombatSheetCard
-                title="Ficha do Ativo"
-                entry={activeEntry}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <p className="section-label">Status dos Combatentes</p>
+            <p className="text-[9px] font-bold text-white/20 uppercase">Clique para expandir</p>
+          </div>
+          <div className="grid gap-2">
+            {combatState.turnOrder.map((entry) => (
+              <CombatantStatusCard 
+                key={entry.token.id}
+                entry={entry}
+                isActive={entry.token.id === combatState.activeTokenId}
+                onSelect={onSelectCombatant}
+                onAdjustResource={onAdjustResource}
+                onToggleStatus={onToggleStatus}
               />
-            </div>
-          ) : (
-            <div className="rounded-[22px] border border-white/5 bg-white/[0.02] p-8 text-center">
-              <p className="text-xs font-bold text-white/20 uppercase tracking-widest">
-                Selecione um combatente
-              </p>
-            </div>
-          )}
+            ))}
+          </div>
         </section>
+
 
         {combatState.enabled && activeEntry && canManageCombat ? (
           <>
@@ -529,15 +570,30 @@ export function TacticalCombatPanel({
                   <Crosshair size={14} className="text-white" />
                   <p className="section-label">Comando do turno</p>
                 </div>
-                {activeEntry?.ownerParticipantId && (
+                <div className="flex items-center gap-3">
+                  {activeEntry?.ownerParticipantId && (
+                    <button
+                      type="button"
+                      onClick={() => onGmTakeOver?.(activeEntry.token.id)}
+                      className="text-[10px] font-black uppercase tracking-widest text-amber-500/60 hover:text-amber-500 transition-colors"
+                    >
+                      Assumir Turno
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => onGmTakeOver?.(activeEntry.token.id)}
-                    className="text-[10px] font-black uppercase tracking-widest text-amber-500/60 hover:text-amber-500 transition-colors"
+                    onClick={() => {
+                      // Trigger global event or state to show overlay
+                      // In our case, the overlay appears automatically if the GM is active and hasn't dismissed it
+                      // but we can force it by clearing the dismissed state
+                      window.dispatchEvent(new CustomEvent('daimyo:show-turn-overlay', { detail: { tokenId: activeEntry.token.id } }));
+                    }}
+                    className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-sky-400/60 hover:text-sky-400 transition-colors"
                   >
-                    Assumir Turno
+                    <Sparkles size={10} />
+                    Modo Visual
                   </button>
-                )}
+                </div>
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
@@ -726,20 +782,22 @@ export function TacticalCombatPanel({
                       </select>
                     </label>
 
-                    <label className="space-y-1.5 text-sm">
-                      <span className="section-label">local visado</span>
-                      <select
-                        value={hitLocation}
-                        onChange={(event) => setHitLocation(event.target.value as CombatHitLocationId)}
-                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
-                      >
-                        {hitLocationOptions.map((location) => (
-                          <option key={location.value} value={location.value}>
-                            {location.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    {isAttackManeuver(actionType) && (
+                      <label className="space-y-1.5 text-sm animate-in fade-in slide-in-from-top-1">
+                        <span className="section-label">local visado</span>
+                        <select
+                          value={hitLocation}
+                          onChange={(event) => setHitLocation(event.target.value as CombatHitLocationId)}
+                          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
+                        >
+                          {hitLocationOptions.map((location) => (
+                            <option key={location.value} value={location.value}>
+                              {location.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                   </>
                 ) : null}
 
@@ -755,12 +813,43 @@ export function TacticalCombatPanel({
                   </label>
                 ) : null}
 
-                <div className="grid grid-cols-2 gap-3">
+                {isRangedManeuver(actionType) && (
+                  <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1">
+                    <label className="space-y-1.5 text-sm">
+                      <span className="section-label">distancia (m)</span>
+                      <input
+                        value={rangeMeters}
+                        onChange={(event) => setRangeMeters(event.target.value)}
+                        placeholder="ex: 10"
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
+                      />
+                    </label>
+                    <label className="space-y-1.5 text-sm">
+                      <span className="section-label">turnos mira</span>
+                      <input
+                        value={aimTurns}
+                        onChange={(event) => setAimTurns(event.target.value)}
+                        placeholder="ex: 2"
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
+                      />
+                    </label>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
                   <label className="space-y-1.5 text-sm">
-                    <span className="section-label">mod. manual</span>
+                    <span className="section-label">mod. acerto</span>
                     <input
-                      value={manualModifier}
-                      onChange={(event) => setManualModifier(event.target.value)}
+                      value={manualToHit}
+                      onChange={(event) => setManualToHit(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
+                    />
+                  </label>
+                  <label className="space-y-1.5 text-sm">
+                    <span className="section-label">mod. dano</span>
+                    <input
+                      value={manualDamage}
+                      onChange={(event) => setManualDamage(event.target.value)}
                       className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
                     />
                   </label>
@@ -822,73 +911,92 @@ export function TacticalCombatPanel({
             </section>
 
             {pendingPrompt?.eventId ? (
-              <section className="rounded-[20px] border border-sky-300/18 bg-sky-300/8 p-3">
+              <section className={cn(
+                "rounded-[20px] border p-3",
+                pendingPrompt.payload.promptKind === "ht-check" ? "border-rose-400/18 bg-rose-400/8" : "border-sky-300/18 bg-sky-300/8"
+              )}>
                 <div className="flex items-center gap-2">
-                  <Shield size={14} className="text-sky-100" />
-                  <p className="section-label text-sky-100">Defesa pendente</p>
+                  {pendingPrompt.payload.promptKind === "ht-check" ? (
+                    <HeartPulse size={14} className="text-rose-400" />
+                  ) : (
+                    <Shield size={14} className="text-sky-100" />
+                  )}
+                  <p className={cn(
+                    "section-label",
+                    pendingPrompt.payload.promptKind === "ht-check" ? "text-rose-400" : "text-sky-100"
+                  )}>
+                    {pendingPrompt.payload.promptKind === "ht-check" ? "Teste de HT Pendente" : "Defesa pendente"}
+                  </p>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
                   {pendingPrompt.payload.summary}
                 </p>
+                
                 <div className="mt-3 grid gap-3">
-                  <label className="space-y-1.5 text-sm">
-                    <span className="section-label">assumir defesa</span>
-                    <select
-                      value={promptDefense}
-                      onChange={(event) => setPromptDefense(event.target.value as CombatDefenseOption)}
-                      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
+                  {pendingPrompt.payload.promptKind === "ht-check" ? (
+                    <button
+                      type="button"
+                      onClick={handlePromptResolve}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-400/22 bg-rose-400/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-rose-100 transition hover:border-rose-400/34"
                     >
-                      {(pendingPrompt.payload.options ?? []).map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {pendingPrompt.payload.canRetreat ? (
-                      <ToggleChip
-                        active={promptRetreat}
-                        onClick={() => setPromptRetreat((current) => !current)}
+                      <Sparkles size={14} />
+                      rolar teste de HT
+                    </button>
+                  ) : (
+                    <>
+                      <label className="space-y-1.5 text-sm">
+                        <span className="section-label">assumir defesa</span>
+                        <select
+                          value={promptDefense}
+                          onChange={(event) => setPromptDefense(event.target.value as CombatDefenseOption)}
+                          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
+                        >
+                          {(pendingPrompt.payload.options ?? []).map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {pendingPrompt.payload.canRetreat ? (
+                          <ToggleChip
+                            active={promptRetreat}
+                            onClick={() => setPromptRetreat((current) => !current)}
+                          >
+                            recuo
+                          </ToggleChip>
+                        ) : null}
+                        {pendingPrompt.payload.canAcrobatic ? (
+                          <ToggleChip
+                            active={promptAcrobatic}
+                            onClick={() => setPromptAcrobatic((current) => !current)}
+                          >
+                            acrobatica
+                          </ToggleChip>
+                        ) : null}
+                        <ToggleChip
+                          active={promptFeverish}
+                          onClick={() => setPromptFeverish((current) => !current)}
+                        >
+                          febril (-1 PF)
+                        </ToggleChip>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handlePromptResolve}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-300/22 bg-sky-300/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-sky-100 transition hover:border-sky-300/34"
                       >
-                        recuo
-                      </ToggleChip>
-                    ) : null}
-                    {pendingPrompt.payload.canAcrobatic ? (
-                      <ToggleChip
-                        active={promptAcrobatic}
-                        onClick={() => setPromptAcrobatic((current) => !current)}
-                      >
-                        acrobatica
-                      </ToggleChip>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handlePromptResolve}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-300/22 bg-sky-300/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-sky-100 transition hover:border-sky-300/34"
-                  >
-                    resolver pelo mestre
-                  </button>
+                        resolver pelo mestre
+                      </button>
+                    </>
+                  )}
                 </div>
               </section>
             ) : null}
           </>
         ) : null}
 
-        <CombatSheetCard title="Ficha ativa" entry={activeEntry} tone="amber" />
-        <CombatSheetCard title="Ficha do alvo" entry={selectedTarget} tone="sky" />
-
-        {combatLog.length > 0 && (
-          <section>
-            <p className="section-label mb-3">Historico de combate</p>
-            <div className="space-y-2">
-              {combatLog.map((res) => (
-                <CombatResolutionCard key={res.id} resolution={res} />
-              ))}
-            </div>
-          </section>
-        )}
       </div>
     </div>
   );

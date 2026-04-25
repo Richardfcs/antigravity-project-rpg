@@ -503,14 +503,11 @@ export function AtlasPanel({
       )}
 
       <section className="space-y-3">
-        <div className="flex flex-col gap-3 rounded-[20px] border border-white/10 bg-black/18 p-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="section-label">Biblioteca de atlas</p>
-            <p className="mt-1 text-sm text-[color:var(--ink-2)]">
-              Encontre rapido o mapa macro certo mesmo quando a campanha crescer.
-            </p>
+        <div className="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-black/18 p-4 md:flex-row md:items-center">
+          <div className="flex-shrink-0">
+            <p className="section-label px-1">Biblioteca de atlas</p>
           </div>
-          <div className="flex w-full flex-col gap-3 md:max-w-2xl">
+          <div className="flex flex-1 flex-col gap-3">
             <input
               value={searchQuery}
               onChange={(event) => {

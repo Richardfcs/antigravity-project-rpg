@@ -14,6 +14,7 @@ import {
   deleteSceneCastEntry,
   findSceneCastById,
   findSessionSceneById,
+  findSessionSceneByBackgroundAssetId,
   moveSceneCastEntry,
   setSceneSpotlight,
   updateSessionSceneLayout,
@@ -400,6 +401,68 @@ export async function deleteSceneAction(input: {
       ok: false,
       message:
         error instanceof Error ? error.message : "Falha ao apagar a cena."
+    };
+  }
+}
+
+export async function getOrCreateSceneFromAtlasPinAction(input: {
+  sessionCode: string;
+  pinTitle: string;
+  backgroundAssetId: string;
+  characterIds?: string[];
+}): Promise<SceneActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+
+    // 1. Verificar se já existe uma cena com essa imagem de fundo nesta sessão
+    const existing = await findSessionSceneByBackgroundAssetId(session.id, input.backgroundAssetId);
+
+    if (existing) {
+      // Se já existe, apenas ativa ela
+      const activated = await activateSessionScene({
+        sessionId: session.id,
+        sceneId: existing.id
+      });
+      return { ok: true, scene: activated };
+    }
+
+    // 2. Se não existe, cria uma nova cena
+    const scene = await createSessionScene({
+      sessionId: session.id,
+      name: input.pinTitle,
+      backgroundAssetId: input.backgroundAssetId,
+      layoutMode: "line"
+    });
+
+    // 3. Adicionar personagens vinculados ao pin na nova cena
+    if (input.characterIds?.length) {
+      await Promise.all(
+        input.characterIds.map(characterId => 
+          createSceneCastEntry({
+            sessionId: session.id,
+            sceneId: scene.id,
+            characterId
+          })
+        )
+      );
+    }
+
+    // 4. Ativa a nova cena
+    const activated = await activateSessionScene({
+      sessionId: session.id,
+      sceneId: scene.id
+    });
+
+    return { ok: true, scene: activated };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : "Falha ao preparar cena do Atlas."
     };
   }
 }

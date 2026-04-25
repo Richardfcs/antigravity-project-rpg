@@ -20,9 +20,11 @@ import {
   processStartOfTurnAction,
   respondCombatPromptAction,
   selectCombatantAction,
+  skipTurnAction,
   startCombatEncounterAction,
   stopCombatEncounterAction
 } from "@/app/actions/combat-actions";
+import { adjustCharacterResourceAction } from "@/app/actions/character-actions";
 import { moveMapTokenAction } from "@/app/actions/map-actions";
 import { AudioSyncLayer } from "@/components/audio/audio-sync-layer";
 import { AuthSessionBridge } from "@/components/auth/auth-session-bridge";
@@ -72,6 +74,7 @@ import { useSessionMemoryStore } from "@/stores/session-memory-store";
 import { useUiShellStore } from "@/stores/ui-shell-store";
 import { useLibraryOrganizationStore } from "@/stores/library-organization-store";
 import { useShallow } from "zustand/react/shallow";
+import { cn } from "@/lib/utils";
 import type { SessionAssetRecord } from "@/types/asset";
 import type {
   SessionAtlasMapRecord,
@@ -482,6 +485,8 @@ export function MasterShell({
     const previousStageMode = session.stageMode;
     setStageMode(mode);
     setMasterWorkspace("stage");
+    setMasterDrawer("closed");
+    setStatusDrawerOpen(false);
     setIsImmersiveChatOpen(false);
     setSessionFeedback(null);
 
@@ -549,6 +554,7 @@ export function MasterShell({
     scenes: "Biblioteca",
     maps: "Biblioteca",
     actors: "Biblioteca",
+    assets: "Biblioteca",
     codex: "Biblioteca",
     notes: "Biblioteca",
     atlas: "Biblioteca",
@@ -677,6 +683,8 @@ export function MasterShell({
       onExecuteCombatAction={handleExecuteCombatAction}
       onRespondCombatPrompt={handleRespondCombatPrompt}
       onGmTakeOver={handleGmTakeOver}
+      onSkipTurn={handleSkipTurn}
+      onAdjustResource={handleAdjustResource}
       onStageModeChange={handleStageModeChange}
       onPresentationModeChange={handlePresentationModeChange}
       onRequestLibrary={handleOpenDrawer}
@@ -735,42 +743,6 @@ export function MasterShell({
     />
   );
 
-  const renderInlineDrawerPanel = () => (
-    <section className="surface-panel flex min-h-0 flex-col overflow-hidden">
-      <div className="flex items-center justify-between gap-2 border-b border-white/8 px-2.5 py-1.5">
-        <h2 className="truncate text-sm font-semibold text-white">
-          {statusDrawerOpen ? "Status gerais" : drawerTitleMap[resolvedDrawerSection]}
-        </h2>
-        <button
-          type="button"
-          onClick={
-            statusDrawerOpen
-              ? () => setStatusDrawerOpen(false)
-              : () => setMasterDrawer("closed")
-          }
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
-        >
-          <X size={14} />
-        </button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-hidden p-2">
-        {statusDrawerOpen ? (
-          renderStatusDrawer()
-        ) : (
-          <ExplorerPanel
-            snapshot={session}
-            party={roster}
-            participants={participants}
-            activeSection={resolvedDrawerSection}
-            onSectionChange={handleSectionSelect}
-            viewer={viewer}
-            infra={infra}
-            embedded
-          />
-        )}
-      </div>
-    </section>
-  );
 
   const handleMoveToken = (tokenId: string, x: number, y: number) => {
     startTransition(async () => {
@@ -846,6 +818,14 @@ export function MasterShell({
     handleCombatResult(result, "Falha ao encerrar a ordem de turno.");
   };
 
+  const handleSkipTurn = async () => {
+    setSessionFeedback(null);
+    const result = await skipTurnAction({
+      sessionCode: session.code
+    });
+    handleCombatResult(result, "Falha ao pular o turno.");
+  };
+
   const handleCombatAdvance = async (direction: "next" | "previous") => {
     if (tacticalCombatState.turnOrder.length === 0) {
       setSessionFeedback("Nao ha combatentes ativos neste campo.");
@@ -886,6 +866,33 @@ export function MasterShell({
     handleCombatResult(result, "Falha ao destacar o combatente.");
   };
 
+  const handleAdjustResource = async (
+    tokenId: string,
+    resource: "hp" | "fp",
+    delta: number
+  ) => {
+    const entry = activeMapTokens.find((t) => t.token.id === tokenId);
+    if (!entry?.character?.id) {
+      setSessionFeedback("Este token nao possui uma ficha vinculada.");
+      return;
+    }
+
+    setSessionFeedback(null);
+    const result = await adjustCharacterResourceAction({
+      sessionCode: session.code,
+      characterId: entry.character.id,
+      resource,
+      delta
+    });
+
+    if (!result.ok || !result.character) {
+      setSessionFeedback(result.message || "Falha ao atualizar o recurso da ficha.");
+      return;
+    }
+
+    upsertCharacter(result.character);
+  };
+
   const handleExecuteCombatAction = async (action: CombatDraftAction) => {
     setSessionFeedback(null);
     const result = await executeCombatActionAction({
@@ -900,6 +907,8 @@ export function MasterShell({
     defenseOption: CombatDefenseOption;
     retreat?: boolean;
     acrobatic?: boolean;
+    feverish?: boolean;
+    manualModifier?: number;
   }) => {
     setSessionFeedback(null);
     const result = await respondCombatPromptAction({
@@ -907,7 +916,9 @@ export function MasterShell({
       eventId: input.eventId,
       defenseOption: input.defenseOption,
       retreat: input.retreat,
-      acrobatic: input.acrobatic
+      acrobatic: input.acrobatic,
+      feverish: input.feverish,
+      manualModifier: input.manualModifier
     });
     handleCombatResult(result, "Falha ao resolver a defesa pendente.");
   };
@@ -936,6 +947,9 @@ export function MasterShell({
           onSelectCombatant={handleCombatSelect}
           onExecuteCombatAction={handleExecuteCombatAction}
           onRespondCombatPrompt={handleRespondCombatPrompt}
+          onGmTakeOver={handleGmTakeOver}
+          onSkipTurn={handleSkipTurn}
+          onAdjustResource={handleAdjustResource}
           viewMode="focus"
         />
       );
@@ -967,6 +981,10 @@ export function MasterShell({
             atlasNavigation?.targetAtlasMapId &&
               atlasNavigation?.sourceAtlasMapId === session.activeAtlasMapId
           )}
+          onOpenScene={() => {
+            setMasterWorkspace("stage");
+            handleStageModeChange("theater");
+          }}
           viewMode="focus"
         />
       );
@@ -1051,7 +1069,7 @@ export function MasterShell({
             librarySummary={librarySummary}
             masterMode={masterMode}
             supportOpen={supportTrayOpen}
-            libraryWorkspaceActive={libraryWorkspaceActive}
+            libraryWorkspaceActive={libraryWorkspaceActive || (isMobile && masterDrawer !== "closed")}
             onMasterModeChange={handleMasterModeChange}
             onStageModeChange={handleStageModeChange}
             onToggleLibraryWorkspace={handleToggleLibraryWorkspace}
@@ -1086,7 +1104,6 @@ export function MasterShell({
                   ? renderStagePanel()
                   : null}
 
-              {isMobile && drawerVisible ? renderInlineDrawerPanel() : null}
 
               <AppTray
                 title="Apoio"
@@ -1106,8 +1123,8 @@ export function MasterShell({
               </AppTray>
             </div>
 
-            {drawerVisible && !libraryWorkspaceActive && !isMobile ? (
-              <div className="min-w-0 lg:w-[360px] xl:w-[390px]">
+            {drawerVisible && !libraryWorkspaceActive ? (
+              <div className={cn("min-w-0", !isMobile && "lg:w-[360px] xl:w-[390px]")}>
                 <AppDrawer
                   title={
                     statusDrawerOpen
@@ -1121,7 +1138,7 @@ export function MasterShell({
                       ? () => setStatusDrawerOpen(false)
                       : () => setMasterDrawer("closed")
                   }
-                  className="lg:h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-10rem)] lg:w-full"
+                  className={cn(!isMobile && "lg:h-[calc(100vh-10rem)] lg:max-h-[calc(100vh-10rem)] lg:w-full")}
                 >
                   {statusDrawerOpen ? (
                     renderStatusDrawer()

@@ -63,8 +63,8 @@ function buildCardStyle(input: {
     rotate = arc.r;
   }
 
-  const spotlightLift = input.isSpotlight ? -18 : 0;
-  const spotlightScale = input.isSpotlight ? 1.06 : 1;
+  const spotlightLift = input.isSpotlight ? -24 : 0;
+  const spotlightScale = input.isSpotlight ? 1.1 : 1;
   const totalY = yOffset + spotlightLift;
 
   return {
@@ -218,46 +218,14 @@ export function TheaterStage({
             <div className="flex h-full w-full items-center justify-center rounded-[28px] border border-dashed border-white/12 bg-black/20 text-sm text-[color:var(--ink-2)]">
               Nenhum personagem foi escalado para esta cena ainda.
             </div>
-          ) : layoutMode === "center" ? (
-            <div className="mx-auto flex h-full w-full max-w-[1360px] flex-wrap items-center justify-center gap-4">
-              {entries.map((entry, index) => (
-                <CastCard
-                  key={entry.entry.id}
-                  entry={entry}
-                  isSpotlight={spotlight?.entry.id === entry.entry.id}
-                  compact={compact}
-                  isFocus={isFocus}
-                  style={buildCardStyle({
-                    index,
-                    total: entries.length,
-                    layoutMode,
-                    isSpotlight: spotlight?.entry.id === entry.entry.id,
-                    baseWidth
-                  })}
-                />
-              ))}
-            </div>
-          ) : layoutMode === "grid" ? (
-            <div className="mx-auto flex w-full max-w-[1360px] flex-wrap content-end justify-center gap-4">
-              {entries.map((entry, index) => (
-                <CastCard
-                  key={entry.entry.id}
-                  entry={entry}
-                  isSpotlight={spotlight?.entry.id === entry.entry.id}
-                  compact={compact}
-                  isFocus={isFocus}
-                  style={buildCardStyle({
-                    index,
-                    total: entries.length,
-                    layoutMode,
-                    isSpotlight: spotlight?.entry.id === entry.entry.id,
-                    baseWidth
-                  })}
-                />
-              ))}
-            </div>
           ) : (
-            <div className="mx-auto flex w-full max-w-[1420px] flex-wrap items-end justify-center gap-4">
+            <div 
+              className={cn(
+                "mx-auto flex h-full w-full max-w-[1420px] gap-4 no-scrollbar touch-pan-x",
+                layoutMode === "center" ? "items-center" : "items-end",
+                "flex-nowrap overflow-x-auto px-10 pb-4 md:flex-wrap md:justify-center md:overflow-visible md:px-0 md:pb-0"
+              )}
+            >
               {entries.map((entry, index) => (
                 <CastCard
                   key={entry.entry.id}

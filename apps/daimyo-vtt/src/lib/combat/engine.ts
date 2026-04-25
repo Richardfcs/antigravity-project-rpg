@@ -2,6 +2,7 @@ import type { SessionCharacterRecord } from "@/types/character";
 import type {
   AllOutAttackVariant,
   AllOutDefenseVariant,
+  AttackVariant,
   CombatantTurnState,
   CharacterConditionRecord,
   CharacterDamageSpec,
@@ -35,6 +36,8 @@ export interface DefenseResponseInput {
   option: CombatDefenseOption;
   retreat?: boolean;
   acrobatic?: boolean;
+  feverish?: boolean;
+  manualModifier?: number;
 }
 
 export interface PreparedAttackPrompt {
@@ -186,6 +189,11 @@ function buildRollRecord(target: number, random: () => number = Math.random): Co
         ? "critical-failure"
         : "none"
   };
+}
+
+function formatRollResult(roll: CombatRollRecord) {
+  const diceStr = roll.dice.join("+");
+  return `(${diceStr}=${roll.total} vs ${roll.target}, Margem: ${roll.margin >= 0 ? "+" : ""}${roll.margin})`;
 }
 
 function getProfile(character: SessionCharacterRecord | null) {
@@ -351,6 +359,8 @@ function getManualAttackModifier(
     ranged && mode?.accuracy
       ? mode.accuracy + Math.max(0, (action.modifiers.aimTurns ?? 0) - 1)
       : 0;
+  const deceptivePenalty = (action.deceptiveLevel ?? 0) * 2;
+  const committedBonus = action.attackVariant === "committed" ? 2 : 0;
   const bracedBonus = ranged && action.modifiers.braced ? 1 : 0;
   const determinedBonus = action.modifiers.determined ? 1 : 0;
   const weaponStateModifier =
@@ -360,17 +370,24 @@ function getManualAttackModifier(
         ? -1
         : 0;
 
+  const rapidStrikePenalty = action.rapidStrike ? 6 : 0;
+  const dualWeaponPenalty = action.dualWeapon ? 4 : 0;
+
   return (
-    action.modifiers.manual +
+    action.modifiers.manualToHit +
     aimBonus +
     bracedBonus +
     determinedBonus +
+    committedBonus +
     weaponStateModifier +
     rangePenalty +
     postureAttackPenalty(profile.combat.posture) +
     getHitLocationAttackModifier(action.hitLocation) -
-    profile.combat.shock +
-    profile.combat.evaluateBonus
+    profile.combat.shock -
+    deceptivePenalty +
+    profile.combat.evaluateBonus -
+    rapidStrikePenalty -
+    dualWeaponPenalty
   );
 }
 
@@ -384,14 +401,42 @@ function getAttackTarget(
   return clamp(baseTarget + getManualAttackModifier(mode, profile, action), 3, 20);
 }
 
-function getDefenseTarget(
+export function getDefenseTargetWithModifiers(
   profile: SessionCharacterSheetProfile,
   option: CombatDefenseOption,
-  response?: DefenseResponseInput
+  targetState?: CombatantTurnState | null,
+  response?: DefenseResponseInput,
+  deceptivePenalty: number = 0,
+  random: () => number = Math.random
 ) {
   const posturePenalty = postureDefensePenalty(profile.combat.posture);
-  const retreatBonus = response?.retreat ? 1 : 0;
-  const acrobaticBonus = option === "dodge" && response?.acrobatic ? 2 : 0;
+  
+  // GURPS: Recuo dá +3 para Esquiva e +1 para Aparar/Bloqueio
+  let retreatBonus = 0;
+  if (response?.retreat) {
+    retreatBonus = (option === "dodge") ? 3 : 1;
+  }
+
+  // GURPS: Esquiva Acrobática exige teste de perícia
+  let acrobaticBonus = 0;
+  if (option === "dodge" && response?.acrobatic) {
+    const acrobaticTest = checkSkillTest(profile, "Acrobacia", random);
+    acrobaticBonus = acrobaticTest.success ? 2 : -2;
+  }
+
+  // Daimyo/GURPS: Defesa Febril dá +2 em troca de 1 PF
+  const feverishBonus = response?.feverish ? 2 : 0;
+
+  // GURPS: Penalidade de Finta e Bônus de Defesa Total
+  const feintPenalty = targetState?.feintPenalty ?? 0;
+  const allOutDefenseBonus = targetState?.allOutDefenseVariant === "increased" ? 2 : 0;
+  
+  // Artes Marciais: Ataque Defensivo dá +1 Aparar/Bloqueio
+  const defensiveAttackBonus = (targetState?.attackVariant === "defensive" && (option === "parry" || option === "block")) ? 1 : 0;
+  
+  // Artes Marciais: Ataque Ofensivo dá -2 na Defesa
+  const committedAttackPenalty = targetState?.attackVariant === "committed" ? 2 : 0;
+
   const base =
     option === "parry"
       ? profile.defenses.parry
@@ -399,16 +444,47 @@ function getDefenseTarget(
         ? profile.defenses.block
         : profile.defenses.dodge;
 
-  return clamp(base + posturePenalty + retreatBonus + acrobaticBonus, 3, 18);
+  const manual = response?.manualModifier ?? 0;
+
+  return clamp(
+    base + 
+    manual + 
+    retreatBonus + 
+    acrobaticBonus + 
+    feverishBonus + 
+    allOutDefenseBonus + 
+    defensiveAttackBonus -
+    feintPenalty -
+    deceptivePenalty -
+    committedAttackPenalty +
+    posturePenalty, 
+    3, 18
+  );
+}
+
+function checkSkillTest(
+  profile: SessionCharacterSheetProfile,
+  skillName: string,
+  random: () => number = Math.random
+) {
+  const level = getSkillLevel(profile, skillName);
+  const roll = buildRollRecord(level, random);
+  return { success: roll.margin >= 0, roll };
 }
 
 export function listValidDefenseOptions(
   target: CombatTokenContext,
-  actionType: CombatActionType
+  actionType: CombatActionType,
+  targetState?: CombatantTurnState | null
 ) {
   const profile = getProfile(target.character);
 
   if (!profile) {
+    return ["none"] satisfies CombatDefenseOption[];
+  }
+
+  // Regra GURPS: Ataque Total impede qualquer defesa ativa até o próximo turno
+  if (targetState?.allOutAttackVariant || targetState?.noDefenseThisTurn) {
     return ["none"] satisfies CombatDefenseOption[];
   }
 
@@ -480,7 +556,8 @@ function rollDamage(
   spec: CharacterDamageSpec,
   st: number,
   weapon: CharacterWeaponRecord | null,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  bonus: number = 0
 ): DamageRoll {
   const derived =
     spec.base === "thrust"
@@ -493,7 +570,8 @@ function rollDamage(
     (spec.base === "flat" ? spec.adds : derived.adds + spec.adds) +
     applyQualityDamageBonus(weapon, spec.damageType) +
     (weapon?.state === "empowered" ? 1 : 0) -
-    (weapon?.state === "spent" ? 1 : 0);
+    (weapon?.state === "spent" ? 1 : 0) +
+    bonus;
   const rawDice = Array.from({ length: Math.max(1, diceCount) }, () => rollDie(random));
   const total = Math.max(1, rawDice.reduce((sum, die) => sum + die, 0) + adds);
 
@@ -557,7 +635,32 @@ function getEffectiveDr(
 }
 
 function hasCripplingEffect(location: CombatHitLocationId) {
-  return location === "arm" || location === "hand" || location === "leg" || location === "foot";
+  return ["arm", "hand", "leg", "foot", "eye"].includes(location);
+}
+
+/**
+ * Calcula o limite de dano para invalidez de membros (GURPS Lite/Básico).
+ * Braço/Perna: > HP/2
+ * Mão/Pé: > HP/3
+ * Olho: > HP/10
+ * Retorna { isCrippled: boolean, cappedInjury: number, isCapped: boolean }
+ */
+function getLimbCripplingLimit(location: CombatHitLocationId, maxHp: number, currentInjury: number) {
+  let limit = Infinity;
+  
+  if (location === "arm" || location === "leg") {
+    limit = Math.floor(maxHp / 2) + 1;
+  } else if (location === "hand" || location === "foot") {
+    limit = Math.floor(maxHp / 3) + 1;
+  } else if (location === "eye") {
+    limit = Math.floor(maxHp / 10) + 1;
+  }
+
+  if (currentInjury >= limit && limit !== Infinity) {
+    return { isCrippled: true, cappedInjury: limit, isCapped: true };
+  }
+
+  return { isCrippled: false, cappedInjury: currentInjury, isCapped: false };
 }
 
 function applyCondition(
@@ -724,7 +827,11 @@ function buildDamageBreakdown(input: {
   const penetratingDamage = Math.max(0, input.damageRoll.total - effectiveDr);
   const multiplier =
     (input.multiplier ?? 1) * injuryMultiplier(input.hitLocation, input.damageType);
-  const injury = Math.max(0, Math.floor(penetratingDamage * multiplier));
+  const baseInjury = Math.max(0, Math.floor(penetratingDamage * multiplier));
+  
+  // Lógica de Crippling (Invalidez)
+  const crippling = getLimbCripplingLimit(input.hitLocation, input.targetProfile.attributes.hpMax, baseInjury);
+  const finalInjury = crippling.cappedInjury;
 
   return {
     rawDamage: input.damageRoll.total,
@@ -734,8 +841,10 @@ function buildDamageBreakdown(input: {
     armorDivisor: 1,
     effectiveDr,
     penetratingDamage,
-    injury,
-    multiplier
+    injury: finalInjury,
+    multiplier,
+    isCrippled: crippling.isCrippled,
+    isCapped: crippling.isCapped
   } satisfies CombatDamageBreakdown;
 }
 
@@ -775,16 +884,17 @@ function applyDamageToTarget(input: {
     appliedConditions.push("Ferimento grave");
   }
 
-  if (
-    (hasCripplingEffect(input.breakdown.hitLocation) &&
-      input.breakdown.injury >= Math.ceil(input.profile.attributes.hpMax / 2)) ||
-    input.forceCripple
-  ) {
-    const label =
-      input.breakdown.hitLocation === "leg" || input.breakdown.hitLocation === "foot"
-        ? "Membro inferior inutilizado"
-        : "Membro superior inutilizado";
-    nextProfile = applyCondition(nextProfile, label);
+  // Aplicar condição de Crippling (Invalidez)
+  if (input.breakdown.isCrippled || input.forceCripple) {
+    const labels: Record<string, string> = {
+      arm: "Braço Inutilizado",
+      leg: "Perna Inutilizada",
+      hand: "Mão Inutilizada",
+      foot: "Pé Inutilizado",
+      eye: "Cegueira Parcial (Olho)"
+    };
+    const label = labels[input.breakdown.hitLocation] || "Membro Inutilizado";
+    nextProfile = applyCondition(nextProfile, label, "Resultado de dano severo no membro.");
     appliedConditions.push(label);
   }
 
@@ -839,11 +949,20 @@ function buildAttackSummary(input: {
   actor: CombatTokenContext;
   target: CombatTokenContext;
   weaponMode: CharacterWeaponMode | null;
+  technique?: CharacterTechniqueRecord | null;
   hitLocation: CombatHitLocationId;
+  variant?: AttackVariant | null;
+  deceptiveLevel?: number | null;
 }) {
-  return `${input.actor.label} ataca ${input.target.label} com ${
-    input.weaponMode?.label ?? "ataque"
-  } mirando ${input.hitLocation}.`;
+  const variantLabel = 
+    input.variant === "committed" ? "Ataque Ofensivo (+2 acerto, -2 defesa)" :
+    input.variant === "defensive" ? "Ataque Defensivo (-2 dano, +1 aparar)" :
+    input.variant === "deceptive" ? `Ataque Enganoso (-${(input.deceptiveLevel || 0) * 2} acerto, -${input.deceptiveLevel || 0} defesa)` : "";
+    
+  const prefix = variantLabel ? `[${variantLabel}] ` : "";
+  const weaponLabel = input.technique?.name ?? input.weaponMode?.label ?? "ataque";
+  
+  return `${prefix}${input.actor.label} ataca ${input.target.label} com ${weaponLabel} mirando ${input.hitLocation}.`;
 }
 
 export function prepareAttackResolution(input: {
@@ -852,6 +971,7 @@ export function prepareAttackResolution(input: {
   draftAction: CombatDraftAction;
   promptPlayerDefense: boolean;
   targetState?: CombatantTurnState | null;
+  variant?: AllOutAttackVariant | null;
   random?: () => number;
 }): PreparedAttackResult {
   const random = input.random ?? Math.random;
@@ -870,21 +990,87 @@ export function prepareAttackResolution(input: {
         actorTokenId: input.draftAction.actorTokenId,
         targetTokenId: input.draftAction.targetTokenId,
         actionType: input.draftAction.actionType,
-        summary: "Ataque invalido: faltou ficha completa no ator ou no alvo.",
+        summary: "Ataque invalido: ficha ou alvo incompleto.",
         appliedConditions: []
       }
     };
+  }
+
+  // Se houver variante (Ataque Total), processamos e chamamos recursivamente SEM a variante
+  if (input.variant) {
+    const modifiedAction = { ...input.draftAction };
+    let nextActorProfile = actorProfile;
+
+    if (input.variant === "strong" || input.variant === "double") {
+      nextActorProfile = {
+        ...actorProfile,
+        combat: {
+          ...actorProfile.combat,
+          currentFp: Math.max(0, actorProfile.combat.currentFp - 1)
+        }
+      };
+    }
+
+    switch (input.variant) {
+      case "determined":
+        const isRanged = input.draftAction.actionType === "ranged-attack";
+        const bonus = isRanged ? 1 : 4;
+        modifiedAction.modifiers = {
+          ...modifiedAction.modifiers,
+          manualToHit: modifiedAction.modifiers.manualToHit + bonus,
+          determined: true
+        };
+        break;
+      case "strong":
+        modifiedAction.modifiers = {
+          ...modifiedAction.modifiers,
+          manualDamage: modifiedAction.modifiers.manualDamage + 2,
+          determined: false
+        };
+        break;
+      case "long":
+        modifiedAction.modifiers = {
+          ...modifiedAction.modifiers,
+          manualToHit: modifiedAction.modifiers.manualToHit + 1
+        };
+        break;
+    }
+
+    const result = prepareAttackResolution({
+      ...input,
+      variant: null, // Evita loop infinito
+      actor: { ...input.actor, character: { ...input.actor.character!, sheetProfile: nextActorProfile } },
+      draftAction: modifiedAction
+    });
+
+    if (result.resolution && input.variant) {
+      const isRanged = input.draftAction.actionType === "ranged-attack";
+      const variantLabels: Record<string, string> = {
+        determined: `Determinado (${isRanged ? "+1" : "+4"})`,
+        strong: "Forte (+2 dano, -1 PF)",
+        double: "Duplo (-1 PF)",
+        long: "Longo (+1 alcance, +1 acerto)"
+      };
+      const variantLabel = variantLabels[input.variant] || input.variant;
+      result.resolution.summary = `[Ataque Total ${variantLabel}] ${result.resolution.summary}`;
+    }
+
+    return result;
   }
 
   const weapon = getWeapon(actorProfile, input.draftAction.weaponId);
   const mode = getWeaponMode(weapon, input.draftAction.weaponModeId);
   const attackTarget = getAttackTarget(actorProfile, input.draftAction, mode);
   const attackRoll = buildRollRecord(attackTarget, random);
+  const technique = getTechnique(actorProfile, input.draftAction.techniqueId);
   const baseSummary = buildAttackSummary({
     actor: input.actor,
     target: input.target,
     weaponMode: mode,
-    hitLocation: input.draftAction.hitLocation
+    technique,
+    hitLocation: input.draftAction.hitLocation,
+    variant: input.draftAction.attackVariant,
+    deceptiveLevel: input.draftAction.deceptiveLevel
   });
 
   if (attackRoll.margin < 0) {
@@ -919,7 +1105,9 @@ export function prepareAttackResolution(input: {
         actorTokenId: input.actor.tokenId,
         targetTokenId: input.target.tokenId,
         actionType: input.draftAction.actionType,
-        summary: failure ? `${baseSummary} ${failure.note}` : `${baseSummary} erra o ataque.`,
+        summary: failure 
+          ? `${baseSummary} ${failure.note} ${formatRollResult(attackRoll)}` 
+          : `${baseSummary} erra o ataque ${formatRollResult(attackRoll)}.`,
         attackRoll,
         defenseRoll: null,
         damage: null,
@@ -928,9 +1116,11 @@ export function prepareAttackResolution(input: {
     };
   }
 
-  const defenses = listValidDefenseOptions(input.target, input.draftAction.actionType).filter(
-    (option) => option !== "none"
-  );
+  const defenses = listValidDefenseOptions(
+    input.target,
+    input.draftAction.actionType,
+    input.targetState
+  ).filter((option) => option !== "none");
 
   if (attackRoll.critical === "critical-success" || defenses.length === 0) {
     const resolved = finishAttackResolution({
@@ -1037,28 +1227,39 @@ export function finishAttackResolution(input: {
     input.attackRoll.critical === "critical-success"
       ? "none"
       : input.defenseResponse?.option ?? "none";
+  const finalTargetProfile = { ...targetProfile };
+  let feverishNote = "";
+  if (input.defenseResponse?.feverish) {
+    finalTargetProfile.combat.currentFp = Math.max(0, finalTargetProfile.combat.currentFp - 1);
+    feverishNote = " [Defesa Febril -1 PF]";
+  }
+
   const defenseRoll =
     defenseOption !== "none"
-      ? buildRollRecord(getDefenseTargetWithModifiers(targetProfile, defenseOption, input.targetState ?? null, input.defenseResponse), random)
+      ? buildRollRecord(getDefenseTargetWithModifiers(finalTargetProfile, defenseOption, input.targetState ?? null, input.defenseResponse, (input.draftAction.deceptiveLevel || 0), random), random)
       : null;
+  const technique = getTechnique(actorProfile, input.draftAction.techniqueId);
   const baseSummary = buildAttackSummary({
     actor: input.actor,
     target: input.target,
     weaponMode: mode,
-    hitLocation: input.draftAction.hitLocation
+    technique,
+    hitLocation: input.draftAction.hitLocation,
+    variant: input.draftAction.attackVariant,
+    deceptiveLevel: input.draftAction.deceptiveLevel
   });
 
   if (defenseRoll && defenseRoll.margin >= 0 && defenseRoll.critical !== "critical-failure") {
     return {
       actorProfile,
-      targetProfile,
+      targetProfile: finalTargetProfile,
       resolution: {
         id: randomId("combat-resolution"),
         createdAt: new Date().toISOString(),
         actorTokenId: input.actor.tokenId,
         targetTokenId: input.target.tokenId,
         actionType: input.draftAction.actionType,
-        summary: `${baseSummary} ${input.target.label} evita o golpe com ${defenseOption}.`,
+        summary: `${baseSummary} ${input.target.label} evita o golpe com ${defenseOption}${feverishNote} ${formatRollResult(defenseRoll)}.`,
         attackRoll: input.attackRoll,
         defenseRoll,
         damage: null,
@@ -1068,9 +1269,15 @@ export function finishAttackResolution(input: {
   }
 
   const hitLocation = critical.forceVitals ? "vitals" : input.draftAction.hitLocation;
-  const damageRoll = rollDamage(mode?.damage ?? { base: "flat", dice: 1, adds: 0, damageType: "cr", raw: "1d cr" }, actorProfile.attributes.st, weapon, random);
+  const damageRoll = rollDamage(
+    mode?.damage ?? { base: "flat", dice: 1, adds: 0, damageType: "cr", raw: "1d cr" }, 
+    actorProfile.attributes.st, 
+    weapon, 
+    random,
+    (input.draftAction.modifiers.manualDamage ?? 0) + (input.draftAction.attackVariant === "defensive" ? -2 : 0)
+  );
   const breakdown = buildDamageBreakdown({
-    targetProfile,
+    targetProfile: finalTargetProfile,
     damageRoll,
     damageType: mode?.damage.damageType ?? "cr",
     hitLocation,
@@ -1078,7 +1285,7 @@ export function finishAttackResolution(input: {
     multiplier: critical.damageMultiplier
   });
   const damageResult = applyDamageToTarget({
-    profile: targetProfile,
+    profile: finalTargetProfile,
     breakdown,
     random,
     forceGraveWound: critical.forceGraveWound,
@@ -1086,15 +1293,24 @@ export function finishAttackResolution(input: {
   });
   const summaryParts = [
     baseSummary,
-    defenseOption !== "none" ? `${input.target.label} falha na defesa.` : null,
+    defenseOption !== "none" ? `${input.target.label} falha na defesa ${defenseRoll ? formatRollResult(defenseRoll) : ""}.` : null,
     critical.note,
     breakdown.injury > 0
-      ? `${input.target.label} sofre ${breakdown.injury} de lesao.`
-      : "A RD absorve o dano."
+      ? `${input.target.label} sofre ${breakdown.injury} de lesao (Dano: ${breakdown.rawDamage} [${breakdown.rawDice.join("+")}] vs RD ${breakdown.effectiveDr}).`
+      : `A RD ${breakdown.effectiveDr} absorve o dano de ${breakdown.rawDamage} [${breakdown.rawDice.join("+")}].`
   ].filter(Boolean);
 
+  const nextActorProfile: SessionCharacterSheetProfile = {
+    ...actorProfile,
+    combat: {
+      ...actorProfile.combat,
+      attackVariant: input.draftAction.attackVariant || null,
+      deceptiveLevel: input.draftAction.deceptiveLevel || 0
+    }
+  };
+
   return {
-    actorProfile,
+    actorProfile: nextActorProfile,
     targetProfile: damageResult.nextProfile,
     resolution: {
       id: randomId("combat-resolution"),
@@ -1102,7 +1318,7 @@ export function finishAttackResolution(input: {
       actorTokenId: input.actor.tokenId,
       targetTokenId: input.target.tokenId,
       actionType: input.draftAction.actionType,
-      summary: summaryParts.join(" "),
+      summary: `${summaryParts.join(" ")}${feverishNote} ${formatRollResult(input.attackRoll)}`,
       attackRoll: input.attackRoll,
       defenseRoll,
       damage: breakdown,
@@ -1131,7 +1347,7 @@ function getContestSkill(
 
   return {
     profile,
-    target: clamp(base - profile.combat.shock + draftAction.modifiers.manual, 3, 20),
+    target: clamp(base - profile.combat.shock + draftAction.modifiers.manualToHit, 3, 20),
     label
   };
 }
@@ -1179,7 +1395,7 @@ export function resolveQuickContest(input: {
       actorTokenId: input.actor.tokenId,
       targetTokenId: input.target.tokenId,
       actionType: input.draftAction.actionType,
-      summary: `${input.actor.label} e ${input.target.label} entram em disputa rapida. Vencedor: ${winner}.`,
+      summary: `${input.actor.label} e ${input.target.label} entram em disputa rapida. Vencedor: ${winner}. Ator: ${formatRollResult(actorRoll)} Alvo: ${formatRollResult(targetRoll)}`,
       contestRolls: {
         actor: actorRoll,
         target: targetRoll
@@ -1277,7 +1493,7 @@ function getFeintTargets(
   switch (feintType) {
     case "st":
       return {
-        actorTarget: clamp(actorProfile.attributes.st + action.modifiers.manual, 3, 20),
+        actorTarget: clamp(actorProfile.attributes.st + action.modifiers.manualToHit, 3, 20),
         targetTarget: clamp(
           Math.max(targetProfile.attributes.st, targetDefenseSkill),
           3,
@@ -1287,7 +1503,7 @@ function getFeintTargets(
       };
     case "iq":
       return {
-        actorTarget: clamp(actorProfile.attributes.iq + action.modifiers.manual, 3, 20),
+        actorTarget: clamp(actorProfile.attributes.iq + action.modifiers.manualToHit, 3, 20),
         targetTarget: clamp(targetProfile.attributes.iq, 3, 20),
         label: "Finta Intelectual (IQ)"
       };
@@ -1295,7 +1511,7 @@ function getFeintTargets(
     default: {
       const baseSkill = technique?.level ?? getSkillLevel(actorProfile, technique?.skill ?? mode?.skill);
       return {
-        actorTarget: clamp(baseSkill + action.modifiers.manual - actorProfile.combat.shock, 3, 20),
+        actorTarget: clamp(baseSkill + action.modifiers.manualToHit - actorProfile.combat.shock, 3, 20),
         targetTarget: clamp(targetDefenseSkill, 3, 20),
         label: "Finta (Pericia)"
       };
@@ -1336,14 +1552,13 @@ export function resolveFeint(input: {
   const actorRoll = buildRollRecord(targets.actorTarget, random);
   const targetRoll = buildRollRecord(targets.targetTarget, random);
 
-  const actorMargin = actorRoll.margin >= 0 ? actorRoll.margin : -99;
-  const targetMargin = targetRoll.margin >= 0 ? targetRoll.margin : -99;
-  const feintPenalty = Math.max(0, actorMargin - targetMargin);
+  const actorMargin = Math.max(0, actorRoll.margin);
+  const targetMargin = Math.max(0, targetRoll.margin);
+  const feintPenalty = actorRoll.margin >= 0 ? Math.max(0, actorMargin - targetMargin) : 0;
 
-  const winner = feintPenalty > 0 ? input.actor.label : input.target.label;
   const summary = feintPenalty > 0
-    ? `${targets.label}: ${input.actor.label} supera ${input.target.label} por ${feintPenalty}. Penalidade de -${feintPenalty} na proxima defesa.`
-    : `${targets.label}: ${input.target.label} resiste a finta de ${input.actor.label}.`;
+    ? `${targets.label}: ${input.actor.label} supera ${input.target.label} por ${feintPenalty}. Penalidade de -${feintPenalty} na proxima defesa. Ator: ${formatRollResult(actorRoll)} Alvo: ${formatRollResult(targetRoll)}`
+    : `${targets.label}: ${input.target.label} resiste a finta de ${input.actor.label}. Ator: ${formatRollResult(actorRoll)} Alvo: ${formatRollResult(targetRoll)}`;
 
   return {
     feintPenalty,
@@ -1363,79 +1578,6 @@ export function resolveFeint(input: {
   };
 }
 
-// ---------------------------------------------------------------------------
-// All-Out Attack — 4 variants
-// ---------------------------------------------------------------------------
-
-export function resolveAllOutAttack(input: {
-  actor: CombatTokenContext;
-  target: CombatTokenContext;
-  draftAction: CombatDraftAction;
-  variant: AllOutAttackVariant;
-  promptPlayerDefense: boolean;
-  targetState?: CombatantTurnState | null;
-  random?: () => number;
-}): PreparedAttackResult {
-  const random = input.random ?? Math.random;
-  const modifiedAction = { ...input.draftAction };
-
-  switch (input.variant) {
-    case "determined":
-      modifiedAction.modifiers = {
-        ...modifiedAction.modifiers,
-        manual: modifiedAction.modifiers.manual + 4
-      };
-      break;
-    case "strong":
-      break;
-    case "double":
-    case "long":
-      break;
-  }
-
-  const result = prepareAttackResolution({
-    actor: input.actor,
-    target: input.target,
-    draftAction: modifiedAction,
-    promptPlayerDefense: input.promptPlayerDefense,
-    targetState: input.targetState,
-    random
-  });
-
-  if (result.resolution && input.variant === "strong") {
-    const currentDamage = result.resolution.damage;
-    if (currentDamage && currentDamage.rawDamage > 0) {
-      const bonusDamage = 2;
-      const boostedRaw = currentDamage.rawDamage + bonusDamage;
-      const boostedPenetrating = Math.max(0, boostedRaw - currentDamage.effectiveDr);
-      const boostedInjury = Math.max(0, Math.floor(boostedPenetrating * currentDamage.multiplier));
-      result.resolution = {
-        ...result.resolution,
-        damage: {
-          ...currentDamage,
-          rawDamage: boostedRaw,
-          penetratingDamage: boostedPenetrating,
-          injury: boostedInjury
-        },
-        summary: `${result.resolution.summary} (Ataque Total Forte: +2 dano)`
-      };
-    }
-  }
-
-  if (result.resolution) {
-    const variantLabel =
-      input.variant === "determined" ? "Determinado (+4)"
-      : input.variant === "strong" ? "Forte (+2 dano)"
-      : input.variant === "double" ? "Duplo"
-      : "Longo (+1 alcance)";
-    result.resolution = {
-      ...result.resolution,
-      summary: `[Ataque Total ${variantLabel}] ${result.resolution.summary}`
-    };
-  }
-
-  return result;
-}
 
 export function resolveAllOutAttackDouble(input: {
   actor: CombatTokenContext;
@@ -1446,10 +1588,65 @@ export function resolveAllOutAttackDouble(input: {
   random?: () => number;
 }): PreparedAttackResult[] {
   const random = input.random ?? Math.random;
+  const actorProfile = getProfile(input.actor.character);
+  const nextActorProfile = actorProfile ? {
+    ...actorProfile,
+    combat: {
+      ...actorProfile.combat,
+      currentFp: Math.max(0, actorProfile.combat.currentFp - 1)
+    }
+  } : null;
+
+  const first = prepareAttackResolution({
+    actor: { ...input.actor, character: nextActorProfile ? { ...input.actor.character!, sheetProfile: nextActorProfile } : input.actor.character },
+    target: input.target,
+    draftAction: input.draftAction,
+    promptPlayerDefense: input.promptPlayerDefense,
+    targetState: input.targetState,
+    random
+  });
+
+  if (first.status === "awaiting-defense" || !first.resolution) {
+    if (first.actorProfile && nextActorProfile) first.actorProfile = nextActorProfile;
+    return [first];
+  }
+
+  const second = prepareAttackResolution({
+    actor: { ...input.actor, character: nextActorProfile ? { ...input.actor.character!, sheetProfile: nextActorProfile } : input.actor.character },
+    target: input.target,
+    draftAction: input.draftAction,
+    promptPlayerDefense: false,
+    targetState: input.targetState,
+    random
+  });
+
+  if (first.resolution) {
+    first.actorProfile = nextActorProfile;
+    first.resolution.fpDelta = -1;
+    first.resolution.summary = `[Ataque Total Duplo 1/2 (-1 PF)] ${first.resolution.summary}`;
+  }
+  if (second.resolution) {
+    second.actorProfile = nextActorProfile;
+    second.resolution.summary = `[Ataque Total Duplo 2/2] ${second.resolution.summary}`;
+  }
+
+  return [first, second];
+}
+
+export function resolveRapidStrike(input: {
+  actor: CombatTokenContext;
+  target: CombatTokenContext;
+  draftAction: CombatDraftAction;
+  promptPlayerDefense: boolean;
+  targetState?: CombatantTurnState | null;
+  random?: () => number;
+}): PreparedAttackResult[] {
+  const random = input.random ?? Math.random;
+  
   const first = prepareAttackResolution({
     actor: input.actor,
     target: input.target,
-    draftAction: input.draftAction,
+    draftAction: { ...input.draftAction, rapidStrike: true },
     promptPlayerDefense: input.promptPlayerDefense,
     targetState: input.targetState,
     random
@@ -1462,23 +1659,59 @@ export function resolveAllOutAttackDouble(input: {
   const second = prepareAttackResolution({
     actor: input.actor,
     target: input.target,
-    draftAction: input.draftAction,
+    draftAction: { ...input.draftAction, rapidStrike: true },
     promptPlayerDefense: false,
     targetState: input.targetState,
     random
   });
 
   if (first.resolution) {
-    first.resolution = {
-      ...first.resolution,
-      summary: `[Ataque Total Duplo 1/2] ${first.resolution.summary}`
-    };
+    first.resolution.summary = `[Golpe Rápido 1/2 (-6 Acerto)] ${first.resolution.summary}`;
   }
   if (second.resolution) {
-    second.resolution = {
-      ...second.resolution,
-      summary: `[Ataque Total Duplo 2/2] ${second.resolution.summary}`
-    };
+    second.resolution.summary = `[Golpe Rápido 2/2 (-6 Acerto)] ${second.resolution.summary}`;
+  }
+
+  return [first, second];
+}
+
+export function resolveDualWeaponAttack(input: {
+  actor: CombatTokenContext;
+  target: CombatTokenContext;
+  draftAction: CombatDraftAction;
+  promptPlayerDefense: boolean;
+  targetState?: CombatantTurnState | null;
+  random?: () => number;
+}): PreparedAttackResult[] {
+  const random = input.random ?? Math.random;
+  
+  const first = prepareAttackResolution({
+    actor: input.actor,
+    target: input.target,
+    draftAction: { ...input.draftAction, dualWeapon: true },
+    promptPlayerDefense: input.promptPlayerDefense,
+    targetState: input.targetState,
+    random
+  });
+
+  if (first.status === "awaiting-defense" || !first.resolution) {
+    return [first];
+  }
+
+  const second = prepareAttackResolution({
+    actor: input.actor,
+    target: input.target,
+    draftAction: { ...input.draftAction, dualWeapon: true },
+    promptPlayerDefense: false,
+    targetState: input.targetState,
+    random
+  });
+
+  if (first.resolution) {
+    first.resolution.summary = `[Ataque Duplo 1/2 (-4 Acerto)] ${first.resolution.summary}`;
+  }
+  if (second.resolution) {
+    second.resolution.summary = `[Ataque Duplo 2/2 (-4 Acerto)] ${second.resolution.summary}`;
   }
 
   return [first, second];
@@ -1702,6 +1935,58 @@ export function checkConcentrationBreak(
   };
 }
 
+export function resolveHTCheck(input: {
+  profile: SessionCharacterSheetProfile;
+  kind: "consciousness" | "survival";
+  threshold?: string;
+  random?: () => number;
+}): {
+  resolution: CombatResolutionRecord;
+  nextProfile: SessionCharacterSheetProfile;
+  passed: boolean;
+} {
+  const random = input.random ?? Math.random;
+  const target = input.profile.attributes.ht;
+  const roll = buildRollRecord(target, random);
+  const passed = roll.margin >= 0;
+  
+  let nextProfile = { ...input.profile };
+  const appliedConditions: string[] = [];
+  let summary = "";
+
+  if (input.kind === "consciousness") {
+    if (!passed) {
+      nextProfile = applyCondition(nextProfile, "Inconsciente", "Falha no teste de HT para permanecer consciente.");
+      appliedConditions.push("Inconsciente");
+      summary = `Falhou no teste para ficar consciente ${formatRollResult(roll)}.`;
+    } else {
+      summary = `Passou no teste para ficar consciente ${formatRollResult(roll)}.`;
+    }
+  } else {
+    // Survival
+    if (!passed) {
+      nextProfile = applyCondition(nextProfile, "Morto", `Falha no teste de sobrevivência em ${input.threshold}.`);
+      appliedConditions.push("Morto");
+      summary = `Falhou no teste de sobrevivência em ${input.threshold} ${formatRollResult(roll)}.`;
+    } else {
+      summary = `Sobreviveu ao limiar ${input.threshold} ${formatRollResult(roll)}.`;
+    }
+  }
+
+  const resolution: CombatResolutionRecord = {
+    id: `combat-resolution-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    actorTokenId: null, // Resolvido no prompt
+    targetTokenId: null,
+    actionType: "do-nothing",
+    summary: `[Teste de HT] ${summary}`,
+    attackRoll: roll,
+    appliedConditions
+  };
+
+  return { resolution, nextProfile, passed };
+}
+
 // ---------------------------------------------------------------------------
 // Start-of-Turn Effects
 // ---------------------------------------------------------------------------
@@ -1716,6 +2001,7 @@ export function applyStartOfTurnEffects(input: {
     bleedingDamage: 0,
     shockCleared: false,
     htChecks: [],
+    requiredChecks: [],
     appliedConditions: [],
     removedConditions: [],
     summary: ""
@@ -1745,24 +2031,41 @@ export function applyStartOfTurnEffects(input: {
   }
 
   if (nextProfile.combat.currentHp <= 0) {
-    const deathChecks = checkDeathThresholds(nextProfile, random);
-    for (const check of deathChecks) {
-      effects.htChecks.push({
-        label: `Teste de HT em ${check.threshold}`,
-        roll: check.roll,
-        passed: check.passed
-      });
+    const hpMax = nextProfile.attributes.hpMax;
+    const currentHp = nextProfile.combat.currentHp;
 
-      if (check.autoKill) {
-        nextProfile = applyCondition(nextProfile, "Morto", `HP abaixo de -5×HP.`);
-        effects.appliedConditions.push("Morto");
-        summaryParts.push("Morto automaticamente (HP <= -5×HP).");
-      } else if (!check.passed) {
-        nextProfile = applyCondition(nextProfile, "Colapso", `Falha no teste de HT em ${check.threshold}.`);
-        effects.appliedConditions.push("Colapso");
-        summaryParts.push(`Falha no teste de HT em ${check.threshold}: colapso.`);
-      } else {
-        summaryParts.push(`Teste de HT em ${check.threshold}: sucesso.`);
+    if (currentHp <= -5 * hpMax) {
+      nextProfile = applyCondition(nextProfile, "Morto", "HP atingiu -5×HP.");
+      effects.appliedConditions.push("Morto");
+      summaryParts.push("Morto automaticamente (HP <= -5×HP).");
+    } else {
+      const isUnconscious = nextProfile.conditions.some(c => c.label === "Inconsciente" || c.label === "Colapso");
+      
+      // Se não estiver morto nem inconsciente, precisa testar HT para não desmaiar
+      if (!isUnconscious) {
+        effects.requiredChecks.push({
+          kind: "consciousness",
+          label: "Teste de HT para permanecer consciente (HP <= 0)",
+          targetValue: nextProfile.attributes.ht
+        });
+      }
+
+      // Se cruzou um limiar de morte (-1x, -2x, -3x, -4x), precisa de teste de sobrevivência
+      for (let mult = 1; mult <= 4; mult++) {
+        const threshold = -mult * hpMax;
+        // Se o HP atual está abaixo do limiar, mas o HP ANTERIOR (ou o estado) indica que ainda não testamos?
+        // Na verdade, GURPS diz que você testa IMEDIATAMENTE ao cruzar, e no início de cada turno se estiver abaixo?
+        // Não, sobrevivência é só ao cruzar. Mas consciência é todo turno.
+        // Como o VTT pode ter pulado o momento exato, vamos pedir o teste se estiver abaixo e não tiver a condição "Morto".
+        // Para simplificar, vamos pedir teste de sobrevivência se o HP estiver abaixo de um limiar múltiplo.
+        if (currentHp <= threshold) {
+          effects.requiredChecks.push({
+            kind: "survival",
+            label: `Teste de HT para sobreviver em -${mult}×HP (${threshold})`,
+            targetValue: nextProfile.attributes.ht,
+            threshold: `-${mult}×HP`
+          });
+        }
       }
     }
   }
@@ -1782,33 +2085,15 @@ export function applyStartOfTurnEffects(input: {
         conditions: nextProfile.conditions.filter((c) => c.label !== "Atordoado")
       };
       effects.removedConditions.push("Atordoado");
-      summaryParts.push("Recuperou de atordoamento.");
+      summaryParts.push(`Recuperou de atordoamento ${formatRollResult(htRoll)}.`);
     } else {
-      summaryParts.push("Ainda atordoado (falha no teste de HT).");
+      summaryParts.push(`Ainda atordoado ${formatRollResult(htRoll)} (falha no teste de HT).`);
     }
   }
 
   effects.summary = summaryParts.join(" ");
 
   return { effects, nextProfile };
-}
-
-// ---------------------------------------------------------------------------
-// Defense with feint penalty & all-out defense bonus
-// ---------------------------------------------------------------------------
-
-export function getDefenseTargetWithModifiers(
-  profile: SessionCharacterSheetProfile,
-  option: CombatDefenseOption,
-  combatantState: CombatantTurnState | null,
-  response?: DefenseResponseInput
-) {
-  const base = getDefenseTarget(profile, option, response);
-  const feintPenalty = combatantState?.feintPenalty ?? 0;
-  const allOutDefenseBonus =
-    combatantState?.allOutDefenseVariant === "increased" ? 2 : 0;
-
-  return clamp(base - feintPenalty + allOutDefenseBonus, 3, 18);
 }
 
 // ---------------------------------------------------------------------------
@@ -1824,6 +2109,8 @@ export function createEmptyCombatantTurnState(): CombatantTurnState {
     defenseUsedThisTurn: [],
     allOutAttackVariant: null,
     allOutDefenseVariant: null,
+    attackVariant: null,
+    deceptiveLevel: 0,
     feintPenalty: 0,
     feintPenaltyBy: null,
     isWaiting: false,

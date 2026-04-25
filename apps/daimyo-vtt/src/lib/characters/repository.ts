@@ -34,7 +34,10 @@ function getCharacterTable() {
 }
 
 function clampResource(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, Math.round(value)));
+  // GURPS permite valores bem negativos para PV e PF, então vamos usar um limite generoso
+  // em vez de travar no 0. O limite real de morte é -5x HP, mas o mestre pode querer reduzir mais.
+  const absoluteMin = -1000; 
+  return Math.min(max, Math.max(absoluteMin, Math.round(value)));
 }
 
 function normalizeMax(value: number, fallback: number) {
@@ -303,7 +306,10 @@ export async function adjustCharacterResource(input: {
   const maxKey = input.resource === "hp" ? "hpMax" : "fpMax";
   const currentValue = current[input.resource];
   const maxValue = current[maxKey];
-  const nextValue = clampResource(currentValue + input.delta, 0, maxValue);
+  // GURPS: PV pode ir até -5x HP. PF pode ir até -1x PF. 
+  // Usamos um clamp mais aberto para permitir liberdade ao mestre.
+  const minAllowed = input.resource === "hp" ? -(maxValue * 10) : -(maxValue * 2);
+  const nextValue = clampResource(currentValue + input.delta, minAllowed, maxValue);
 
   const patch =
     input.resource === "hp"
@@ -339,10 +345,65 @@ export async function adjustCharacterResource(input: {
     .single<CharacterRow>();
 
   if (error || !data) {
-    if (isMissingColumnError(error)) {
-      throw buildSheetProfileMigrationError();
-    }
+    throw error ?? new Error("Falha ao atualizar o recurso do personagem.");
+  }
 
+  return mapCharacterRow(data);
+}
+
+export async function updateCharacterResource(input: {
+  characterId: string;
+  resource: "hp" | "fp";
+  value: number;
+}) {
+  const current = await findSessionCharacterById(input.characterId);
+
+  if (!current) {
+    throw new Error("Personagem não encontrado.");
+  }
+
+  const maxKey = input.resource === "hp" ? "hpMax" : "fpMax";
+  const maxValue = current[maxKey];
+  
+  // GURPS: PV pode ir até -5x HP. PF pode ir até -1x PF. 
+  // Usamos um clamp mais aberto para permitir liberdade ao mestre.
+  const minAllowed = input.resource === "hp" ? -(maxValue * 10) : -(maxValue * 2);
+  const nextValue = clampResource(input.value, minAllowed, maxValue);
+
+  const patch =
+    input.resource === "hp"
+      ? {
+          hp: nextValue,
+          sheet_profile: mirrorSummaryIntoSheetProfile(
+            current.sheetProfile ?? createEmptySheetProfile({ name: current.name }),
+            {
+              hp: nextValue,
+              hpMax: current.hpMax,
+              fp: current.fp,
+              fpMax: current.fpMax
+            }
+          )
+        }
+      : {
+          fp: nextValue,
+          sheet_profile: mirrorSummaryIntoSheetProfile(
+            current.sheetProfile ?? createEmptySheetProfile({ name: current.name }),
+            {
+              hp: current.hp,
+              hpMax: current.hpMax,
+              fp: nextValue,
+              fpMax: current.fpMax
+            }
+          )
+        };
+
+  const { data, error } = await getCharacterTable()
+    .update(patch)
+    .eq("id", input.characterId)
+    .select("*")
+    .single<CharacterRow>();
+
+  if (error || !data) {
     throw error ?? new Error("Falha ao atualizar o recurso do personagem.");
   }
 

@@ -844,14 +844,14 @@ loadoutTechniqueIds: [],
       lastTechniqueSwapRound: null
     },
     raw: {
-      totalPoints: 0,
-      concept: "Naked NPC",
-      clan: "",
-      advantages: "",
-      disadvantages: "",
-      skills: "",
-      equipment: "",
-      spells: ""
+      totalPoints: toNumber(stats.points, 0),
+      concept: typeof stats.concept === "string" ? stats.concept : "",
+      clan: typeof stats.clan === "string" ? stats.clan : "",
+      advantages: Array.isArray(stats.advantages) ? stats.advantages.join("\n") : "",
+      disadvantages: Array.isArray(stats.disadvantages) ? stats.disadvantages.join("\n") : "",
+      skills: Array.isArray(stats.skills) ? stats.skills.join("\n") : "",
+      equipmentText: typeof stats.equipment === "string" ? stats.equipment : "",
+      history: typeof stats.history === "string" ? stats.history : ""
     }
   };
   const ensured = ensureTechniqueLoadout(profile);

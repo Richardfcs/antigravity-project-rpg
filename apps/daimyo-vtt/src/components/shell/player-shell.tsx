@@ -650,7 +650,7 @@ export function PlayerShell({
     });
   };
 
-  const renderedStage =
+const renderedStage =
     effectiveStageMode === "tactical" ? (
       <TacticalMapStage
         key={activeMap?.id ?? "empty-map"}
@@ -662,6 +662,7 @@ export function PlayerShell({
         combatState={tacticalCombatState}
         combatFlow={session.combatFlow}
         viewerParticipantId={viewer?.participantId}
+        canManageCombat={viewer?.role === "gm"}
         canManageTokens={false}
         onMoveToken={handleMoveToken}
         onExecuteCombatAction={handleExecuteCombatAction}
@@ -703,7 +704,7 @@ export function PlayerShell({
       />
     );
 
-  const renderedImmersiveStage =
+const renderedImmersiveStage =
     effectiveStageMode === "tactical" ? (
       <TacticalMapStage
         key={`${activeMap?.id ?? "empty-map"}:immersive`}
@@ -715,6 +716,7 @@ export function PlayerShell({
         combatState={tacticalCombatState}
         combatFlow={session.combatFlow}
         viewerParticipantId={viewer?.participantId}
+        canManageCombat={viewer?.role === "gm"}
         canManageTokens={false}
         onMoveToken={handleMoveToken}
         onExecuteCombatAction={handleExecuteCombatAction}

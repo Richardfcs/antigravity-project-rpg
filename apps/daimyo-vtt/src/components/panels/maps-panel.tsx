@@ -481,11 +481,11 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
       )}
 
       <section className="flex min-h-0 flex-1 flex-col space-y-3">
-        <div className="flex flex-col gap-3 rounded-[20px] border border-white/10 bg-black/18 p-3 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0 md:max-w-[120px]">
-            <p className="section-label">Biblioteca</p>
+        <div className="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-black/18 p-4 md:flex-row md:items-center">
+          <div className="flex-shrink-0">
+            <p className="section-label px-1">Biblioteca</p>
           </div>
-          <div className="flex w-full flex-col gap-3 md:max-w-2xl">
+          <div className="flex flex-1 flex-col gap-3">
             <input
               value={searchQuery}
               onChange={(event) => {

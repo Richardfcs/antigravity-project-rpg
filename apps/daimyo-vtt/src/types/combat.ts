@@ -31,11 +31,12 @@ export type CombatActionType =
   | "do-nothing";
 
 export type AllOutAttackVariant = "determined" | "strong" | "double" | "long";
+export type AttackVariant = "standard" | "defensive" | "committed" | "deceptive";
 export type AllOutDefenseVariant = "increased" | "double";
 export type FeintType = "dx" | "st" | "iq";
 
 export type CombatDefenseOption = "none" | "dodge" | "parry" | "block";
-export type CombatPromptKind = "defense" | "quick-contest" | "regular-contest" | "player-command";
+export type CombatPromptKind = "defense" | "quick-contest" | "regular-contest" | "player-command" | "ht-check";
 export type CombatWeaponState = "ready" | "drawn" | "empowered" | "guarded" | "spent";
 export type CombatPosture = "standing" | "kneeling" | "prone" | "sitting" | "crouching";
 
@@ -176,6 +177,8 @@ export interface CharacterCombatStateProfile {
   shock: number;
   bleeding: number;
   evaluateBonus: number;
+  attackVariant?: AttackVariant | null;
+  deceptiveLevel?: number;
   pendingTechniqueSwapId?: string | null;
   lastTechniqueSwapRound?: number | null;
 }
@@ -198,7 +201,8 @@ export interface SessionCharacterSheetProfile {
 }
 
 export interface CombatTargetModifiers {
-  manual: number;
+  manualToHit: number;
+  manualDamage: number;
   hitLocation: CombatHitLocationId;
   rangeMeters?: number | null;
   sizeModifier?: number | null;
@@ -207,6 +211,7 @@ export interface CombatTargetModifiers {
   determined?: boolean;
   retreat?: boolean;
   acrobatic?: boolean;
+  feverish?: boolean;
   recoil?: boolean;
 }
 
@@ -222,9 +227,15 @@ export interface CombatDraftAction {
   modifiers: CombatTargetModifiers;
   selectedDefense?: CombatDefenseOption | null;
   contestLabel?: string | null;
-  allOutVariant?: AllOutAttackVariant | AllOutDefenseVariant | null;
+  allOutVariant?: AllOutAttackVariant | null;
+  allOutDefenseVariant?: AllOutDefenseVariant | null;
+  attackVariant?: AttackVariant | null;
+  deceptiveLevel?: number | null;
+  rapidStrike?: boolean;
+  dualWeapon?: boolean;
   evaluateBonus?: number | null;
   feintAttribute?: FeintType | null;
+  feintType?: FeintType | null;
   waitTrigger?: string | null;
   roundsNeeded?: number | null;
 }
@@ -247,6 +258,8 @@ export interface CombatDamageBreakdown {
   penetratingDamage: number;
   injury: number;
   multiplier: number;
+  isCrippled?: boolean;
+  isCapped?: boolean;
 }
 
 export interface CombatResolutionRecord {
@@ -290,6 +303,11 @@ export interface CombatPromptPayload {
   requestedAt: string;
   expiresAt?: string | null;
   maneuverOptions?: CombatActionType[] | null;
+  htCheck?: {
+    kind: "consciousness" | "survival";
+    targetValue: number;
+    threshold?: string;
+  };
 }
 
 export interface CombatPendingPrompt {
@@ -315,6 +333,8 @@ export interface CombatantTurnState {
   defenseUsedThisTurn: CombatDefenseOption[];
   allOutAttackVariant: AllOutAttackVariant | null;
   allOutDefenseVariant: AllOutDefenseVariant | null;
+  attackVariant: AttackVariant | null;
+  deceptiveLevel: number;
   feintPenalty: number;
   feintPenaltyBy: string | null;
   isWaiting: boolean;
@@ -330,6 +350,12 @@ export interface StartOfTurnEffects {
     label: string;
     roll: CombatRollRecord;
     passed: boolean;
+  }>;
+  requiredChecks: Array<{
+    kind: "consciousness" | "survival";
+    label: string;
+    targetValue: number;
+    threshold?: string;
   }>;
   appliedConditions: string[];
   removedConditions: string[];

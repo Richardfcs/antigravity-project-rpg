@@ -76,6 +76,8 @@ export function PlayerCombatPromptOverlay({
   const [defenseOption, setDefenseOption] = useState<CombatDefenseOption>("none");
   const [retreat, setRetreat] = useState(false);
   const [acrobatic, setAcrobatic] = useState(false);
+  const [feverish, setFeverish] = useState(false);
+  const [manualModifier, setManualModifier] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -93,6 +95,8 @@ export function PlayerCombatPromptOverlay({
     setDefenseOption(payload?.options[0] ?? "none");
     setRetreat(false);
     setAcrobatic(false);
+    setFeverish(false);
+    setManualModifier(0);
     setFeedback(null);
   }, [combatEvent?.id, payload?.options]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -109,7 +113,9 @@ export function PlayerCombatPromptOverlay({
         eventId: combatEvent.id,
         defenseOption,
         retreat,
-        acrobatic
+        acrobatic,
+        feverish,
+        manualModifier
       });
 
       if (!result.ok) {
@@ -197,6 +203,26 @@ export function PlayerCombatPromptOverlay({
                   acrobatica
                 </button>
               ) : null}
+              <button
+                type="button"
+                onClick={() => setFeverish((current) => !current)}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition ${
+                  feverish
+                    ? "border-amber-300/24 bg-amber-300/12 text-amber-100"
+                    : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
+                }`}
+              >
+                febril (+2)
+              </button>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--ink-2)] focus-within:border-white/20">
+                <span>manual</span>
+                <input 
+                  type="number"
+                  value={manualModifier}
+                  onChange={(e) => setManualModifier(parseInt(e.target.value) || 0)}
+                  className="w-8 bg-transparent text-white outline-none"
+                />
+              </div>
             </div>
           </div>
 
