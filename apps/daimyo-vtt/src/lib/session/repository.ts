@@ -1,5 +1,24 @@
 import "server-only";
 
+export async function removeSessionParticipant(input: {
+  sessionId: string;
+  participantId: string;
+}) {
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const { error } = await createSupabaseAdminClient()
+    .from("session_participants")
+    .delete()
+    .eq("id", input.participantId)
+    .eq("session_id", input.sessionId)
+    .eq("role", "player");
+
+  if (error) {
+    throw error;
+  }
+
+  return { id: input.participantId };
+}
+
 import { normalizeCombatFlow } from "@/lib/combat/flow";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {

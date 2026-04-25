@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   ChevronDown,
   ChevronUp,
@@ -9,8 +10,15 @@ import {
   LoaderCircle,
   MoonStar,
   RadioTower,
-  Swords
+  RotateCcw,
+  Swords,
+  Trash2,
+  UserMinus,
+  UserPlus
 } from "lucide-react";
+
+import { removeParticipantAction } from "@/app/actions/session-actions";
+import { setActiveCharacterAction } from "@/app/actions/character-actions";
 
 import { adjustCharacterResourceAction } from "@/app/actions/character-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
@@ -125,6 +133,7 @@ export function SessionStatusDrawer({
   onOpenChange,
   embedded = false
 }: SessionStatusDrawerProps) {
+  const router = useRouter();
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -151,19 +160,32 @@ export function SessionStatusDrawer({
     () => participants.filter((participant) => participant.role === "player"),
     [participants]
   );
-  const characterByOwnerId = useMemo(
-    () =>
-      new Map(
-        characters
-          .filter((character) => character.ownerParticipantId)
-          .map((character) => [character.ownerParticipantId as string, character])
-      ),
-    [characters]
-  );
+
+  const charactersByOwnerId = useMemo(() => {
+    const map = new Map<string, SessionCharacterRecord[]>();
+    characters.forEach((c) => {
+      if (c.ownerParticipantId) {
+        const list = map.get(c.ownerParticipantId) || [];
+        list.push(c);
+        map.set(c.ownerParticipantId, list);
+      }
+    });
+    return map;
+  }, [characters]);
+
+  const activeCharacterByOwnerId = useMemo(() => {
+    const map = new Map<string, SessionCharacterRecord>();
+    charactersByOwnerId.forEach((list, ownerId) => {
+      const primary = list.find((c) => c.sheetProfile?.raw?.isPrimary) ?? list[0];
+      if (primary) map.set(ownerId, primary);
+    });
+    return map;
+  }, [charactersByOwnerId]);
+
   const linkedPlayers = useMemo(
     () =>
       playerParticipants.map((participant) => {
-        const character = characterByOwnerId.get(participant.id) ?? null;
+        const character = activeCharacterByOwnerId.get(participant.id) ?? null;
         return {
           participant,
           character,
@@ -171,8 +193,12 @@ export function SessionStatusDrawer({
           presence: presenceById.get(participant.id)
         };
       }),
-    [assets, characterByOwnerId, playerParticipants, presenceById]
+    [assets, activeCharacterByOwnerId, playerParticipants, presenceById]
   );
+
+  const gmCharacter = gmParticipant ? activeCharacterByOwnerId.get(gmParticipant.id) : null;
+  const gmAsset = gmCharacter ? resolveCharacterAsset(gmCharacter, assets) : null;
+
   const onlineCount = useMemo(
     () => party.filter((member) => member.status !== "offline").length,
     [party]
@@ -199,6 +225,44 @@ export function SessionStatusDrawer({
         setFeedback(result.message);
       }
 
+      setPendingKey(null);
+    });
+  };
+
+  const handleRemoveParticipant = (participantId: string) => {
+    if (!confirm("Tem certeza que deseja remover este jogador da sessão?")) return;
+    
+    setPendingKey(`remove:${participantId}`);
+    setFeedback(null);
+    startTransition(async () => {
+      const result = await removeParticipantAction({
+        sessionCode,
+        participantId
+      });
+
+      if (!result.ok) {
+        setFeedback(result.message ?? "Erro ao remover jogador.");
+      } else {
+        router.refresh();
+      }
+      setPendingKey(null);
+    });
+  };
+
+  const handleSetActiveCharacter = (characterId: string) => {
+    setPendingKey(`activate:${characterId}`);
+    setFeedback(null);
+    startTransition(async () => {
+      const result = await setActiveCharacterAction({
+        sessionCode,
+        characterId
+      });
+
+      if (!result.ok) {
+        setFeedback(result.message ?? "Erro ao ativar ficha.");
+      } else {
+        router.refresh();
+      }
       setPendingKey(null);
     });
   };
@@ -242,7 +306,9 @@ export function SessionStatusDrawer({
           <article className="rounded-[18px] border border-amber-300/16 bg-amber-300/8 p-3">
             <div className="flex items-center gap-3">
               <AssetAvatar
-                label={gmParticipant?.displayName ?? gmName ?? "GM"}
+                imageUrl={gmAsset?.secureUrl}
+                label={gmCharacter?.name ?? gmParticipant?.displayName ?? gmName ?? "GM"}
+                kind={gmAsset?.kind}
                 className="h-12 w-12 shrink-0"
               />
               <div className="min-w-0">
@@ -302,10 +368,41 @@ export function SessionStatusDrawer({
                               : "bg-slate-500"
                           )}
                         />
+                        {viewer?.role?.toLowerCase() === "gm" && (
+                          <button
+                            onClick={() => handleRemoveParticipant(participant.id)}
+                            className="ml-auto flex items-center gap-1.5 rounded-md bg-rose-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-rose-500 transition hover:bg-rose-500/20"
+                            title="Remover jogador"
+                          >
+                            {pendingKey === `remove:${participant.id}` ? (
+                              <LoaderCircle size={12} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={12} />
+                            )}
+                            Excluir
+                          </button>
+                        )}
                       </div>
-                      <p className="mt-1 text-sm text-[color:var(--ink-2)]">
-                        {character?.name ?? "sem ficha vinculada"}
-                      </p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <p className="truncate text-sm text-[color:var(--ink-2)]">
+                          {character?.name ?? "sem ficha vinculada"}
+                        </p>
+                        {charactersByOwnerId.get(participant.id)?.length && charactersByOwnerId.get(participant.id)!.length > 1 && (
+                          <div className="flex gap-1">
+                            {charactersByOwnerId.get(participant.id)!.map(c => (
+                              <button
+                                key={c.id}
+                                onClick={() => handleSetActiveCharacter(c.id)}
+                                className={cn(
+                                  "h-1.5 w-1.5 rounded-full transition",
+                                  c.id === character?.id ? "bg-amber-400" : "bg-white/10 hover:bg-white/30"
+                                )}
+                                title={`Ativar ${c.name}`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <p className="mt-1 text-xs text-[color:var(--ink-3)]">
                         {character
                           ? `init ${character.initiative >= 0 ? `+${character.initiative}` : character.initiative}`

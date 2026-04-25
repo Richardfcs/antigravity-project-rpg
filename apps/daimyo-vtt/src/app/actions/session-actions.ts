@@ -22,7 +22,8 @@ import {
   listLinkedSessionsByAuthUser,
   updateSessionPresentationMode,
   updateSessionStageMode,
-  updateSessionCombatState
+  updateSessionCombatState,
+  removeSessionParticipant
 } from "@/lib/session/repository";
 import { normalizeSessionCode } from "@/lib/session/codes";
 import { verifySupabaseAccessToken } from "@/lib/supabase/auth";
@@ -443,6 +444,34 @@ export async function listLinkedSessionsByAuthAction(input: {
       ok: false,
       sessions: [],
       message: formatActionError(error) ?? "Falha ao listar as sessoes vinculadas."
+    };
+  }
+}
+
+export async function removeParticipantAction(input: {
+  sessionCode: string;
+  participantId: string;
+}): Promise<{ ok: boolean; message?: string }> {
+  if (!getInfraReadiness().serviceRole) {
+    return {
+      ok: false,
+      message: "O Supabase Service Role ainda nao esta configurado."
+    };
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    
+    await removeSessionParticipant({
+      sessionId: session.id,
+      participantId: input.participantId
+    });
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      message: formatActionError(error) ?? "Falha ao remover o participante."
     };
   }
 }

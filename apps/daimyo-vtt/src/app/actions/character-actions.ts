@@ -1,5 +1,51 @@
 "use server";
 
+export async function setActiveCharacterAction(input: {
+  sessionCode: string;
+  characterId: string;
+}): Promise<{ ok: boolean; message?: string }> {
+  const { getInfraReadiness } = await import("@/lib/env");
+  const { requireSessionViewer } = await import("@/lib/session/access");
+  const { listSessionCharacters, updateSessionCharacterProfile } = await import("@/lib/characters/repository");
+
+  if (!getInfraReadiness().serviceRole) {
+    return {
+      ok: false,
+      message: "O Supabase Service Role ainda nao esta configurado."
+    };
+  }
+
+  try {
+    const { session, viewer } = await requireSessionViewer(input.sessionCode);
+    
+    const allCharacters = await listSessionCharacters(session.id);
+    const myCharacters = allCharacters.filter(c => c.ownerParticipantId === viewer.participantId);
+    
+    if (!myCharacters.some(c => c.id === input.characterId)) {
+      throw new Error("Você não possui permissão para ativar esta ficha.");
+    }
+
+    await Promise.all(myCharacters.map(c => {
+      const isPrimary = c.id === input.characterId;
+      const nextRaw = { ...(c.sheetProfile?.raw || {}), isPrimary };
+      return updateSessionCharacterProfile({
+        characterId: c.id,
+        sheetProfile: {
+          ...(c.sheetProfile || { version: 1, attributes: { st: 10, dx: 10, iq: 10, ht: 10, hpMax: 10, fpMax: 10, will: 10, per: 10 }, derived: { basicSpeed: 5, move: 5, encumbranceLevel: 0 }, defenses: { dodge: 8, parry: 8, block: 0 }, style: { name: "Básico" }, skills: [], techniques: [], weapons: [], armor: [], notes: [], conditions: [], combat: { currentHp: 10, currentFp: 10, activeWeaponId: null, activeWeaponModeId: null, loadoutTechniqueIds: [], posture: "standing", shock: 0, bleeding: 0, evaluateBonus: 0 } }),
+          raw: nextRaw
+        }
+      });
+    }));
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Falha ao ativar a ficha."
+    };
+  }
+}
+
 import {
   adjustCharacterInitiative,
   adjustCharacterResource,
