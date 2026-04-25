@@ -40,23 +40,33 @@ async function fileExists(filePath: string) {
 }
 
 async function findProjectRoot() {
-  let currentPath = process.cwd();
+  const seeds = [
+    process.cwd(),
+    path.resolve("."),
+    path.join(process.cwd(), "apps", "daimyo-vtt"), // Caso esteja rodando da raiz
+    path.join(process.cwd(), "..") // Caso esteja rodando de dentro de apps
+  ];
 
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    const targetFile = path.join(currentPath, "js", "archetypes-db.js");
+  for (const seed of seeds) {
+    let currentPath = path.normalize(seed);
+    
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const targetFile = path.join(currentPath, "js", "archetypes-db.js");
 
-    if (await fileExists(targetFile)) {
-      return currentPath;
+      if (await fileExists(targetFile)) {
+        return currentPath;
+      }
+
+      const parent = path.dirname(currentPath);
+      if (parent === currentPath) break;
+      currentPath = parent;
     }
-
-    const parent = path.dirname(currentPath);
-    if (parent === currentPath) {
-      break;
-    }
-    currentPath = parent;
   }
 
-  throw new Error("Nao foi possivel localizar a raiz do projeto base para a ponte de conteudo.");
+  throw new Error(
+    `Nao foi possivel localizar a raiz do projeto base para a ponte de conteudo. ` +
+    `Verifique se a pasta 'js' existe na raiz do projeto. (CWD: ${process.cwd()})`
+  );
 }
 
 function createSandbox() {
