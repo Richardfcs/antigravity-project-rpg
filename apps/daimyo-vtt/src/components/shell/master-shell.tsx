@@ -562,7 +562,8 @@ export function MasterShell({
     admin: "Biblioteca",
     audio: "Biblioteca",
     chat: "Biblioteca",
-    oracle: "Biblioteca"
+    oracle: "Biblioteca",
+    campaign: "Campanha"
   };
   const drawerVisible = statusDrawerOpen || masterDrawer !== "closed";
 
