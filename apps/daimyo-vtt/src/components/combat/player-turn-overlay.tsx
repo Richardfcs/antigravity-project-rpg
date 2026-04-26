@@ -750,7 +750,7 @@ export function PlayerTurnOverlay({
                 )}
                 <button
                   onClick={handleNext}
-                  disabled={selectedMeta.requiresTarget && !targetTokenId}
+                  disabled={currentStep === "target" && selectedMeta.requiresTarget && !targetTokenId}
                   className="flex-[2] py-5 rounded-2xl bg-[color:var(--accent)] text-[#050505] font-black uppercase tracking-[0.2em] text-sm shadow-xl hover:opacity-90 transition-all disabled:opacity-30 disabled:grayscale"
                 >
                   {currentStep === "details" || (!selectedMeta.requiresTarget && !isAttackManeuver) ? "Girar e Resolver" : "Próximo"}
