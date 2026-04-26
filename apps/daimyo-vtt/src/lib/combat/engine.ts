@@ -279,7 +279,8 @@ function postureAttackPenalty(posture: SessionCharacterSheetProfile["combat"]["p
     case "sitting":
       return -2;
     case "crouching":
-      return -1;
+      // GURPS B551: Crouching dá -2 em ataques corpo-a-corpo
+      return -2;
     default:
       return 0;
   }
@@ -294,7 +295,8 @@ function postureDefensePenalty(posture: SessionCharacterSheetProfile["combat"]["
     case "sitting":
       return -2;
     case "crouching":
-      return -1;
+      // GURPS B551: Crouching não afeta defesas ativas
+      return 0;
     default:
       return 0;
   }
@@ -438,6 +440,15 @@ export function getDefenseTargetWithModifiers(
   // Artes Marciais: Ataque Ofensivo dá -2 na Defesa
   const committedAttackPenalty = targetState?.attackVariant === "committed" ? 2 : 0;
 
+  // GURPS B376: Aparagens múltiplas — cada aparagem após a primeira sofre -4 cumulativo
+  let multipleParryPenalty = 0;
+  if (option === "parry" && targetState?.defenseUsedThisTurn) {
+    const priorParries = targetState.defenseUsedThisTurn.filter((d) => d === "parry").length;
+    if (priorParries > 0) {
+      multipleParryPenalty = priorParries * 4;
+    }
+  }
+
   const base =
     option === "parry"
       ? profile.defenses.parry
@@ -458,6 +469,7 @@ export function getDefenseTargetWithModifiers(
     feintPenalty -
     deceptivePenalty -
     committedAttackPenalty -
+    multipleParryPenalty -
     (iaiStrike ? 1 : 0) +
     posturePenalty, 
     3, 18
@@ -516,7 +528,13 @@ function getThrustDamage(st: number): { dice: number; adds: number } {
   if (st <= 16) return { dice: 1, adds: 1 };
   if (st <= 18) return { dice: 1, adds: 2 };
   if (st <= 20) return { dice: 2, adds: -1 };
-  return { dice: 2 + Math.floor((st - 20) / 4), adds: 0 };
+  // GURPS B16: ST>20 segue progressão de +1 add por 2 ST, +1 dado por 4 ST
+  // ST 21-22: 2d, ST 23-24: 2d+1, ST 25-26: 2d+2, ST 27-28: 3d-1, ST 29-30: 3d, etc.
+  const stOver = st - 21;
+  const extraDice = Math.floor(stOver / 4);
+  const step = stOver % 4; // 0→+0, 1→+0, 2→+1, 3→+1 → simplificando: Math.floor(step/2)
+  const addsTable = [0, 0, 1, 1];
+  return { dice: 2 + extraDice, adds: addsTable[step] ?? 0 };
 }
 
 function getSwingDamage(st: number): { dice: number; adds: number } {
@@ -533,7 +551,12 @@ function getSwingDamage(st: number): { dice: number; adds: number } {
   if (st <= 18) return { dice: 3, adds: 0 };
   if (st <= 19) return { dice: 3, adds: 1 };
   if (st <= 20) return { dice: 3, adds: 2 };
-  return { dice: 4 + Math.floor((st - 20) / 4), adds: 0 };
+  // GURPS B16: ST>20 segue progressão de +1 add por ST, +1 dado a cada 2
+  // ST 21: 4d-1, ST 22: 4d, ST 23: 4d+1, ST 24: 4d+2, ST 25: 5d-1, etc.
+  const stOver = st - 21;
+  const extraDice = Math.floor(stOver / 4);
+  const addsTable = [-1, 0, 1, 2];
+  return { dice: 4 + extraDice, adds: addsTable[stOver % 4] ?? 0 };
 }
 
 function applyQualityDamageBonus(weapon: CharacterWeaponRecord | null, damageType: CombatDamageType) {
@@ -1275,12 +1298,26 @@ export function finishAttackResolution(input: {
   }
 
   const hitLocation = critical.forceVitals ? "vitals" : input.draftAction.hitLocation;
+  // GURPS Martial Arts p100: Ataque Defensivo aplica -2 dano OU -1 por dado (o que for maior)
+  const damageSpec = mode?.damage ?? { base: "flat", dice: 1, adds: 0, damageType: "cr", raw: "1d cr" };
+  const defensiveDamagePenalty = input.draftAction.attackVariant === "defensive"
+    ? (() => {
+        const derived = damageSpec.base === "thrust"
+          ? getThrustDamage(actorProfile.attributes.st)
+          : damageSpec.base === "swing"
+            ? getSwingDamage(actorProfile.attributes.st)
+            : { dice: damageSpec.dice, adds: 0 };
+        const diceCount = damageSpec.base === "flat" ? damageSpec.dice : derived.dice;
+        // -1 por dado ou -2, o que for mais penalizante (maior valor absoluto)
+        return Math.max(2, diceCount);
+      })()
+    : 0;
   const damageRoll = rollDamage(
-    mode?.damage ?? { base: "flat", dice: 1, adds: 0, damageType: "cr", raw: "1d cr" }, 
+    damageSpec, 
     actorProfile.attributes.st, 
     weapon, 
     random,
-    (input.draftAction.modifiers.manualDamage ?? 0) + (input.draftAction.attackVariant === "defensive" ? -2 : 0)
+    (input.draftAction.modifiers.manualDamage ?? 0) - defensiveDamagePenalty
   );
   const breakdown = buildDamageBreakdown({
     targetProfile: finalTargetProfile,
@@ -2243,7 +2280,7 @@ export function resolveIaiStrike(input: {
   // Iaijutsu dá -1 na defesa do alvo por surpresa
   const result = prepareAttackResolution({
     ...input,
-    actor: { ...input.actor, character: { ...input.actor.character!, sheetProfile: nextActorProfile.combat } as any },
+    actor: { ...input.actor, character: { ...input.actor.character!, sheetProfile: nextActorProfile } },
     promptPlayerDefense: false,
     iaiStrike: true
   });
