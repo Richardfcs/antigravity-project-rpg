@@ -109,8 +109,8 @@ export function CombatantStatusCard({
       className={cn(
         "group rounded-2xl border transition-all duration-300 overflow-hidden",
         isActive 
-          ? "border-amber-500/40 bg-amber-500/5 shadow-[0_0_20px_rgba(245,158,11,0.05)]" 
-          : "border-white/5 bg-white/[0.02] hover:border-white/10"
+          ? "border-[color:var(--accent)]/40 bg-[color:var(--accent)]/5 shadow-[0_0_20px_rgba(212,168,70,0.05)]" 
+          : "border-[color:var(--border-panel)] bg-[color:var(--bg-input)] hover:border-[color:var(--ink-3)]"
       )}
     >
       {/* Header Compacto */}
@@ -120,8 +120,8 @@ export function CombatantStatusCard({
       >
         {/* Foto / Avatar */}
         <div className={cn(
-          "h-10 w-10 shrink-0 rounded-full border bg-black/40 flex items-center justify-center text-xs font-black transition-all",
-          isActive ? "border-amber-500/50 text-amber-500 scale-110 shadow-[0_0_12px_rgba(245,158,11,0.2)]" : "border-white/10 text-white/40"
+          "h-10 w-10 shrink-0 rounded-full border bg-[color:var(--bg-deep)]/40 flex items-center justify-center text-xs font-black transition-all",
+          isActive ? "border-[color:var(--accent)]/50 text-[color:var(--accent)] scale-110 shadow-[0_0_12px_rgba(212,168,70,0.2)]" : "border-[color:var(--border-panel)] text-[color:var(--ink-3)]"
         )}>
           {entry.asset?.secureUrl ? (
             <img src={entry.asset.secureUrl} alt={entry.label} className="h-full w-full rounded-full object-cover" />
@@ -135,7 +135,7 @@ export function CombatantStatusCard({
           <div className="flex items-center justify-between gap-2">
             <h4 className={cn(
               "text-[11px] font-black uppercase tracking-widest truncate",
-              isActive ? "text-amber-100" : "text-white/60"
+              isActive ? "text-[color:var(--accent)]" : "text-[color:var(--ink-2)]"
             )}>
               {entry.label}
             </h4>
@@ -144,7 +144,7 @@ export function CombatantStatusCard({
                 e.stopPropagation();
                 setIsExpanded(!isExpanded);
               }}
-              className="text-white/20 hover:text-white transition-colors"
+              className="text-[color:var(--ink-3)] hover:text-[color:var(--ink-1)] transition-colors"
             >
               {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
@@ -153,7 +153,7 @@ export function CombatantStatusCard({
           <div className="mt-2 grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-tighter">
-                <span className="text-rose-400 flex items-center gap-1">
+                <span className="text-[color:var(--red-accent)] flex items-center gap-1">
                   <HeartPulse size={8} /> PV {localHp}/{hpMax}
                 </span>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -163,14 +163,14 @@ export function CombatantStatusCard({
               </div>
               <div className="h-1 w-full rounded-full bg-rose-950/40 overflow-hidden">
                 <div 
-                  className={cn("h-full transition-all duration-300", localHp < 0 ? "bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.4)]" : "bg-rose-500")} 
+                  className={cn("h-full transition-all duration-300", localHp < 0 ? "bg-[color:var(--red-blood)] shadow-[0_0_8px_rgba(225,29,72,0.4)]" : "bg-[color:var(--red-accent)]")} 
                   style={{ width: `${hpPercent}%` }}
                 />
               </div>
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-tighter">
-                <span className="text-amber-400 flex items-center gap-1">
+                <span className="text-[color:var(--accent)] flex items-center gap-1">
                   <MoonStar size={8} /> PF {localFp}/{fpMax}
                 </span>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -180,7 +180,7 @@ export function CombatantStatusCard({
               </div>
               <div className="h-1 w-full rounded-full bg-amber-950/40 overflow-hidden">
                 <div 
-                  className="h-full bg-amber-500 transition-all duration-300" 
+                  className="h-full bg-[color:var(--accent)] transition-all duration-300" 
                   style={{ width: `${fpPercent}%` }}
                 />
               </div>
@@ -200,23 +200,23 @@ export function CombatantStatusCard({
               { label: "Esq", val: profile.defenses.dodge },
               { label: "Ap", val: profile.defenses.parry }
             ].map(stat => (
-              <div key={stat.label} className="rounded-lg bg-white/[0.03] p-1 text-center">
-                <p className="text-[7px] font-black text-white/20 uppercase">{stat.label}</p>
-                <p className="text-[10px] font-bold text-white">{stat.val}</p>
+              <div key={stat.label} className="rounded-lg bg-[color:var(--ink-1)]/[0.03] p-1 text-center">
+                <p className="text-[7px] font-black text-[color:var(--ink-3)] uppercase">{stat.label}</p>
+                <p className="text-[10px] font-bold text-[color:var(--ink-1)]">{stat.val}</p>
               </div>
             ))}
           </div>
 
           {/* Armas e Estilo */}
           <div className="space-y-2">
-            <div className="flex items-center gap-1 text-[8px] font-black text-white/30 uppercase tracking-widest">
+            <div className="flex items-center gap-1 text-[8px] font-black text-[color:var(--ink-3)] uppercase tracking-widest">
               <Swords size={10} /> Armas & Estilo
             </div>
             <div className="space-y-1">
               {profile.weapons.slice(0, 2).map(weapon => (
-                <div key={weapon.id} className="flex items-center justify-between rounded-lg bg-white/[0.03] px-2 py-1">
-                  <span className="text-[9px] font-bold text-white/80 truncate">{weapon.name}</span>
-                  <span className="text-[9px] font-mono text-amber-500/60">{weapon.rawDamage || "Dano"}</span>
+                <div key={weapon.id} className="flex items-center justify-between rounded-lg bg-[color:var(--ink-1)]/[0.03] px-2 py-1">
+                  <span className="text-[9px] font-bold text-[color:var(--ink-2)] truncate">{weapon.name}</span>
+                  <span className="text-[9px] font-mono text-[color:var(--accent)]/60">{weapon.rawDamage || "Dano"}</span>
                 </div>
               ))}
               <div className="text-[8px] text-white/40 italic truncate">
@@ -227,7 +227,7 @@ export function CombatantStatusCard({
 
           {/* Condições GURPS Rápidas */}
           <div className="space-y-2">
-            <div className="flex items-center gap-1 text-[8px] font-black text-white/30 uppercase tracking-widest">
+            <div className="flex items-center gap-1 text-[8px] font-black text-[color:var(--ink-3)] uppercase tracking-widest">
               <ShieldAlert size={10} /> Gerenciar Status (GM)
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -248,8 +248,8 @@ export function CombatantStatusCard({
                     className={cn(
                       "px-2 py-0.5 rounded-md text-[8px] font-black uppercase transition-all border",
                       isSet 
-                        ? "bg-rose-500/20 border-rose-500/40 text-rose-300" 
-                        : "bg-white/[0.03] border-white/5 text-white/30 hover:border-white/20 hover:text-white/60"
+                        ? "bg-[color:var(--red-accent)]/20 border-[color:var(--red-accent)]/40 text-[color:var(--red-accent)]" 
+                        : "bg-[color:var(--bg-input)] border-[color:var(--border-panel)] text-[color:var(--ink-3)] hover:border-[color:var(--ink-2)] hover:text-[color:var(--ink-1)]"
                     )}
                   >
                     {status.label}
@@ -262,7 +262,7 @@ export function CombatantStatusCard({
           {/* Condições da Ficha */}
           {profile.conditions && profile.conditions.length > 0 && (
             <div className="space-y-2">
-              <div className="flex items-center gap-1 text-[8px] font-black text-white/30 uppercase tracking-widest">
+              <div className="flex items-center gap-1 text-[8px] font-black text-[color:var(--ink-3)] uppercase tracking-widest">
                 <Sparkles size={10} /> Da Ficha
               </div>
               <div className="flex flex-wrap gap-1">

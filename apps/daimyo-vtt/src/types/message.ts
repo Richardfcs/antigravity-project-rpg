@@ -1,4 +1,5 @@
-export type SessionMessageKind = "chat" | "roll" | "system";
+export type SessionMessageKind = "chat" | "roll" | "system" | "oracle" | "master-log";
+
 
 export interface SessionMessageRecord {
   id: string;
@@ -8,6 +9,7 @@ export interface SessionMessageRecord {
   kind: SessionMessageKind;
   body: string;
   payload: Record<string, unknown>;
+  isPrivate: boolean;
   createdAt: string;
 }
 

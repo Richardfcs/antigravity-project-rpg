@@ -434,26 +434,26 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[28px] border border-amber-400/20 bg-amber-400/5 p-6 backdrop-blur-xl">
+      <section className="rounded-[28px] border border-[color:var(--gold)]/20 bg-[color:var(--gold)]/5 p-6 backdrop-blur-xl">
         <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-400/20 bg-black/40 text-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.1)]">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[color:var(--gold)]/20 bg-[var(--bg-panel)]/40 text-[color:var(--gold)] shadow-[0_0_20px_rgba(var(--gold-rgb),0.1)]">
             <ShieldAlert size={24} />
           </div>
           <div>
-            <h3 className="text-lg font-bold tracking-tight text-white uppercase">Santuário de Controle do Domínio</h3>
-            <p className="mt-2 text-sm leading-relaxed text-amber-100/60">
+            <h3 className="text-lg font-bold tracking-tight text-[color:var(--text-primary)] uppercase">Santuário de Controle do Domínio</h3>
+            <p className="mt-2 text-sm leading-relaxed text-[color:var(--gold)]/60">
               Esta área é restrita aos arquitetos da mesa. Aqui, o mestre manipula as fundações da realidade. As operações de snapshot garantem a preservação do legado, enquanto as limpezas purificam o palco tático e narrativo.
             </p>
           </div>
         </div>
       </section>
 
-      <section className="rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
+      <section className="rounded-[28px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
         <header className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between mb-6">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Registro de Continuidade</p>
-            <h3 className="mt-2 text-2xl font-bold tracking-tight text-white">Snapshot do Universo</h3>
-            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/40">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--text-muted)]">Registro de Continuidade</p>
+            <h3 className="mt-2 text-2xl font-bold tracking-tight text-[color:var(--text-primary)]">Snapshot do Universo</h3>
+            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-[color:var(--text-secondary)]">
               O Snapshot captura toda a essência da mesa — do elenco às memórias — em um manifesto digital. Use para backup preventivo ou para transplantar a campanha para novas instâncias.
             </p>
           </div>
@@ -463,7 +463,7 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
               type="button"
               onClick={handleExportSnapshot}
               disabled={!canManage}
-              className="inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-amber-100 transition hover:bg-amber-400/20 shadow-[0_0_20px_rgba(251,191,36,0.1)] disabled:opacity-20"
+              className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/30 bg-[color:var(--mist)] px-6 py-3 text-[10px] font-black uppercase tracking-widest text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 shadow-[0_0_20px_rgba(var(--gold-rgb),0.1)] disabled:opacity-20"
             >
               <Download size={14} />
               Exportar Snapshot
@@ -472,7 +472,7 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={!canManage}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white/60 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)] px-6 py-3 text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)] transition hover:bg-[var(--bg-card)]/80 hover:text-[color:var(--text-primary)] disabled:opacity-20"
             >
               <Upload size={14} />
               Carregar Arquivo
@@ -489,11 +489,11 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
           </div>
         </header>
 
-        <div className="rounded-[24px] border border-white/5 bg-black/40 p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-white/5">
+        <div className="rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-card)]/40 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-[var(--border-panel)]">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-1">Status de Restauração</p>
-              <p className="text-sm font-bold text-white">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)] mb-1">Status de Restauração</p>
+              <p className="text-sm font-bold text-[color:var(--text-primary)]">
                 {restorePreview ? `Pronto para reerguer: ${restorePreview.sessionCode}` : "Aguardando manifesto de snapshot..."}
               </p>
             </div>
@@ -524,17 +524,17 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
                   { label: "Notas", value: restorePreview.notes.length },
                   { label: "Memórias", value: restorePreview.memoryEvents.length }
                 ].map((item, i) => (
-                  <div key={i} className="rounded-xl border border-white/5 bg-white/[0.02] p-3 text-center">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/20 mb-1">{item.label}</p>
-                    <p className="text-lg font-bold text-white">{item.value}</p>
+                  <div key={i} className="rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)]/20 p-3 text-center">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)] mb-1">{item.label}</p>
+                    <p className="text-lg font-bold text-[color:var(--text-primary)]">{item.value}</p>
                   </div>
                 ))}
-                <div className="col-span-full mt-2 pt-4 border-t border-white/5 text-center">
-                  <p className="text-[10px] font-medium text-white/20">Manifesto gerado em: {restorePreview.exportedAt}</p>
+                <div className="col-span-full mt-2 pt-4 border-t border-[var(--border-panel)] text-center">
+                  <p className="text-[10px] font-medium text-[color:var(--text-muted)]">Manifesto gerado em: {restorePreview.exportedAt}</p>
                 </div>
               </>
             ) : (
-              <div className="col-span-full py-8 text-center text-xs font-medium text-white/10 italic">
+              <div className="col-span-full py-8 text-center text-xs font-medium text-[color:var(--text-muted)] italic">
                 Nenhum dado de snapshot disponível para visualização.
               </div>
             )}
@@ -546,16 +546,16 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
         {datasets.map((dataset) => (
           <article
             key={dataset.id}
-            className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03] p-5 transition-all hover:border-amber-400/20 hover:bg-white/[0.05]"
+            className="group relative overflow-hidden rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-card)]/30 p-5 transition-all hover:border-[color:var(--gold)]/20 hover:bg-[var(--bg-card)]/50"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <h4 className="text-base font-bold text-white mb-1 group-hover:text-amber-400 transition-colors">{dataset.title}</h4>
-                <p className="text-xs leading-relaxed text-white/40">
+                <h4 className="text-base font-bold text-[color:var(--text-primary)] mb-1 group-hover:text-[color:var(--gold)] transition-colors">{dataset.title}</h4>
+                <p className="text-xs leading-relaxed text-[color:var(--text-secondary)]">
                   {dataset.description}
                 </p>
               </div>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/5 text-amber-400/60">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--gold)]/60">
                 <AlertTriangle size={16} />
               </div>
             </div>
@@ -569,7 +569,7 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
                     [dataset.id]: event.target.value
                   }))
                 }
-                className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.06] placeholder:text-white/10"
+                className="w-full rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-2.5 text-xs text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35 focus:bg-[var(--bg-card)] placeholder:text-[color:var(--text-muted)]"
                 placeholder={`Confirmar digitando "${dataset.label}"`}
               />
               <button
@@ -592,12 +592,12 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
 
       <section className="rounded-[28px] border border-rose-500/30 bg-rose-500/5 p-6 backdrop-blur-xl">
         <header className="flex items-start gap-4 mb-6">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-rose-500/30 bg-black/60 text-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.2)]">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-rose-500/30 bg-[var(--bg-panel)]/60 text-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.2)]">
             <AlertTriangle size={28} />
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500/50">Operação de Colapso Total</p>
-            <h3 className="mt-1 text-2xl font-bold tracking-tight text-white uppercase">Aniquilação da Realidade</h3>
+            <h3 className="mt-1 text-2xl font-bold tracking-tight text-[color:var(--text-primary)] uppercase">Aniquilação da Realidade</h3>
             <p className="mt-2 text-sm leading-relaxed text-rose-100/40 italic">
               Esta é a ação final. Todos os registros operacionais — cenas, fichas, mapas e memórias — serão reduzidos a cinzas. A sessão permanece, mas o mundo será reiniciado.
             </p>
@@ -627,8 +627,8 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
               className={cn(
                 "flex items-center gap-4 cursor-pointer rounded-2xl border px-5 py-4 transition-all",
                 checked 
-                  ? "border-rose-500/40 bg-rose-500/10 text-white" 
-                  : "border-white/5 bg-black/20 text-white/40 hover:border-white/10 hover:bg-black/40"
+                  ? "border-rose-500/40 bg-rose-500/10 text-[color:var(--text-primary)]" 
+                  : "border-[var(--border-panel)] bg-[var(--bg-panel)]/20 text-[color:var(--text-muted)] hover:border-[var(--border-panel)]/40 hover:bg-[var(--bg-panel)]/40"
               )}
             >
               <div className={cn(
@@ -656,7 +656,7 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
             <input
               value={resetCode}
               onChange={(event) => setResetCode(event.target.value)}
-              className="w-full rounded-xl border border-rose-500/20 bg-black/40 px-5 py-4 text-sm font-bold text-rose-500 outline-none transition focus:border-rose-500/50 focus:bg-black/60 placeholder:text-rose-900"
+              className="w-full rounded-xl border border-rose-500/20 bg-[var(--bg-panel)]/40 px-5 py-4 text-sm font-bold text-rose-500 outline-none transition focus:border-rose-500/50 focus:bg-[var(--bg-panel)]/60 placeholder:text-rose-900"
               placeholder={`Digite o código da sessão: ${sessionCode}`}
             />
           </div>
@@ -676,12 +676,12 @@ export function AdminPanel({ sessionCode, viewer, infra }: AdminPanelProps) {
         </div>
       </section>
 
-      <div className="pt-2 border-t border-white/5">
+      <div className="pt-2 border-t border-[var(--border-panel)]">
         <DiagnosticsPanel infra={infra} />
       </div>
 
       {feedback && (
-        <div className="animate-in fade-in slide-in-from-bottom-2 rounded-2xl border border-amber-400/20 bg-amber-400/5 px-6 py-4 text-xs font-medium text-amber-200/80">
+        <div className="animate-in fade-in slide-in-from-bottom-2 rounded-2xl border border-[color:var(--gold)]/20 bg-[color:var(--mist)] px-6 py-4 text-xs font-medium text-[color:var(--gold)]">
           {feedback}
         </div>
       )}

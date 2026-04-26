@@ -16,6 +16,7 @@ interface MessageRowPayload {
   kind: SessionMessageKind;
   body: string;
   payload: Record<string, unknown> | null;
+  is_private: boolean;
   created_at: string;
 }
 
@@ -34,6 +35,7 @@ function mapMessagePayload(row: MessageRowPayload): SessionMessageRecord {
     kind: row.kind,
     body: row.body,
     payload: row.payload ?? {},
+    isPrivate: row.is_private,
     createdAt: row.created_at
   };
 }
@@ -72,7 +74,7 @@ export function useSessionChat({
       reconcile: async () => {
         const { data, error } = await client
           .from("session_messages")
-          .select("id,session_id,participant_id,display_name,kind,body,payload,created_at")
+          .select("id,session_id,participant_id,display_name,kind,body,payload,is_private,created_at")
           .eq("session_id", sessionId)
           .order("created_at", { ascending: false })
           .limit(SESSION_MESSAGE_WINDOW);

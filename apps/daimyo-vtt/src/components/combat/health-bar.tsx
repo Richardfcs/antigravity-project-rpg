@@ -52,12 +52,12 @@ export function HealthBar({
           alignItems: "center",
           fontSize: compact ? "9px" : "10px",
           fontWeight: 600,
-          color: "rgba(255,255,255,0.6)",
+          color: "var(--text-secondary)",
           letterSpacing: "0.04em",
           textTransform: "uppercase"
         }}>
           <span>{label}</span>
-          <span style={{ color: "rgba(255,255,255,0.85)", fontVariantNumeric: "tabular-nums" }}>
+          <span style={{ color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
             {current}/{max}
           </span>
         </div>
@@ -65,7 +65,7 @@ export function HealthBar({
       <div style={{
         width: "100%",
         height,
-        backgroundColor: "rgba(255,255,255,0.06)",
+        backgroundColor: "var(--mist)",
         borderRadius: "4px",
         overflow: "hidden",
         position: "relative"
@@ -88,7 +88,7 @@ export function HealthBar({
               top: 0,
               bottom: 0,
               width: "1px",
-              backgroundColor: "rgba(255,255,255,0.15)"
+              backgroundColor: "var(--border-panel)"
             }}
             title={t.label}
           />

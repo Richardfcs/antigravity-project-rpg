@@ -10,31 +10,41 @@ interface AssetAvatarProps {
   className?: string;
 }
 
+function cloudinaryThumb(url: string | null | undefined, size = 128): string | undefined {
+  if (!url) return undefined;
+  if (!url.includes("res.cloudinary.com")) return url;
+  return url.replace("/upload/", `/upload/c_fill,w_${size},h_${size},q_auto,f_auto/`);
+}
+
 export function AssetAvatar({
   imageUrl,
   label,
   kind,
   className
 }: AssetAvatarProps) {
-  const fitClass =
-    kind === "background" || kind === "map"
-      ? "bg-cover bg-center"
-      : kind === "token"
-        ? "bg-cover bg-[center_18%]"
-        : "bg-cover bg-top";
-
   if (imageUrl) {
+    const objectFitClass =
+      kind === "background" || kind === "map"
+        ? "object-cover object-center"
+        : kind === "token"
+          ? "object-cover object-[center_18%]"
+          : "object-cover object-top";
+
     return (
       <div
         className={cn(
           "overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]",
-          fitClass,
           className
         )}
-        role="img"
-        aria-label={label}
-        style={{ backgroundImage: `url(${imageUrl})` }}
-      />
+      >
+        <img
+          src={cloudinaryThumb(imageUrl, 128)}
+          alt={label}
+          loading="lazy"
+          decoding="async"
+          className={cn("h-full w-full", objectFitClass)}
+        />
+      </div>
     );
   }
 

@@ -548,7 +548,7 @@ export function MasterShell({
   const shouldRenderInlineStage =
     session.presentationMode !== "immersive" || resolvedImmersiveMinimized;
   const libraryWorkspaceActive =
-    !isMobile && masterMode === "prep" && masterWorkspace === "library";
+    masterMode === "prep" && masterWorkspace === "library";
   const resolvedDrawerSection = masterDrawer === "closed" ? activeSection : masterDrawer;
   const drawerTitleMap: Record<ExplorerSection, string> = {
     scenes: "Biblioteca",
@@ -561,7 +561,8 @@ export function MasterShell({
     effects: "Biblioteca",
     admin: "Biblioteca",
     audio: "Biblioteca",
-    chat: "Biblioteca"
+    chat: "Biblioteca",
+    oracle: "Biblioteca"
   };
   const drawerVisible = statusDrawerOpen || masterDrawer !== "closed";
 
@@ -599,14 +600,16 @@ export function MasterShell({
   };
 
   const handleToggleLibraryWorkspace = () => {
-    if (isMobile) {
-      handleOpenDrawer();
-      return;
-    }
-
     setStatusDrawerOpen(false);
     setMasterDrawer("closed");
-    setMasterWorkspace((masterWorkspace === "library" ? "stage" : "library") as MasterWorkspace);
+
+    if (masterWorkspace === "library" && masterMode === "prep") {
+      setMasterMode("live");
+      setMasterWorkspace("stage");
+    } else {
+      setMasterMode("prep");
+      setMasterWorkspace("library");
+    }
   };
 
   const handleOpenDrawer = (section?: ExplorerSection) => {
@@ -617,6 +620,14 @@ export function MasterShell({
       setStatusDrawerOpen(false);
       setMasterDrawer("closed");
       setMasterWorkspace("library");
+      return;
+    }
+
+    if (isMobile && masterMode === "prep") {
+      setStatusDrawerOpen(false);
+      setMasterDrawer("closed");
+      setMasterWorkspace("library");
+      setActiveSection(targetSection);
       return;
     }
 
@@ -692,7 +703,12 @@ export function MasterShell({
   );
 
   const renderLibraryWorkspace = () => (
-    <section className="surface-panel flex h-[calc(100vh-10rem)] min-h-[640px] max-h-[calc(100vh-10rem)] min-w-0 flex-col overflow-hidden">
+    <section className={cn(
+      "surface-panel flex min-w-0 flex-col overflow-hidden",
+      isMobile 
+        ? "h-[calc(100vh-8rem)] min-h-0 max-h-[calc(100vh-8rem)]" 
+        : "h-[calc(100vh-10rem)] min-h-[640px] max-h-[calc(100vh-10rem)]"
+    )}>
       <div className="flex items-center justify-between gap-3 border-b border-white/8 px-3 py-2.5">
         <div className="min-w-0">
           <p className="section-label">Preparacao</p>
@@ -1069,7 +1085,7 @@ export function MasterShell({
             librarySummary={librarySummary}
             masterMode={masterMode}
             supportOpen={supportTrayOpen}
-            libraryWorkspaceActive={libraryWorkspaceActive || (isMobile && masterDrawer !== "closed")}
+            libraryWorkspaceActive={libraryWorkspaceActive}
             onMasterModeChange={handleMasterModeChange}
             onStageModeChange={handleStageModeChange}
             onToggleLibraryWorkspace={handleToggleLibraryWorkspace}

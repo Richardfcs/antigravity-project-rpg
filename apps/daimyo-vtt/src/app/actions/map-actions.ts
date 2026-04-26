@@ -19,6 +19,7 @@ import {
   updateMapTokenEntry,
   updateMapTokenPosition
 } from "@/lib/maps/repository";
+import { createSessionMessage } from "@/lib/chat/repository";
 import { requireSessionViewer } from "@/lib/session/access";
 import type {
   MapTokenRecord,
@@ -253,10 +254,20 @@ export async function activateMapAction(input: {
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
     const map = await activateSessionMap({
       sessionId: session.id,
       mapId: input.mapId
+    });
+
+    // Log Automático do Mestre
+    await createSessionMessage({
+      sessionId: session.id,
+      participantId: viewer.participantId,
+      displayName: viewer.displayName,
+      kind: "master-log",
+      body: `Mudou o campo tatico para: ${map.name}`,
+      isPrivate: true
     });
 
     return { ok: true, map };
@@ -282,7 +293,7 @@ export async function addTokenToMapAction(input: {
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
     const [map, character] = await Promise.all([
       findSessionMapById(input.mapId),
       findSessionCharacterById(input.characterId)
@@ -316,6 +327,16 @@ export async function addTokenToMapAction(input: {
       y: input.y
     });
 
+    // Log Automático do Mestre
+    await createSessionMessage({
+      sessionId: session.id,
+      participantId: viewer.participantId,
+      displayName: viewer.displayName,
+      kind: "master-log",
+      body: `Adicionou token ao mapa: ${character.name}`,
+      isPrivate: true
+    });
+
     return { ok: true, token };
   } catch (error) {
     return {
@@ -339,7 +360,7 @@ export async function addAssetNpcToMapAction(input: {
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
     const [map, asset] = await Promise.all([
       findSessionMapById(input.mapId),
       findSessionAssetById(input.assetId)
@@ -388,6 +409,16 @@ export async function addAssetNpcToMapAction(input: {
       statusEffects: input.statusEffects,
       x: input.x,
       y: input.y
+    });
+
+    // Log Automático do Mestre
+    await createSessionMessage({
+      sessionId: session.id,
+      participantId: viewer.participantId,
+      displayName: viewer.displayName,
+      kind: "master-log",
+      body: `Puxou NPC para o mapa: ${character.name}`,
+      isPrivate: true
     });
 
     return { ok: true, token };

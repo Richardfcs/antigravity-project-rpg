@@ -28,7 +28,8 @@ export type CombatActionType =
   | "swap-technique"
   | "quick-contest"
   | "regular-contest"
-  | "do-nothing";
+  | "do-nothing"
+  | "iai-strike";
 
 export type AllOutAttackVariant = "determined" | "strong" | "double" | "long";
 export type AttackVariant = "standard" | "defensive" | "committed" | "deceptive";
@@ -221,7 +222,8 @@ export interface CombatDraftAction {
   actionType: CombatActionType;
   weaponId: string | null;
   weaponModeId: string | null;
-  techniqueId: string | null;
+  techniqueId?: string | null;
+  loadoutTechniqueIds?: string[];
   replaceTechniqueId?: string | null;
   hitLocation: CombatHitLocationId;
   modifiers: CombatTargetModifiers;

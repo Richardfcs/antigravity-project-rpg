@@ -1,3 +1,4 @@
+import dynamic from "next/dynamic";
 import {
   BookOpen,
   Compass,
@@ -9,23 +10,34 @@ import {
   Settings,
   Shield,
   Sparkles,
-  Users
+  Users,
+  ScrollText
 } from "lucide-react";
 
 import { CompactPanelHeader } from "@/components/layout/compact-panel-header";
 import { cn } from "@/lib/utils";
-import { AssetsPanel } from "./assets-panel";
-import { CharactersPanel } from "./characters-panel";
-import { AdminPanel } from "@/components/panels/admin-panel";
-import { AudioPanel } from "@/components/panels/audio-panel";
-import { AtlasPanel } from "@/components/panels/atlas-panel";
-import { ChatPanel } from "@/components/panels/chat-panel";
-import { CodexPanel } from "@/components/panels/codex-panel";
-import { DicePanel } from "@/components/panels/dice-panel";
-import { EffectsPanel } from "@/components/panels/effects-panel";
-import { MapsPanel } from "@/components/panels/maps-panel";
-import { NotesPanel } from "@/components/panels/notes-panel";
-import { ScenesPanel } from "@/components/panels/scenes-panel";
+
+const LoadingPlaceholder = () => (
+  <div className="flex h-32 w-full animate-pulse flex-col items-center justify-center gap-2 rounded-[28px] border border-[var(--border-panel)] bg-[var(--bg-input)]/50">
+    <div className="h-4 w-4 rounded-full border-2 border-[color:var(--gold)]/20 border-t-[color:var(--gold)] animate-spin" />
+    <span className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--text-muted)]">Carregando modulo...</span>
+  </div>
+);
+
+const AssetsPanel = dynamic(() => import("./assets-panel").then((m) => m.AssetsPanel), { loading: LoadingPlaceholder });
+const CharactersPanel = dynamic(() => import("./characters-panel").then((m) => m.CharactersPanel), { loading: LoadingPlaceholder });
+const AdminPanel = dynamic(() => import("@/components/panels/admin-panel").then((m) => m.AdminPanel), { loading: LoadingPlaceholder });
+const AudioPanel = dynamic(() => import("@/components/panels/audio-panel").then((m) => m.AudioPanel), { loading: LoadingPlaceholder });
+const AtlasPanel = dynamic(() => import("@/components/panels/atlas-panel").then((m) => m.AtlasPanel), { loading: LoadingPlaceholder });
+const ChatPanel = dynamic(() => import("@/components/panels/chat-panel").then((m) => m.ChatPanel), { loading: LoadingPlaceholder });
+const CodexPanel = dynamic(() => import("@/components/panels/codex-panel").then((m) => m.CodexPanel), { loading: LoadingPlaceholder });
+const DicePanel = dynamic(() => import("@/components/panels/dice-panel").then((m) => m.DicePanel), { loading: LoadingPlaceholder });
+const EffectsPanel = dynamic(() => import("@/components/panels/effects-panel").then((m) => m.EffectsPanel), { loading: LoadingPlaceholder });
+const MapsPanel = dynamic(() => import("@/components/panels/maps-panel").then((m) => m.MapsPanel), { loading: LoadingPlaceholder });
+const OraclePanel = dynamic(() => import("./oracle-panel").then((m) => m.OraclePanel), { loading: LoadingPlaceholder });
+const CampaignPanel = dynamic(() => import("./campaign-panel").then((m) => m.CampaignPanel), { loading: LoadingPlaceholder });
+const NotesPanel = dynamic(() => import("@/components/panels/notes-panel").then((m) => m.NotesPanel), { loading: LoadingPlaceholder });
+const ScenesPanel = dynamic(() => import("@/components/panels/scenes-panel").then((m) => m.ScenesPanel), { loading: LoadingPlaceholder });
 import type { InfraReadiness } from "@/types/infra";
 import type { OnlinePresence } from "@/types/presence";
 import type {
@@ -46,7 +58,7 @@ interface ExplorerPanelProps {
   embedded?: boolean;
 }
 
-const sectionMeta = {
+const sectionMeta: Record<ExplorerSection, { title: string; icon: any }> = {
   scenes: { title: "Cenas", icon: ImageIcon },
   maps: { title: "Campos", icon: Map },
   actors: { title: "Fichas", icon: Shield },
@@ -57,8 +69,10 @@ const sectionMeta = {
   effects: { title: "Efeitos", icon: Sparkles },
   admin: { title: "Dominio", icon: Settings },
   audio: { title: "Trilhas", icon: Music },
+  oracle: { title: "Oráculo", icon: Sparkles },
+  campaign: { title: "Campanha", icon: ScrollText },
   chat: { title: "Conversa", icon: MessageSquare }
-} as const;
+};
 
 export function ExplorerPanel({
   snapshot,
@@ -79,7 +93,7 @@ export function ExplorerPanel({
           label="Biblioteca"
           title={meta.title}
           actions={
-            <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+            <span className="hud-chip">
               sala {snapshot.code}
             </span>
           }
@@ -88,7 +102,12 @@ export function ExplorerPanel({
 
       <div className={cn("overflow-x-auto custom-scrollbar pb-1", embedded ? "" : "mt-2")}>
         <div className="flex w-max gap-2 px-1">
-          {Object.entries(sectionMeta).map(([key, value]) => {
+          {Object.entries(sectionMeta)
+            .filter(([key]) => {
+              if (key === "campaign" || key === "admin") return viewer?.role === "gm";
+              return true;
+            })
+            .map(([key, value]) => {
             const Icon = value.icon;
             const isActive = activeSection === key;
             return (
@@ -99,11 +118,11 @@ export function ExplorerPanel({
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] transition",
                   isActive
-                    ? "border-amber-300/30 bg-amber-300/12 text-amber-100 shadow-[0_0_12px_rgba(252,211,77,0.1)]"
-                    : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
+                    ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--text-primary)] shadow-[0_0_12px_rgba(var(--gold-rgb),0.1)]"
+                    : "border-[var(--border-panel)] bg-[var(--bg-input)] text-[color:var(--text-secondary)] hover:border-[var(--border-panel)]/80 hover:text-[color:var(--text-primary)]"
                 )}
               >
-                <Icon size={14} className={isActive ? "text-amber-200" : ""} />
+                <Icon size={14} className={isActive ? "text-[color:var(--gold)]" : ""} />
                 {value.title}
               </button>
             );
@@ -173,6 +192,14 @@ export function ExplorerPanel({
 
         {activeSection === "audio" && (
           <AudioPanel sessionCode={snapshot.code} viewer={viewer} />
+        )}
+
+        {activeSection === "oracle" && (
+          <OraclePanel sessionCode={snapshot.code} />
+        )}
+
+        {activeSection === "campaign" && (
+          <CampaignPanel sessionCode={snapshot.code} />
         )}
 
         {activeSection === "chat" && (

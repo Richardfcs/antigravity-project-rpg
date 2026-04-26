@@ -75,6 +75,12 @@ interface ScenesPanelProps {
 const backgroundKinds = new Set(["background", "ambient"]);
 const stageNpcKinds = new Set(["npc", "portrait", "token"]);
 
+function cloudinaryThumb(url: string | null | undefined, size = 512): string | undefined {
+  if (!url) return undefined;
+  if (!url.includes("res.cloudinary.com")) return url;
+  return url.replace("/upload/", `/upload/c_fill,w_${size},h_${size},q_auto,f_auto/`);
+}
+
 function layoutModeInfo(mode: SceneLayoutMode) {
   switch (mode) {
     case "line":
@@ -423,31 +429,31 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
-        <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+        <span className="hud-chip border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--text-primary)]">
           {orderedScenes.length} cenas
         </span>
-        <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
+        <span className="hud-chip border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--text-primary)]">
           ativa: {activeScene?.name ?? "nenhuma"}
         </span>
-        <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+        <span className="hud-chip border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--text-primary)]">
           {sceneCast.length} em cena
         </span>
       </div>
 
       {canManage && (
-        <section className="rounded-[18px] border border-white/10 bg-black/18 p-3">
+        <section className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Plus size={16} className="text-amber-100" />
+              <Plus size={16} className="text-[color:var(--gold)]" />
               <div>
-                <h3 className="text-sm font-semibold text-white">Nova cena</h3>
-                <p className="text-xs text-[color:var(--ink-3)]">Crie apenas quando precisar.</p>
+                <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Nova cena</h3>
+                <p className="text-xs text-[color:var(--text-muted)]">Crie apenas quando precisar.</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setIsCreateOpen((current) => !current)}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[color:var(--text-primary)] transition hover:border-[color:var(--gold)]/30"
             >
               {isCreateOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               {isCreateOpen ? "recolher" : "abrir"}
@@ -462,7 +468,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                   <input
                     value={sceneName}
                     onChange={(event) => setSceneName(event.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition focus:border-amber-300/35"
+                    className="mt-2 w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-2.5 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
                     placeholder="Portao Norte de Kamamura"
                   />
                 </label>
@@ -472,7 +478,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                   <input
                     value={moodLabel}
                     onChange={(event) => setMoodLabel(event.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition focus:border-amber-300/35"
+                    className="mt-2 w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-2.5 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
                     placeholder="lanternas frias + chuva curta"
                   />
                 </label>
@@ -482,10 +488,10 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                   <button
                     type="button"
                     onClick={() => setIsBackgroundPickerOpen(true)}
-                    className="mt-2 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                    className="mt-2 flex w-full items-center gap-3 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-2.5 text-sm transition hover:border-[color:var(--gold)]/25 cursor-pointer text-[color:var(--text-primary)]"
                   >
-                    <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                    <span className={backgroundAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                    <ImageIcon size={16} className="shrink-0 text-[color:var(--text-muted)]" />
+                    <span className={backgroundAssetId ? "truncate" : "text-[color:var(--text-muted)]"}
                     >
                       {backgroundAssetId
                         ? (backgroundAssets.find((a) => a.id === backgroundAssetId)?.label ?? "pintura")
@@ -516,8 +522,8 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                       className={cn(
                         "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition",
                         layoutMode === mode
-                          ? "border-amber-300/40 bg-amber-300/10 text-amber-100"
-                          : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
+                          ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] text-[color:var(--text-primary)]"
+                          : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-secondary)] hover:border-[color:var(--gold)]/20"
                       )}
                     >
                       <Icon size={12} />
@@ -529,11 +535,11 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 {backgroundAssets.length === 0 ? (
-                  <p className="text-xs text-[color:var(--ink-3)]">
+                  <p className="text-xs text-[color:var(--text-muted)]">
                     Ainda nao ha pinturas de cena enviadas.
                   </p>
                 ) : (
-                  <span className="text-xs text-[color:var(--ink-3)]">
+                  <span className="text-xs text-[color:var(--text-muted)]">
                     Fundo e elenco podem ser ajustados depois.
                   </span>
                 )}
@@ -542,7 +548,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                   type="button"
                   onClick={handleCreateScene}
                   disabled={isPending}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-2.5 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-[color:var(--gold)]/28 bg-[color:var(--mist)] px-4 py-2.5 text-sm font-semibold text-[color:var(--text-primary)] transition hover:border-[color:var(--gold)]/45 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {pendingKey === "create-scene" ? (
                     <LoaderCircle size={16} className="animate-spin" />
@@ -558,13 +564,13 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
       )}
 
       {feedback && (
-        <div className="rounded-[18px] border border-amber-300/18 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
+        <div className="rounded-[18px] border border-[color:var(--gold)]/18 bg-[color:var(--mist)] px-4 py-3 text-sm text-[color:var(--text-primary)]">
           {feedback}
         </div>
       )}
 
       <section className="flex flex-col space-y-3">
-        <div className="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-black/18 p-4 md:flex-row md:items-center">
+        <div className="flex flex-col gap-4 rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4 md:flex-row md:items-center">
           <div className="flex-shrink-0">
             <p className="section-label px-1">Biblioteca</p>
           </div>
@@ -575,7 +581,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                 setSearchQuery(event.target.value);
                 setVisibleCount(8);
               }}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
               placeholder="buscar cena ou clima..."
             />
             <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
@@ -586,13 +592,13 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
         </div>
 
         {orderedScenes.length === 0 && (
-          <div className="rounded-[18px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-6 text-sm text-[color:var(--ink-2)]">
+          <div className="rounded-[18px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-card)]/50 px-4 py-6 text-sm text-[color:var(--text-muted)]">
             Nenhuma cena criada ainda.
           </div>
         )}
 
         {orderedScenes.length > 0 && filteredScenes.length === 0 && (
-          <div className="rounded-[18px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-6 text-sm text-[color:var(--ink-2)]">
+          <div className="rounded-[18px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-card)]/50 px-4 py-6 text-sm text-[color:var(--text-muted)]">
             Nenhuma cena corresponde a essa busca.
           </div>
         )}
@@ -621,8 +627,8 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
               className={cn(
                 "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
                 scene.isActive
-                  ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
-                  : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                  ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] shadow-[0_0_40px_rgba(var(--gold-rgb),0.1)]"
+                  : "border-[var(--border-panel)] bg-[var(--bg-card)]/50 hover:border-[color:var(--gold)]/20 hover:bg-[var(--bg-card)]"
               )}
             >
               {/* Background Art Layer */}
@@ -632,14 +638,14 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                     <div 
                       className="absolute inset-0 bg-cover bg-center transition-opacity duration-700" 
                       style={{ 
-                        backgroundImage: `url(${background.secureUrl})`,
+                        backgroundImage: background.secureUrl ? `url(${cloudinaryThumb(background.secureUrl, 800)})` : undefined,
                         opacity: scene.isActive ? 0.35 : 0.2
                       }} 
                     />
-                    <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/40 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-[var(--bg-panel)]/90 via-[var(--bg-panel)]/40 to-transparent" />
                   </>
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-20" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--text-primary)]/5 to-transparent opacity-20" />
                 )}
               </div>
 
@@ -653,29 +659,35 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                       <div className={cn(
                         "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border overflow-hidden transition-all",
                         scene.isActive 
-                          ? "border-amber-400/30 bg-amber-400/10 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.2)]" 
-                          : "border-white/10 bg-white/5 text-white/40"
+                          ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)] shadow-[0_0_15px_rgba(var(--gold-rgb),0.2)]" 
+                          : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)]"
                       )}>
                         {background?.secureUrl ? (
-                          <img src={background.secureUrl} className="h-full w-full object-cover" alt="" />
+                          <img 
+                            src={cloudinaryThumb(background.secureUrl, 160)} 
+                            className="h-full w-full object-cover" 
+                            alt="" 
+                            loading="lazy"
+                            decoding="async"
+                          />
                         ) : (
                           <ImageIcon size={20} />
                         )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="truncate text-lg font-bold tracking-tight text-white">{scene.name}</p>
+                          <p className="truncate text-lg font-bold tracking-tight text-[color:var(--text-primary)]">{scene.name}</p>
                           {scene.isActive && (
-                            <span className="flex h-5 items-center rounded-full bg-amber-400 px-2 text-[9px] font-black uppercase tracking-widest text-black">
+                            <span className="flex h-5 items-center rounded-full bg-[color:var(--gold)] px-2 text-[9px] font-black uppercase tracking-widest text-[color:var(--bg-panel)]">
                               No Palco
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50">
-                          <Sparkles size={11} className={cn(scene.isActive ? "text-amber-400" : "text-white/40")} />
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-[color:var(--text-secondary)]">
+                          <Sparkles size={11} className={cn(scene.isActive ? "text-[color:var(--gold)]" : "text-[color:var(--text-muted)]")} />
                           <span className="truncate italic">{scene.moodLabel || "Clima neutro"}</span>
                         </p>
-                        <p className="mt-1 text-[10px] uppercase tracking-wider text-white/30">
+                        <p className="mt-1 text-[10px] uppercase tracking-wider text-[color:var(--text-muted)]">
                           {layoutModeInfo(scene.layoutMode).label} • {entries.length} personagens
                         </p>
                       </div>
@@ -687,17 +699,19 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                       {entries.slice(0, 4).map((entry) => (
                         <div 
                           key={entry.entry.id}
-                          className="h-8 w-8 rounded-full border-2 border-black ring-1 ring-white/10"
+                          className="h-8 w-8 rounded-full border-2 border-[var(--bg-panel)] ring-1 ring-[var(--border-panel)]"
                         >
                           <img 
-                            src={entry.asset?.secureUrl} 
+                            src={cloudinaryThumb(entry.asset?.secureUrl, 64)} 
                             className="h-full w-full rounded-full object-cover" 
                             alt={entry.character.name}
+                            loading="lazy"
+                            decoding="async"
                           />
                         </div>
                       ))}
                       {entries.length > 4 && (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black bg-white/10 text-[9px] font-bold text-white ring-1 ring-white/10">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[var(--bg-panel)] bg-[var(--bg-card)] text-[9px] font-bold text-[color:var(--text-primary)] ring-1 ring-[var(--border-panel)]">
                           +{entries.length - 4}
                         </div>
                       )}
@@ -714,8 +728,8 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                         className={cn(
                           "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-[10px] font-bold uppercase tracking-widest transition-all",
                           scene.isActive
-                            ? "border-amber-400/20 bg-amber-400/5 text-amber-400/40 cursor-default"
-                            : "border-white/10 bg-white/5 text-white hover:border-amber-400/50 hover:bg-amber-400/10"
+                            ? "border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--gold)]/40 cursor-default"
+                            : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-primary)] hover:border-[color:var(--gold)]/50 hover:bg-[color:var(--mist)]"
                         )}
                       >
                         {pendingKey === `activate:${scene.id}` ? (
@@ -767,8 +781,8 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                             className={cn(
                               "flex h-10 w-10 items-center justify-center rounded-xl border transition-all",
                               editingSceneId === scene.id
-                                ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
-                                : "border-white/10 bg-white/5 text-white/40 hover:text-white"
+                                ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] text-[color:var(--gold)]"
+                                : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
                             )}
                           >
                             <Settings2 size={16} />
@@ -776,16 +790,17 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                         </div>
                       )}
 
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all group-hover:border-amber-400/30 group-hover:text-amber-300">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)] transition-all group-hover:border-[color:var(--gold)]/30 group-hover:text-[color:var(--gold)]">
                         {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </div>
                     </div>
                   </div>
                 </div>
+              </div>
 
                 {isExpanded && (
                   <div 
-                    className="mt-5 space-y-5 rounded-[20px] border border-white/5 bg-black/40 p-4 backdrop-blur-xl"
+                    className="mt-5 space-y-5 rounded-[20px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-4 backdrop-blur-xl"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {editingSceneId === scene.id ? (
@@ -796,7 +811,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                             <input
                               value={draftName}
                               onChange={(e) => setDraftName(e.target.value)}
-                              className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-amber-400/40"
+                              className="mt-1.5 w-full rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)]/50 px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--gold)]/40"
                             />
                           </label>
                           <label className="block">
@@ -804,7 +819,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                             <input
                               value={draftMood}
                               onChange={(e) => setDraftMood(e.target.value)}
-                              className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-amber-400/40"
+                              className="mt-1.5 w-full rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)]/50 px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--gold)]/40"
                             />
                           </label>
                         </div>
@@ -823,7 +838,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                             <button
                               type="button"
                               onClick={() => setEditingSceneId(null)}
-                              className="inline-flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white/60 hover:text-white"
+                              className="inline-flex items-center gap-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-panel)] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]"
                             >
                               Cancelar
                             </button>
@@ -857,8 +872,8 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                             className={cn(
                               "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition",
                               scene.layoutMode === mode
-                                ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
-                                : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
+                                ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)]"
+                                : "border-[var(--border-panel)] bg-[var(--bg-input)]/50 text-[color:var(--text-muted)] hover:border-[color:var(--gold)]/20"
                             )}
                           >
                             {pendingKey === `layout:${scene.id}:${mode}` ? (
@@ -889,7 +904,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                     )}
 
                     {entries.length === 0 && (
-                      <div className="rounded-[16px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-4 text-sm text-[color:var(--ink-2)] backdrop-blur-sm">
+                      <div className="rounded-[16px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-input)]/30 px-4 py-4 text-sm text-[color:var(--text-muted)] backdrop-blur-sm">
                         Nenhum personagem no palco desta cena.
                       </div>
                     )}
@@ -902,8 +917,8 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                             className={cn(
                               "group relative flex items-center gap-2 rounded-full border pr-4 pl-1.5 py-1.5 transition-all",
                               entry.entry.isSpotlighted
-                                ? "border-rose-300/30 bg-rose-300/10"
-                                : "border-white/10 bg-black/40 hover:bg-white/5"
+                                ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] shadow-[0_0_15px_rgba(var(--gold-rgb),0.1)]"
+                                : "border-[var(--border-panel)] bg-[var(--bg-input)] hover:bg-[var(--bg-panel)]/40"
                             )}
                           >
                             <AssetAvatar
@@ -913,19 +928,19 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                               className="h-10 w-10 rounded-full"
                             />
                             <div className="flex flex-col">
-                              <span className="text-sm font-semibold text-white max-w-[100px] truncate">
+                              <span className="text-sm font-semibold text-[color:var(--text-primary)] max-w-[100px] truncate">
                                 {entry.character.name}
                               </span>
-                              <span className="text-[10px] text-white/50">
+                              <span className="text-[10px] text-[color:var(--text-muted)]">
                                 init {entry.character.initiative >= 0 ? `+${entry.character.initiative}` : entry.character.initiative}
                               </span>
                             </div>
 
                             {canManage && (
-                              <div className="absolute top-12 left-1/2 -translate-x-1/2 hidden flex-wrap gap-1 rounded-xl border border-white/10 bg-black/95 p-1.5 shadow-xl backdrop-blur-md group-hover:flex z-50 w-max">
-                                <button type="button" onClick={() => handleSpotlight(scene.id, entry.entry.id)} className="p-1.5 hover:bg-white/10 rounded-lg text-white" title="Destacar (Spotlight)"><Mic2 size={14}/></button>
-                                <button type="button" onClick={() => handleMoveEntry(entry.entry.id, "up")} className="p-1.5 hover:bg-white/10 rounded-lg text-white" title="Mover para Esquerda"><ArrowUp size={14}/></button>
-                                <button type="button" onClick={() => handleMoveEntry(entry.entry.id, "down")} className="p-1.5 hover:bg-white/10 rounded-lg text-white" title="Mover para Direita"><ArrowDown size={14}/></button>
+                              <div className="absolute top-12 left-1/2 -translate-x-1/2 hidden flex-wrap gap-1 rounded-xl border border-[var(--border-panel)] bg-[var(--bg-panel)]/95 p-1.5 shadow-xl backdrop-blur-md group-hover:flex z-50 w-max">
+                                <button type="button" onClick={() => handleSpotlight(scene.id, entry.entry.id)} className="p-1.5 hover:bg-[var(--mist)] rounded-lg text-[color:var(--text-primary)]" title="Destacar (Spotlight)"><Mic2 size={14}/></button>
+                                <button type="button" onClick={() => handleMoveEntry(entry.entry.id, "up")} className="p-1.5 hover:bg-[var(--mist)] rounded-lg text-[color:var(--text-primary)]" title="Mover para Esquerda"><ArrowUp size={14}/></button>
+                                <button type="button" onClick={() => handleMoveEntry(entry.entry.id, "down")} className="p-1.5 hover:bg-[var(--mist)] rounded-lg text-[color:var(--text-primary)]" title="Mover para Direita"><ArrowDown size={14}/></button>
                                 <button type="button" onClick={() => handleRemoveEntry(entry.entry.id)} className="p-1.5 hover:bg-rose-500/20 rounded-lg text-rose-400" title="Remover da Cena"><Trash2 size={14}/></button>
                               </div>
                             )}
@@ -936,19 +951,19 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
 
                   {canManage && (
                     <div className="grid gap-3 xl:grid-cols-2">
-                      <div className="rounded-[18px] border border-white/10 bg-black/18 p-4">
-                        <div className="flex items-center gap-2 text-white">
-                          <UsersRound size={16} className="text-amber-100" />
+                      <div className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)]/30 p-4">
+                        <div className="flex items-center gap-2 text-[color:var(--text-primary)]">
+                          <UsersRound size={16} className="text-[color:var(--gold)]" />
                           <p className="text-sm font-semibold">Escalar ficha existente</p>
                         </div>
                         <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
                           <button
                             type="button"
                             onClick={() => setCastPickerSceneId(scene.id)}
-                            className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                            className="flex w-full items-center gap-3 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm transition hover:border-[color:var(--gold)]/25 cursor-pointer"
                           >
-                            <UserRoundSearch size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                            <span className={castSelections[scene.id] ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                            <UserRoundSearch size={16} className="shrink-0 text-[color:var(--text-muted)]" />
+                            <span className={castSelections[scene.id] ? "text-[color:var(--text-primary)] truncate" : "text-[color:var(--text-muted)]"}
                             >
                               {castSelections[scene.id]
                                 ? (availableCharacters.find((c) => c.id === castSelections[scene.id])?.name ?? "personagem")
@@ -970,7 +985,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                             type="button"
                             onClick={() => handleAddCharacter(scene.id)}
                             disabled={isPending || availableCharacters.length === 0}
-                            className="inline-flex min-w-0 items-center justify-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-3 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex min-w-0 items-center justify-center gap-2 rounded-2xl border border-[color:var(--gold)]/30 bg-[color:var(--mist)] px-3 py-3 text-sm font-semibold text-[color:var(--gold)] transition hover:border-[color:var(--gold)]/50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {pendingKey === `add-character:${scene.id}` ? (
                               <LoaderCircle size={16} className="animate-spin" />
@@ -982,19 +997,19 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                         </div>
                       </div>
 
-                      <div className="rounded-[18px] border border-white/10 bg-black/18 p-4">
-                        <div className="flex items-center gap-2 text-white">
-                          <ImagePlus size={16} className="text-rose-100" />
+                      <div className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)]/30 p-4">
+                        <div className="flex items-center gap-2 text-[color:var(--text-primary)]">
+                          <ImagePlus size={16} className="text-rose-400" />
                           <p className="text-sm font-semibold">Trazer figura do arquivo</p>
                         </div>
                         <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
                           <button
                             type="button"
                             onClick={() => setAssetPickerSceneId(scene.id)}
-                            className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-rose-300/25 cursor-pointer"
+                            className="flex w-full items-center gap-3 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm transition hover:border-rose-300/25 cursor-pointer"
                           >
-                            <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                            <span className={assetSelections[scene.id] ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                            <ImageIcon size={16} className="shrink-0 text-[color:var(--text-muted)]" />
+                            <span className={assetSelections[scene.id] ? "text-[color:var(--text-primary)] truncate" : "text-[color:var(--text-muted)]"}
                             >
                               {assetSelections[scene.id]
                                 ? (availableNpcAssets.find((a) => a.id === assetSelections[scene.id])?.label ?? "figura")
@@ -1016,7 +1031,7 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                             type="button"
                             onClick={() => handleAddAssetNpc(scene.id)}
                             disabled={isPending || availableNpcAssets.length === 0}
-                            className="inline-flex min-w-0 items-center justify-center gap-2 rounded-2xl border border-rose-300/28 bg-rose-300/10 px-3 py-3 text-sm font-semibold text-rose-50 transition hover:border-rose-300/45 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex min-w-0 items-center justify-center gap-2 rounded-2xl border border-rose-300/28 bg-rose-300/10 px-3 py-3 text-sm font-semibold text-rose-400 transition hover:border-rose-300/45 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {pendingKey === `add-asset:${scene.id}` ? (
                               <LoaderCircle size={16} className="animate-spin" />
@@ -1028,28 +1043,28 @@ export function ScenesPanel({ sessionCode, viewer }: ScenesPanelProps) {
                         </div>
 
                         {availableCharacters.length === 0 && availableNpcAssets.length === 0 && (
-                          <p className="mt-3 text-xs leading-5 text-[color:var(--ink-3)]">
+                          <p className="mt-3 text-xs leading-5 text-[color:var(--text-muted)]">
                             Esta cena ja esta usando todas as fichas e figuras guardadas disponiveis.
                           </p>
                         )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </>
-              )}
+                    )}
+                  </>
+                )}
               </div>
             )}
-          </div>
-        </article>
-            );
-          })}
-        </div>
+            </article>
+          );
+        })}
+    </div>
+
 
         {filteredScenes.length > displayedScenes.length && (
           <button
             type="button"
             onClick={() => setVisibleCount((current) => current + 8)}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20"
+            className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)]/50 px-4 py-3 text-sm font-semibold text-[color:var(--text-primary)] transition hover:border-[color:var(--gold)]/20"
           >
             carregar mais cenas
           </button>

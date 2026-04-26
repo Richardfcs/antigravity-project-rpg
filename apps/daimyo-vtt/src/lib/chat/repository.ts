@@ -12,6 +12,7 @@ interface MessageRow {
   kind: SessionMessageKind;
   body: string;
   payload: Record<string, unknown> | null;
+  is_private: boolean;
   created_at: string;
 }
 
@@ -32,6 +33,7 @@ function mapMessageRow(row: MessageRow): SessionMessageRecord {
     kind: row.kind,
     body: row.body,
     payload: row.payload ?? {},
+    isPrivate: row.is_private,
     createdAt: row.created_at
   };
 }
@@ -73,6 +75,7 @@ export async function createSessionMessage(input: {
   kind: SessionMessageKind;
   body: string;
   payload?: Record<string, unknown>;
+  isPrivate?: boolean;
 }) {
   const displayName = sanitizeMessageBody(input.displayName).slice(0, 72);
   const body = sanitizeMessageBody(input.body);
@@ -88,7 +91,8 @@ export async function createSessionMessage(input: {
       display_name: displayName,
       kind: input.kind,
       body,
-      payload: input.payload ?? {}
+      payload: input.payload ?? {},
+      is_private: input.isPrivate ?? false
     })
     .select("*")
     .single<MessageRow>();
@@ -98,4 +102,13 @@ export async function createSessionMessage(input: {
   }
 
   return mapMessageRow(data);
+}
+
+export async function clearSessionMessages(sessionId: string) {
+  const { error } = await getMessageTable()
+    .delete()
+    .eq("session_id", sessionId);
+
+  if (error) throw error;
+  return { ok: true };
 }

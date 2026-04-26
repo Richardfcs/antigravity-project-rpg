@@ -21,7 +21,10 @@ import {
   resolveRegularContestRound,
   resolveHTCheck,
   resolveRapidStrike,
-  resolveDualWeaponAttack
+  resolveDualWeaponAttack,
+  resolveIaiStrike,
+  advanceTurnState,
+  type CombatTokenContext
 } from "@/lib/combat/engine";
 import type {
   AllOutAttackVariant,
@@ -241,6 +244,63 @@ async function persistCombatProfiles(input: {
   return Promise.all(updates);
 }
 
+async function performTurnAdvancement(session: any, flow: SessionCombatFlow, currentTokenId: string | null) {
+  const activeTokens = await listOrderedCombatTokens(session.id, session.activeMapId);
+  const currentIndex = activeTokens.findIndex((t) => t.id === currentTokenId);
+  
+  const nextIndex = currentIndex >= 0
+    ? (currentIndex + 1 >= activeTokens.length ? 0 : currentIndex + 1)
+    : 0;
+  
+  const nextTokenId = activeTokens[nextIndex]?.id ?? null;
+  let nextRound = session.combatRound;
+  
+  if (nextIndex === 0 && currentIndex > 0) {
+    const turnIndexToCheck = activeTokens.findIndex((t) => t.id === currentTokenId);
+    if (turnIndexToCheck >= 0 && turnIndexToCheck < activeTokens.length - 1) {
+      nextRound = session.combatRound + 1;
+    }
+  }
+
+  if (!nextTokenId) return null;
+
+  const currentActorState = flow.combatantStates[currentTokenId ?? ""];
+  if (currentActorState && currentActorState.isWaiting) {
+    const waitingResolution: CombatResolutionRecord = {
+      id: `combat-resolution-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      actorTokenId: currentTokenId ?? "",
+      targetTokenId: null,
+      actionType: "wait",
+      summary: `O combatente estava esperando e o gatilho '${currentActorState.waitTrigger}' ocorreu.`,
+      appliedConditions: []
+    };
+    flow.log = [...flow.log, waitingResolution].slice(-40);
+  }
+
+  const nextCombatantStates = { ...flow.combatantStates };
+  if (nextCombatantStates[nextTokenId]) {
+    nextCombatantStates[nextTokenId] = advanceTurnState(nextCombatantStates[nextTokenId]);
+  }
+
+  return await syncCombatSession({
+    sessionId: session.id,
+    combatEnabled: true,
+    combatRound: nextRound,
+    combatTurnIndex: nextIndex,
+    combatActiveTokenId: nextTokenId,
+    combatFlow: {
+      ...flow,
+      phase: "command",
+      activeAction: null,
+      pendingPrompt: null,
+      regularContest: null,
+      combatantStates: nextCombatantStates,
+      updatedAt: new Date().toISOString()
+    }
+  });
+}
+
 async function syncCombatSession(input: {
   sessionId: string;
   combatEnabled: boolean;
@@ -363,66 +423,11 @@ export async function advanceCombatTurnAction(input: {
       await consumePrivateEvent(flow.pendingPrompt.eventId).catch(() => undefined);
     }
 
-    const activeTokens = await listOrderedCombatTokens(session.id, session.activeMapId);
-    const isForward = input.direction === "next";
-    const currentIndex = activeTokens.findIndex((t) => t.id === currentTokenId);
-    const nextIndex = isForward
-      ? currentIndex >= 0
-        ? currentIndex + 1 >= activeTokens.length
-          ? 0
-          : currentIndex + 1
-        : 0
-      : currentIndex > 0
-        ? currentIndex - 1
-        : activeTokens.length - 1;
-    const nextTokenId = activeTokens[nextIndex]?.id ?? null;
+    const updatedSession = await performTurnAdvancement(session, flow, currentTokenId);
 
-    let nextRound = session.combatRound;
-    if (isForward && nextIndex === 0 && currentIndex > 0) {
-      const turnIndexToCheck = activeTokens.findIndex((t) => t.id === currentTokenId);
-      if (turnIndexToCheck >= 0 && turnIndexToCheck < activeTokens.length - 1) {
-        nextRound = session.combatRound + 1;
-      }
+    if (!updatedSession) {
+       throw new Error("Nenhum combatente encontrado.");
     }
-
-    if (!nextTokenId) {
-      throw new Error("Nenhum combatente encontrado.");
-    }
-
-    const nextCombatantStates: Record<string, CombatantTurnState> = {};
-
-    if (isForward) {
-      const currentActorState = flow.combatantStates[currentTokenId ?? ""];
-      if (currentActorState && currentActorState.isWaiting) {
-        const waitingResolution: CombatResolutionRecord = {
-          id: `combat-resolution-${Date.now()}`,
-          createdAt: new Date().toISOString(),
-          actorTokenId: currentTokenId ?? "",
-          targetTokenId: null,
-          actionType: "wait",
-          summary: `O combatente estava esperando e o gatilho '${currentActorState.waitTrigger}' ocorreu.`,
-          appliedConditions: []
-        };
-        flow.log = [...flow.log, waitingResolution].slice(-40);
-      }
-    }
-
-    const updatedSession = await syncCombatSession({
-      sessionId: session.id,
-      combatEnabled: true,
-      combatRound: nextRound,
-      combatTurnIndex: nextIndex,
-      combatActiveTokenId: nextTokenId,
-      combatFlow: {
-        ...flow,
-        phase: "command",
-        activeAction: null,
-        pendingPrompt: null,
-        regularContest: null,
-        combatantStates: nextCombatantStates,
-        updatedAt: new Date().toISOString()
-      }
-    });
 
     return {
       ok: true,
@@ -603,27 +608,37 @@ export async function executeCombatActionAction(input: {
         characterId: actor.character.id,
         sheetProfile: nextProfile
       });
+
+      const flow = cloneFlow(session.combatFlow);
+      const actorState = flow.combatantStates[actor.tokenId] ?? createEmptyCombatantTurnState();
+      
       const resolution: CombatResolutionRecord = {
         id: `combat-resolution-${Date.now()}`,
         createdAt: new Date().toISOString(),
         actorTokenId: actor.tokenId,
         targetTokenId: null,
         actionType: input.action.actionType,
-        summary: `${actor.label} troca uma tecnica equipada e permanece parado neste turno.`,
-        appliedConditions: []
+        summary: `${actor.label} troca o foco de suas tecnicas. Este esforco mental consome o turno e o impede de se defender ate o proximo turno.`,
+        appliedConditions: ["Sem Defesa"]
       };
-      const updatedSession = await syncCombatSession({
-        sessionId: session.id,
-        combatEnabled: true,
-        combatRound: session.combatRound,
-        combatTurnIndex: session.combatTurnIndex,
-        combatActiveTokenId: session.combatActiveTokenId,
-        combatFlow: appendResolution(session.combatFlow, resolution)
+
+      const nextActorState: CombatantTurnState = { 
+        ...actorState, 
+        hasActed: true, 
+        lastManeuver: "swap-technique",
+        noDefenseThisTurn: true
+      };
+
+      const intermediateFlow = appendResolution(flow, resolution, {
+        combatantStates: { ...flow.combatantStates, [actor.tokenId]: nextActorState }
       });
+
+      // Avançar o turno automaticamente como solicitado
+      const updatedSession = await performTurnAdvancement(session, intermediateFlow, actor.tokenId);
 
       return {
         ok: true,
-        session: updatedSession,
+        session: updatedSession ?? session,
         characters: [updatedActor],
         resolution
       };
@@ -631,6 +646,58 @@ export async function executeCombatActionAction(input: {
 
     const flow = cloneFlow(session.combatFlow);
     const actorState = flow.combatantStates[actor.tokenId] ?? createEmptyCombatantTurnState();
+
+    if (input.action.actionType === "iai-strike") {
+      const targetToken = await findMapTokenById(input.action.targetTokenId ?? "");
+      if (!targetToken) throw new Error("Alvo nao encontrado.");
+
+      const targetCharacter = await findSessionCharacterById(targetToken.characterId ?? "");
+      const targetContext: CombatTokenContext = {
+        tokenId: targetToken.id,
+        label: targetToken.label,
+        ownerParticipantId: targetCharacter?.ownerParticipantId ?? null,
+        character: targetCharacter
+      };
+
+      const result = resolveIaiStrike({
+        actor,
+        target: targetContext,
+        draftAction: input.action,
+        targetState: flow.combatantStates[targetContext.tokenId] ?? null
+      });
+
+      if (result.actorProfile) {
+        await persistCombatProfiles({
+          actorCharacterId: actor.character.id,
+          actorProfile: result.actorProfile,
+          targetCharacterId: targetContext.character?.id,
+          targetProfile: result.targetProfile
+        });
+      }
+
+      const nextActorState: CombatantTurnState = { 
+        ...actorState, 
+        hasActed: true, 
+        lastManeuver: "iai-strike" 
+      };
+
+      const updatedSession = await syncCombatSession({
+        sessionId: session.id,
+        combatEnabled: true,
+        combatRound: session.combatRound,
+        combatTurnIndex: session.combatTurnIndex,
+        combatActiveTokenId: session.combatActiveTokenId,
+        combatFlow: appendResolution(flow, result.resolution!, {
+          combatantStates: { ...flow.combatantStates, [actor.tokenId]: nextActorState }
+        })
+      });
+
+      return {
+        ok: true,
+        session: updatedSession,
+        resolution: result.resolution
+      };
+    }
 
     if (input.action.actionType === "move") {
       const resolution: CombatResolutionRecord = {

@@ -21,6 +21,7 @@ import {
   updateSessionScene,
   deleteSessionScene
 } from "@/lib/scenes/repository";
+import { createSessionMessage } from "@/lib/chat/repository";
 import { requireSessionViewer } from "@/lib/session/access";
 import type { SessionCharacterRecord } from "@/types/character";
 import type {
@@ -128,10 +129,20 @@ export async function activateSceneAction(input: {
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
     const scene = await activateSessionScene({
       sessionId: session.id,
       sceneId: input.sceneId
+    });
+
+    // Log Automático do Mestre
+    await createSessionMessage({
+      sessionId: session.id,
+      participantId: viewer.participantId,
+      displayName: viewer.displayName,
+      kind: "master-log",
+      body: `Ativou a cena: ${scene.name}`,
+      isPrivate: true
     });
 
     return { ok: true, scene };
@@ -316,7 +327,7 @@ export async function spotlightSceneCastAction(input: {
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode, "gm");
     const scene = await findSessionSceneById(input.sceneId);
 
     if (!scene || scene.sessionId !== session.id) {
@@ -327,6 +338,19 @@ export async function spotlightSceneCastAction(input: {
       sessionId: session.id,
       sceneId: input.sceneId,
       sceneCastId: input.sceneCastId
+    });
+
+    // Log Automático do Mestre
+    const entry = await findSceneCastById(input.sceneCastId);
+    const character = entry?.characterId ? await findSessionCharacterById(entry.characterId) : null;
+    
+    await createSessionMessage({
+      sessionId: session.id,
+      participantId: viewer.participantId,
+      displayName: viewer.displayName,
+      kind: "master-log",
+      body: `Deu destaque (spotlight) para: ${character?.name || "alguem"}`,
+      isPrivate: true
     });
 
     return { ok: true, sceneCast };

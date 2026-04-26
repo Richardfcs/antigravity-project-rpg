@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
@@ -108,55 +108,88 @@ export function AuthPanel({
     let isMounted = true;
 
     const syncAuthState = async () => {
-      const {
-        data: { session }
-      } = await client.auth.getSession();
+      try {
+        const {
+          data: { session },
+          error
+        } = await client.auth.getSession();
 
-      if (!isMounted) {
-        return;
+        if (error) {
+          // Se o token de atualizacao nao for encontrado ou for invalido,
+          // limpamos o estado local para evitar ruidos no console.
+          if (error.message.toLowerCase().includes("refresh token")) {
+            await client.auth.signOut({ scope: "local" });
+          }
+          throw error;
+        }
+
+        if (!isMounted) {
+          return;
+        }
+
+        const currentEmail = session?.user?.email ?? null;
+        setAuthEmail(currentEmail);
+        onAuthenticatedChangeRef.current?.({
+          isAuthenticated: Boolean(currentEmail),
+          email: currentEmail
+        });
+        if (currentEmail) {
+          setEmail(currentEmail);
+        }
+
+        if (!session?.access_token) {
+          setLinkedSessions([]);
+          setIsReady(true);
+          return;
+        }
+
+        const result = await listLinkedSessionsByAuthAction({
+          accessToken: session.access_token
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (result.ok) {
+          setLinkedSessions(result.sessions);
+          setFeedback(null);
+        } else {
+          setLinkedSessions([]);
+          setFeedback(result.message ?? "Falha ao carregar as mesas vinculadas.");
+        }
+      } catch (err) {
+        console.warn("Supabase Auth Sync:", err);
+        if (isMounted) {
+          setAuthEmail(null);
+          setLinkedSessions([]);
+          onAuthenticatedChangeRef.current?.({
+            isAuthenticated: false,
+            email: null
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setIsReady(true);
+        }
       }
-
-      const currentEmail = session?.user?.email ?? null;
-      setAuthEmail(currentEmail);
-      onAuthenticatedChangeRef.current?.({
-        isAuthenticated: Boolean(currentEmail),
-        email: currentEmail
-      });
-      if (currentEmail) {
-        setEmail(currentEmail);
-      }
-
-      if (!session?.access_token) {
-        setLinkedSessions([]);
-        setIsReady(true);
-        return;
-      }
-
-      const result = await listLinkedSessionsByAuthAction({
-        accessToken: session.access_token
-      });
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (result.ok) {
-        setLinkedSessions(result.sessions);
-        setFeedback(null);
-      } else {
-        setLinkedSessions([]);
-        setFeedback(result.message ?? "Falha ao carregar as mesas vinculadas.");
-      }
-
-      setIsReady(true);
     };
 
     void syncAuthState();
 
     const {
       data: { subscription }
-    } = client.auth.onAuthStateChange(() => {
-      void syncAuthState();
+    } = client.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setAuthEmail(null);
+        setLinkedSessions([]);
+        onAuthenticatedChangeRef.current?.({
+          isAuthenticated: false,
+          email: null
+        });
+      } else {
+        void syncAuthState();
+      }
     });
 
     return () => {

@@ -295,6 +295,7 @@ function normalizeDraftAction(raw: unknown): CombatDraftAction | null {
     weaponId: asString(candidate.weaponId),
     weaponModeId: asString(candidate.weaponModeId),
     techniqueId: asString(candidate.techniqueId),
+    loadoutTechniqueIds: Array.isArray(candidate.loadoutTechniqueIds) ? candidate.loadoutTechniqueIds.map(String) : undefined,
     replaceTechniqueId: asString(candidate.replaceTechniqueId),
     hitLocation: normalizeHitLocation(candidate.hitLocation),
     modifiers: normalizeTargetModifiers(candidate.modifiers),

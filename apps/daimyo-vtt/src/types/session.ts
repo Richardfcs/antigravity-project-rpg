@@ -17,7 +17,10 @@ export type ExplorerSection =
   | "effects"
   | "admin"
   | "audio"
+  | "oracle"
+  | "campaign"
   | "chat";
+
 export type DockTab = "chat" | "dice" | "audio" | "notes";
 export type PlayerBottomTab = "stage" | "wiki" | "sheet" | "chat" | "notes";
 export type PlayerOverlay = "none" | "sheet" | "wiki" | "chat" | "notes";

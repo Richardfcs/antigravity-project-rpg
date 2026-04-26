@@ -17,8 +17,12 @@ import {
   Shield,
   Trash2,
   Skull,
-  BookOpen
+  BookOpen,
+  UserPlus,
+  Tv
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useSessionStore } from "@/stores/session-store";
 
 import {
   adjustCharacterInitiativeAction,
@@ -28,6 +32,8 @@ import {
   updateCharacterProfileAction,
   applyBaseArchetypeAction
 } from "@/app/actions/character-actions";
+import { addCharacterToSceneAction } from "@/app/actions/scene-actions";
+import { addTokenToMapAction } from "@/app/actions/map-actions";
 import { loadBaseCatalogAction } from "@/app/actions/content-bridge-actions";
 import { AssetAvatar } from "@/components/media/asset-avatar";
 import { CharacterSheetModal } from "@/components/panels/character-sheet-modal";
@@ -108,6 +114,8 @@ function CharacterCard({
   flags?: LibraryEntryFlags;
   onToggleFlag?: (flag: keyof LibraryPreparedFlags) => void;
 }) {
+  const router = useRouter();
+  const snapshot = useSessionStore((state) => state.snapshot);
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
   const removeCharacter = useCharacterStore((state) => state.removeCharacter);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -173,38 +181,95 @@ function CharacterCard({
     });
   };
 
+  const handleQuickAdd = () => {
+    if (!snapshot) return;
+
+    if (snapshot.stageMode === "theater") {
+      if (!snapshot.activeSceneId) return;
+      setPendingKey("quick:scene");
+      startTransition(async () => {
+        await addCharacterToSceneAction({
+          sessionCode,
+          sceneId: snapshot.activeSceneId!,
+          characterId: character.id
+        });
+        router.refresh();
+        setPendingKey(null);
+      });
+    } else if (snapshot.stageMode === "tactical") {
+      if (!snapshot.activeMapId) return;
+      setPendingKey("quick:map");
+      startTransition(async () => {
+        await addTokenToMapAction({
+          sessionCode,
+          mapId: snapshot.activeMapId!,
+          characterId: character.id,
+          x: 0,
+          y: 0
+        });
+        router.refresh();
+        setPendingKey(null);
+      });
+    }
+  };
+
   return (
     <article className={cn(
       "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
-      isExpanded ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]" : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+      isExpanded ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] shadow-[0_0_40px_rgba(var(--gold-rgb),0.1)]" : "border-[var(--border-panel)] bg-[var(--bg-panel)]/40 hover:border-[color:var(--gold)]/20 hover:bg-[var(--bg-panel)]/60"
     )}>
       <div className="relative z-10 p-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-4">
-            <AssetAvatar imageUrl={asset?.secureUrl} label={character.name} kind={asset?.kind} className="h-12 w-12 rounded-xl border border-white/10" />
-            <div className="min-w-0">
+            <AssetAvatar imageUrl={asset?.secureUrl} label={character.name} kind={asset?.kind} className="h-12 w-12 rounded-xl border border-[var(--border-panel)]" />
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h4 className={cn("truncate text-base font-bold tracking-tight", flags?.dead ? "text-white/40 line-through decoration-rose-500/50" : "text-white")}>
+                <h4 className={cn("truncate text-base font-bold tracking-tight", flags?.dead ? "text-[color:var(--text-muted)]/40 line-through decoration-rose-500/50" : "text-[color:var(--text-primary)]")}>
                   {character.name}
                 </h4>
                 {flags?.dead && <Skull size={12} className="text-rose-500/60" />}
+                
+                {/* Botão de Ação Rápida */}
+                {snapshot?.stageMode !== "atlas" && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleQuickAdd(); }}
+                    disabled={isPending}
+                    className={cn(
+                      "ml-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest transition-all",
+                      snapshot?.stageMode === "theater" 
+                        ? "bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" 
+                        : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                    )}
+                  >
+                    {isPending && pendingKey?.startsWith("quick:") ? (
+                      <LoaderCircle size={12} className="animate-spin" />
+                    ) : (
+                      <>
+                        {snapshot?.stageMode === "theater" ? <Tv size={12} /> : <UserPlus size={12} />}
+                        {snapshot?.stageMode === "theater" ? "Cena" : "Mapa"}
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
-              <p className="text-[10px] text-white/40 uppercase tracking-widest">{ownerName ?? "sem vínculo"} • {characterTypeLabel(character.type)}</p>
+              <p className="text-[10px] text-[color:var(--text-muted)] uppercase tracking-widest">{ownerName ?? "sem vínculo"} • {characterTypeLabel(character.type)}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6">
             <div className="flex gap-4">
               <div className="text-right">
-                <p className="text-[8px] font-black text-white/20 uppercase">PV</p>
-                <p className="text-xs font-bold text-rose-200">{character.hp}/{character.hpMax}</p>
+                <p className="text-[8px] font-black text-[color:var(--text-muted)] uppercase">PV</p>
+                <p className="text-xs font-bold text-rose-500">{character.hp}/{character.hpMax}</p>
               </div>
-              <div className="text-right border-l border-white/5 pl-4">
-                <p className="text-[8px] font-black text-white/20 uppercase">PF</p>
-                <p className="text-xs font-bold text-amber-200">{character.fp}/{character.fpMax}</p>
+              <div className="text-right border-l border-[var(--border-panel)] pl-4">
+                <p className="text-[8px] font-black text-[color:var(--text-muted)] uppercase">PF</p>
+                <p className="text-xs font-bold text-[color:var(--gold)]">{character.fp}/{character.fpMax}</p>
               </div>
             </div>
-            {isExpanded ? <ChevronUp size={16} className="text-amber-400" /> : <ChevronDown size={16} className="text-white/20" />}
+            {isExpanded ? <ChevronUp size={16} className="text-[color:var(--gold)]" /> : <ChevronDown size={16} className="text-[color:var(--text-muted)]" />}
+          </div>
           </div>
         </div>
 
@@ -212,59 +277,59 @@ function CharacterCard({
           <div className="mt-6 space-y-6" onClick={(e) => e.stopPropagation()}>
             <div className="grid gap-4 md:grid-cols-2">
               {/* Profile Edit */}
-              <div className="space-y-4 rounded-2xl border border-white/5 bg-black/20 p-4">
+              <div className="space-y-4 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)]/20 p-4">
                 <div className="flex items-center gap-2">
-                  <PencilLine size={14} className="text-amber-400/60" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Perfil da Ficha</span>
+                  <PencilLine size={14} className="text-[color:var(--gold)]/60" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Perfil da Ficha</span>
                 </div>
                 <input
                   value={draftName}
                   onChange={(e) => setDraftName(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-400/30"
+                  className="w-full rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--gold)]/30"
                   placeholder="Nome do personagem"
                 />
                 <div className="flex gap-2">
-                  <button onClick={saveProfile} disabled={isPending} className="flex-1 rounded-xl bg-amber-400/10 py-2 text-[10px] font-black uppercase text-amber-400 transition hover:bg-amber-400/20">
+                  <button onClick={saveProfile} disabled={isPending} className="flex-1 rounded-xl bg-[color:var(--mist)] border border-[color:var(--gold)]/30 py-2 text-[10px] font-black uppercase text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20">
                     {pendingKey === "profile:save" ? <LoaderCircle size={14} className="animate-spin mx-auto" /> : "Salvar Nome"}
                   </button>
-                  <button onClick={() => setIsSheetModalOpen(true)} className="rounded-xl border border-white/10 px-4 py-2 text-[10px] font-black uppercase text-white/60 hover:text-white">
+                  <button onClick={() => setIsSheetModalOpen(true)} className="rounded-xl border border-[var(--border-panel)] px-4 py-2 text-[10px] font-black uppercase text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[var(--bg-card)]">
                     Abrir Ficha
                   </button>
                 </div>
               </div>
 
               {/* Archetype Apply */}
-              <div className="space-y-4 rounded-2xl border border-white/5 bg-black/20 p-4">
+              <div className="space-y-4 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)]/20 p-4">
                 <div className="flex items-center gap-2">
-                  <BookOpen size={14} className="text-sky-400/60" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Aplicar Arquétipo</span>
+                  <BookOpen size={14} className="text-sky-500/60" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Aplicar Arquétipo</span>
                 </div>
                 <select
                   value={selectedArchetypeId}
                   onChange={(e) => setSelectedArchetypeId(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400/30"
+                  className="w-full rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-sky-500/30"
                 >
                   <option value="">Escolha um arquétipo...</option>
                   {archetypeOptions.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
-                <button onClick={applyArchetype} disabled={!selectedArchetypeId || isPending} className="w-full rounded-xl bg-sky-400/10 py-2 text-[10px] font-black uppercase text-sky-400 transition hover:bg-sky-400/20 disabled:opacity-20">
+                <button onClick={applyArchetype} disabled={!selectedArchetypeId || isPending} className="w-full rounded-xl bg-sky-500/10 border border-sky-500/20 py-2 text-[10px] font-black uppercase text-sky-500 transition hover:bg-sky-500/20 disabled:opacity-20">
                   {pendingKey === "archetype:apply" ? <LoaderCircle size={14} className="animate-spin mx-auto" /> : "Preencher Campos"}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-white/5 pt-4">
+            <div className="flex items-center justify-between border-t border-[var(--border-panel)] pt-4">
               <div className="flex gap-2">
                 <button onClick={markAsDead} className={cn(
                   "flex items-center gap-2 rounded-xl border px-4 py-2 text-[10px] font-black uppercase transition",
-                  flags?.dead ? "border-rose-500/40 bg-rose-500/10 text-rose-400" : "border-white/10 text-white/40 hover:text-white"
+                  flags?.dead ? "border-rose-500/40 bg-rose-500/10 text-rose-500" : "border-[var(--border-panel)] text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
                 )}>
                   <Skull size={14} />
                   {flags?.dead ? "Ressuscitar" : "Marcar como Morto"}
                 </button>
                 <button onClick={() => onToggleFlag?.("trash")} className={cn(
                   "flex items-center gap-2 rounded-xl border px-4 py-2 text-[10px] font-black uppercase transition",
-                  flags?.trash ? "border-rose-500 bg-rose-500/20 text-white" : "border-white/10 text-white/40 hover:text-rose-400"
+                  flags?.trash ? "border-rose-500 bg-rose-500/20 text-[color:var(--text-primary)]" : "border-[var(--border-panel)] text-[color:var(--text-muted)] hover:text-rose-500"
                 )}>
                   <Trash2 size={14} />
                   Lixeira
@@ -349,29 +414,29 @@ export function CharactersPanel({ sessionCode, viewer, participants, party }: Ch
     <div className="space-y-6">
       {/* Create Character */}
       {canManage && (
-        <section className="rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl">
+        <section className="rounded-[28px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-6 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-400">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
               <Plus size={20} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Criar Nova Ficha</h3>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-white/40">Defina o nome e use um arquétipo para agilizar</p>
+              <h3 className="text-base font-bold text-[color:var(--text-primary)]">Criar Nova Ficha</h3>
+              <p className="text-[10px] font-medium uppercase tracking-widest text-[color:var(--text-muted)]">Defina o nome e use um arquétipo para agilizar</p>
             </div>
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase text-white/30 ml-1">Nome do Personagem</label>
-                <input value={characterName} onChange={e => setCharacterName(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none focus:border-amber-400/30" placeholder="Ex: Musashi" />
+                <label className="text-[9px] font-black uppercase text-[color:var(--text-muted)] ml-1">Nome do Personagem</label>
+                <input value={characterName} onChange={e => setCharacterName(e.target.value)} className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--gold)]/30" placeholder="Ex: Musashi" />
               </div>
               <div className="grid gap-4 grid-cols-2">
-                <select value={characterType} onChange={e => setCharacterType(e.target.value as any)} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white">
+                <select value={characterType} onChange={e => setCharacterType(e.target.value as any)} className="rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)]">
                   <option value="player">Protagonista</option>
                   <option value="npc">Figura / NPC</option>
                 </select>
-                <select value={characterTier} onChange={e => setCharacterTier(e.target.value as any)} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white">
+                <select value={characterTier} onChange={e => setCharacterTier(e.target.value as any)} className="rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)]">
                   <option value="full">Ficha Completa</option>
                   <option value="medium">Ficha Mediana</option>
                   <option value="summary">Ficha Resumida</option>
@@ -380,13 +445,13 @@ export function CharactersPanel({ sessionCode, viewer, participants, party }: Ch
             </div>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase text-white/30 ml-1">Usar Base de Arquétipo (Opcional)</label>
-                <select value={selectedArchetypeId} onChange={e => setSelectedArchetypeId(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none focus:border-sky-400/30">
+                <label className="text-[9px] font-black uppercase text-[color:var(--text-muted)] ml-1">Usar Base de Arquétipo (Opcional)</label>
+                <select value={selectedArchetypeId} onChange={e => setSelectedArchetypeId(e.target.value)} className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none focus:border-sky-500/30">
                   <option value="">Nenhum (Ficha em Branco)</option>
                   {archetypes.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
-              <button onClick={handleCreate} disabled={isPending || !characterName} className="w-full h-[46px] rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-50 text-xs font-black uppercase tracking-widest transition hover:bg-emerald-500/20">
+              <button onClick={handleCreate} disabled={isPending || !characterName} className="w-full h-[46px] rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-black uppercase tracking-widest transition hover:bg-emerald-500/20 shadow-sm">
                 {isPending ? <LoaderCircle size={18} className="animate-spin mx-auto" /> : "Gerar Personagem"}
               </button>
             </div>
@@ -399,8 +464,8 @@ export function CharactersPanel({ sessionCode, viewer, participants, party }: Ch
         <div className="flex flex-col gap-4">
           <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
             <div className="relative">
-              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
-              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full rounded-xl border border-white/10 bg-black/40 pl-10 pr-4 py-2.5 text-xs text-white" placeholder="Buscar fichas..." />
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" />
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] pl-10 pr-4 py-2.5 text-xs text-[color:var(--text-primary)]" placeholder="Buscar fichas..." />
             </div>
             <LibrarySortSelect value={sortMode} onChange={setSortMode} />
             <LibraryFilterPills value={statusFilter} onChange={setStatusFilter} />
@@ -429,7 +494,7 @@ export function CharactersPanel({ sessionCode, viewer, participants, party }: Ch
         </div>
         
         {filteredCharacters.length > visibleCount && (
-          <button onClick={() => setVisibleCount(v => v + 10)} className="w-full py-4 text-[10px] font-black uppercase text-white/20 hover:text-white transition">Carregar Mais</button>
+          <button onClick={() => setVisibleCount(v => v + 10)} className="w-full py-4 text-[10px] font-black uppercase text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] transition">Carregar Mais</button>
         )}
       </section>
     </div>

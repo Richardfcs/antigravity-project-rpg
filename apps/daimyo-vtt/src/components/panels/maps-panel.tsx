@@ -60,6 +60,12 @@ interface MapsPanelProps {
 
 const tacticalMapKinds = new Set(["grid", "map"]);
 
+function cloudinaryThumb(url: string | null | undefined, size = 512): string | undefined {
+  if (!url) return undefined;
+  if (!url.includes("res.cloudinary.com")) return url;
+  return url.replace("/upload/", `/upload/c_fill,w_${size},h_${size},q_auto,f_auto/`);
+}
+
 export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
   const assets = useAssetStore((state) => state.assets);
   const characters = useCharacterStore((state) => state.characters);
@@ -339,31 +345,31 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex flex-wrap gap-2">
-        <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+        <span className="hud-chip border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--text-primary)]">
           {maps.length} campos
         </span>
-        <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
+        <span className="hud-chip border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--text-primary)]">
           ativo: {activeMap?.name ?? "nenhum"}
         </span>
-        <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+        <span className="hud-chip border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--text-primary)]">
           {mapTokens.length} tokens
         </span>
       </div>
 
       {canManage && (
-        <section className="rounded-[18px] border border-white/10 bg-black/18 p-3">
+        <section className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Plus size={16} className="text-amber-100" />
+              <Plus size={16} className="text-[color:var(--gold)]" />
               <div>
-                <h3 className="text-sm font-semibold text-white">Novo mapa</h3>
-                <p className="text-xs text-[color:var(--ink-3)]">Campo novo so quando precisar.</p>
+                <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Novo mapa</h3>
+                <p className="text-xs text-[color:var(--text-muted)]">Campo novo so quando precisar.</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setIsCreateOpen((current) => !current)}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20"
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)] px-3 py-2 text-xs font-semibold text-[color:var(--text-primary)] transition hover:border-[color:var(--gold)]/30"
             >
               {isCreateOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               {isCreateOpen ? "recolher" : "abrir"}
@@ -376,17 +382,17 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                 <input
                   value={mapName}
                   onChange={(event) => setMapName(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition focus:border-amber-300/35"
+                  className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-2.5 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
                   placeholder="Ponte de Kuroi"
                 />
 
                 <button
                   type="button"
                   onClick={() => setIsMapBgPickerOpen(true)}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                  className="flex w-full items-center gap-3 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-2.5 text-sm transition hover:border-[color:var(--gold)]/25 cursor-pointer text-[color:var(--text-primary)]"
                 >
-                  <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                  <span className={mapAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                  <ImageIcon size={16} className="shrink-0 text-[color:var(--text-muted)]" />
+                  <span className={mapAssetId ? "truncate" : "text-[color:var(--text-muted)]"}
                   >
                     {mapAssetId
                       ? (mapAssets.find((a) => a.id === mapAssetId)?.label ?? "fundo")
@@ -403,7 +409,7 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                   cardAspect="landscape"
                 />
 
-                <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white">
+                <label className="flex items-center gap-2 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-2.5 text-sm text-[color:var(--text-primary)]">
                   <input
                     type="checkbox"
                     checked={gridEnabled}
@@ -415,7 +421,7 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                 <input
                   value={gridSize}
                   onChange={(event) => setGridSize(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition focus:border-amber-300/35"
+                  className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-2.5 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
                   placeholder="64"
                   inputMode="numeric"
                 />
@@ -432,10 +438,10 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                     <button
                       type="button"
                       onClick={() => setCreateDefaultPickerField(fieldKey as string)}
-                      className="mt-2 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                      className="mt-2 flex w-full items-center gap-3 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-2.5 text-sm transition hover:border-[color:var(--gold)]/25 cursor-pointer"
                     >
-                      <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                      <span className={(value as string) ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                      <ImageIcon size={16} className="shrink-0 text-[color:var(--text-muted)]" />
+                      <span className={(value as string) ? "text-[color:var(--text-primary)] truncate" : "text-[color:var(--text-muted)]"}
                       >
                         {(value as string)
                           ? (tokenPortraitAssets.find((a) => a.id === (value as string))?.label ?? "retrato")
@@ -459,7 +465,7 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                   type="button"
                   onClick={handleCreateMap}
                   disabled={isPending}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-2.5 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-[color:var(--gold)]/28 bg-[color:var(--mist)] px-4 py-2.5 text-sm font-semibold text-[color:var(--text-primary)] transition hover:border-[color:var(--gold)]/45 disabled:cursor-not-allowed disabled:opacity-60 shadow-[0_0_15px_rgba(var(--gold-rgb),0.1)]"
                 >
                   {pendingKey === "create-map" ? (
                     <LoaderCircle size={16} className="animate-spin" />
@@ -475,13 +481,13 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
       )}
 
       {feedback && (
-        <div className="rounded-[18px] border border-amber-300/18 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
+        <div className="rounded-[18px] border border-[color:var(--gold)]/18 bg-[color:var(--mist)] px-4 py-3 text-sm text-[color:var(--text-primary)]">
           {feedback}
         </div>
       )}
 
       <section className="flex min-h-0 flex-1 flex-col space-y-3">
-        <div className="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-black/18 p-4 md:flex-row md:items-center">
+        <div className="flex flex-col gap-4 rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4 md:flex-row md:items-center">
           <div className="flex-shrink-0">
             <p className="section-label px-1">Biblioteca</p>
           </div>
@@ -492,7 +498,7 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                 setSearchQuery(event.target.value);
                 setVisibleCount(8);
               }}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
               placeholder="buscar mapa ou recurso..."
             />
             <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
@@ -503,13 +509,13 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
         </div>
 
         {maps.length === 0 && (
-          <div className="rounded-[18px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-6 text-sm text-[color:var(--ink-2)]">
+          <div className="rounded-[18px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-card)]/50 px-4 py-6 text-sm text-[color:var(--text-muted)]">
             Nenhum mapa criado ainda.
           </div>
         )}
 
         {maps.length > 0 && filteredMaps.length === 0 && (
-          <div className="rounded-[18px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-6 text-sm text-[color:var(--ink-2)]">
+          <div className="rounded-[18px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-card)]/50 px-4 py-6 text-sm text-[color:var(--text-muted)]">
             Nenhum mapa corresponde a essa busca.
           </div>
         )}
@@ -536,25 +542,25 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
               className={cn(
                 "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
                 map.isActive
-                  ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
-                  : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                  ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] shadow-[0_0_40px_rgba(var(--gold-rgb),0.1)]"
+                  : "border-[var(--border-panel)] bg-[var(--bg-card)]/50 hover:border-[color:var(--gold)]/20 hover:bg-[var(--bg-card)]"
               )}
             >
               {/* Background Art Layer */}
               <div className="absolute inset-0 z-0">
                 {mapAsset?.secureUrl ? (
                   <>
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center transition-opacity duration-700" 
-                      style={{ 
-                        backgroundImage: `url(${mapAsset.secureUrl})`,
-                        opacity: map.isActive ? 0.35 : 0.2
-                      }} 
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/40 to-transparent" />
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center transition-opacity duration-700" 
+                        style={{ 
+                          backgroundImage: mapAsset.secureUrl ? `url(${cloudinaryThumb(mapAsset.secureUrl, 800)})` : undefined,
+                          opacity: map.isActive ? 0.35 : 0.2
+                        }} 
+                      />
+                    <div className="absolute inset-0 bg-gradient-to-br from-[var(--bg-panel)]/90 via-[var(--bg-panel)]/40 to-transparent" />
                   </>
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-20" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--text-primary)]/5 to-transparent opacity-20" />
                 )}
               </div>
               <div 
@@ -567,31 +573,37 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                       <div className={cn(
                         "flex h-12 w-20 shrink-0 items-center justify-center rounded-2xl border overflow-hidden transition-all",
                         map.isActive 
-                          ? "border-amber-400/30 bg-amber-400/10 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.2)]" 
-                          : "border-white/10 bg-white/5 text-white/40"
+                          ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)] shadow-[0_0_15px_rgba(var(--gold-rgb),0.2)]" 
+                          : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)]"
                       )}>
                         {mapAsset?.secureUrl ? (
-                          <img src={mapAsset.secureUrl} className="h-full w-full object-cover" alt="" />
+                          <img 
+                            src={cloudinaryThumb(mapAsset.secureUrl, 160)} 
+                            className="h-full w-full object-cover" 
+                            alt="" 
+                            loading="lazy"
+                            decoding="async"
+                          />
                         ) : (
                           <MapIcon size={20} />
                         )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="truncate text-lg font-bold tracking-tight text-white">{map.name}</p>
+                          <p className="truncate text-lg font-bold tracking-tight text-[color:var(--text-primary)]">{map.name}</p>
                           {map.isActive && (
-                            <span className="flex h-5 items-center rounded-full bg-amber-400 px-2 text-[9px] font-black uppercase tracking-widest text-black">
+                            <span className="flex h-5 items-center rounded-full bg-[color:var(--gold)] px-2 text-[9px] font-black uppercase tracking-widest text-[color:var(--bg-panel)]">
                               No Palco
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50">
-                          <Grid size={11} className={cn(map.isActive ? "text-amber-400" : "text-white/40")} />
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-[color:var(--text-secondary)]">
+                          <Grid size={11} className={cn(map.isActive ? "text-[color:var(--gold)]" : "text-[color:var(--text-muted)]")} />
                           <span className="truncate italic">
                             {map.gridEnabled ? `${map.gridSize}px grid` : "movimento livre"}
                           </span>
                         </p>
-                        <p className="mt-1 text-[10px] uppercase tracking-wider text-white/30">
+                        <p className="mt-1 text-[10px] uppercase tracking-wider text-[color:var(--text-muted)]">
                           {mapAsset?.label || "sem fundo tatico"} • {entries.length} tokens
                         </p>
                       </div>
@@ -603,17 +615,19 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                       {entries.slice(0, 4).map((entry) => (
                         <div 
                           key={entry.token.id}
-                          className="h-8 w-8 rounded-full border-2 border-black ring-1 ring-white/10"
+                          className="h-8 w-8 rounded-full border-2 border-[var(--bg-panel)] ring-1 ring-[var(--border-panel)]"
                         >
                           <img 
-                            src={entry.asset?.secureUrl} 
+                            src={cloudinaryThumb(entry.asset?.secureUrl, 64)} 
                             className="h-full w-full rounded-full object-cover" 
                             alt={entry.character?.name || "token"}
+                            loading="lazy"
+                            decoding="async"
                           />
                         </div>
                       ))}
                       {entries.length > 4 && (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black bg-white/10 text-[9px] font-bold text-white ring-1 ring-white/10">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[var(--bg-panel)] bg-[var(--bg-card)] text-[9px] font-bold text-[color:var(--text-primary)] ring-1 ring-[var(--border-panel)]">
                           +{entries.length - 4}
                         </div>
                       )}
@@ -630,8 +644,8 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                         className={cn(
                           "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-[10px] font-bold uppercase tracking-widest transition-all",
                           map.isActive
-                            ? "border-amber-400/20 bg-amber-400/5 text-amber-400/40 cursor-default"
-                            : "border-white/10 bg-white/5 text-white hover:border-amber-400/50 hover:bg-amber-400/10"
+                            ? "border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--gold)]/40 cursor-default"
+                            : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-primary)] hover:border-[color:var(--gold)]/50 hover:bg-[color:var(--mist)]"
                         )}
                       >
                         {pendingKey === `activate:${map.id}` ? (
@@ -682,8 +696,8 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                             className={cn(
                               "flex h-10 w-10 items-center justify-center rounded-xl border transition-all",
                               editingMapId === map.id
-                                ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
-                                : "border-white/10 bg-white/5 text-white/40 hover:text-white"
+                                ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] text-[color:var(--gold)]"
+                                : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
                             )}
                           >
                             <Settings2 size={16} />
@@ -691,7 +705,7 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                         </div>
                       )}
 
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all group-hover:border-amber-400/30 group-hover:text-amber-300">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)] transition-all group-hover:border-[color:var(--gold)]/30 group-hover:text-[color:var(--gold)]">
                         {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </div>
                     </div>
@@ -701,7 +715,7 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
 
               {isExpanded && (
                   <div 
-                    className="mt-5 space-y-5 rounded-[20px] border border-white/5 bg-black/40 p-4 backdrop-blur-xl"
+                    className="mt-5 space-y-5 rounded-[20px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-4 backdrop-blur-xl"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {editingMapId === map.id ? (
@@ -712,7 +726,7 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                           <input
                             value={draftMapName}
                             onChange={(e) => setDraftMapName(e.target.value)}
-                            className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-amber-400/40"
+                            className="mt-1.5 w-full rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--gold)]/40"
                           />
                         </label>
                         <label className="block">
@@ -720,10 +734,10 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                           <button
                             type="button"
                             onClick={() => setIsEditMapBgPickerOpen(true)}
-                            className="mt-1.5 flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                            className="mt-1.5 flex w-full items-center gap-3 rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-2 text-sm transition hover:border-[color:var(--gold)]/25 cursor-pointer"
                           >
-                            <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                            <span className={draftMapAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}>
+                            <ImageIcon size={16} className="shrink-0 text-[color:var(--text-muted)]" />
+                            <span className={draftMapAssetId ? "text-[color:var(--text-primary)] truncate" : "text-[color:var(--text-muted)]"}>
                               {draftMapAssetId
                                 ? (mapAssets.find((a) => a.id === draftMapAssetId)?.label ?? "fundo")
                                 : "sem fundo tatico"}
@@ -741,13 +755,13 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                         />
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/5 mt-2">
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--border-panel)] mt-2">
                         <div className="flex gap-2">
                           <button
                             type="button"
                             onClick={() => handleUpdateMap(map.id)}
                             disabled={isPending}
-                            className="inline-flex items-center gap-2 rounded-xl bg-amber-400/10 border border-amber-400/30 px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber-300 hover:bg-amber-400/20"
+                            className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--mist)] border border-[color:var(--gold)]/30 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[color:var(--gold)] hover:bg-[color:var(--gold)]/20"
                           >
                             {pendingKey === `update-map:${map.id}` ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}
                             Salvar
@@ -755,7 +769,7 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                           <button
                             type="button"
                             onClick={() => setEditingMapId(null)}
-                            className="inline-flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white/60 hover:text-white"
+                            className="inline-flex items-center gap-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-panel)] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]"
                           >
                             Cancelar
                           </button>
@@ -777,7 +791,7 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                   ) : (
                     <>
                       {entries.length === 0 && (
-                        <div className="rounded-[16px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-4 text-sm text-[color:var(--ink-2)]">
+                        <div className="rounded-[16px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-input)]/30 px-4 py-4 text-sm text-[color:var(--text-muted)]">
                           Nenhum token neste mapa.
                         </div>
                       )}
@@ -796,160 +810,168 @@ export function MapsPanel({ sessionCode, viewer }: MapsPanelProps) {
                         </div>
                       )}
 
-                      {entries.map((entry) => (
-                        <div
-                          key={entry.token.id}
-                          className="flex items-center justify-between gap-3 rounded-[18px] border border-white/10 bg-black/18 px-4 py-3"
-                        >
-                          <div className="flex items-center gap-3">
-                            <AssetAvatar
-                              imageUrl={entry.asset?.secureUrl}
-                              label={entry.label}
-                              kind={entry.asset?.kind}
-                              className="h-12 w-12"
-                            />
-                            <div>
-                              <p className="text-sm font-semibold text-white">{entry.label}</p>
-                              <p className="mt-1 text-xs text-[color:var(--ink-3)]">
-                                x {entry.token.x.toFixed(1)} - y {entry.token.y.toFixed(1)}
-                              </p>
-                            </div>
-                          </div>
-
-                          {canManage && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveToken(entry.token.id)}
-                              disabled={isPending}
-                              className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-xs font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
+                      <div className="flex flex-wrap gap-2">
+                        {entries.map((entry) => (
+                          <div 
+                              key={entry.token.id}
+                              className="group relative flex items-center gap-2 rounded-full border border-[var(--border-panel)] bg-[var(--bg-input)] pr-4 pl-1.5 py-1.5 transition-all hover:bg-[var(--bg-panel)]/40"
                             >
-                              {pendingKey === `remove-token:${entry.token.id}` ? (
-                                <LoaderCircle size={14} className="animate-spin" />
-                              ) : (
-                                <Trash2 size={14} />
+                              <AssetAvatar
+                                imageUrl={entry.asset?.secureUrl}
+                                label={entry.label}
+                                kind={entry.asset?.kind}
+                                className="h-10 w-10 rounded-full"
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-sm font-semibold text-[color:var(--text-primary)] max-w-[100px] truncate">
+                                  {entry.character?.name || "token"}
+                                </span>
+                                <span className="text-[10px] text-[color:var(--text-muted)]">
+                                  {entry.asset?.label || "sem retrato"}
+                                </span>
+                              </div>
+
+                              {canManage && (
+                                <div className="absolute top-12 left-1/2 -translate-x-1/2 hidden flex-wrap gap-1 rounded-xl border border-[var(--border-panel)] bg-[var(--bg-panel)]/95 p-1.5 shadow-xl backdrop-blur-md group-hover:flex z-50 w-max">
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleRemoveToken(entry.token.id)} 
+                                    className="p-1.5 hover:bg-rose-500/20 rounded-lg text-rose-400" 
+                                    title="Remover do Mapa"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
                               )}
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                            </div>
+                        ))}
+                      </div>
 
                       {canManage && (
-                        <div className="mt-4 space-y-3">
-                          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+                        <>
+                          <div className="mt-4 space-y-4">
+                            <div className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)]/30 p-4">
+                          <div className="flex items-center gap-2 text-[color:var(--text-primary)]">
+                            <UserRoundSearch size={16} className="text-[color:var(--gold)]" />
+                            <p className="text-sm font-semibold">Adicionar token ao mapa</p>
+                          </div>
+                          <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
                             <button
                               type="button"
-                          onClick={() => setTokenPickerMapId(map.id)}
-                          className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
-                        >
-                          <UserRoundSearch size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                          <span className={mapSelections[map.id] ? "text-white truncate" : "text-[color:var(--ink-3)]"}
-                          >
-                            {mapSelections[map.id]
-                              ? (availableCharacters.find((c) => c.id === mapSelections[map.id])?.name ?? "personagem")
-                              : "escolher personagem..."}
-                          </span>
-                        </button>
-                        <CharacterVisualPicker
-                          open={tokenPickerMapId === map.id}
-                          onClose={() => setTokenPickerMapId(null)}
-                          onSelect={(id) => {
-                            setMapSelections((current) => ({ ...current, [map.id]: id }));
-                          }}
-                          characters={characters}
-                          assets={assets}
-                          excludeIds={new Set(entries.map((e) => e.token.characterId).filter((id): id is string => Boolean(id)))}
-                        />
-
-                        <button
-                          type="button"
-                          onClick={() => handleAddToken(map.id)}
-                          disabled={isPending || availableCharacters.length === 0}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-3 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {pendingKey === `add-token:${map.id}` ? (
-                            <LoaderCircle size={16} className="animate-spin" />
-                          ) : (
-                            <Swords size={16} />
-                          )}
-                          adicionar token
-                        </button>
-                      </div>
-
-                      <div className="grid gap-3 rounded-[18px] border border-white/10 bg-black/18 p-4 xl:grid-cols-[repeat(3,minmax(0,1fr))_160px]">
-                        {[
-                          ["Aliado", "defaultAllyAssetId"],
-                          ["Inimigo", "defaultEnemyAssetId"],
-                          ["Neutro", "defaultNeutralAssetId"]
-                        ].map(([label, field]) => {
-                          const pickerKey = `${map.id}:${field}`;
-                          const currentValue = mapDraft[field as keyof typeof mapDraft];
-
-                          return (
-                            <div key={field} className="block">
-                              <span className="section-label">{label} padrao</span>
-                              <button
-                                type="button"
-                                onClick={() => setEditDefaultPickerKey(pickerKey)}
-                                className="mt-2 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                              onClick={() => setTokenPickerMapId(map.id)}
+                              className="flex w-full items-center gap-3 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm transition hover:border-[color:var(--gold)]/25 cursor-pointer text-[color:var(--text-primary)]"
+                            >
+                              <ImageIcon size={16} className="shrink-0 text-[color:var(--text-muted)]" />
+                              <span className={mapSelections[map.id] ? "truncate" : "text-[color:var(--text-muted)]"}
                               >
-                                <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                                <span className={currentValue ? "text-white truncate" : "text-[color:var(--ink-3)]"}
-                                >
-                                  {currentValue
-                                    ? (tokenPortraitAssets.find((a) => a.id === currentValue)?.label ?? "retrato")
-                                    : "sem retrato padrao"}
-                                </span>
-                              </button>
-                              <AssetVisualPicker
-                                open={editDefaultPickerKey === pickerKey}
-                                onClose={() => setEditDefaultPickerKey(null)}
-                                onSelect={(id) =>
-                                  setMapConfigDrafts((current) => ({
-                                    ...current,
-                                    [map.id]: {
-                                      ...mapDraft,
-                                      [field]: id
-                                    }
-                                  }))
-                                }
-                                assets={assets}
-                                filterKinds={["token", "portrait", "npc"]}
-                                title={`Selecionar ${label} Padrão`}
-                              />
-                            </div>
-                          );
-                        })}
+                                {mapSelections[map.id]
+                                  ? (availableCharacters.find((c) => c.id === mapSelections[map.id])?.name ?? "personagem")
+                                  : "escolher ficha..."}
+                              </span>
+                            </button>
+                            <CharacterVisualPicker
+                              open={tokenPickerMapId === map.id}
+                              onClose={() => setTokenPickerMapId(null)}
+                              onSelect={(id) => {
+                                setMapSelections((current) => ({ ...current, [map.id]: id }));
+                              }}
+                              characters={characters}
+                              assets={assets}
+                              excludeIds={new Set(entries.map((e) => e.token.characterId).filter(Boolean) as string[])}
+                            />
 
-                        <button
-                          type="button"
-                          onClick={() => handleSaveMapDefaults(map.id)}
-                          disabled={isPending}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
-                        >
-                          {pendingKey === `save-map:${map.id}` ? (
-                            <LoaderCircle size={16} className="animate-spin" />
-                          ) : (
-                            <Plus size={16} />
-                          )}
-                          salvar defaults
-                        </button>
-                      </div>
-                    </div>
+                            <button
+                              type="button"
+                              onClick={() => handleAddToken(map.id)}
+                              disabled={isPending || availableCharacters.length === 0}
+                              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-2xl border border-[color:var(--gold)]/30 bg-[color:var(--mist)] px-3 py-3 text-sm font-semibold text-[color:var(--gold)] transition hover:border-[color:var(--gold)]/50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {pendingKey === `add-token:${map.id}` ? (
+                                <LoaderCircle size={16} className="animate-spin" />
+                              ) : (
+                                <Plus size={16} />
+                              )}
+                              colocar
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)]/30 p-4">
+                          <div className="flex items-center gap-2 text-[color:var(--text-primary)]">
+                            <Settings2 size={16} className="text-[color:var(--gold)]" />
+                            <p className="text-sm font-semibold">Retratos padrao (Token)</p>
+                          </div>
+                          <div className="mt-3 grid gap-3 xl:grid-cols-3">
+                            {[
+                              ["Aliado", "defaultAllyAssetId"],
+                              ["Inimigo", "defaultEnemyAssetId"],
+                              ["Neutro", "defaultNeutralAssetId"]
+                            ].map(([label, fieldKey]) => (
+                              <div key={fieldKey}>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditDefaultPickerKey(`${map.id}:${fieldKey}`)}
+                                  className="flex w-full items-center gap-3 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-2.5 text-[10px] transition hover:border-[color:var(--gold)]/25 cursor-pointer text-[color:var(--text-primary)]"
+                                >
+                                  <ImageIcon size={14} className="shrink-0 text-[color:var(--text-muted)]" />
+                                  <span className={mapDraft[fieldKey as keyof typeof mapDraft] ? "truncate" : "text-[color:var(--text-muted)]"}
+                                  >
+                                    {mapDraft[fieldKey as keyof typeof mapDraft]
+                                      ? (tokenPortraitAssets.find((a) => a.id === mapDraft[fieldKey as keyof typeof mapDraft])?.label ?? "retrato")
+                                      : `${label}`}
+                                  </span>
+                                </button>
+                                <AssetVisualPicker
+                                  open={editDefaultPickerKey === `${map.id}:${fieldKey}`}
+                                  onClose={() => setEditDefaultPickerKey(null)}
+                                  onSelect={(id) => {
+                                    setMapConfigDrafts((current) => ({
+                                      ...current,
+                                      [map.id]: {
+                                        ...(current[map.id] ?? mapDraft),
+                                        [fieldKey]: id
+                                      }
+                                    }));
+                                  }}
+                                  assets={assets}
+                                  filterKinds={["token", "portrait", "npc"]}
+                                  title={`Selecionar ${label}`}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveMapDefaults(map.id)}
+                            disabled={isPending}
+                            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[color:var(--gold)]/28 bg-[color:var(--mist)] py-2 text-xs font-semibold text-[color:var(--gold)] transition hover:border-[color:var(--gold)]/45 disabled:cursor-not-allowed"
+                          >
+                            {pendingKey === `save-map:${map.id}` ? (
+                              <LoaderCircle size={14} className="animate-spin" />
+                            ) : (
+                              <Save size={14} />
+                            )}
+                            salvar padroes
+                          </button>
+                          </div>
+                        </div>
+                        </>
+                      )}
+                    </>
                   )}
-                </>
+                </div>
               )}
-            </div>
-          )}
             </article>
           );
         })}
-        </div>
+    </div>
+
 
         {filteredMaps.length > displayedMaps.length && (
           <button
             type="button"
             onClick={() => setVisibleCount((current) => current + 8)}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20"
+            className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)]/50 px-4 py-3 text-sm font-semibold text-[color:var(--text-primary)] transition hover:border-[color:var(--gold)]/20"
           >
             carregar mais mapas
           </button>

@@ -22,13 +22,13 @@ export function CompactPanelHeader({
   return (
     <header
       className={cn(
-        "flex items-start justify-between gap-2 border-b border-white/8 pb-1.5",
+        "flex items-start justify-between gap-2 border-b border-[var(--border-panel)] pb-1.5",
         className
       )}
     >
       <div className="min-w-0">
         {label ? <p className="section-label">{label}</p> : null}
-        <h2 className="mt-0.5 truncate text-[13px] font-semibold text-white sm:text-sm">
+        <h2 className="mt-0.5 truncate text-[13px] font-semibold text-[color:var(--text-primary)] sm:text-sm">
           {title}
         </h2>
         {description ? (

@@ -19,17 +19,23 @@ import {
   Search,
   ChevronDown,
   LayoutGrid,
-  RotateCcw
+  RotateCcw,
+  Dices,
+  EyeOff,
+  Eye
 } from "lucide-react";
 
 import type { SessionCharacterRecord } from "@/types/character";
 import type { SessionCharacterSheetProfile } from "@/types/combat";
+import type { SessionViewerIdentity } from "@/types/session";
 import { 
   updateCharacterProfileAction, 
   getBaseArchetypesAction, 
   applyBaseArchetypeAction 
 } from "@/app/actions/character-actions";
+import { rollDiceAction } from "@/app/actions/chat-actions";
 import { useCharacterStore } from "@/stores/character-store";
+import { useChatStore } from "@/stores/chat-store";
 import { cn } from "@/lib/utils";
 
 interface CharacterSheetModalProps {
@@ -37,14 +43,18 @@ interface CharacterSheetModalProps {
   character: SessionCharacterRecord;
   onClose: () => void;
   canManage: boolean;
+  tokenId?: string | null;
 }
 
 export function CharacterSheetModal({
   sessionCode,
   character,
   onClose,
-  canManage
+  canManage,
+  tokenId = null
 }: CharacterSheetModalProps) {
+  const upsertMessage = useChatStore((state) => state.upsertMessage);
+  const [isPrivateRoll, setIsPrivateRoll] = useState(false);
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -316,6 +326,25 @@ export function CharacterSheetModal({
     });
   };
 
+  const handleQuickRoll = (formula: string, target: number, label: string) => {
+    startTransition(async () => {
+      const res = await rollDiceAction({
+        sessionCode,
+        formula,
+        target,
+        label,
+        isPrivate: isPrivateRoll,
+        tokenId
+      });
+      
+      if (res.ok && res.message) {
+        upsertMessage(res.message);
+        setFeedback(`Rolagem de ${label} enviada!`);
+        setTimeout(() => setFeedback(null), 2000);
+      }
+    });
+  };
+
   const handleSave = () => {
     if (!canManage) return;
 
@@ -406,25 +435,25 @@ export function CharacterSheetModal({
   ] as const;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-0 sm:p-4 backdrop-blur-md">
-      <div className="relative flex h-full max-h-full w-full max-w-5xl flex-col overflow-hidden bg-[#0a0a0b] shadow-[0_0_100px_rgba(0,0,0,1)] sm:h-[90vh] sm:rounded-[32px] border-white/5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--bg-deep)]/80 p-0 sm:p-4 backdrop-blur-md">
+      <div className="relative flex h-full max-h-full w-full max-w-5xl flex-col overflow-hidden bg-[var(--bg-panel)] shadow-[0_0_100px_rgba(0,0,0,0.5)] sm:h-[90vh] sm:rounded-[32px] border border-[var(--border-panel)]">
         
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-amber-500/10 to-transparent pointer-events-none" />
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-amber-500/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-[color:var(--gold)]/10 to-transparent pointer-events-none" />
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-[color:var(--gold)]/5 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-rose-500/5 rounded-full blur-[120px] pointer-events-none" />
 
-        <header className="relative z-10 flex items-center justify-between border-b border-white/5 px-6 py-5 bg-black/20 backdrop-blur-sm">
+        <header className="relative z-10 flex items-center justify-between border-b border-[var(--border-panel)] px-6 py-5 bg-[var(--bg-panel)]/20 backdrop-blur-sm">
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20">
-              <ScrollText className="text-amber-500" size={24} />
+            <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--mist)] border border-[color:var(--gold)]/20">
+              <ScrollText className="text-[color:var(--gold)]" size={24} />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-black tracking-tight text-white uppercase flex items-center gap-2">
-                <span className="text-amber-500">Registro:</span> {character.name}
+              <h2 className="text-lg sm:text-xl font-black tracking-tight text-[color:var(--text-primary)] uppercase flex items-center gap-2">
+                <span className="text-[color:var(--gold)]">Registro:</span> {character.name}
               </h2>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="h-1 w-1 rounded-full bg-amber-500/40" />
-                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">
+                <span className="h-1 w-1 rounded-full bg-[color:var(--gold)]/40" />
+                <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-[0.3em]">
                   Forja de Lendas — Era das Espadas
                 </p>
               </div>
@@ -432,43 +461,56 @@ export function CharacterSheetModal({
           </div>
 
           <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)]">
+              <button
+                onClick={() => setIsPrivateRoll(!isPrivateRoll)}
+                className={cn(
+                  "flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-colors",
+                  isPrivateRoll ? "text-rose-500" : "text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
+                )}
+              >
+                {isPrivateRoll ? <EyeOff size={14} /> : <Eye size={14} />}
+                {isPrivateRoll ? "Rolar em Off" : "Público"}
+              </button>
+            </div>
+
             {canManage && (
               <div className="hidden md:flex flex-col items-end">
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/20 mb-1">Custo do Bushido</label>
-                <div className="flex items-center gap-2 bg-white/5 rounded-xl border border-white/5 px-3 py-1">
+                <label className="text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)] mb-1">Custo do Bushido</label>
+                <div className="flex items-center gap-2 bg-[var(--bg-input)] rounded-xl border border-[var(--border-panel)] px-3 py-1">
                   <input
                     type="number"
                     value={getRawNumber("totalPoints", 150)}
                     onChange={(e) => updateRaw("totalPoints", parseInt(e.target.value, 10))}
                     className="w-12 bg-transparent text-center font-black text-rose-500 outline-none text-sm"
                   />
-                  <span className="text-[10px] font-black text-white/30">PTS</span>
+                  <span className="text-[10px] font-black text-[color:var(--text-muted)]">PTS</span>
                 </div>
               </div>
             )}
             <button
               onClick={onClose}
-              className="group flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white/40 transition hover:bg-rose-500/20 hover:text-rose-400 border border-white/5"
+              className="group flex h-10 w-10 items-center justify-center rounded-full bg-[var(--bg-input)] text-[color:var(--text-muted)] transition hover:bg-rose-500/20 hover:text-rose-500 border border-[var(--border-panel)]"
             >
               <X size={20} className="transition-transform group-hover:rotate-90" />
             </button>
           </div>
         </header>
 
-        <nav className="relative z-10 flex border-b border-white/5 bg-black/10">
+        <nav className="relative z-10 flex border-b border-[var(--border-panel)] bg-[var(--bg-panel)]/10">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "flex flex-1 items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-widest transition-all relative",
-                activeTab === tab.id ? "text-amber-500" : "text-white/30 hover:text-white/60"
+                activeTab === tab.id ? "text-[color:var(--gold)]" : "text-[color:var(--text-muted)] hover:text-[color:var(--text-secondary)]"
               )}
             >
               <tab.icon size={14} />
               <span className={cn(activeTab === tab.id ? "inline" : "hidden sm:inline")}>{tab.label}</span>
               {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 h-0.5 w-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                <div className="absolute bottom-0 left-0 h-0.5 w-full bg-[color:var(--gold)] shadow-[0_0_10px_rgba(var(--gold-rgb),0.5)]" />
               )}
             </button>
           ))}
@@ -489,13 +531,13 @@ export function CharacterSheetModal({
                 {canManage && (
                   <section className="relative">
                     <div className="mb-4 flex items-center justify-between px-2">
-                      <div className="flex items-center gap-2 text-amber-500/60">
+                      <div className="flex items-center gap-2 text-[color:var(--gold)]/60">
                         <Sparkles size={14} />
                         <h4 className="text-[10px] font-black uppercase tracking-widest">Base de Dados de Arquétipos</h4>
                       </div>
                       <button 
                         onClick={() => setShowArchetypeSelector(!showArchetypeSelector)}
-                        className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white/40 transition hover:bg-white/10 hover:text-white"
+                        className="flex items-center gap-2 rounded-xl bg-[var(--bg-input)] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)] transition hover:bg-[var(--bg-card)] hover:text-[color:var(--text-primary)]"
                       >
                         {showArchetypeSelector ? "Fechar Biblioteca" : "Explorar Arquétipos"}
                         <ChevronDown size={14} className={cn("transition-transform", showArchetypeSelector && "rotate-180")} />
@@ -503,15 +545,15 @@ export function CharacterSheetModal({
                     </div>
 
                     {showArchetypeSelector && (
-                      <div className="mb-8 rounded-[32px] border border-amber-500/20 bg-amber-500/5 p-6 animate-in zoom-in-95 duration-300">
+                      <div className="mb-8 rounded-[32px] border border-[color:var(--gold)]/20 bg-[color:var(--mist)] p-6 animate-in zoom-in-95 duration-300">
                         <div className="relative mb-6">
-                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={18} />
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" size={18} />
                           <input 
                             type="text" 
                             value={archetypeSearch}
                             onChange={(e) => setArchetypeSearch(e.target.value)}
                             placeholder="Buscar arquétipo (ex: Samurai, Ronin, Camponês...)" 
-                            className="w-full rounded-2xl bg-black/40 border border-white/5 py-4 pl-12 pr-6 text-sm text-white outline-none focus:border-amber-500/40"
+                            className="w-full rounded-2xl bg-[var(--bg-input)] border border-[var(--border-panel)] py-4 pl-12 pr-6 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--gold)]/40"
                           />
                         </div>
 
@@ -523,18 +565,18 @@ export function CharacterSheetModal({
                                 key={a.id}
                                 onClick={() => handleApplyArchetype(a.id)}
                                 disabled={isPending}
-                                className="group relative flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/5 bg-black/40 p-4 transition hover:border-amber-500/40 hover:bg-amber-500/10 active:scale-95 disabled:opacity-50"
+                                className="group relative flex flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4 transition hover:border-[color:var(--gold)]/40 hover:bg-[color:var(--mist)] active:scale-95 disabled:opacity-50"
                               >
-                                <div className="rounded-xl bg-white/5 p-3 group-hover:bg-amber-500/20 transition-colors">
-                                  <User size={20} className="text-white/40 group-hover:text-amber-500" />
+                                <div className="rounded-xl bg-[var(--bg-input)] p-3 group-hover:bg-[color:var(--gold)]/20 transition-colors">
+                                  <User size={20} className="text-[color:var(--text-muted)] group-hover:text-[color:var(--gold)]" />
                                 </div>
-                                <span className="text-[10px] font-black text-center text-white/60 group-hover:text-white uppercase leading-tight">{a.name}</span>
-                                {isPending && <Activity size={12} className="absolute top-2 right-2 animate-spin text-amber-500" />}
+                                <span className="text-[10px] font-black text-center text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)] uppercase leading-tight">{a.name}</span>
+                                {isPending && <Activity size={12} className="absolute top-2 right-2 animate-spin text-[color:var(--gold)]" />}
                               </button>
                             ))}
                         </div>
                         {archetypes.length === 0 && (
-                          <div className="py-12 text-center text-white/10 text-xs font-black uppercase tracking-widest">
+                          <div className="py-12 text-center text-[color:var(--text-muted)]/20 text-xs font-black uppercase tracking-widest">
                             Carregando Arquétipos...
                           </div>
                         )}
@@ -544,35 +586,35 @@ export function CharacterSheetModal({
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="group rounded-3xl border border-white/5 bg-white/[0.02] p-5 transition hover:border-white/10 hover:bg-white/[0.04]">
-                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-white/20 mb-3 block">Conceito do Guerreiro</label>
+                  <div className="group rounded-3xl border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-5 transition hover:border-[var(--border-panel)]/60 hover:bg-[var(--bg-panel)]/60">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[color:var(--text-muted)] mb-3 block">Conceito do Guerreiro</label>
                     <input
                       type="text"
                       value={getRawString("concept")}
                       onChange={(e) => updateRaw("concept", e.target.value)}
                       disabled={!canManage}
                       placeholder="Ex: Ronin Errante"
-                      className="w-full bg-transparent text-lg font-black text-white outline-none placeholder:text-white/5"
+                      className="w-full bg-transparent text-lg font-black text-[color:var(--text-primary)] outline-none placeholder:text-[color:var(--text-muted)]/20"
                     />
                   </div>
-                  <div className="group rounded-3xl border border-white/5 bg-white/[0.02] p-5 transition hover:border-white/10 hover:bg-white/[0.04]">
-                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-white/20 mb-3 block">Clã ou Afiliação</label>
+                  <div className="group rounded-3xl border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-5 transition hover:border-[var(--border-panel)]/60 hover:bg-[var(--bg-panel)]/60">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[color:var(--text-muted)] mb-3 block">Clã ou Afiliação</label>
                     <input
                       type="text"
                       value={getRawString("clan")}
                       onChange={(e) => updateRaw("clan", e.target.value)}
                       disabled={!canManage}
                       placeholder="Ex: Taira / Minamoto"
-                      className="w-full bg-transparent text-lg font-black text-amber-500 outline-none placeholder:text-amber-500/5"
+                      className="w-full bg-transparent text-lg font-black text-[color:var(--gold)] outline-none placeholder:text-[color:var(--gold)]/20"
                     />
                   </div>
                 </div>
 
                  <section>
                   <div className="mb-6 flex items-center gap-3">
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/5" />
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Essência do Bushido</h3>
-                    <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/5" />
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent to-[var(--border-panel)]" />
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-[color:var(--text-muted)]">Essência do Bushido</h3>
+                    <div className="h-px flex-1 bg-gradient-to-l from-transparent to-[var(--border-panel)]" />
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
@@ -581,22 +623,29 @@ export function CharacterSheetModal({
                       { key: "iq", label: "IQ", desc: "Inteligência", color: "emerald", cost: "20 pts/nível", help: "Mente e Perícias" },
                       { key: "ht", label: "HT", desc: "Vigor", color: "rose", cost: "10 pts/nível", help: "Saúde e Fadiga" }
                     ].map((attr) => (
-                      <div key={attr.key} className="relative group overflow-hidden rounded-3xl border border-white/5 bg-black/40 p-5 text-center transition hover:border-amber-500/30">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                        <label className="block text-[9px] font-black text-white/20 tracking-widest mb-1">{attr.desc}</label>
+                      <div key={attr.key} className="relative group overflow-hidden rounded-3xl border border-[var(--border-panel)] bg-[var(--bg-input)]/40 p-5 text-center transition hover:border-[color:var(--gold)]/30">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--border-panel)] to-transparent" />
+                        <label className="block text-[9px] font-black text-[color:var(--text-muted)] tracking-widest mb-1">{attr.desc}</label>
                         <input
                           type="number"
                           value={draftProfile.attributes[attr.key as keyof typeof draftProfile.attributes]}
                           onChange={(e) => updateAttribute(attr.key as any, e.target.value)}
                           disabled={!canManage}
-                          className="w-full bg-transparent text-center text-4xl font-black text-white outline-none"
+                          className="w-full bg-transparent text-center text-4xl font-black text-[color:var(--text-primary)] outline-none"
                         />
+                        <button
+                          onClick={() => handleQuickRoll("3d6", draftProfile.attributes[attr.key as keyof typeof draftProfile.attributes], `Teste de ${attr.label}`)}
+                          className="absolute top-2 right-2 p-2 rounded-lg bg-[var(--bg-input)] text-[color:var(--text-muted)] hover:bg-[color:var(--gold)]/20 hover:text-[color:var(--gold)] transition-all opacity-0 group-hover:opacity-100"
+                          title={`Rolar teste de ${attr.label}`}
+                        >
+                          <Dices size={14} />
+                        </button>
                         <div className="mt-2 flex flex-col items-center gap-1">
-                          <div className="inline-block rounded-full bg-white/5 px-3 py-1 text-[8px] font-black text-amber-500/60 uppercase">
+                          <div className="inline-block rounded-full bg-[var(--bg-card)] border border-[var(--border-panel)] px-3 py-1 text-[8px] font-black text-[color:var(--gold)] uppercase">
                             {attr.label}
                           </div>
-                          <span className="text-[7px] font-bold text-white/10 uppercase tracking-tighter">{attr.cost}</span>
-                          <span className="text-[6px] font-medium text-white/5 uppercase hidden group-hover:block">{attr.help}</span>
+                          <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase tracking-tighter">{attr.cost}</span>
+                          <span className="text-[6px] font-medium text-[color:var(--text-muted)]/20 uppercase hidden group-hover:block">{attr.help}</span>
                         </div>
                       </div>
                     ))}
@@ -607,46 +656,46 @@ export function CharacterSheetModal({
                   <section className="space-y-4">
                     <div className="flex items-center gap-2 px-2">
                       <HeartPulse size={14} className="text-rose-500" />
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white/60">Vitalidade</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Vitalidade</h4>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="rounded-3xl border border-rose-500/20 bg-rose-500/5 p-4 text-center">
                         <span className="text-[8px] font-black text-rose-500/60 uppercase tracking-widest mb-1 block">Vida [PV]</span>
                         <div className="flex items-center justify-center gap-1">
-                          <input type="number" value={draftProfile.attributes.hpMax} onChange={(e) => updateAttribute("hpMax", e.target.value)} disabled={!canManage} className="w-16 bg-transparent text-center text-2xl font-black text-white outline-none" />
+                          <input type="number" value={draftProfile.attributes.hpMax} onChange={(e) => updateAttribute("hpMax", e.target.value)} disabled={!canManage} className="w-16 bg-transparent text-center text-2xl font-black text-[color:var(--text-primary)] outline-none" />
                           <div className="flex flex-col items-center">
-                            <span className="text-[7px] font-black text-white/20">±</span>
-                            <input type="number" value={getRawNumber("hpBonus")} onChange={(e) => updateRaw("hpBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-rose-400 text-center outline-none" />
+                            <span className="text-[7px] font-black text-[color:var(--text-muted)]">±</span>
+                            <input type="number" value={getRawNumber("hpBonus")} onChange={(e) => updateRaw("hpBonus", parseInt(e.target.value, 10))} className="w-8 bg-[var(--bg-input)] rounded-md text-[10px] font-black text-rose-500 text-center outline-none" />
                           </div>
                         </div>
-                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: ST + Bônus</span>
+                        <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase block mt-1">Base: ST + Bônus</span>
                       </div>
-                      <div className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4 text-center">
-                        <span className="text-[8px] font-black text-amber-500/60 uppercase tracking-widest mb-1 block">Fadiga [PF]</span>
+                      <div className="rounded-3xl border border-[color:var(--gold)]/20 bg-[color:var(--mist)] p-4 text-center">
+                        <span className="text-[8px] font-black text-[color:var(--gold)]/60 uppercase tracking-widest mb-1 block">Fadiga [PF]</span>
                         <div className="flex items-center justify-center gap-1">
-                          <input type="number" value={draftProfile.attributes.fpMax} onChange={(e) => updateAttribute("fpMax", e.target.value)} disabled={!canManage} className="w-16 bg-transparent text-center text-2xl font-black text-white outline-none" />
+                          <input type="number" value={draftProfile.attributes.fpMax} onChange={(e) => updateAttribute("fpMax", e.target.value)} disabled={!canManage} className="w-16 bg-transparent text-center text-2xl font-black text-[color:var(--text-primary)] outline-none" />
                           <div className="flex flex-col items-center">
-                            <span className="text-[7px] font-black text-white/20">±</span>
-                            <input type="number" value={getRawNumber("fpBonus")} onChange={(e) => updateRaw("fpBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-amber-400 text-center outline-none" />
+                            <span className="text-[7px] font-black text-[color:var(--text-muted)]">±</span>
+                            <input type="number" value={getRawNumber("fpBonus")} onChange={(e) => updateRaw("fpBonus", parseInt(e.target.value, 10))} className="w-8 bg-[var(--bg-input)] rounded-md text-[10px] font-black text-[color:var(--gold)] text-center outline-none" />
                           </div>
                         </div>
-                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: HT + Bônus</span>
+                        <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase block mt-1">Base: HT + Bônus</span>
                       </div>
-                      <div className="rounded-3xl border border-white/5 bg-black/40 p-4 text-center">
-                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 block">Vontade</span>
+                      <div className="rounded-3xl border border-[var(--border-panel)] bg-[var(--bg-input)]/40 p-4 text-center">
+                        <span className="text-[8px] font-black text-[color:var(--text-muted)] uppercase tracking-widest mb-1 block">Vontade</span>
                         <div className="flex items-center justify-center gap-1">
-                          <input type="number" value={draftProfile.attributes.will} onChange={(e) => updateAttribute("will", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-xl font-bold text-white outline-none" />
-                          <input type="number" value={getRawNumber("willBonus")} onChange={(e) => updateRaw("willBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-emerald-400 text-center outline-none" />
+                          <input type="number" value={draftProfile.attributes.will} onChange={(e) => updateAttribute("will", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-xl font-bold text-[color:var(--text-primary)] outline-none" />
+                          <input type="number" value={getRawNumber("willBonus")} onChange={(e) => updateRaw("willBonus", parseInt(e.target.value, 10))} className="w-8 bg-[var(--bg-input)] rounded-md text-[10px] font-black text-emerald-500 text-center outline-none" />
                         </div>
-                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: IQ + Bônus</span>
+                        <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase block mt-1">Base: IQ + Bônus</span>
                       </div>
-                      <div className="rounded-3xl border border-white/5 bg-black/40 p-4 text-center">
-                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 block">Percepção</span>
+                      <div className="rounded-3xl border border-[var(--border-panel)] bg-[var(--bg-input)]/40 p-4 text-center">
+                        <span className="text-[8px] font-black text-[color:var(--text-muted)] uppercase tracking-widest mb-1 block">Percepção</span>
                         <div className="flex items-center justify-center gap-1">
-                          <input type="number" value={draftProfile.attributes.per} onChange={(e) => updateAttribute("per", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-xl font-bold text-white outline-none" />
-                          <input type="number" value={getRawNumber("perBonus")} onChange={(e) => updateRaw("perBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-emerald-400 text-center outline-none" />
+                          <input type="number" value={draftProfile.attributes.per} onChange={(e) => updateAttribute("per", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-xl font-bold text-[color:var(--text-primary)] outline-none" />
+                          <input type="number" value={getRawNumber("perBonus")} onChange={(e) => updateRaw("perBonus", parseInt(e.target.value, 10))} className="w-8 bg-[var(--bg-input)] rounded-md text-[10px] font-black text-emerald-500 text-center outline-none" />
                         </div>
-                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: IQ + Bônus</span>
+                        <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase block mt-1">Base: IQ + Bônus</span>
                       </div>
                     </div>
                   </section>
@@ -654,51 +703,51 @@ export function CharacterSheetModal({
                   <section className="space-y-4">
                     <div className="flex items-center gap-2 px-2">
                       <Shield size={14} className="text-sky-500" />
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white/60">Defesas Ativas</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Defesas Ativas</h4>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4 text-center">
-                        <span className="text-[8px] font-black text-amber-500/60 uppercase tracking-widest mb-1 block">Velocidade</span>
+                      <div className="rounded-3xl border border-[color:var(--gold)]/20 bg-[color:var(--mist)] p-4 text-center">
+                        <span className="text-[8px] font-black text-[color:var(--gold)]/60 uppercase tracking-widest mb-1 block">Velocidade</span>
                         <div className="flex items-center justify-center gap-1">
-                          <input type="number" step="0.25" value={draftProfile.derived.basicSpeed} onChange={(e) => updateDerived("basicSpeed", e.target.value)} disabled={!canManage} className="w-16 bg-transparent text-center text-2xl font-black text-white outline-none" />
+                          <input type="number" step="0.25" value={draftProfile.derived.basicSpeed} onChange={(e) => updateDerived("basicSpeed", e.target.value)} disabled={!canManage} className="w-16 bg-transparent text-center text-2xl font-black text-[color:var(--text-primary)] outline-none" />
                           <div className="flex flex-col items-center">
-                            <span className="text-[7px] font-black text-white/20">±</span>
-                            <input type="number" step="0.25" value={getRawNumber("speedBonus")} onChange={(e) => updateRaw("speedBonus", parseFloat(e.target.value))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-amber-400 text-center outline-none" />
+                            <span className="text-[7px] font-black text-[color:var(--text-muted)]">±</span>
+                            <input type="number" step="0.25" value={getRawNumber("speedBonus")} onChange={(e) => updateRaw("speedBonus", parseFloat(e.target.value))} className="w-8 bg-[var(--bg-input)] rounded-md text-[10px] font-black text-[color:var(--gold)] text-center outline-none" />
                           </div>
                         </div>
-                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: (DX+HT)/4</span>
+                        <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase block mt-1">Base: (DX+HT)/4</span>
                       </div>
                       <div className="rounded-3xl border border-sky-500/20 bg-sky-500/5 p-4 text-center">
                         <span className="text-[8px] font-black text-sky-500/60 uppercase tracking-widest mb-1 block">Esquiva</span>
                         <div className="flex items-center justify-center gap-1">
-                          <input type="number" value={draftProfile.defenses.dodge} onChange={(e) => updateDefense("dodge", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-2xl font-black text-white outline-none" />
+                          <input type="number" value={draftProfile.defenses.dodge} onChange={(e) => updateDefense("dodge", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-2xl font-black text-[color:var(--text-primary)] outline-none" />
                           <div className="flex flex-col items-center">
-                            <span className="text-[7px] font-black text-white/20">±</span>
-                            <input type="number" value={getRawNumber("dodgeBonus")} onChange={(e) => updateRaw("dodgeBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-sky-400 text-center outline-none" />
+                            <span className="text-[7px] font-black text-[color:var(--text-muted)]">±</span>
+                            <input type="number" value={getRawNumber("dodgeBonus")} onChange={(e) => updateRaw("dodgeBonus", parseInt(e.target.value, 10))} className="w-8 bg-[var(--bg-input)] rounded-md text-[10px] font-black text-sky-500 text-center outline-none" />
                           </div>
                         </div>
-                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: Vel+3-Carga</span>
+                        <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase block mt-1">Base: Vel+3-Carga</span>
                       </div>
                       <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
                         <span className="text-[8px] font-black text-emerald-500/60 uppercase tracking-widest mb-1 block">Deslocamento</span>
                         <div className="flex items-center justify-center gap-1">
-                          <input type="number" value={draftProfile.derived.move} onChange={(e) => updateDerived("move", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-2xl font-black text-white outline-none" />
+                          <input type="number" value={draftProfile.derived.move} onChange={(e) => updateDerived("move", e.target.value)} disabled={!canManage} className="w-12 bg-transparent text-center text-2xl font-black text-[color:var(--text-primary)] outline-none" />
                           <div className="flex flex-col items-center">
-                            <span className="text-[7px] font-black text-white/20">±</span>
-                            <input type="number" value={getRawNumber("moveBonus")} onChange={(e) => updateRaw("moveBonus", parseInt(e.target.value, 10))} className="w-8 bg-white/5 rounded-md text-[10px] font-black text-emerald-400 text-center outline-none" />
+                            <span className="text-[7px] font-black text-[color:var(--text-muted)]">±</span>
+                            <input type="number" value={getRawNumber("moveBonus")} onChange={(e) => updateRaw("moveBonus", parseInt(e.target.value, 10))} className="w-8 bg-[var(--bg-input)] rounded-md text-[10px] font-black text-emerald-500 text-center outline-none" />
                           </div>
                         </div>
-                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">Base: Vel * Carga</span>
+                        <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase block mt-1">Base: Vel * Carga</span>
                       </div>
-                      <div className="rounded-3xl border border-white/5 bg-black/40 p-4 text-center">
-                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 block">Aparar</span>
-                        <input type="number" value={draftProfile.defenses.parry} onChange={(e) => updateDefense("parry", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none" />
-                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">(Skill / 2) + 3</span>
+                      <div className="rounded-3xl border border-[var(--border-panel)] bg-[var(--bg-input)]/40 p-4 text-center">
+                        <span className="text-[8px] font-black text-[color:var(--text-muted)] uppercase tracking-widest mb-1 block">Aparar</span>
+                        <input type="number" value={draftProfile.defenses.parry} onChange={(e) => updateDefense("parry", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-[color:var(--text-primary)] outline-none" />
+                        <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase block mt-1">(Skill / 2) + 3</span>
                       </div>
-                      <div className="rounded-3xl border border-white/5 bg-black/40 p-4 text-center">
-                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1 block">Bloqueio</span>
-                        <input type="number" value={draftProfile.defenses.block} onChange={(e) => updateDefense("block", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-white outline-none" />
-                        <span className="text-[7px] font-bold text-white/10 uppercase block mt-1">(Skill / 2) + 3</span>
+                      <div className="rounded-3xl border border-[var(--border-panel)] bg-[var(--bg-input)]/40 p-4 text-center">
+                        <span className="text-[8px] font-black text-[color:var(--text-muted)] uppercase tracking-widest mb-1 block">Bloqueio</span>
+                        <input type="number" value={draftProfile.defenses.block} onChange={(e) => updateDefense("block", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-[color:var(--text-primary)] outline-none" />
+                        <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase block mt-1">(Skill / 2) + 3</span>
                       </div>
                     </div>
                   </section>
@@ -718,14 +767,14 @@ export function CharacterSheetModal({
                           type="number" 
                           value={draftProfile.combat.currentHp} 
                           onChange={(e) => updateCombat("currentHp", parseInt(e.target.value, 10))}
-                          className="w-24 bg-transparent text-center text-5xl font-black text-white outline-none"
+                          className="w-24 bg-transparent text-center text-5xl font-black text-[color:var(--text-primary)] outline-none"
                         />
-                        <span className="text-[8px] font-bold text-white/20 uppercase mt-2">ATUAL</span>
+                        <span className="text-[8px] font-bold text-[color:var(--text-muted)] uppercase mt-2">ATUAL</span>
                       </div>
-                      <div className="h-12 w-px bg-white/10" />
+                      <div className="h-12 w-px bg-[var(--border-panel)]" />
                       <div className="flex flex-col">
-                        <span className="text-3xl font-black text-white/40">{draftProfile.attributes.hpMax}</span>
-                        <span className="text-[8px] font-bold text-white/20 uppercase mt-2">MÁXIMO</span>
+                        <span className="text-3xl font-black text-[color:var(--text-muted)]/40">{draftProfile.attributes.hpMax}</span>
+                        <span className="text-[8px] font-bold text-[color:var(--text-muted)] uppercase mt-2">MÁXIMO</span>
                       </div>
                     </div>
                     <button 
@@ -744,14 +793,14 @@ export function CharacterSheetModal({
                           type="number" 
                           value={draftProfile.combat.currentFp} 
                           onChange={(e) => updateCombat("currentFp", parseInt(e.target.value, 10))}
-                          className="w-24 bg-transparent text-center text-5xl font-black text-white outline-none"
+                          className="w-24 bg-transparent text-center text-5xl font-black text-[color:var(--text-primary)] outline-none"
                         />
-                        <span className="text-[8px] font-bold text-white/20 uppercase mt-2">ATUAL</span>
+                        <span className="text-[8px] font-bold text-[color:var(--text-muted)] uppercase mt-2">ATUAL</span>
                       </div>
-                      <div className="h-12 w-px bg-white/10" />
+                      <div className="h-12 w-px bg-[var(--border-panel)]" />
                       <div className="flex flex-col">
-                        <span className="text-3xl font-black text-white/40">{draftProfile.attributes.fpMax}</span>
-                        <span className="text-[8px] font-bold text-white/20 uppercase mt-2">MÁXIMO</span>
+                        <span className="text-3xl font-black text-[color:var(--text-muted)]/40">{draftProfile.attributes.fpMax}</span>
+                        <span className="text-[8px] font-bold text-[color:var(--text-muted)] uppercase mt-2">MÁXIMO</span>
                       </div>
                     </div>
                     <button 
@@ -764,30 +813,30 @@ export function CharacterSheetModal({
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-[32px] border border-white/5 bg-black/40 p-6 flex flex-col items-center justify-center text-center">
-                    <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">Dano de Balanço (GeB)</span>
-                    <span className="text-3xl font-black text-amber-500">{dmg.geb}</span>
+                  <div className="rounded-[32px] border border-[var(--border-panel)] bg-[var(--bg-input)]/40 p-6 flex flex-col items-center justify-center text-center">
+                    <span className="text-[9px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.2em] mb-2">Dano de Balanço (GeB)</span>
+                    <span className="text-3xl font-black text-[color:var(--gold)]">{dmg.geb}</span>
                   </div>
-                  <div className="rounded-[32px] border border-white/5 bg-black/40 p-6 flex flex-col items-center justify-center text-center">
-                    <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">Dano de Perfuração (GdP)</span>
-                    <span className="text-3xl font-black text-amber-500">{dmg.gdp}</span>
+                  <div className="rounded-[32px] border border-[var(--border-panel)] bg-[var(--bg-input)]/40 p-6 flex flex-col items-center justify-center text-center">
+                    <span className="text-[9px] font-black text-[color:var(--text-muted)] uppercase tracking-[0.2em] mb-2">Dano de Perfuração (GdP)</span>
+                    <span className="text-3xl font-black text-[color:var(--gold)]">{dmg.gdp}</span>
                   </div>
                 </div>
 
                 {/* Condições Temporárias */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                  <section className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="h-10 w-10 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20">
                         <Zap size={20} />
                       </div>
                       <div>
-                        <h4 className="text-sm font-black uppercase tracking-widest text-white">Choque & Penalidades</h4>
-                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-tighter">Redução em testes no próximo turno</p>
+                        <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Choque & Penalidades</h4>
+                        <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Redução em testes no próximo turno</p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between bg-white/[0.02] p-4 rounded-2xl border border-white/5">
-                      <span className="text-[10px] font-black text-white/40 uppercase">Penalidade de Choque</span>
+                    <div className="flex items-center justify-between bg-[var(--bg-input)] p-4 rounded-2xl border border-[var(--border-panel)]">
+                      <span className="text-[10px] font-black text-[color:var(--text-muted)] uppercase">Penalidade de Choque</span>
                       <div className="flex items-center gap-4">
                         <input 
                           type="range" min="0" max="4" step="1"
@@ -800,20 +849,20 @@ export function CharacterSheetModal({
                     </div>
                   </section>
 
-                  <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                  <section className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8">
                     <div className="flex items-center gap-3 mb-6">
                       <div className="h-10 w-10 rounded-2xl bg-sky-500/10 flex items-center justify-center text-sky-500 border border-sky-500/20">
                         <Dumbbell size={20} />
                       </div>
                       <div>
-                        <h4 className="text-sm font-black uppercase tracking-widest text-white">Nível de Carga</h4>
-                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-tighter">Afeta Deslocamento e Esquiva</p>
+                        <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Nível de Carga</h4>
+                        <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Afeta Deslocamento e Esquiva</p>
                       </div>
                     </div>
                     <select
                       value={draftProfile.derived.encumbranceLevel}
                       onChange={(e) => updateDerived("encumbranceLevel", e.target.value)}
-                      className="w-full rounded-2xl bg-black/60 border border-white/10 p-4 text-xs font-bold text-white outline-none focus:border-sky-500/40"
+                      className="w-full rounded-2xl bg-[var(--bg-input)] border border-[var(--border-panel)] p-4 text-xs font-bold text-[color:var(--text-primary)] outline-none focus:border-sky-500/40"
                     >
                       <option value="0">Nenhuma (x1.0)</option>
                       <option value="1">Leve (x0.8, -1 Esquiva)</option>
@@ -832,8 +881,8 @@ export function CharacterSheetModal({
                         <Brain size={20} />
                       </div>
                       <div>
-                        <h4 className="text-sm font-black uppercase tracking-widest text-white">Memória Muscular</h4>
-                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-tighter">Slots de Manobras Avançadas (Nível 2 e 3)</p>
+                        <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Memória Muscular</h4>
+                        <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Slots de Manobras Avançadas (Nível 2 e 3)</p>
                       </div>
                     </div>
                   </div>
@@ -842,30 +891,30 @@ export function CharacterSheetModal({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                     <div className={cn(
                       "flex items-center justify-between p-4 rounded-3xl border transition-all cursor-pointer",
-                      draftProfile.raw?.unlockedLevel2 ? "bg-sky-500/10 border-sky-500/20" : "bg-black/40 border-white/5"
+                      draftProfile.raw?.unlockedLevel2 ? "bg-sky-500/10 border-sky-500/20" : "bg-[var(--bg-input)] border-[var(--border-panel)]"
                     )} onClick={() => updateRaw("unlockedLevel2", !draftProfile.raw?.unlockedLevel2)}>
                       <div className="flex items-center gap-3">
-                        <div className={cn("w-5 h-5 rounded-lg border flex items-center justify-center transition-all", draftProfile.raw?.unlockedLevel2 ? "bg-sky-500 border-sky-400" : "bg-white/5 border-white/10")}>
+                        <div className={cn("w-5 h-5 rounded-lg border flex items-center justify-center transition-all", draftProfile.raw?.unlockedLevel2 ? "bg-sky-500 border-sky-400" : "bg-[var(--bg-card)] border-[var(--border-panel)]")}>
                           {!!draftProfile.raw?.unlockedLevel2 && <Save size={12} className="text-sky-950" />}
                         </div>
                         <div>
-                          <h5 className="text-[10px] font-black text-white uppercase tracking-widest">Nível 2: Chuden</h5>
-                          <p className="text-[8px] font-bold text-white/30 uppercase">Perícia 12+ ou 5pts Estilo</p>
+                          <h5 className="text-[10px] font-black text-[color:var(--text-primary)] uppercase tracking-widest">Nível 2: Chuden</h5>
+                          <p className="text-[8px] font-bold text-[color:var(--text-muted)] uppercase">Perícia 12+ ou 5pts Estilo</p>
                         </div>
                       </div>
                     </div>
 
                     <div className={cn(
                       "flex items-center justify-between p-4 rounded-3xl border transition-all cursor-pointer",
-                      draftProfile.raw?.unlockedLevel3 ? "bg-amber-500/10 border-amber-500/20" : "bg-black/40 border-white/5"
+                      draftProfile.raw?.unlockedLevel3 ? "bg-[color:var(--mist)] border-[color:var(--gold)]/20" : "bg-[var(--bg-input)] border-[var(--border-panel)]"
                     )} onClick={() => updateRaw("unlockedLevel3", !draftProfile.raw?.unlockedLevel3)}>
                       <div className="flex items-center gap-3">
-                        <div className={cn("w-5 h-5 rounded-lg border flex items-center justify-center transition-all", draftProfile.raw?.unlockedLevel3 ? "bg-amber-500 border-amber-400" : "bg-white/5 border-white/10")}>
-                          {!!draftProfile.raw?.unlockedLevel3 && <Save size={12} className="text-amber-950" />}
+                        <div className={cn("w-5 h-5 rounded-lg border flex items-center justify-center transition-all", draftProfile.raw?.unlockedLevel3 ? "bg-[color:var(--gold)] border-[color:var(--gold)]/40" : "bg-[var(--bg-card)] border-[var(--border-panel)]")}>
+                          {!!draftProfile.raw?.unlockedLevel3 && <Save size={12} className="text-[color:var(--mist)]" />}
                         </div>
                         <div>
-                          <h5 className="text-[10px] font-black text-white uppercase tracking-widest">Nível 3: Okuden</h5>
-                          <p className="text-[8px] font-bold text-white/30 uppercase">Perícia 14+ e Estilo Luta</p>
+                          <h5 className="text-[10px] font-black text-[color:var(--text-primary)] uppercase tracking-widest">Nível 3: Okuden</h5>
+                          <p className="text-[8px] font-bold text-[color:var(--text-muted)] uppercase">Perícia 14+ e Estilo Luta</p>
                         </div>
                       </div>
                     </div>
@@ -876,12 +925,12 @@ export function CharacterSheetModal({
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Shoden (Básico)</span>
                       <div className="h-px flex-1 bg-sky-500/10" />
-                      <span className="text-[8px] font-bold text-white/20 uppercase">Sempre Ativas</span>
+                      <span className="text-[8px] font-bold text-[color:var(--text-muted)] uppercase">Sempre Ativas</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {MANEUVER_CATALOG.filter(m => m.level === 1).map(m => (
-                        <div key={m.id} className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 flex items-center gap-2">
-                          <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">{m.name}</span>
+                        <div key={m.id} className="px-3 py-1.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-panel)] flex items-center gap-2">
+                          <span className="text-[9px] font-black text-[color:var(--text-muted)] uppercase tracking-widest">{m.name}</span>
                         </div>
                       ))}
                     </div>
@@ -903,10 +952,10 @@ export function CharacterSheetModal({
                               nextIds[slotIdx] = e.target.value;
                               updateCombat("loadoutTechniqueIds", nextIds.filter(Boolean));
                             }}
-                            className="w-full appearance-none rounded-2xl border border-white/10 bg-black/60 px-4 py-4 text-xs font-bold text-white outline-none focus:border-sky-500/40 transition-all cursor-pointer"
+                            className="w-full appearance-none rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-4 text-xs font-bold text-[color:var(--text-primary)] outline-none focus:border-sky-500/40 transition-all cursor-pointer"
                           >
                             <option value="">-- Kamae --</option>
-                            <optgroup label="Nível 2: Chuden" className="bg-neutral-900">
+                            <optgroup label="Nível 2: Chuden" className="bg-[var(--bg-panel)]">
                               {MANEUVER_CATALOG.filter(m => m.level === 2).map(m => {
                                 const isLocked = !isL2Unlocked;
                                 const isSelectedElsewhere = draftProfile.combat.loadoutTechniqueIds.includes(m.id) && selectedId !== m.id;
@@ -917,7 +966,7 @@ export function CharacterSheetModal({
                                 );
                               })}
                             </optgroup>
-                            <optgroup label="Nível 3: Okuden" className="bg-neutral-900">
+                            <optgroup label="Nível 3: Okuden" className="bg-[var(--bg-panel)]">
                               {MANEUVER_CATALOG.filter(m => m.level === 3).map(m => {
                                 const isLocked = !isL3Unlocked;
                                 const isSelectedElsewhere = draftProfile.combat.loadoutTechniqueIds.includes(m.id) && selectedId !== m.id;
@@ -929,31 +978,31 @@ export function CharacterSheetModal({
                               })}
                             </optgroup>
                           </select>
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[color:var(--text-muted)]">
                             <ChevronDown size={14} />
                           </div>
-                          <div className="mt-2 text-[8px] font-black uppercase tracking-widest text-white/20 text-center">
+                          <div className="mt-2 text-[8px] font-black uppercase tracking-widest text-[color:var(--text-muted)] text-center">
                             MUSCULAR {slotIdx + 1}
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                  <div className="mt-6 flex items-center justify-center gap-2 rounded-2xl bg-amber-500/5 p-4 border border-amber-500/10">
-                    <RotateCcw size={14} className="text-amber-500" />
-                    <p className="text-[9px] font-bold text-amber-500/60 uppercase tracking-widest">A troca de postura mental gasta 1 turno de concentração</p>
+                  <div className="mt-6 flex items-center justify-center gap-2 rounded-2xl bg-[color:var(--mist)] p-4 border border-[color:var(--gold)]/10">
+                    <RotateCcw size={14} className="text-[color:var(--gold)]" />
+                    <p className="text-[9px] font-bold text-[color:var(--gold)]/60 uppercase tracking-widest">A troca de postura mental gasta 1 turno de concentração</p>
                   </div>
                 </section>
 
                 {/* Postura e Condição */}
-                <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                <section className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="h-10 w-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                    <div className="h-10 w-10 rounded-2xl bg-[color:var(--mist)] flex items-center justify-center text-[color:var(--gold)] border border-[color:var(--gold)]/20">
                       <Activity size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-black uppercase tracking-widest text-white">Postura de Combate</h4>
-                      <p className="text-[10px] font-bold text-white/20 uppercase tracking-tighter">Afeta defesas e ataques</p>
+                      <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Postura de Combate</h4>
+                      <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Afeta defesas e ataques</p>
                     </div>
                   </div>
 
@@ -971,8 +1020,8 @@ export function CharacterSheetModal({
                         className={cn(
                           "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
                           draftProfile.combat.posture === p.id 
-                            ? "bg-amber-500 border-amber-400 text-amber-950 shadow-lg shadow-amber-500/20" 
-                            : "bg-white/5 border-white/5 text-white/40 hover:bg-white/10"
+                            ? "bg-[color:var(--gold)] border-[color:var(--gold)]/40 text-[color:var(--mist)] shadow-lg shadow-[color:var(--gold)]/20" 
+                            : "bg-[var(--bg-input)] border-[var(--border-panel)] text-[color:var(--text-muted)] hover:bg-[var(--bg-card)]"
                         )}
                       >
                         {p.label}
@@ -981,19 +1030,19 @@ export function CharacterSheetModal({
                   </div>
                 </section>
 
-                <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                <section className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8">
                   <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                      <div className="h-10 w-10 rounded-2xl bg-[color:var(--mist)] flex items-center justify-center text-[color:var(--gold)] border border-[color:var(--gold)]/20">
                         <Swords size={20} />
                       </div>
                       <div>
-                        <h4 className="text-sm font-black uppercase tracking-widest text-white">Arsenal de Armas</h4>
-                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-tighter">Armas prontas para combate</p>
+                        <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Arsenal de Armas</h4>
+                        <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Armas prontas para combate</p>
                       </div>
                     </div>
                     {canManage && (
-                      <button onClick={addWeapon} className="rounded-2xl bg-amber-500 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-amber-950 transition hover:bg-amber-400 active:scale-95 shadow-lg shadow-amber-500/20">
+                      <button onClick={addWeapon} className="rounded-2xl bg-[color:var(--gold)] px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-[color:var(--mist)] transition hover:opacity-90 active:scale-95 shadow-lg shadow-[color:var(--gold)]/20">
                         Novo Registro
                       </button>
                     )}
@@ -1001,47 +1050,47 @@ export function CharacterSheetModal({
 
                   <div className="space-y-3">
                     {draftProfile.weapons.map((w) => (
-                      <div key={w.id} className="grid grid-cols-1 sm:grid-cols-[1fr_100px_100px_48px] items-center gap-4 rounded-[24px] border border-white/5 bg-white/[0.02] p-3 transition-all hover:bg-white/[0.04] hover:border-amber-500/20">
+                      <div key={w.id} className="grid grid-cols-1 sm:grid-cols-[1fr_100px_100px_48px] items-center gap-4 rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-input)]/40 p-3 transition-all hover:bg-[var(--bg-input)] hover:border-[color:var(--gold)]/20">
                         <div className="px-2">
-                          <label className="block sm:hidden text-[7px] font-black text-white/20 uppercase mb-1">Nome da Arma</label>
+                          <label className="block sm:hidden text-[7px] font-black text-[color:var(--text-muted)] uppercase mb-1">Nome da Arma</label>
                           <input 
                             value={w.name} 
                             onChange={(e) => updateWeapon(w.id, "name", e.target.value)} 
                             disabled={!canManage} 
                             placeholder="Katana, Arco, etc..." 
-                            className="w-full bg-transparent text-sm font-black text-white outline-none" 
+                            className="w-full bg-transparent text-sm font-black text-[color:var(--text-primary)] outline-none" 
                           />
                         </div>
                         <div className="grid grid-cols-2 sm:contents gap-4">
                           <div>
-                            <label className="block sm:hidden text-[7px] font-black text-white/20 uppercase mb-1">Qualidade</label>
+                            <label className="block sm:hidden text-[7px] font-black text-[color:var(--text-muted)] uppercase mb-1">Qualidade</label>
                             <input 
                               value={w.quality || ""} 
                               onChange={(e) => updateWeapon(w.id, "quality", e.target.value)} 
                               disabled={!canManage} 
                               placeholder="Fina" 
-                              className="w-full rounded-xl bg-black/40 px-3 py-2 text-[10px] font-bold text-white/60 outline-none text-center border border-white/5" 
+                              className="w-full rounded-xl bg-[var(--bg-card)] px-3 py-2 text-[10px] font-bold text-[color:var(--text-muted)] outline-none text-center border border-[var(--border-panel)]" 
                             />
                           </div>
                           <div className="relative group/dmg">
-                            <label className="block sm:hidden text-[7px] font-black text-white/20 uppercase mb-1">Dano</label>
+                            <label className="block sm:hidden text-[7px] font-black text-[color:var(--text-muted)] uppercase mb-1">Dano</label>
                             <input 
                               value={w.rawDamage || ""} 
                               onChange={(e) => updateWeapon(w.id, "rawDamage", e.target.value)} 
                               disabled={!canManage} 
                               placeholder="GeB+2" 
-                              className="w-full rounded-xl bg-black/40 px-3 py-2 text-[10px] font-bold text-amber-500 outline-none text-right border border-white/5" 
+                              className="w-full rounded-xl bg-[var(--bg-card)] px-3 py-2 text-[10px] font-bold text-[color:var(--gold)] outline-none text-right border border-[var(--border-panel)]" 
                             />
                             {w.rawDamage && (w.rawDamage.includes("GeB") || w.rawDamage.includes("GdP") || w.rawDamage.includes("geb") || w.rawDamage.includes("gdp")) && (
-                              <div className="absolute -bottom-1 right-0 translate-y-full opacity-0 group-hover/dmg:opacity-100 transition-opacity bg-amber-500 text-amber-950 text-[8px] font-black px-2 py-0.5 rounded-md pointer-events-none z-20 shadow-xl whitespace-nowrap">
+                              <div className="absolute -bottom-1 right-0 translate-y-full opacity-0 group-hover/dmg:opacity-100 transition-opacity bg-[color:var(--gold)] text-[color:var(--mist)] text-[8px] font-black px-2 py-0.5 rounded-md pointer-events-none z-20 shadow-xl whitespace-nowrap">
                                 TOTAL: {resolveDynamicDamage(w.rawDamage, st)}
                               </div>
                             )}
                           </div>
                         </div>
-                        <div className="flex justify-center border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
+                        <div className="flex justify-center border-t sm:border-t-0 border-[var(--border-panel)] pt-2 sm:pt-0">
                           {canManage && (
-                            <button onClick={() => removeWeapon(w.id)} className="rounded-xl p-2 text-white/10 transition hover:bg-rose-500/20 hover:text-rose-400">
+                            <button onClick={() => removeWeapon(w.id)} className="rounded-xl p-2 text-[color:var(--text-muted)]/20 transition hover:bg-rose-500/20 hover:text-rose-400">
                               <X size={16} />
                             </button>
                           )}
@@ -1049,7 +1098,7 @@ export function CharacterSheetModal({
                       </div>
                     ))}
                     {draftProfile.weapons.length === 0 && (
-                      <div className="flex flex-col items-center justify-center py-12 rounded-[32px] border border-dashed border-white/5 bg-white/[0.01] text-white/10">
+                      <div className="flex flex-col items-center justify-center py-12 rounded-[32px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-input)]/20 text-[color:var(--text-muted)]/20">
                         <Swords size={32} strokeWidth={1} />
                         <p className="mt-4 text-[10px] font-black uppercase tracking-[0.4em]">Arsenal Vazio</p>
                       </div>
@@ -1058,10 +1107,10 @@ export function CharacterSheetModal({
                 </section>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                  <div className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8">
                     <div className="flex items-center gap-3 mb-6">
                       <Shield className="text-sky-500" size={18} />
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white/60">Resistência de Dano (RD)</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Resistência de Dano (RD)</h4>
                     </div>
                     <div className="space-y-3">
                       {[
@@ -1069,30 +1118,30 @@ export function CharacterSheetModal({
                         { key: "drMiddle", label: "Tronco & Braços" },
                         { key: "drBottom", label: "Pernas & Pés" }
                       ].map(dr => (
-                        <div key={dr.key} className="flex items-center justify-between rounded-2xl bg-white/[0.02] p-4 border border-white/5 transition hover:bg-white/[0.04]">
-                          <span className="text-[10px] font-bold text-white/40 uppercase">{dr.label}</span>
+                        <div key={dr.key} className="flex items-center justify-between rounded-2xl bg-[var(--bg-input)] p-4 border border-[var(--border-panel)] transition hover:bg-[var(--bg-card)]">
+                          <span className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase">{dr.label}</span>
                           <input 
                             type="number" 
                             value={getRawNumber(dr.key)} 
                             onChange={(e) => updateRaw(dr.key, parseInt(e.target.value, 10))} 
                             disabled={!canManage} 
-                            className="w-16 rounded-xl bg-black/60 p-2 text-center text-sm font-black text-white outline-none border border-white/5 focus:border-sky-500/40" 
+                            className="w-16 rounded-xl bg-[var(--bg-panel)] p-2 text-center text-sm font-black text-[color:var(--text-primary)] outline-none border border-[var(--border-panel)] focus:border-sky-500/40" 
                           />
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="rounded-[40px] border border-white/5 bg-black/40 p-8 flex flex-col">
+                  <div className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8 flex flex-col">
                     <div className="flex items-center gap-3 mb-6">
                       <Package className="text-emerald-500" size={18} />
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white/60">Inventário Geral</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Inventário Geral</h4>
                     </div>
                     <textarea 
                       value={getRawString("equipmentText")} 
                       onChange={(e) => updateRaw("equipmentText", e.target.value)} 
                       disabled={!canManage} 
-                      className="w-full flex-1 min-h-[160px] resize-none bg-transparent text-sm text-white/80 outline-none custom-scrollbar leading-relaxed placeholder:text-white/5" 
+                      className="w-full flex-1 min-h-[160px] resize-none bg-transparent text-sm text-[color:var(--text-secondary)] outline-none custom-scrollbar leading-relaxed placeholder:text-[color:var(--text-muted)]/20" 
                       placeholder="Descreva aqui seus pertences, rações e itens diversos..."
                     />
                   </div>
@@ -1103,62 +1152,62 @@ export function CharacterSheetModal({
             {activeTab === "traits" && (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                  <section className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8">
                     <div className="flex items-center gap-3 mb-6">
-                      <Activity className="text-amber-500" size={18} />
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white">Vantagens & Qualidades</h4>
+                      <Activity className="text-[color:var(--gold)]" size={18} />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-primary)]">Vantagens & Qualidades</h4>
                     </div>
                     <textarea
                       value={getRawString("advantages")}
                       onChange={(e) => updateRaw("advantages", e.target.value)}
                       disabled={!canManage}
                       rows={6}
-                      className="w-full resize-none bg-transparent text-sm text-white outline-none custom-scrollbar leading-relaxed"
+                      className="w-full resize-none bg-transparent text-sm text-[color:var(--text-secondary)] outline-none custom-scrollbar leading-relaxed"
                       placeholder="Reflexos em Combate [15], Visão Noturna..."
                     />
                   </section>
-                  <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                  <section className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8">
                     <div className="flex items-center gap-3 mb-6">
                       <Activity className="text-rose-500" size={18} />
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white">Desvantagens</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-primary)]">Desvantagens</h4>
                     </div>
                     <textarea
                       value={getRawString("disadvantages")}
                       onChange={(e) => updateRaw("disadvantages", e.target.value)}
                       disabled={!canManage}
                       rows={6}
-                      className="w-full resize-none bg-transparent text-sm text-white outline-none custom-scrollbar leading-relaxed"
+                      className="w-full resize-none bg-transparent text-sm text-[color:var(--text-secondary)] outline-none custom-scrollbar leading-relaxed"
                       placeholder="Senso de Dever [-5], Código de Honra..."
                     />
                   </section>
                 </div>
 
-                <section className="rounded-[40px] border border-white/5 bg-black/40 p-8">
+                <section className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8">
                   <div className="flex items-center gap-3 mb-6">
                     <Brain className="text-sky-500" size={18} />
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white">Perícias & Técnicas</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-primary)]">Perícias & Técnicas</h4>
                   </div>
                   <textarea
                     value={getRawString("skills")}
                     onChange={(e) => updateRaw("skills", e.target.value)}
                     disabled={!canManage}
                     rows={8}
-                    className="w-full resize-none bg-transparent text-sm text-white outline-none custom-scrollbar leading-relaxed"
+                    className="w-full resize-none bg-transparent text-sm text-[color:var(--text-secondary)] outline-none custom-scrollbar leading-relaxed"
                     placeholder="Katana-14, Furtividade-13, Liderança-12..."
                   />
                 </section>
 
-                <section className="rounded-[40px] border border-white/5 bg-[#0e0e10] p-8">
+                <section className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/60 p-8">
                   <div className="flex items-center gap-3 mb-6">
-                    <ScrollText className="text-amber-500/40" size={18} />
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">História & Notas</h4>
+                    <ScrollText className="text-[color:var(--gold)]/40" size={18} />
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">História & Notas</h4>
                   </div>
                   <textarea
                     value={getRawString("history")}
                     onChange={(e) => updateRaw("history", e.target.value)}
                     disabled={!canManage}
                     rows={10}
-                    className="w-full resize-none bg-transparent text-sm text-white/60 italic outline-none custom-scrollbar leading-relaxed"
+                    className="w-full resize-none bg-transparent text-sm text-[color:var(--text-secondary)] italic outline-none custom-scrollbar leading-relaxed"
                     placeholder="O passado deste guerreiro está envolto em névoas..."
                   />
                 </section>
@@ -1167,15 +1216,15 @@ export function CharacterSheetModal({
           </div>
         </main>
 
-        <footer className="relative z-10 border-t border-white/5 bg-black/40 backdrop-blur-xl px-6 py-5 flex items-center justify-between">
+        <footer className="relative z-10 border-t border-[var(--border-panel)] bg-[var(--bg-panel)]/40 backdrop-blur-xl px-6 py-5 flex items-center justify-between">
           <div className="hidden sm:block">
-             <p className="text-[8px] font-black text-white/10 uppercase tracking-[0.5em]">Bushido System v2.0</p>
+             <p className="text-[8px] font-black text-[color:var(--text-muted)]/10 uppercase tracking-[0.5em]">Bushido System v2.0</p>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <button
               onClick={onClose}
               disabled={isPending}
-              className="flex-1 sm:flex-none rounded-2xl px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white/40 transition hover:bg-white/5 hover:text-white"
+              className="flex-1 sm:flex-none rounded-2xl px-6 py-3 text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)] transition hover:bg-[var(--bg-input)] hover:text-[color:var(--text-primary)]"
             >
               Cancelar
             </button>
@@ -1183,7 +1232,7 @@ export function CharacterSheetModal({
               <button
                 onClick={handleSave}
                 disabled={isPending}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-3 rounded-2xl bg-amber-500 px-8 py-3 text-[10px] font-black uppercase tracking-widest text-amber-950 transition hover:bg-amber-400 hover:shadow-[0_0_20px_rgba(245,158,11,0.2)] active:scale-95 disabled:opacity-50"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-3 rounded-2xl bg-[color:var(--gold)] px-8 py-3 text-[10px] font-black uppercase tracking-widest text-[color:var(--mist)] transition hover:opacity-90 hover:shadow-[0_0_20px_rgba(var(--gold-rgb),0.2)] active:scale-95 disabled:opacity-50"
               >
                 {isPending ? <Activity size={16} className="animate-spin" /> : <Save size={16} />}
                 {isPending ? "Gravando..." : "Sincronizar Bushido"}

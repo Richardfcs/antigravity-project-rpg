@@ -43,6 +43,7 @@ const maneuverIcons: Partial<Record<CombatActionType, LucideIcon>> = {
   "swap-technique": Timer,
   "quick-contest": Zap,
   "regular-contest": Zap,
+  "iai-strike": Zap,
   "do-nothing": Ban
 };
 
@@ -66,31 +67,31 @@ export function ManeuverCard({
       className={`
         relative flex flex-col items-start p-4 text-left border rounded-xl 
         combat-maneuver-card transition-all duration-200 group
-        ${disabled ? 'opacity-40 cursor-not-allowed border-white/5 bg-white/2' : 'cursor-pointer'}
+        ${disabled ? 'opacity-40 cursor-not-allowed border-[color:var(--border-panel)] bg-[color:var(--bg-input)]/20' : 'cursor-pointer'}
         ${selected 
-          ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]' 
-          : 'bg-black/40 border-white/10 hover:border-white/25 hover:bg-white/5'}
+          ? 'bg-[color:var(--accent)]/10 border-[color:var(--accent)]/50 shadow-[0_0_15px_rgba(212,168,70,0.1)]' 
+          : 'bg-[color:var(--bg-deep)]/40 border-[color:var(--border-panel)] hover:border-[color:var(--ink-3)] hover:bg-[color:var(--bg-panel)]'}
       `}
     >
       <div className={`
         p-2 rounded-lg mb-3 transition-colors
-        ${selected ? 'bg-amber-500 text-black' : 'bg-white/5 text-white/60 group-hover:text-white'}
+        ${selected ? 'bg-[color:var(--accent)] text-[#050505]' : 'bg-[color:var(--bg-input)] text-[color:var(--ink-3)] group-hover:text-[color:var(--ink-1)]'}
       `}>
         <Icon size={20} strokeWidth={2.5} />
       </div>
 
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between w-full">
-          <span className={`font-black text-sm uppercase tracking-tight ${selected ? 'text-amber-400' : 'text-white'}`}>
+          <span className={`font-black text-sm uppercase tracking-tight ${selected ? 'text-[color:var(--accent)]' : 'text-[color:var(--ink-1)]'}`}>
             {label}
           </span>
           {shortcut && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-white/30 border border-white/5 uppercase">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[color:var(--bg-input)] text-[color:var(--ink-3)] border border-[color:var(--border-panel)] uppercase">
               {shortcut}
             </span>
           )}
         </div>
-        <p className="text-[11px] leading-tight text-white/40 font-medium line-clamp-2">
+        <p className="text-[11px] leading-tight text-[color:var(--ink-3)] font-medium line-clamp-2">
           {description}
         </p>
         {badges.length > 0 ? (
@@ -98,7 +99,7 @@ export function ManeuverCard({
             {badges.map((badge) => (
               <span
                 key={badge}
-                className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-white/35"
+                className="rounded-full border border-[color:var(--border-panel)] bg-[color:var(--bg-input)] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-[color:var(--ink-3)]"
               >
                 {badge}
               </span>
@@ -108,7 +109,7 @@ export function ManeuverCard({
       </div>
 
       {selected && (
-        <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+        <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[color:var(--accent)] shadow-[0_0_8px_rgba(212,168,70,0.8)]" />
       )}
     </button>
   );

@@ -191,38 +191,38 @@ export function EffectsPanel({
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: "Camadas Ativas", value: activeEffects.length, icon: Waves, color: "text-amber-400" },
+          { label: "Camadas Ativas", value: activeEffects.length, icon: Waves, color: "text-[color:var(--gold)]" },
           { label: "Escopo Atual", value: targetParticipantId ? "Alvo Individual" : "Global", icon: Sparkles, color: "text-emerald-400" },
           { label: "Preview Local", value: previewEffect ? effectLabel(previewEffect.preset) : "Desligado", icon: Eye, color: "text-indigo-400" }
         ].map((stat, i) => (
-          <div key={i} className="rounded-[22px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
+          <div key={i} className="rounded-[22px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/30 p-5 backdrop-blur-md">
             <div className="flex items-center gap-2 mb-3">
               <stat.icon size={14} className={cn("opacity-60", stat.color)} />
-              <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{stat.label}</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">{stat.label}</p>
             </div>
-            <p className="text-xl font-bold text-white truncate">{stat.value}</p>
+            <p className="text-xl font-bold text-[color:var(--text-primary)] truncate">{stat.value}</p>
           </div>
         ))}
       </div>
 
-      <section className="rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
+      <section className="rounded-[28px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
         <header className="flex items-center gap-3 mb-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/10 text-amber-400">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[color:var(--gold)]/10 text-[color:var(--gold)]">
             <Waves size={20} />
           </div>
           <div>
-            <h3 className="text-lg font-bold tracking-tight text-white">Invocação Imersiva</h3>
-            <p className="text-xs text-white/40">Modele a atmosfera, o clima e a percepção dos jogadores.</p>
+            <h3 className="text-lg font-bold tracking-tight text-[color:var(--text-primary)]">Invocação Imersiva</h3>
+            <p className="text-xs text-[color:var(--text-muted)]">Modele a atmosfera, o clima e a percepção dos jogadores.</p>
           </div>
         </header>
 
         <div className="grid gap-5 md:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Destinatário do Fenômeno</label>
+            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Destinatário do Fenômeno</label>
             <select
               value={targetParticipantId}
               onChange={(event) => setTargetParticipantId(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+              className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35 focus:bg-[var(--bg-card)]"
             >
               <option value="">Todos os presentes (Global)</option>
               {participants.map((participant) => (
@@ -234,16 +234,16 @@ export function EffectsPanel({
           </div>
 
           <div className="space-y-1.5">
-            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Preset de Efeito</label>
+            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Preset de Efeito</label>
             <select
               value={preset}
               onChange={(event) => setPreset(event.target.value as SessionEffectPreset)}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+              className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35 focus:bg-[var(--bg-card)]"
             >
               {presetGroups.map((group) => (
-                <optgroup key={group.label} label={group.label.toUpperCase()} className="bg-black text-[10px] text-white/40">
+                <optgroup key={group.label} label={group.label.toUpperCase()} className="bg-[var(--bg-panel)] text-[10px] text-[color:var(--text-muted)]">
                   {group.options.map((option) => (
-                    <option key={option.value} value={option.value} className="text-sm text-white">
+                    <option key={option.value} value={option.value} className="text-sm text-[color:var(--text-primary)]">
                       {option.label}
                     </option>
                   ))}
@@ -253,35 +253,35 @@ export function EffectsPanel({
           </div>
 
           <div className="space-y-1.5">
-            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Intensidade do Pulso</label>
+            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Intensidade do Pulso</label>
             <input
               value={intensity}
               onChange={(event) => setIntensity(event.target.value)}
               inputMode="numeric"
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+              className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
               placeholder="Ex: 3"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Duração Vital (ms)</label>
+            <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Duração Vital (ms)</label>
             <input
               value={durationMs}
               onChange={(event) => setDurationMs(event.target.value)}
               inputMode="numeric"
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+              className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
               placeholder="Vazio para Permanente"
             />
           </div>
         </div>
 
         <div className="mt-5 space-y-1.5">
-          <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Notas de Ambientação</label>
+          <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Notas de Ambientação</label>
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value)}
             rows={3}
-            className="w-full rounded-[24px] border border-white/10 bg-white/[0.04] px-5 py-4 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08] placeholder:text-white/10 custom-scrollbar"
+            className="w-full rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-5 py-4 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35 focus:bg-[var(--bg-card)] placeholder:text-[color:var(--text-muted)] custom-scrollbar"
             placeholder="Descreva detalhes como ventos, temperatura ou sensações..."
           />
         </div>
@@ -291,7 +291,7 @@ export function EffectsPanel({
             <button
               type="button"
               onClick={handlePreview}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-white/10"
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)] px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--text-primary)] transition hover:bg-[var(--bg-card)]/80"
             >
               <Eye size={14} />
               Preview
@@ -299,7 +299,7 @@ export function EffectsPanel({
             <button
               type="button"
               onClick={() => setPreviewEffect(null)}
-              className="inline-flex items-center justify-center rounded-xl border border-white/5 bg-white/2 h-10 w-10 text-white/40 transition hover:text-rose-400"
+              className="inline-flex items-center justify-center rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)]/40 h-10 w-10 text-[color:var(--text-muted)] transition hover:text-rose-400"
             >
               <Trash2 size={16} />
             </button>
@@ -309,7 +309,7 @@ export function EffectsPanel({
             type="button"
             onClick={handleApply}
             disabled={isPending}
-            className="inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-amber-100 transition hover:bg-amber-400/20 shadow-[0_0_20px_rgba(251,191,36,0.1)] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/30 bg-[color:var(--mist)] px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 shadow-[0_0_20px_rgba(var(--gold-rgb),0.1)] disabled:opacity-50"
           >
             {pendingKey === "create-effect" ? (
               <LoaderCircle size={16} className="animate-spin" />
@@ -330,18 +330,18 @@ export function EffectsPanel({
       <section className="space-y-4">
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
-            <Waves size={14} className="text-white/30" />
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Camadas Ativas na Realidade</h4>
+            <Waves size={14} className="text-[color:var(--text-muted)]" />
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Camadas Ativas na Realidade</h4>
           </div>
-          <span className="text-[10px] font-bold text-white/20">
+          <span className="text-[10px] font-bold text-[color:var(--text-muted)]/20">
             {activeEffects.length} {activeEffects.length === 1 ? "Efeito" : "Efeitos"}
           </span>
         </div>
 
         <div className="grid gap-3">
           {activeEffects.length === 0 && (
-            <div className="rounded-[24px] border border-dashed border-white/5 bg-white/[0.02] px-6 py-8 text-center">
-              <p className="text-sm text-white/20 font-medium">A realidade segue sem interferências imersivas.</p>
+            <div className="rounded-[24px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-input)]/30 px-6 py-8 text-center">
+              <p className="text-sm text-[color:var(--text-muted)] font-medium">A realidade segue sem interferências imersivas.</p>
             </div>
           )}
 
@@ -353,26 +353,26 @@ export function EffectsPanel({
             return (
               <article
                 key={effect.id}
-                className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03] p-4 transition-all hover:border-amber-400/30 hover:bg-white/[0.05]"
+                className="group relative overflow-hidden rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-card)]/30 p-4 transition-all hover:border-[color:var(--gold)]/30 hover:bg-[var(--bg-card)]/50"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h5 className="text-sm font-bold text-white">{effectLabel(effect.preset)}</h5>
+                      <h5 className="text-sm font-bold text-[color:var(--text-primary)]">{effectLabel(effect.preset)}</h5>
                       <span className={cn(
-                        "hud-chip border-white/10 bg-black/30 text-[9px]",
+                        "hud-chip border-[var(--border-panel)] bg-[var(--bg-panel)]/30 text-[9px]",
                         target ? "text-indigo-300" : "text-emerald-300"
                       )}>
                         {target ? target.displayName : "Global"}
                       </span>
                     </div>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] font-bold text-white/30 uppercase tracking-wider">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-wider">
                       <span>Intensidade {effect.intensity}</span>
-                      <span className="text-white/10">•</span>
+                      <span className="text-[color:var(--text-muted)]/20">•</span>
                       <span>{effect.durationMs ? `${Math.round(effect.durationMs / 1000)}s` : "Persistente"}</span>
                     </div>
                     {effect.note && (
-                      <p className="mt-2 text-xs leading-relaxed text-white/50 italic border-l border-white/10 pl-3">{effect.note}</p>
+                      <p className="mt-2 text-xs leading-relaxed text-[color:var(--text-secondary)] italic border-l border-[var(--border-panel)] pl-3">{effect.note}</p>
                     )}
                   </div>
 

@@ -22,6 +22,11 @@ import {
   Waves,
   X,
   Zap,
+  Search,
+  ChevronDown,
+  LayoutGrid,
+  RotateCcw,
+  ScrollText,
   Settings2,
   History,
   Users,
@@ -42,11 +47,14 @@ import { PlayerTurnOverlay } from "@/components/combat/player-turn-overlay";
 import { DefensePromptOverlay } from "@/components/combat/defense-prompt-overlay";
 import { CharacterVisualPicker } from "@/components/ui/character-visual-picker";
 import { AssetVisualPicker } from "@/components/ui/asset-visual-picker";
+import { DiceRollOverlay } from "@/components/combat/dice-roll-overlay";
+import { CharacterSheetModal } from "@/components/panels/character-sheet-modal";
 import type {
   TacticalCombatStateView,
   TacticalStageToken
 } from "@/lib/maps/selectors";
 import { useCharacterStore } from "@/stores/character-store";
+import { useChatStore } from "@/stores/chat-store";
 import { cn } from "@/lib/utils";
 import { useMapStore } from "@/stores/map-store";
 import type { SessionAssetRecord } from "@/types/asset";
@@ -227,7 +235,20 @@ export function TacticalMapStage({
   if (!map) return null;
 
   const [damagePopups, setDamagePopups] = useState<Array<{ id: string; tokenId: string; delta: number; x: number; y: number }>>([]);
+  const [rollPopups, setRollPopups] = useState<Array<{
+    id: string;
+    tokenId: string;
+    value: number;
+    dice: [number, number, number];
+    isSuccess: boolean;
+    isCritical: boolean;
+    x: number;
+    y: number;
+  }>>([]);
   const prevHpsRef = useRef<Record<string, number>>({});
+  const lastResolutionIdRef = useRef<string | null>(null);
+  const lastProcessedMessageIdRef = useRef<string | null>(null);
+  const chatMessages = useChatStore((state) => state.messages);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const pendingDeltasRef = useRef<Record<string, number>>({});
@@ -236,6 +257,8 @@ export function TacticalMapStage({
   const [isNpcAssetPickerOpen, setIsNpcAssetPickerOpen] = useState(false);
   const [isFreeAssetPickerOpen, setIsFreeAssetPickerOpen] = useState(false);
   const [isTokenMenuAssetPickerOpen, setIsTokenMenuAssetPickerOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [sheetCharacter, setSheetCharacter] = useState<SessionCharacterRecord | null>(null);
   const isFocus = viewMode === "focus";
   const worldWidth = backgroundAsset?.width ?? map?.width ?? 1600;
   const worldHeight = backgroundAsset?.height ?? map?.height ?? 900;
@@ -270,6 +293,104 @@ export function TacticalMapStage({
     prevHpsRef.current = nextHps;
   }, [tokens]);
 
+  // Detector de Rolagens para Popups de Dados
+  useEffect(() => {
+    const res = combatFlow?.lastResolution;
+    if (!res || res.id === lastResolutionIdRef.current) return;
+
+    lastResolutionIdRef.current = res.id;
+
+    // Dispara popup para o Atacante
+    if (res.actorTokenId && res.attackRoll) {
+      const actorToken = tokens.find(t => t.token.id === res.actorTokenId)?.token;
+      if (actorToken) {
+        const popupId = `roll-actor-${res.id}`;
+        setRollPopups(prev => [
+          ...prev,
+          {
+            id: popupId,
+            tokenId: res.actorTokenId!,
+            value: res.attackRoll!.total,
+            dice: res.attackRoll!.dice,
+            isSuccess: res.attackRoll!.margin >= 0,
+            isCritical: res.attackRoll!.critical !== "none",
+            x: actorToken.x,
+            y: actorToken.y
+          }
+        ]);
+      }
+    }
+
+    // Dispara popup para o Defensor (se houve defesa)
+    if (res.targetTokenId && res.defenseRoll) {
+      const defenderToken = tokens.find(t => t.token.id === res.targetTokenId)?.token;
+      if (defenderToken) {
+        const popupId = `roll-defender-${res.id}`;
+        setRollPopups(prev => [
+          ...prev,
+          {
+            id: popupId,
+            tokenId: res.targetTokenId!,
+            value: res.defenseRoll!.total,
+            dice: res.defenseRoll!.dice,
+            isSuccess: res.defenseRoll!.margin >= 0,
+            isCritical: res.defenseRoll!.critical !== "none",
+            x: defenderToken.x,
+            y: defenderToken.y
+          }
+        ]);
+      }
+    }
+  }, [combatFlow?.lastResolution, tokens]);
+
+  // Detector de Rolagens de Chat (Testes Gerais e Perícias)
+  useEffect(() => {
+    if (chatMessages.length === 0) return;
+
+    const lastMsg = chatMessages[chatMessages.length - 1];
+    if (lastMsg.kind !== "roll" || lastMsg.id === lastProcessedMessageIdRef.current) return;
+
+    lastProcessedMessageIdRef.current = lastMsg.id;
+
+    // Regra de Privacidade: Se for privado e não formos o dono/GM, ignoramos a animação no mapa
+    const isGM = canManageCombat; // GM ou assistente
+    if (lastMsg.isPrivate && !isGM) return;
+
+    const payload = lastMsg.payload as any;
+    if (!payload || !payload.dice) return;
+
+    // Tenta encontrar o token: 
+    // 1. Pelo tokenId explícito no payload
+    // 2. Pelo characterId se o participante for dono de um token
+    let targetToken = tokens.find(t => t.token.id === payload.tokenId)?.token;
+
+    if (!targetToken && lastMsg.participantId) {
+      // Fallback: Procura um token que o participante controle
+      const controlledToken = tokens.find(t =>
+        t.token.characterId &&
+        t.character?.ownerParticipantId === lastMsg.participantId
+      );
+      targetToken = controlledToken?.token;
+    }
+
+    if (targetToken) {
+      const popupId = `roll-chat-${lastMsg.id}`;
+      setRollPopups(prev => [
+        ...prev,
+        {
+          id: popupId,
+          tokenId: targetToken!.id,
+          value: payload.total,
+          dice: payload.dice,
+          isSuccess: (payload.target ? payload.margin >= 0 : true),
+          isCritical: payload.critical !== "none" && payload.critical !== undefined,
+          x: targetToken!.x,
+          y: targetToken!.y
+        }
+      ]);
+    }
+  }, [chatMessages, tokens, canManageCombat]);
+
   const centerViewport = useCallback(
     (targetZoom?: number) => {
       const viewport = viewportRef.current;
@@ -298,9 +419,9 @@ export function TacticalMapStage({
       return;
     }
 
-      const widthRatio = viewport.clientWidth / worldWidth;
-      const heightRatio = viewport.clientHeight / worldHeight;
-      const nextZoom = clamp(Number(Math.min(widthRatio, heightRatio).toFixed(2)), 0.05, 4.0);
+    const widthRatio = viewport.clientWidth / worldWidth;
+    const heightRatio = viewport.clientHeight / worldHeight;
+    const nextZoom = clamp(Number(Math.min(widthRatio, heightRatio).toFixed(2)), 0.05, 4.0);
 
     setZoom(nextZoom);
     window.requestAnimationFrame(() => {
@@ -435,22 +556,22 @@ export function TacticalMapStage({
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        
+
         const surface = surfaceRef.current;
         if (!surface) return;
-        
+
         const currentZoom = zoomRef.current;
         const zoomDelta = -e.deltaY * 0.002;
         const nextZoom = clamp(Number((currentZoom + zoomDelta).toFixed(3)), 0.05, 4.0);
-        
+
         if (nextZoom === currentZoom) return;
-        
+
         const rect = viewport.getBoundingClientRect();
         const cursorX = e.clientX - rect.left;
         const cursorY = e.clientY - rect.top;
         const mapX = (viewport.scrollLeft + cursorX) / currentZoom;
         const mapY = (viewport.scrollTop + cursorY) / currentZoom;
-        
+
         zoomAnchorRef.current = { mapX, mapY, cursorX, cursorY };
         setZoom(nextZoom);
       }
@@ -462,10 +583,10 @@ export function TacticalMapStage({
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
+
         const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-        
+
         const rect = viewport.getBoundingClientRect();
         const cursorX = centerX - rect.left;
         const cursorY = centerY - rect.top;
@@ -489,10 +610,10 @@ export function TacticalMapStage({
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
+
         const scale = distance / touchStateRef.current.initialDistance;
         const nextZoom = clamp(Number((touchStateRef.current.initialZoom * scale).toFixed(3)), 0.05, 4.0);
-        
+
         if (nextZoom !== zoomRef.current) {
           zoomAnchorRef.current = {
             mapX: touchStateRef.current.mapCenterX,
@@ -526,10 +647,10 @@ export function TacticalMapStage({
 
   const handleViewportPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
-    
+
     const viewport = viewportRef.current;
     if (!viewport) return;
-    
+
     e.currentTarget.setPointerCapture(e.pointerId);
     panRef.current = {
       isPanning: true,
@@ -543,10 +664,10 @@ export function TacticalMapStage({
 
   const handleViewportPointerMove = (e: React.PointerEvent) => {
     if (!panRef.current?.isPanning || !viewportRef.current) return;
-    
+
     const dx = e.clientX - panRef.current.startX;
     const dy = e.clientY - panRef.current.startY;
-    
+
     viewportRef.current.scrollLeft = panRef.current.scrollLeft - dx;
     viewportRef.current.scrollTop = panRef.current.scrollTop - dy;
   };
@@ -830,7 +951,7 @@ export function TacticalMapStage({
     delta: number
   ) => {
     const key = `${tokenId}:${resource}`;
-    
+
     // Acumula o delta localmente para o debounce
     if (!pendingDeltasRef.current[key]) {
       pendingDeltasRef.current[key] = 0;
@@ -965,55 +1086,55 @@ export function TacticalMapStage({
       onCombatStart={
         onCombatStart
           ? () => {
-              runAsync("combat:start", async () => {
-                await onCombatStart();
-              });
-            }
+            runAsync("combat:start", async () => {
+              await onCombatStart();
+            });
+          }
           : undefined
       }
       onCombatStop={
         onCombatStop
           ? () => {
-              runAsync("combat:stop", async () => {
-                await onCombatStop();
-              });
-            }
+            runAsync("combat:stop", async () => {
+              await onCombatStop();
+            });
+          }
           : undefined
       }
       onCombatAdvance={
         onCombatAdvance
           ? (direction) => {
-              runAsync(`combat:advance:${direction}`, async () => {
-                await onCombatAdvance(direction);
-              });
-            }
+            runAsync(`combat:advance:${direction}`, async () => {
+              await onCombatAdvance(direction);
+            });
+          }
           : undefined
       }
       onSelectCombatant={
         onSelectCombatant
           ? (tokenId) => {
-              runAsync(`combat:select:${tokenId}`, async () => {
-                await onSelectCombatant(tokenId);
-              });
-            }
+            runAsync(`combat:select:${tokenId}`, async () => {
+              await onSelectCombatant(tokenId);
+            });
+          }
           : undefined
       }
       onExecuteCombatAction={
         onExecuteCombatAction
           ? (action) => {
-              runAsync(`combat:action:${action.actionType}`, async () => {
-                await onExecuteCombatAction(action);
-              });
-            }
+            runAsync(`combat:action:${action.actionType}`, async () => {
+              await onExecuteCombatAction(action);
+            });
+          }
           : undefined
       }
       onRespondCombatPrompt={
         onRespondCombatPrompt
           ? (input) => {
-              runAsync(`combat:prompt:${input.eventId}`, async () => {
-                await onRespondCombatPrompt(input);
-              });
-            }
+            runAsync(`combat:prompt:${input.eventId}`, async () => {
+              await onRespondCombatPrompt(input);
+            });
+          }
           : undefined
       }
       onRemoveToken={(tokenId) => {
@@ -1030,9 +1151,9 @@ export function TacticalMapStage({
   ) : null;
 
   const combatLogPanel = combatFlow ? (
-    <CombatLogPanel 
-      log={[...combatFlow.log].reverse()} 
-      onClose={() => setIsCombatLogOpen(false)} 
+    <CombatLogPanel
+      log={[...combatFlow.log].reverse()}
+      onClose={() => setIsCombatLogOpen(false)}
     />
   ) : null;
 
@@ -1043,149 +1164,136 @@ export function TacticalMapStage({
         isFocus ? "p-3 md:p-3.5" : "p-3"
       )}
     >
-      <div className="shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
-              <ScanSearch size={18} className="xl:size-[14] xl:mr-1.5" />
-              <span className="hidden xl:inline whitespace-nowrap">modo tatico</span>
-            </span>
-            <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
-              {map.name}
-            </span>
-            {canManageTokens && !isFocus && (
-              <button
-                type="button"
-                onClick={() => setIsCreatorOpen((current) => !current)}
-                className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100"
-              >
-                <Plus size={14} />
-                novo token
-              </button>
-            )}
-            {canManageTokens && onRequestLibrary && (
-              <button
-                type="button"
-                onClick={() => onRequestLibrary("maps")}
-                className="hud-chip h-11 px-4 md:h-9 md:px-3 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] transition hover:border-emerald-300/24 hover:bg-emerald-300/10 hover:text-emerald-100 cursor-pointer"
-              >
-                <Settings2 size={14} className="md:mr-1.5" />
-                <span className="hidden sm:inline">gerenciar mapas</span>
-              </button>
-            )}
-          </div>
+      <div className="shrink-0 flex flex-wrap items-center gap-1.5">
+        <span className="hud-chip h-9 px-2.5 border-amber-300/20 bg-amber-300/10 text-amber-100">
+          <ScanSearch size={14} className="mr-1" />
+          <span className="hidden sm:inline whitespace-nowrap text-[10px]">modo tatico</span>
+        </span>
+        <span className="hud-chip h-9 px-2.5 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] text-[10px]">
+          {map.name}
+        </span>
+        {canManageTokens && !isFocus && (
+          <button
+            type="button"
+            onClick={() => setIsCreatorOpen((current) => !current)}
+            className="hud-chip h-9 px-2.5 border-amber-300/20 bg-amber-300/10 text-amber-100 text-[10px]"
+          >
+            <Plus size={14} />
+            <span className="hidden sm:inline">novo token</span>
+          </button>
+        )}
+        {canManageTokens && onRequestLibrary && (
+          <button
+            type="button"
+            onClick={() => onRequestLibrary("maps")}
+            className="hud-chip h-9 px-2.5 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] transition hover:border-emerald-300/24 hover:bg-emerald-300/10 hover:text-emerald-100 cursor-pointer text-[10px]"
+          >
+            <Settings2 size={14} />
+            <span className="hidden md:inline">gerenciar mapas</span>
+          </button>
+        )}
+
+        <div className="flex items-center gap-1 rounded-full border border-white/10 bg-black/12 p-0.5">
+          <span className="hud-chip h-8 px-2 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] text-[10px]">
+            <Users size={12} className="mr-1" />
+            {visibleTokens.length}
+          </span>
+          <span className="hud-chip h-8 px-2 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] text-[10px]">
+            <Grid size={12} className="mr-1" />
+            {map.gridEnabled ? "on" : "off"}
+          </span>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/12 p-1">
-            <span className="hud-chip h-9 px-3 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
-              <Users size={14} className="mr-1.5" />
-              {visibleTokens.length} <span className="hidden lg:inline ml-1">tokens</span>
+        {combatState ? (
+          <button
+            type="button"
+            onClick={() => {
+              setIsTokenDrawerOpen(false);
+              setIsCombatDrawerOpen((current) => !current);
+            }}
+            className={cn(
+              "hud-chip h-9 px-2.5 transition text-[10px]",
+              isCombatDrawerOpen
+                ? "border-rose-300/22 bg-rose-300/10 text-rose-100"
+                : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
+            )}
+          >
+            <Swords size={14} />
+            <span className="hidden sm:inline whitespace-nowrap">
+              {combatState.enabled
+                ? `turno ${combatState.totalTurns === 0 ? 0 : combatState.activeIndex + 1}`
+                : "combate"}
             </span>
-            <span className="hud-chip h-9 px-3 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
-              <Grid size={14} className="mr-1.5" />
-              <span className="hidden lg:inline">{map.gridEnabled ? `${map.gridSize}px grid` : "grid off"}</span>
-              <span className="lg:hidden">{map.gridEnabled ? "on" : "off"}</span>
-            </span>
-          </div>
-          {combatState ? (
-            <button
-              type="button"
-              onClick={() => {
-                setIsTokenDrawerOpen(false);
-                setIsCombatDrawerOpen((current) => !current);
-              }}
-              className={cn(
-                "hud-chip h-11 px-4 md:h-9 md:px-3 transition",
-                isCombatDrawerOpen
-                  ? "border-rose-300/22 bg-rose-300/10 text-rose-100"
-                  : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
-              )}
-            >
-              <Swords size={22} className="xl:size-[14] xl:mr-1.5" />
-              <span className="hidden xl:inline whitespace-nowrap">
-                {combatState.enabled
-                  ? `turno ${combatState.totalTurns === 0 ? 0 : combatState.activeIndex + 1}`
-                  : "combate"}
-              </span>
-            </button>
-          ) : null}
-          {combatFlow ? (
-            <button
-              type="button"
-              onClick={() => setIsCombatLogOpen((current) => !current)}
-              className={cn(
-                "hud-chip h-11 px-4 md:h-9 md:px-3 transition",
-                isCombatLogOpen
-                  ? "border-sky-300/22 bg-sky-300/10 text-sky-100"
-                  : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
-              )}
-            >
-              <History size={22} className="xl:size-[14] xl:mr-1.5" />
-              <span className="hidden xl:inline whitespace-nowrap">histórico</span>
-            </button>
-          ) : null}
-          {canManageTokens && isFocus && selectedToken ? (
-            <button
-              type="button"
-              onClick={() => {
-                setIsCombatDrawerOpen(false);
-                setTokenMenu(createTokenMenuState(selectedToken));
-                setIsTokenDrawerOpen((current) => !current);
-              }}
-              className={cn(
-                "hud-chip h-11 px-4 md:h-9 md:px-3 transition",
-                isTokenDrawerOpen
-                  ? "border-amber-300/22 bg-amber-300/10 text-amber-100"
-                  : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
-              )}
-            >
-              <ShieldAlert size={14} />
-              detalhes
-            </button>
-          ) : null}
-          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-black/24 p-1 shadow-inner">
-            <button
-              type="button"
-              onClick={fitToViewport}
-              title="Ajustar ao tamanho da tela"
-              className="rail-button h-11 w-11 xl:h-9 xl:w-auto xl:px-3 text-[9px] font-bold uppercase tracking-normal xl:tracking-wider"
-            >
-              <ScanSearch size={22} className="xl:size-[14] xl:mr-1.5" />
-              <span className="hidden xl:inline whitespace-nowrap">inteiro</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => centerViewport()}
-              title="Centralizar mapa"
-              className="rail-button h-11 w-11 xl:h-9 xl:w-auto xl:px-3 text-[9px] font-bold uppercase tracking-normal xl:tracking-wider"
-            >
-              <Compass size={22} className="xl:size-[14] xl:mr-1.5" />
-              <span className="hidden xl:inline whitespace-nowrap">centro</span>
-            </button>
-            
-            <div className="mx-1 h-4 w-[1px] bg-white/10" />
-
-            <div className="flex items-center gap-1.5 px-1">
-              <button
-                type="button"
-                onClick={() => setZoom((current) => clamp(Number((current - 0.2).toFixed(2)), 0.05, 4.0))}
-                className="rail-button h-11 w-11 md:h-9 md:w-9"
-              >
-                <Minus size={14} />
-              </button>
-              <span className="min-w-[48px] text-center text-[10px] font-bold uppercase tracking-widest text-[color:var(--ink-2)]">
-                {Math.round(zoom * 100)}%
-              </span>
-              <button
-                type="button"
-                onClick={() => setZoom((current) => clamp(Number((current + 0.2).toFixed(2)), 0.05, 4.0))}
-                className="rail-button h-11 w-11 md:h-9 md:w-9"
-              >
-                <Plus size={14} />
-              </button>
-            </div>
-          </div>
+          </button>
+        ) : null}
+        {combatFlow ? (
+          <button
+            type="button"
+            onClick={() => setIsCombatLogOpen((current) => !current)}
+            className={cn(
+              "hud-chip h-9 px-2.5 transition text-[10px]",
+              isCombatLogOpen
+                ? "border-sky-300/22 bg-sky-300/10 text-sky-100"
+                : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
+            )}
+          >
+            <History size={14} />
+            <span className="hidden sm:inline whitespace-nowrap">log</span>
+          </button>
+        ) : null}
+        {canManageTokens && isFocus && selectedToken ? (
+          <button
+            type="button"
+            onClick={() => {
+              setIsCombatDrawerOpen(false);
+              setTokenMenu(createTokenMenuState(selectedToken));
+              setIsTokenDrawerOpen((current) => !current);
+            }}
+            className={cn(
+              "hud-chip h-9 px-2.5 transition text-[10px]",
+              isTokenDrawerOpen
+                ? "border-amber-300/22 bg-amber-300/10 text-amber-100"
+                : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
+            )}
+          >
+            <ShieldAlert size={14} />
+            detalhes
+          </button>
+        ) : null}
+        <div className="flex items-center gap-0.5 rounded-full border border-white/10 bg-black/24 p-0.5 shadow-inner">
+          <button
+            type="button"
+            onClick={fitToViewport}
+            title="Ajustar ao tamanho da tela"
+            className="rail-button h-9 w-9"
+          >
+            <ScanSearch size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => centerViewport()}
+            title="Centralizar mapa"
+            className="rail-button h-9 w-9"
+          >
+            <Compass size={14} />
+          </button>
+          <div className="mx-0.5 h-4 w-[1px] bg-white/10" />
+          <button
+            type="button"
+            onClick={() => setZoom((current) => clamp(Number((current - 0.2).toFixed(2)), 0.05, 4.0))}
+            className="rail-button h-9 w-9"
+          >
+            <Minus size={14} />
+          </button>
+          <span className="min-w-[36px] text-center text-[10px] font-bold text-[color:var(--ink-2)]">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            onClick={() => setZoom((current) => clamp(Number((current + 0.2).toFixed(2)), 0.05, 4.0))}
+            className="rail-button h-9 w-9"
+          >
+            <Plus size={14} />
+          </button>
         </div>
       </div>
 
@@ -1193,40 +1301,40 @@ export function TacticalMapStage({
       {combatFlow && (
         <>
           {/* Turno do Jogador */}
-          {combatFlow.phase === "command" && 
-           combatState?.activeTokenId && 
-           dismissedPlayerTurnTokenId !== combatState.activeTokenId &&
-           (visibleTokens.find(t => t.token.id === combatState.activeTokenId)?.ownerParticipantId === viewerParticipantId || canManageCombat) && (
-            <PlayerTurnOverlay
-              token={visibleTokens.find(t => t.token.id === combatState.activeTokenId)!}
-              combatState={combatState}
-              combatFlow={combatFlow}
-              onExecute={(action) => onExecuteCombatAction?.(action)}
-              onClose={() => setDismissedPlayerTurnTokenId(combatState.activeTokenId ?? null)}
-            />
-          )}
+          {combatFlow.phase === "command" &&
+            combatState?.activeTokenId &&
+            dismissedPlayerTurnTokenId !== combatState.activeTokenId &&
+            (visibleTokens.find(t => t.token.id === combatState.activeTokenId)?.ownerParticipantId === viewerParticipantId || canManageCombat) && (
+              <PlayerTurnOverlay
+                token={visibleTokens.find(t => t.token.id === combatState.activeTokenId)!}
+                combatState={combatState}
+                combatFlow={combatFlow}
+                onExecute={(action) => onExecuteCombatAction?.(action)}
+                onClose={() => setDismissedPlayerTurnTokenId(combatState.activeTokenId ?? null)}
+              />
+            )}
 
           {/* Prompt de Defesa */}
-          {combatFlow.phase === "awaiting-defense" && 
-           combatFlow.pendingPrompt?.participantId === viewerParticipantId && (() => {
-            const prompt = combatFlow.pendingPrompt!;
-            return (
-              <DefensePromptOverlay
-                summary={prompt.payload.summary}
-                options={prompt.payload.options}
-                canRetreat={prompt.payload.canRetreat}
-                canAcrobatic={prompt.payload.canAcrobatic}
-                onResolve={(option, retreat, acrobatic, manualModifier, feverish) => onRespondCombatPrompt?.({
-                  eventId: prompt.eventId!,
-                  defenseOption: option,
-                  retreat,
-                  acrobatic,
-                  manualModifier,
-                  feverish
-                })}
-              />
-            );
-          })()}
+          {combatFlow.phase === "awaiting-defense" &&
+            combatFlow.pendingPrompt?.participantId === viewerParticipantId && (() => {
+              const prompt = combatFlow.pendingPrompt!;
+              return (
+                <DefensePromptOverlay
+                  summary={prompt.payload.summary}
+                  options={prompt.payload.options}
+                  canRetreat={prompt.payload.canRetreat}
+                  canAcrobatic={prompt.payload.canAcrobatic}
+                  onResolve={(option, retreat, acrobatic, manualModifier, feverish) => onRespondCombatPrompt?.({
+                    eventId: prompt.eventId!,
+                    defenseOption: option,
+                    retreat,
+                    acrobatic,
+                    manualModifier,
+                    feverish
+                  })}
+                />
+              );
+            })()}
         </>
       )}
 
@@ -1533,7 +1641,7 @@ export function TacticalMapStage({
                     className={cn(
                       "relative overflow-hidden rounded-full border-2 bg-[rgba(7,16,24,0.82)] shadow-[0_10px_30px_rgba(2,6,23,0.55)] transition",
                       isCombatActive &&
-                        "border-amber-200 shadow-[0_0_0_5px_rgba(252,211,77,0.2),0_18px_40px_rgba(2,6,23,0.58)]",
+                      "border-amber-200 shadow-[0_0_0_5px_rgba(252,211,77,0.2),0_18px_40px_rgba(2,6,23,0.58)]",
                       isSelected
                         ? "border-amber-300/55 shadow-[0_0_0_4px_rgba(245,158,11,0.16),0_14px_36px_rgba(2,6,23,0.55)]"
                         : factionStyle
@@ -1624,24 +1732,41 @@ export function TacticalMapStage({
                 </button>
               );
             })}
+
+            {/* Popups de Rolagens de Dados */}
+            {rollPopups.map((popup) => (
+              <DiceRollOverlay
+                key={popup.id}
+                id={popup.id}
+                tokenId={popup.tokenId}
+                value={popup.value}
+                dice={popup.dice}
+                isSuccess={popup.isSuccess}
+                isCritical={popup.isCritical}
+                x={popup.x}
+                y={popup.y}
+                onComplete={(id) => setRollPopups(prev => prev.filter(p => p.id !== id))}
+              />
+            ))}
           </div>
         </div>
       </div>
 
-      {tokenMenu && selectedToken && canManageTokens && !isFocus && (() => {
+      {tokenMenu && selectedToken && canManageTokens && !isFocus ?
+        (() => {
         const activeToken = selectedToken;
         const activeMenu = tokenMenu;
 
         return (
           <div
-            className="fixed z-[80] w-[320px] rounded-[22px] border border-white/10 bg-[rgba(5,10,18,0.96)] p-4 shadow-[0_24px_80px_rgba(2,6,23,0.55)] backdrop-blur"
+            className="fixed z-[80] w-[320px] rounded-[22px] border border-white/10 bg-[rgba(5,10,18,0.92)] p-4 shadow-[0_24px_80px_rgba(2,6,23,0.55)] backdrop-blur-xl flex flex-col max-h-[85vh]"
             style={{
               left: clamp(activeMenu.x, 24, window.innerWidth - 344),
-              top: clamp(activeMenu.y, 24, window.innerHeight - 360)
+              top: clamp(activeMenu.y, 24, window.innerHeight - (window.innerHeight * 0.8))
             }}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-3 mb-4 shrink-0">
               <div>
                 <p className="section-label">Token</p>
                 <p className="mt-1 text-sm font-semibold text-white">{activeToken.label}</p>
@@ -1665,141 +1790,141 @@ export function TacticalMapStage({
               </div>
             </div>
 
-              <div className="mt-4 space-y-3">
-                <input
-                  value={activeMenu.label}
-                  onChange={(event) =>
-                    setTokenMenu((current) =>
-                      current ? { ...current, label: event.target.value } : current
-                    )
-                  }
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
-                  placeholder="Nome do token"
-                />
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
+              <input
+                value={activeMenu.label}
+                onChange={(event) =>
+                  setTokenMenu((current) =>
+                    current ? { ...current, label: event.target.value } : current
+                  )
+                }
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                placeholder="Nome do token"
+              />
 
-                <button
-                  type="button"
-                  onClick={() => setIsTokenMenuAssetPickerOpen(true)}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
+              <button
+                type="button"
+                onClick={() => setIsTokenMenuAssetPickerOpen(true)}
+                className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
+              >
+                <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
+                <span className={activeMenu.assetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
                 >
-                  <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                  <span className={activeMenu.assetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
-                  >
-                    {activeMenu.assetId
-                      ? (tokenAssetOptions.find((a) => a.id === activeMenu.assetId)?.label ?? "imagem")
-                      : "sem imagem"}
-                  </span>
-                </button>
-                <AssetVisualPicker
-                  open={isTokenMenuAssetPickerOpen}
-                  onClose={() => setIsTokenMenuAssetPickerOpen(false)}
-                  onSelect={(id) => {
-                    setTokenMenu((current) =>
-                      current ? { ...current, assetId: id } : current
-                    );
-                  }}
-                  assets={assetOptions}
-                  filterKinds={["token", "portrait", "npc"]}
-                  title="Selecionar Imagem do Token"
-                />
+                  {activeMenu.assetId
+                    ? (tokenAssetOptions.find((a) => a.id === activeMenu.assetId)?.label ?? "imagem")
+                    : "sem imagem"}
+                </span>
+              </button>
+              <AssetVisualPicker
+                open={isTokenMenuAssetPickerOpen}
+                onClose={() => setIsTokenMenuAssetPickerOpen(false)}
+                onSelect={(id) => {
+                  setTokenMenu((current) =>
+                    current ? { ...current, assetId: id } : current
+                  );
+                }}
+                assets={assetOptions}
+                filterKinds={["token", "portrait", "npc"]}
+                title="Selecionar Imagem do Token"
+              />
 
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    ["", "sem faccao"],
-                    ["ally", "aliado"],
-                    ["enemy", "inimigo"],
-                    ["neutral", "neutro"]
-                  ].map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() =>
-                        setTokenMenu((current) =>
-                          current
-                            ? { ...current, faction: value as TokenFaction | "" }
-                            : current
-                        )
-                      }
-                      className={cn(
-                        "hud-chip transition cursor-pointer",
-                        activeMenu.faction === value
-                          ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
-                          : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                <label className="block">
-                  <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-[color:var(--ink-3)]">
-                    <span>escala</span>
-                    <span>{activeMenu.scale.toFixed(2)}x</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0.5}
-                    max={2.5}
-                    step={0.05}
-                    value={activeMenu.scale}
-                    onChange={(event) =>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  ["", "sem faccao"],
+                  ["ally", "aliado"],
+                  ["enemy", "inimigo"],
+                  ["neutral", "neutro"]
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() =>
                       setTokenMenu((current) =>
                         current
-                          ? { ...current, scale: Number(event.target.value) }
+                          ? { ...current, faction: value as TokenFaction | "" }
                           : current
                       )
                     }
-                    className="w-full"
-                  />
-                </label>
+                    className={cn(
+                      "hud-chip transition cursor-pointer",
+                      activeMenu.faction === value
+                        ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                        : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
 
-                <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <span className="section-label">status</span>
-                    <span className="text-xs text-[color:var(--ink-3)]">
-                      {activeMenu.statusEffects.length} ativos
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(tokenStatusMeta).map(([status, meta]) => {
-                      const enabled = activeMenu.statusEffects.includes(status as TokenStatusPreset);
-
-                      return (
-                        <button
-                          key={status}
-                          type="button"
-                          onClick={() =>
-                            setTokenMenu((current) =>
-                              current
-                                ? {
-                                    ...current,
-                                    statusEffects: enabled
-                                      ? current.statusEffects.filter((entry) => entry !== status)
-                                      : [...current.statusEffects, status as TokenStatusPreset]
-                                  }
-                                : current
-                            )
-                          }
-                          className={cn(
-                            "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition",
-                            enabled
-                              ? meta.chip
-                              : "border-white/10 bg-black/18 text-[color:var(--ink-2)] hover:border-white/20"
-                          )}
-                        >
-                          <meta.icon size={12} />
-                          {meta.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+              <label className="block">
+                <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-[color:var(--ink-3)]">
+                  <span>escala</span>
+                  <span>{activeMenu.scale.toFixed(2)}x</span>
                 </div>
+                <input
+                  type="range"
+                  min={0.5}
+                  max={2.5}
+                  step={0.05}
+                  value={activeMenu.scale}
+                  onChange={(event) =>
+                    setTokenMenu((current) =>
+                      current
+                        ? { ...current, scale: Number(event.target.value) }
+                        : current
+                    )
+                  }
+                  className="w-full"
+                />
+              </label>
 
-                {activeToken.character && (() => {
-                  const linkedCharacter = activeToken.character;
+              <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="section-label">status</span>
+                  <span className="text-xs text-[color:var(--ink-3)]">
+                    {activeMenu.statusEffects.length} ativos
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(tokenStatusMeta).map(([status, meta]) => {
+                    const enabled = activeMenu.statusEffects.includes(status as TokenStatusPreset);
 
-                  return (
+                    return (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() =>
+                          setTokenMenu((current) =>
+                            current
+                              ? {
+                                ...current,
+                                statusEffects: enabled
+                                  ? current.statusEffects.filter((entry) => entry !== status)
+                                  : [...current.statusEffects, status as TokenStatusPreset]
+                              }
+                              : current
+                          )
+                        }
+                        className={cn(
+                          "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition",
+                          enabled
+                            ? meta.chip
+                            : "border-white/10 bg-black/18 text-[color:var(--ink-2)] hover:border-white/20"
+                        )}
+                      >
+                        <meta.icon size={12} />
+                        {meta.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {activeToken.character && (() => {
+                const linkedCharacter = activeToken.character;
+
+                return (
                   <div className="rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <span className="section-label">recursos da ficha</span>
@@ -1835,7 +1960,7 @@ export function TacticalMapStage({
                                   className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
                                 >
                                   {pendingKey ===
-                                  `resource:${linkedCharacter.id}:${resource}:${delta}` ? (
+                                    `resource:${linkedCharacter.id}:${resource}:${delta}` ? (
                                     <LoaderCircle size={12} className="animate-spin" />
                                   ) : delta > 0 ? (
                                     `+${delta}`
@@ -1849,50 +1974,64 @@ export function TacticalMapStage({
                         </div>
                       ))}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSheetCharacter(linkedCharacter);
+                        setIsSheetOpen(true);
+                        setTokenMenu(null);
+                      }}
+                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-400/30 bg-sky-400/10 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-sky-300 transition-all hover:bg-sky-400/20 active:scale-95"
+                    >
+                      <ScrollText size={14} />
+                      Abrir Ficha Completa
+                    </button>
                   </div>
-                  );
-                })()}
-              </div>
-
-              <div className="mt-4 flex flex-wrap justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleDeleteToken(activeToken.token.id)}
-                  disabled={isPending}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
-                >
-                  {pendingKey === `delete-token:${activeToken.token.id}` ? (
-                    <LoaderCircle size={16} className="animate-spin" />
-                  ) : (
-                    <Trash2 size={16} />
-                  )}
-                  excluir
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSaveTokenMenu}
-                  disabled={isPending}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:opacity-60"
-                >
-                  {pendingKey === `update-token:${activeToken.token.id}` ? (
-                    <LoaderCircle size={16} className="animate-spin" />
-                  ) : (
-                    <Sparkles size={16} />
-                  )}
-                  salvar ajustes
-                </button>
-              </div>
+                );
+              })()}
             </div>
-        )})()}
 
-      {tokenMenu && selectedToken && canManageTokens && isFocus && isTokenDrawerOpen && (() => {
+            <div className="mt-4 flex flex-wrap justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => handleDeleteToken(activeToken.token.id)}
+                disabled={isPending}
+                className="inline-flex items-center gap-2 rounded-2xl border border-rose-300/20 bg-rose-300/10 px-4 py-3 text-sm font-semibold text-rose-50 transition hover:border-rose-300/35 disabled:opacity-60"
+              >
+                {pendingKey === `delete-token:${activeToken.token.id}` ? (
+                  <LoaderCircle size={16} className="animate-spin" />
+                ) : (
+                  <Trash2 size={16} />
+                )}
+                excluir
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveTokenMenu}
+                disabled={isPending}
+                className="inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:opacity-60"
+              >
+                {pendingKey === `update-token:${activeToken.token.id}` ? (
+                  <LoaderCircle size={16} className="animate-spin" />
+                ) : (
+                  <Sparkles size={16} />
+                )}
+                salvar ajustes
+              </button>
+            </div>
+          </div>
+        );
+      })() : null}
+
+      {tokenMenu && selectedToken && canManageTokens && isFocus && isTokenDrawerOpen ?
+        (() => {
         const activeToken = selectedToken;
         const activeMenu = tokenMenu;
 
         return (
-        <div className="pointer-events-none absolute inset-y-3 right-3 z-[31] flex w-[min(380px,calc(100%-1.5rem))] justify-end md:w-[360px]">
-          <div className="pointer-events-auto h-full max-h-full w-full overflow-hidden rounded-[22px] border border-white/10 bg-[rgba(5,10,18,0.96)] p-4 shadow-[0_24px_80px_rgba(2,6,23,0.55)] backdrop-blur">
+          <div className="pointer-events-none absolute inset-y-3 right-3 z-[31] flex w-[min(380px,calc(100%-1.5rem))] justify-end md:w-[360px]">
+            <div className="pointer-events-auto h-full max-h-full w-full overflow-hidden rounded-[22px] border border-white/10 bg-[rgba(5,10,18,0.96)] p-4 shadow-[0_24px_80px_rgba(2,6,23,0.55)] backdrop-blur">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="section-label">Token</p>
@@ -1917,7 +2056,7 @@ export function TacticalMapStage({
                 </div>
               </div>
 
-              <div className="scrollbar-thin mt-4 h-[calc(100%-4.5rem)] space-y-3 overflow-y-auto pr-1">
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4 mt-4">
                 <input
                   value={activeMenu.label}
                   onChange={(event) =>
@@ -2025,11 +2164,11 @@ export function TacticalMapStage({
                             setTokenMenu((current) =>
                               current
                                 ? {
-                                    ...current,
-                                    statusEffects: enabled
-                                      ? current.statusEffects.filter((entry) => entry !== status)
-                                      : [...current.statusEffects, status as TokenStatusPreset]
-                                  }
+                                  ...current,
+                                  statusEffects: enabled
+                                    ? current.statusEffects.filter((entry) => entry !== status)
+                                    : [...current.statusEffects, status as TokenStatusPreset]
+                                }
                                 : current
                             )
                           }
@@ -2087,7 +2226,7 @@ export function TacticalMapStage({
                                     className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white transition hover:border-white/20 disabled:opacity-60"
                                   >
                                     {pendingKey ===
-                                    `resource:${linkedCharacter.id}:${resource}:${delta}` ? (
+                                      `resource:${linkedCharacter.id}:${resource}:${delta}` ? (
                                       <LoaderCircle size={12} className="animate-spin" />
                                     ) : delta > 0 ? (
                                       `+${delta}`
@@ -2137,25 +2276,36 @@ export function TacticalMapStage({
               </div>
             </div>
           </div>
-        )})()}
+        );
+      })() : null}
 
-        {isCombatDrawerOpen && combatPanel && (
-          <div className="pointer-events-none absolute inset-y-3 right-3 z-[30] flex w-[min(360px,calc(100%-1.5rem))] justify-end md:w-[340px]">
-            <div className="pointer-events-auto h-full max-h-full w-full overflow-hidden animate-in slide-in-from-right duration-500">
-              {combatPanel}
-            </div>
+      {isCombatDrawerOpen && combatPanel && (
+        <div className="pointer-events-none absolute inset-y-3 right-3 z-[30] flex w-[min(360px,calc(100%-1.5rem))] justify-end md:w-[340px]">
+          <div className="pointer-events-auto h-full max-h-full w-full overflow-hidden animate-in slide-in-from-right duration-500">
+            {combatPanel}
           </div>
-        )}
+        </div>
+      )}
 
-        {isCombatLogOpen && combatLogPanel && (
-          <div className="pointer-events-none absolute inset-y-3 left-3 z-[30] flex w-[min(360px,calc(100%-1.5rem))] justify-start md:w-[340px]">
-            <div className="pointer-events-auto h-full max-h-full w-full overflow-hidden animate-in slide-in-from-left duration-500">
-              {combatLogPanel}
-            </div>
+      {isCombatLogOpen && combatLogPanel && (
+        <div className="pointer-events-none absolute inset-y-3 left-3 z-[30] flex w-[min(360px,calc(100%-1.5rem))] justify-start md:w-[340px]">
+          <div className="pointer-events-auto h-full max-h-full w-full overflow-hidden animate-in slide-in-from-left duration-500">
+            {combatLogPanel}
           </div>
-        )}
+        </div>
+      )}
 
       {feedback && <p className="text-sm text-amber-100">{feedback}</p>}
+
+      {isSheetOpen && sheetCharacter && (
+        <CharacterSheetModal
+          sessionCode={sessionCode}
+          character={sheetCharacter}
+          onClose={() => setIsSheetOpen(false)}
+          canManage={canManageTokens}
+          tokenId={selectedTokenId}
+        />
+      )}
     </div>
   );
 }

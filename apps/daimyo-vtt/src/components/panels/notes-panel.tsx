@@ -267,7 +267,7 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
 
   if (!viewer) {
     return (
-      <section className="rounded-[22px] border border-white/10 bg-black/18 p-4 text-sm leading-6 text-[color:var(--ink-2)]">
+      <section className="rounded-[22px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4 text-sm leading-6 text-[color:var(--text-secondary)]">
         Entre na sessao para abrir as notas do palco ou o seu caderno.
       </section>
     );
@@ -275,12 +275,12 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
 
   if (!context) {
     return (
-      <section className="rounded-[22px] border border-white/10 bg-black/18 p-4">
-        <div className="flex items-center gap-2 text-white">
-          <ScrollText size={16} className="text-amber-100" />
+      <section className="rounded-[22px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4">
+        <div className="flex items-center gap-2 text-[color:var(--text-primary)]">
+          <ScrollText size={16} className="text-[color:var(--gold)]" />
           <h3 className="text-sm font-semibold">Notas da mesa</h3>
         </div>
-        <p className="mt-3 text-sm leading-6 text-[color:var(--ink-2)]">
+        <p className="mt-3 text-sm leading-6 text-[color:var(--text-secondary)]">
           Abra uma cena, um campo tatico ou um local do atlas para anotar o tom deste momento.
         </p>
       </section>
@@ -288,21 +288,21 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
   }
 
   return (
-    <section className="space-y-6 rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-white/5 pb-6">
+    <section className="space-y-6 rounded-[28px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border-panel)] pb-6">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-400/10 text-amber-400">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--gold)]/10 text-[color:var(--gold)]">
               <ScrollText size={16} />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--text-muted)]">
               {viewer.role === "gm" ? "Memória do Mestre" : "Caderno do Jogador"}
             </p>
           </div>
-          <h3 className="mt-3 break-words text-2xl font-bold tracking-tight text-white">
+          <h3 className="mt-3 break-words text-2xl font-bold tracking-tight text-[color:var(--text-primary)]">
             {context.label}
           </h3>
-          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/40">
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-[color:var(--text-secondary)]">
             {context.helper}
           </p>
         </div>
@@ -318,25 +318,25 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
 
       <div className="space-y-5">
         <div className="space-y-2">
-          <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Título do Registro</label>
+          <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Título do Registro</label>
           <input
             value={title}
             onChange={(event) => setTitle(event.target.value.slice(0, 120))}
             placeholder={context.titlePlaceholder}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-sm font-bold text-white outline-none transition focus:border-amber-400/40 focus:bg-white/[0.05] placeholder:text-white/10"
+            className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-5 py-4 text-sm font-bold text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/40 focus:bg-[var(--bg-card)] placeholder:text-[color:var(--text-muted)]"
           />
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between ml-1">
-            <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Corpo da Crônica</label>
-            <span className="text-[9px] font-medium text-white/10">{bodyCount} / 12.000</span>
+            <label className="text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Corpo da Crônica</label>
+            <span className="text-[9px] font-medium text-[color:var(--text-muted)]/50">{bodyCount} / 12.000</span>
           </div>
           <textarea
             value={body}
             onChange={(event) => setBody(event.target.value.slice(0, 12000))}
             placeholder={context.bodyPlaceholder}
-            className="min-h-[300px] w-full resize-y rounded-[24px] border border-white/10 bg-white/[0.02] px-6 py-6 text-base leading-relaxed text-white/80 outline-none transition focus:border-amber-400/40 focus:bg-white/[0.04] placeholder:text-white/10 custom-scrollbar"
+            className="min-h-[300px] w-full resize-y rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-6 py-6 text-base leading-relaxed text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/40 focus:bg-[var(--bg-card)] placeholder:text-[color:var(--text-muted)] custom-scrollbar"
           />
         </div>
       </div>
@@ -350,7 +350,7 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
             className={cn(
               "inline-flex items-center gap-2 rounded-xl border px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all",
               !canEdit || isPending
-                ? "cursor-not-allowed border-white/5 bg-white/2 text-white/10"
+                ? "cursor-not-allowed border-[var(--border-panel)] bg-[var(--bg-input)] text-[color:var(--text-muted)]/20"
                 : "border-rose-400/10 bg-rose-400/5 text-rose-400/40 hover:border-rose-400/30 hover:bg-rose-400/10 hover:text-rose-400"
             )}
           >
@@ -366,8 +366,8 @@ export function NotesPanel({ snapshot, viewer }: NotesPanelProps) {
           className={cn(
             "inline-flex items-center gap-2 rounded-xl border px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all",
             !canEdit || isPending
-              ? "cursor-not-allowed border-amber-400/10 bg-amber-400/5 text-amber-400/20"
-              : "border-amber-400/30 bg-amber-400/10 text-amber-400 hover:border-amber-400/50 hover:bg-amber-400/20 shadow-[0_0_20px_rgba(251,191,36,0.1)]"
+              ? "cursor-not-allowed border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)]/20"
+              : "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)] hover:border-[color:var(--gold)]/50 hover:bg-[color:var(--gold)]/20 shadow-[0_0_20px_rgba(var(--gold-rgb),0.1)]"
           )}
         >
           {pendingAction === "save" ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}

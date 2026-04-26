@@ -60,8 +60,8 @@ function ResourceChip({
   const Icon = label === "hp" ? HeartPulse : MoonStar;
   const tone =
     label === "hp"
-      ? "border-rose-300/16 bg-rose-300/10 text-rose-100"
-      : "border-amber-300/16 bg-amber-300/10 text-amber-100";
+      ? "border-rose-500/20 bg-rose-500/5 text-rose-500"
+      : "border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--gold)]";
 
   return (
     <div className={cn("rounded-2xl border px-3 py-2.5", tone)}>
@@ -77,7 +77,7 @@ function ResourceChip({
               key={`${label}:${delta}`}
               type="button"
               onClick={() => onAdjust(delta)}
-              className="rounded-xl border border-white/10 bg-black/18 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:border-white/20"
+              className="rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-2.5 py-1.5 text-xs font-semibold text-[color:var(--text-primary)] transition hover:border-[color:var(--gold)]/30"
             >
               {pending ? (
                 <LoaderCircle size={12} className="animate-spin" />
@@ -279,17 +279,17 @@ export function SessionStatusDrawer({
       >
         <div className="min-w-0">
           <p className="section-label">Status gerais</p>
-          <p className="mt-1 text-xs text-[color:var(--ink-2)] sm:text-sm">
+          <p className="mt-1 text-xs text-[color:var(--text-secondary)] sm:text-sm">
             Presenca, ficha resumida e loadout de combate.
           </p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <span className="hud-chip border-white/10 bg-white/[0.03] text-[color:var(--ink-2)]">
+          <span className="hud-chip border-[var(--border-panel)] bg-[var(--bg-input)] text-[color:var(--text-secondary)]">
             <RadioTower size={14} />
             {onlineCount} online
           </span>
-          <span className="hud-chip border-amber-300/18 bg-amber-300/8 text-amber-100">
+          <span className="hud-chip border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--gold)]">
             {linkedPlayers.filter((item) => item.character).length} fichas
           </span>
           {resolvedOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -300,20 +300,20 @@ export function SessionStatusDrawer({
         <div
           className={cn(
             "max-h-[min(54vh,36rem)] space-y-3 overflow-y-auto pr-1",
-            embedded ? "border-t border-white/8 pt-3" : "border-t border-white/8 px-4 py-3 pr-3"
+            embedded ? "border-t border-[var(--border-panel)] pt-3" : "border-t border-[var(--border-panel)] px-4 py-3 pr-3"
           )}
         >
-          <article className="rounded-[18px] border border-amber-300/16 bg-amber-300/8 p-3">
+          <article className="rounded-[18px] border border-[color:var(--gold)]/20 bg-[color:var(--mist)] p-3">
             <div className="flex items-center gap-3">
               <AssetAvatar
                 imageUrl={gmAsset?.secureUrl}
                 label={gmCharacter?.name ?? gmParticipant?.displayName ?? gmName ?? "GM"}
                 kind={gmAsset?.kind}
-                className="h-12 w-12 shrink-0"
+                className="h-12 w-12 shrink-0 border-[var(--border-panel)]"
               />
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="hud-chip border-amber-300/22 bg-black/18 text-amber-100">
+                  <span className="hud-chip border-[color:var(--gold)]/30 bg-[var(--bg-card)] text-[color:var(--gold)]">
                     <Crown size={14} />
                     mestre
                   </span>
@@ -326,10 +326,10 @@ export function SessionStatusDrawer({
                     )}
                   />
                 </div>
-                <h3 className="mt-1 text-base font-semibold text-white">
+                <h3 className="mt-1 text-base font-semibold text-[color:var(--text-primary)]">
                   {gmParticipant?.displayName ?? gmName ?? "Mestre da sessao"}
                 </h3>
-                <p className="mt-1 text-xs text-[color:var(--ink-2)]">
+                <p className="mt-1 text-xs text-[color:var(--text-secondary)]">
                   Painel rapido da mesa e das fichas vinculadas.
                 </p>
               </div>
@@ -346,7 +346,7 @@ export function SessionStatusDrawer({
               return (
                 <article
                   key={participant.id}
-                  className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3"
+                  className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-3"
                 >
                   <div className="flex items-start gap-3">
                     <AssetAvatar
@@ -357,7 +357,7 @@ export function SessionStatusDrawer({
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-white">
+                        <p className="truncate text-sm font-semibold text-[color:var(--text-primary)]">
                           {participant.displayName}
                         </p>
                         <span
@@ -384,7 +384,7 @@ export function SessionStatusDrawer({
                         )}
                       </div>
                       <div className="mt-1 flex items-center gap-2">
-                        <p className="truncate text-sm text-[color:var(--ink-2)]">
+                        <p className="truncate text-sm text-[color:var(--text-secondary)]">
                           {character?.name ?? "sem ficha vinculada"}
                         </p>
                         {charactersByOwnerId.get(participant.id)?.length && charactersByOwnerId.get(participant.id)!.length > 1 && (
@@ -395,7 +395,7 @@ export function SessionStatusDrawer({
                                 onClick={() => handleSetActiveCharacter(c.id)}
                                 className={cn(
                                   "h-1.5 w-1.5 rounded-full transition",
-                                  c.id === character?.id ? "bg-amber-400" : "bg-white/10 hover:bg-white/30"
+                                  c.id === character?.id ? "bg-[color:var(--gold)]" : "bg-[var(--border-panel)] hover:bg-[color:var(--text-muted)]"
                                 )}
                                 title={`Ativar ${c.name}`}
                               />
@@ -403,7 +403,7 @@ export function SessionStatusDrawer({
                           </div>
                         )}
                       </div>
-                      <p className="mt-1 text-xs text-[color:var(--ink-3)]">
+                      <p className="mt-1 text-xs text-[color:var(--text-muted)]">
                         {character
                           ? `init ${character.initiative >= 0 ? `+${character.initiative}` : character.initiative}`
                           : "crie ou vincule uma ficha para este jogador"}
@@ -430,15 +430,15 @@ export function SessionStatusDrawer({
                         />
                       </div>
 
-                      <div className="mt-3 rounded-[16px] border border-white/10 bg-black/18 p-3">
-                        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[color:var(--ink-3)]">
+                      <div className="mt-3 rounded-[16px] border border-[var(--border-panel)] bg-[var(--bg-input)] p-3">
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[color:var(--text-muted)]">
                           <Swords size={12} />
                           combate
                         </div>
-                        <p className="mt-2 text-sm font-semibold text-white">
+                        <p className="mt-2 text-sm font-semibold text-[color:var(--text-primary)]">
                           {combatSummary?.style ?? "Ficha resumida"}
                         </p>
-                        <p className="mt-1 text-sm text-[color:var(--ink-2)]">
+                        <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
                           Arma ativa: {combatSummary?.weapon ?? "Sem arma definida"}
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -448,7 +448,7 @@ export function SessionStatusDrawer({
                           ).map((entry) => (
                             <span
                               key={`${participant.id}:${entry}`}
-                              className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[11px] text-[color:var(--ink-2)]"
+                              className="rounded-full border border-[var(--border-panel)] bg-[var(--bg-card)] px-2.5 py-1 text-[11px] text-[color:var(--text-secondary)]"
                             >
                               {entry}
                             </span>
@@ -457,7 +457,7 @@ export function SessionStatusDrawer({
                       </div>
                     </>
                   ) : (
-                    <div className="mt-3 rounded-[16px] border border-dashed border-white/12 bg-black/18 px-3 py-2.5 text-sm text-[color:var(--ink-2)]">
+                    <div className="mt-3 rounded-[16px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[color:var(--text-secondary)]">
                       Sem ficha vinculada.
                     </div>
                   )}
@@ -467,7 +467,7 @@ export function SessionStatusDrawer({
           </div>
 
           {isPending ? (
-            <div className="flex items-center gap-2 text-xs text-[color:var(--ink-3)]">
+            <div className="flex items-center gap-2 text-xs text-[color:var(--text-muted)]">
               <LoaderCircle size={14} className="animate-spin" />
               aplicando ajuste em tempo real...
             </div>
@@ -488,7 +488,7 @@ export function SessionStatusDrawer({
   }
 
   return (
-    <section className="rounded-[22px] border border-white/10 bg-[var(--bg-panel-strong)]">
+    <section className="rounded-[22px] border border-[var(--border-panel)] bg-[var(--bg-panel)]">
       {content}
     </section>
   );

@@ -407,7 +407,8 @@ export function getDefenseTargetWithModifiers(
   targetState?: CombatantTurnState | null,
   response?: DefenseResponseInput,
   deceptivePenalty: number = 0,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  iaiStrike: boolean = false
 ) {
   const posturePenalty = postureDefensePenalty(profile.combat.posture);
   
@@ -456,7 +457,8 @@ export function getDefenseTargetWithModifiers(
     defensiveAttackBonus -
     feintPenalty -
     deceptivePenalty -
-    committedAttackPenalty +
+    committedAttackPenalty -
+    (iaiStrike ? 1 : 0) +
     posturePenalty, 
     3, 18
   );
@@ -973,6 +975,7 @@ export function prepareAttackResolution(input: {
   targetState?: CombatantTurnState | null;
   variant?: AllOutAttackVariant | null;
   random?: () => number;
+  iaiStrike?: boolean;
 }): PreparedAttackResult {
   const random = input.random ?? Math.random;
   const actorProfile = getProfile(input.actor.character);
@@ -1130,7 +1133,8 @@ export function prepareAttackResolution(input: {
       attackRoll,
       defenseResponse: { option: "none" },
       targetState: input.targetState,
-      random
+      random,
+      iaiStrike: input.iaiStrike
     });
 
     return {
@@ -1175,7 +1179,8 @@ const resolved = finishAttackResolution({
         acrobatic: input.draftAction.modifiers.acrobatic
       },
       targetState: input.targetState,
-      random
+      random,
+      iaiStrike: input.iaiStrike
     });
 
   return {
@@ -1195,6 +1200,7 @@ export function finishAttackResolution(input: {
   defenseResponse?: DefenseResponseInput;
   targetState?: CombatantTurnState | null;
   random?: () => number;
+  iaiStrike?: boolean;
 }): ResolvedCombatExchange {
   const random = input.random ?? Math.random;
   const actorProfile = getProfile(input.actor.character);
@@ -1236,7 +1242,7 @@ export function finishAttackResolution(input: {
 
   const defenseRoll =
     defenseOption !== "none"
-      ? buildRollRecord(getDefenseTargetWithModifiers(finalTargetProfile, defenseOption, input.targetState ?? null, input.defenseResponse, (input.draftAction.deceptiveLevel || 0), random), random)
+      ? buildRollRecord(getDefenseTargetWithModifiers(finalTargetProfile, defenseOption, input.targetState ?? null, input.defenseResponse, (input.draftAction.deceptiveLevel || 0), random, input.iaiStrike), random)
       : null;
   const technique = getTechnique(actorProfile, input.draftAction.techniqueId);
   const baseSummary = buildAttackSummary({
@@ -2134,5 +2140,116 @@ export function advanceTurnState(
     isWaiting: state.isWaiting,
     waitTrigger: state.waitTrigger,
     concentrating: state.lastManeuver === "concentrate"
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Scenario-Specific Action Filtering (Espadas Quebradas)
+// ---------------------------------------------------------------------------
+
+export type MaestriaLevel = "Novato" | "Shoden" | "Chuden" | "Okuden" | "Menkyo Kaiden";
+
+export function getMaestriaLevel(nh: number): MaestriaLevel {
+  if (nh >= 20) return "Menkyo Kaiden";
+  if (nh >= 17) return "Okuden";
+  if (nh >= 15) return "Chuden";
+  if (nh >= 12) return "Shoden";
+  return "Novato";
+}
+
+export function getMaxTechniqueSlots(level: MaestriaLevel): number {
+  switch (level) {
+    case "Menkyo Kaiden": return 4;
+    case "Okuden": return 3;
+    case "Chuden": return 2;
+    case "Shoden": return 1;
+    default: return 0;
+  }
+}
+
+export function getAvailableCombatActions(
+  profile: SessionCharacterSheetProfile,
+  weaponId: string | null
+): {
+  maneuvers: CombatActionType[];
+  techniques: CharacterTechniqueRecord[];
+  isIaiPossible: boolean;
+} {
+  const maneuvers: CombatActionType[] = [
+    "move", "attack", "ranged-attack", "all-out-attack", 
+    "feint", "all-out-defense", "aim", "ready", 
+    "evaluate", "wait", "do-nothing", "swap-technique"
+  ];
+
+  const weapon = profile.weapons.find(w => w.id === weaponId) || profile.weapons[0];
+  
+  // No cenário de Daimyo/GURPS, Iaijutsu é possível se a arma NÃO estiver em punho (state != ready)
+  const isIaiPossible = !!weapon && weapon.state !== "ready";
+
+  if (isIaiPossible) {
+    maneuvers.push("iai-strike");
+  }
+
+  const skillName = weapon?.modes[0]?.skill || "Briga";
+  const skill = profile.skills.find(s => s.name === skillName);
+  const nh = skill?.level ?? 10;
+  const level = getMaestriaLevel(nh);
+  const maxSlots = getMaxTechniqueSlots(level);
+
+  const equippedIds = profile.combat.loadoutTechniqueIds || [];
+  const availableTechniques = (profile.techniques || [])
+    .filter(t => equippedIds.includes(t.id))
+    .slice(0, maxSlots);
+
+  return {
+    maneuvers,
+    techniques: availableTechniques,
+    isIaiPossible
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Iaijutsu (Draw & Strike)
+// ---------------------------------------------------------------------------
+
+export function resolveIaiStrike(input: {
+  actor: CombatTokenContext;
+  target: CombatTokenContext;
+  draftAction: CombatDraftAction;
+  targetState?: CombatantTurnState | null;
+}): PreparedAttackResult {
+  const actorProfile = getProfile(input.actor.character);
+  const targetProfile = getProfile(input.target.character);
+
+  if (!actorProfile || !targetProfile) {
+    throw new Error("Perfis de combatentes invalidos.");
+  }
+
+  // Marcar arma como pronta (sacada)
+  const weaponIndex = actorProfile.weapons.findIndex(w => w.id === input.draftAction.weaponId);
+  const nextWeapons = [...actorProfile.weapons];
+  if (weaponIndex >= 0) {
+    nextWeapons[weaponIndex] = {
+      ...nextWeapons[weaponIndex],
+      state: "ready" as const
+    };
+  }
+
+  const nextActorProfile = {
+    ...actorProfile,
+    weapons: nextWeapons
+  };
+
+  // Iaijutsu dá -1 na defesa do alvo por surpresa
+  const result = prepareAttackResolution({
+    ...input,
+    actor: { ...input.actor, character: { ...input.actor.character!, sheetProfile: nextActorProfile.combat } as any },
+    promptPlayerDefense: false,
+    iaiStrike: true
+  });
+
+  return {
+    ...result,
+    actorProfile: nextActorProfile
   };
 }

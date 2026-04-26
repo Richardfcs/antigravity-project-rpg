@@ -423,21 +423,21 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[28px] border border-white/10 bg-black/40 p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
+      <section className="rounded-[28px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-6 backdrop-blur-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
         <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.1)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--gold)]/10 text-[color:var(--gold)] shadow-[0_0_15px_rgba(var(--gold-rgb),0.1)]">
               <AudioLines size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-bold tracking-tight text-white uppercase">Sinfonia de Guerra</h3>
-              <p className="text-xs text-white/40">Dite o ritmo do destino e a harmonia das cenas.</p>
+              <h3 className="text-xl font-bold tracking-tight text-[color:var(--text-primary)] uppercase">Sinfonia de Guerra</h3>
+              <p className="text-xs text-[color:var(--text-muted)]">Dite o ritmo do destino e a harmonia das cenas.</p>
             </div>
           </div>
 
           {canManage && (
-            <div className="flex items-center gap-4 rounded-2xl bg-white/5 px-4 py-2 border border-white/5">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/30">
+            <div className="flex items-center gap-4 rounded-2xl bg-[var(--bg-card)] px-4 py-2 border border-[var(--border-panel)]">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">
                 <Volume2 size={14} />
                 Volume
               </div>
@@ -449,27 +449,27 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                 value={playback?.volume ?? 0.72}
                 onChange={(event) => handleVolumeChange(Number(event.target.value))}
                 disabled={isPending}
-                className="w-32 accent-amber-400"
+                className="w-32 accent-[color:var(--gold)]"
               />
             </div>
           )}
         </header>
 
-        <div className="rounded-[24px] border border-white/5 bg-white/[0.02] p-6 mb-6">
+        <div className="rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-card)]/50 p-6 mb-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400/50 mb-2">Transmissão Ativa</p>
-              <h4 className="text-2xl font-bold text-white truncate leading-tight">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[color:var(--gold)]/50 mb-2">Transmissão Ativa</p>
+              <h4 className="text-2xl font-bold text-[color:var(--text-primary)] truncate leading-tight">
                 {activeTrack?.title ?? "Silêncio Narrativo"}
               </h4>
-              <div className="mt-2 flex items-center gap-3 text-xs font-bold text-white/40">
+              <div className="mt-2 flex items-center gap-3 text-xs font-bold text-[color:var(--text-muted)]">
                 <span className="uppercase tracking-widest">{playbackStatusLabel(playback?.status)}</span>
-                <span className="h-1 w-1 rounded-full bg-white/20"></span>
+                <span className="h-1 w-1 rounded-full bg-[color:var(--gold)]/20"></span>
                 <span className="tabular-nums">{formatSeconds(displayedPosition)}</span>
                 {playback?.loopEnabled && (
                   <>
-                    <span className="h-1 w-1 rounded-full bg-white/20"></span>
-                    <span className="text-emerald-400 uppercase tracking-tighter">Loop Ativo</span>
+                    <span className="h-1 w-1 rounded-full bg-[color:var(--gold)]/20"></span>
+                    <span className="text-emerald-500 uppercase tracking-tighter">Loop Ativo</span>
                   </>
                 )}
               </div>
@@ -484,8 +484,8 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                   className={cn(
                     "flex h-14 w-14 items-center justify-center rounded-2xl border transition-all disabled:opacity-20",
                     playback?.status === "playing" 
-                      ? "border-amber-400/50 bg-amber-400/20 text-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.2)]" 
-                      : "border-white/10 bg-white/5 text-white hover:border-white/20"
+                      ? "border-[color:var(--gold)]/50 bg-[color:var(--mist)] text-[color:var(--gold)] shadow-[0_0_20px_rgba(var(--gold-rgb),0.2)]" 
+                      : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-primary)] hover:border-[color:var(--gold)]/20"
                   )}
                 >
                   {pendingKey === "transport:playing" ? (
@@ -498,7 +498,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                   type="button"
                   onClick={() => handleTransport("paused")}
                   disabled={isPending || !playback?.trackId}
-                  className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white transition-all hover:border-white/20 disabled:opacity-20"
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-primary)] transition-all hover:border-[color:var(--gold)]/20 disabled:opacity-20"
                 >
                   {pendingKey === "transport:paused" ? (
                     <LoaderCircle size={20} className="animate-spin" />
@@ -518,7 +518,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                     <Square size={20} className="fill-current" />
                   )}
                 </button>
-                <div className="w-px h-10 bg-white/10 mx-2"></div>
+                <div className="w-px h-10 bg-[var(--border-panel)] mx-2"></div>
                 <button
                   type="button"
                   onClick={handleLoopToggle}
@@ -527,7 +527,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                     "flex h-14 w-14 items-center justify-center rounded-2xl border transition-all disabled:opacity-20",
                     playback?.loopEnabled
                       ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
-                      : "border-white/10 bg-white/5 text-white/40 hover:text-white"
+                      : "border-[var(--border-panel)] bg-[var(--bg-input)] text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
                   )}
                 >
                   {pendingKey === "loop" ? (
@@ -542,52 +542,52 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
         </div>
 
         {canManage && (
-          <div className="rounded-[24px] border border-white/5 bg-black/20 p-5">
+          <div className="rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-input)] p-5">
             <header className="flex items-center gap-2 mb-4">
-              <UploadCloud size={14} className="text-white/30" />
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Anexar Novo Registro Sonoro</h4>
+              <UploadCloud size={14} className="text-[color:var(--text-muted)]" />
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Anexar Novo Registro Sonoro</h4>
             </header>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Identificação da Faixa</label>
+                <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Identificação da Faixa</label>
                 <input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+                  className="w-full rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
                   placeholder="Ex: Marcha do Shogun"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Playlist de Destino</label>
+                <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Playlist de Destino</label>
                 <input
                   value={playlistName}
                   onChange={(event) => setPlaylistName(event.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+                  className="w-full rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
                   placeholder="Ex: Batalha, Ambiente, Horror"
                 />
               </div>
 
               <div className="md:col-span-2 space-y-1.5">
-                <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-white/20">Arquivo de Mídia</label>
+                <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Arquivo de Mídia</label>
                 <div className="relative group">
                   <input
                     type="file"
                     accept=".mp3,.m4a,.mp4,audio/mpeg,audio/mp4,video/mp4"
                     onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-white/40 outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-amber-400/20 file:px-4 file:py-1 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:text-amber-400 group-hover:bg-white/[0.08]"
+                    className="w-full rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-xs text-[color:var(--text-muted)] outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-[color:var(--gold)]/20 file:px-4 file:py-1 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:text-[color:var(--gold)] group-hover:bg-[var(--bg-card)]"
                   />
                 </div>
               </div>
             </div>
 
             <div className="mt-5 flex items-center justify-between">
-              <p className="text-[10px] font-medium text-white/20 italic">Formatos ideais: MP3, M4A ou MP4 (áudio).</p>
+              <p className="text-[10px] font-medium text-[color:var(--text-muted)] italic">Formatos ideais: MP3, M4A ou MP4 (áudio).</p>
               <button
                 type="button"
                 onClick={handleCreateTrack}
                 disabled={isPending}
-                className="inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-8 py-3 text-[10px] font-black uppercase tracking-widest text-amber-100 transition hover:bg-amber-400/20 disabled:opacity-20"
+                className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--gold)]/30 bg-[color:var(--mist)] px-8 py-3 text-[10px] font-black uppercase tracking-widest text-[color:var(--gold)] transition hover:bg-[color:var(--gold)]/20 disabled:opacity-20 shadow-sm"
               >
                 {pendingKey === "create-track" ? (
                   <LoaderCircle size={14} className="animate-spin" />
@@ -610,8 +610,8 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
       <div className="space-y-4">
         <header className="flex flex-col md:flex-row items-center justify-between gap-4 px-2">
           <div className="flex items-center gap-2">
-            <AudioLines size={14} className="text-white/30" />
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Arquivo Sonoro da Mesa</h4>
+            <AudioLines size={14} className="text-[color:var(--text-muted)]/50" />
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Arquivo Sonoro da Mesa</h4>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -621,7 +621,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                 setSearchQuery(event.target.value);
                 setVisibleCount(10);
               }}
-              className="w-48 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-white outline-none transition focus:border-amber-400/35 focus:bg-white/[0.08]"
+              className="w-48 rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-1.5 text-[11px] text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
               placeholder="Buscar sinfonia..."
             />
             <select
@@ -630,7 +630,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                 setPlaylistFilter(event.target.value);
                 setVisibleCount(10);
               }}
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-white outline-none transition focus:border-amber-400/35"
+              className="rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-1.5 text-[11px] text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
             >
               <option value="all">Todas Playlists</option>
               {groupedTracks.map((group) => (
@@ -648,17 +648,17 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
 
         <div className="grid gap-6">
           {groupedTracks.length === 0 && (
-            <div className="rounded-[24px] border border-dashed border-white/5 bg-white/[0.02] px-6 py-12 text-center">
-              <p className="text-sm text-white/20 font-medium italic">O silêncio absoluto reina na biblioteca.</p>
+            <div className="rounded-[24px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-input)]/50 px-6 py-12 text-center">
+              <p className="text-sm text-[color:var(--text-muted)] font-medium italic">O silêncio absoluto reina na biblioteca.</p>
             </div>
           )}
 
           {displayedGroups.map((group) => (
             <section key={group.playlistName} className="space-y-3">
               <div className="flex items-center gap-3 px-2">
-                <span className="h-px flex-1 bg-white/5"></span>
-                <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">{group.playlistName}</h5>
-                <span className="h-px flex-1 bg-white/5"></span>
+                <span className="h-px flex-1 bg-[var(--border-panel)]"></span>
+                <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-[color:var(--text-muted)]/60">{group.playlistName}</h5>
+                <span className="h-px flex-1 bg-[var(--border-panel)]"></span>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -671,8 +671,8 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                       className={cn(
                         "group relative overflow-hidden rounded-[24px] border p-4 transition-all",
                         isCurrent 
-                          ? "border-amber-400/30 bg-amber-400/5 shadow-[0_0_20px_rgba(251,191,36,0.05)]" 
-                          : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+                          ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] shadow-[0_0_20px_rgba(var(--gold-rgb),0.05)]" 
+                          : "border-[var(--border-panel)] bg-[var(--bg-card)] hover:border-[color:var(--gold)]/20 hover:bg-[var(--bg-card)]/80"
                       )}
                     >
                       <div className="flex flex-col h-full justify-between gap-4">
@@ -680,13 +680,13 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                           <div className="flex items-start justify-between gap-3">
                             <h6 className={cn(
                               "text-sm font-bold truncate transition-colors",
-                              isCurrent ? "text-amber-400" : "text-white group-hover:text-amber-100"
+                              isCurrent ? "text-[color:var(--gold)]" : "text-[color:var(--text-primary)] group-hover:text-[color:var(--gold)]/80"
                             )}>
                               {track.title}
                             </h6>
-                            {isCurrent && <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse mt-1.5" />}
+                            {isCurrent && <div className="h-2 w-2 rounded-full bg-[color:var(--gold)] animate-pulse mt-1.5" />}
                           </div>
-                          <p className="mt-1 text-[10px] font-medium text-white/20 truncate">
+                          <p className="mt-1 text-[10px] font-medium text-[color:var(--text-muted)] truncate">
                             {track.originalFilename ?? "Arquivo Sincronizado"}
                           </p>
                           <div className="mt-3">
@@ -700,8 +700,8 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-3">
-                          <span className="text-[10px] font-bold tabular-nums text-white/20">
+                        <div className="flex items-center justify-between gap-3 border-t border-[var(--border-panel)] pt-3">
+                          <span className="text-[10px] font-bold tabular-nums text-[color:var(--text-muted)]">
                             {track.durationSeconds != null ? formatSeconds(track.durationSeconds) : "--:--"}
                           </span>
 
@@ -714,8 +714,8 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
                                 className={cn(
                                   "rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all",
                                   isCurrent
-                                    ? "bg-amber-400 text-black"
-                                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white"
+                                    ? "bg-[color:var(--gold)] text-[color:var(--bg-deep)]"
+                                    : "bg-[var(--bg-input)] text-[color:var(--text-muted)] hover:bg-[var(--bg-panel)] hover:text-[color:var(--text-primary)] border border-[var(--border-panel)]"
                                 )}
                               >
                                 {pendingKey === `select:${track.id}` ? (
@@ -754,7 +754,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
           <button
             type="button"
             onClick={() => setVisibleCount((current) => current + 10)}
-            className="w-full rounded-2xl border border-white/10 bg-white/5 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/40 transition hover:bg-white/10 hover:text-white"
+            className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-card)] py-4 text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--text-muted)] transition hover:border-[color:var(--gold)]/20 hover:text-[color:var(--text-primary)]"
           >
             Expandir Arquivo Sonoro
           </button>

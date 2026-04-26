@@ -292,22 +292,22 @@ export function AtlasPanel({
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="stat-card">
           <p className="section-label">Atlas</p>
-          <p className="mt-2 text-2xl font-semibold text-white">{atlasMaps.length}</p>
-          <p className="mt-1 text-xs text-[color:var(--ink-3)]">mapas macro</p>
+          <p className="mt-2 text-2xl font-semibold text-[color:var(--text-primary)]">{atlasMaps.length}</p>
+          <p className="mt-1 text-xs text-[color:var(--text-muted)]">mapas macro</p>
         </div>
         <div className="stat-card">
           <p className="section-label">Atlas ativo</p>
-          <p className="mt-2 text-lg font-semibold text-white">
+          <p className="mt-2 text-lg font-semibold text-[color:var(--text-primary)]">
             {activeAtlasMap?.name ?? "nenhum"}
           </p>
-          <p className="mt-1 text-xs text-[color:var(--ink-3)]">
+          <p className="mt-1 text-xs text-[color:var(--text-muted)]">
             {currentAtlasPins.length} pins ativos
           </p>
         </div>
         <div className="stat-card">
           <p className="section-label">Fluxo</p>
-          <p className="mt-2 text-lg font-semibold text-white">editar no palco</p>
-          <p className="mt-1 text-xs text-[color:var(--ink-3)]">
+          <p className="mt-2 text-lg font-semibold text-[color:var(--text-primary)]">editar no palco</p>
+          <p className="mt-1 text-xs text-[color:var(--text-muted)]">
             clique no atlas para criar e arraste para mover
           </p>
         </div>
@@ -315,12 +315,12 @@ export function AtlasPanel({
 
       {canManage && (
         <>
-          <section className="rounded-[20px] border border-white/10 bg-black/18 p-4">
+          <section className="rounded-[20px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4">
             <div className="flex items-center gap-2">
-              <Plus size={16} className="text-amber-100" />
-              <h3 className="text-sm font-semibold text-white">Novo atlas</h3>
+              <Plus size={16} className="text-[color:var(--gold)]" />
+              <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Novo atlas</h3>
             </div>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-secondary)]">
               Crie o mapa macro aqui. Depois, toda a edicao de pins acontece direto no palco do atlas.
             </p>
 
@@ -328,16 +328,16 @@ export function AtlasPanel({
               <input
                 value={atlasName}
                 onChange={(event) => setAtlasName(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
                 placeholder="Atlas de Kamamura"
               />
               <button
                 type="button"
                 onClick={() => setIsAtlasAssetPickerOpen(true)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                className="flex w-full items-center gap-3 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm transition hover:border-[color:var(--gold)]/25 cursor-pointer text-[color:var(--text-primary)]"
               >
-                <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                <span className={atlasAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                <ImageIcon size={16} className="shrink-0 text-[color:var(--text-muted)]" />
+                <span className={atlasAssetId ? "truncate" : "text-[color:var(--text-muted)]"}
                 >
                   {atlasAssetId
                     ? (mapAssets.find((a) => a.id === atlasAssetId)?.label ?? "mapa-base")
@@ -359,7 +359,7 @@ export function AtlasPanel({
               type="button"
               onClick={handleCreateAtlas}
               disabled={isPending}
-              className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-[color:var(--gold)]/28 bg-[color:var(--mist)] px-4 py-3 text-sm font-semibold text-[color:var(--gold)] transition hover:border-[color:var(--gold)]/45 disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
             >
               {pendingKey === "create-atlas" ? (
                 <LoaderCircle size={16} className="animate-spin" />
@@ -370,12 +370,12 @@ export function AtlasPanel({
             </button>
           </section>
 
-          <section className="rounded-[20px] border border-white/10 bg-black/18 p-4">
+          <section className="rounded-[20px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4">
             <div className="flex items-center gap-2">
-              <BellRing size={16} className="text-amber-100" />
-              <h3 className="text-sm font-semibold text-white">Alerta privado</h3>
+              <BellRing size={16} className="text-[color:var(--gold)]" />
+              <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">Alerta privado</h3>
             </div>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-secondary)]">
               Segredos, panico, sangue ou kegare enviados para apenas um jogador.
             </p>
 
@@ -392,8 +392,8 @@ export function AtlasPanel({
                       className={cn(
                         "hud-chip transition cursor-pointer",
                         targetParticipantId === participant.id
-                          ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
-                          : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
+                          ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)]"
+                          : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-secondary)] hover:border-[color:var(--gold)]/20"
                       )}
                     >
                       {participant.displayName}
@@ -417,8 +417,8 @@ export function AtlasPanel({
                     className={cn(
                       "hud-chip transition cursor-pointer",
                       eventKind === value
-                        ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
-                        : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
+                        ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)]"
+                        : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-secondary)] hover:border-[color:var(--gold)]/20"
                     )}
                   >
                     {label}
@@ -429,17 +429,17 @@ export function AtlasPanel({
               <input
                 value={eventTitle}
                 onChange={(event) => setEventTitle(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
                 placeholder="Voce ouviu algo..."
               />
 
               <button
                 type="button"
                 onClick={() => setIsEventImagePickerOpen(true)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                className="flex w-full items-center gap-3 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm transition hover:border-[color:var(--gold)]/25 cursor-pointer"
               >
-                <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                <span className={eventImageAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}
+                <ImageIcon size={16} className="shrink-0 text-[color:var(--text-muted)]" />
+                <span className={eventImageAssetId ? "text-[color:var(--text-primary)] truncate" : "text-[color:var(--text-muted)]"}
                 >
                   {eventImageAssetId
                     ? (assets.find((a) => a.id === eventImageAssetId)?.label ?? "imagem")
@@ -457,7 +457,7 @@ export function AtlasPanel({
               <input
                 value={eventIntensity}
                 onChange={(event) => setEventIntensity(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
                 placeholder="3"
                 inputMode="numeric"
               />
@@ -465,7 +465,7 @@ export function AtlasPanel({
               <input
                 value={eventDurationMs}
                 onChange={(event) => setEventDurationMs(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+                className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
                 placeholder="5000"
                 inputMode="numeric"
               />
@@ -475,7 +475,7 @@ export function AtlasPanel({
               value={eventBody}
               onChange={(event) => setEventBody(event.target.value)}
               rows={3}
-              className="mt-3 w-full rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              className="mt-3 w-full rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35 custom-scrollbar"
               placeholder="Descreva o que so esse jogador percebeu."
             />
 
@@ -483,7 +483,7 @@ export function AtlasPanel({
               type="button"
               onClick={handleSendEvent}
               disabled={isPending}
-              className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-amber-300/28 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-[color:var(--gold)]/28 bg-[color:var(--mist)] px-4 py-3 text-sm font-semibold text-[color:var(--gold)] transition hover:border-[color:var(--gold)]/45 disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
             >
               {pendingKey === "send-event" ? (
                 <LoaderCircle size={16} className="animate-spin" />
@@ -497,13 +497,13 @@ export function AtlasPanel({
       )}
 
       {feedback && (
-        <div className="rounded-[18px] border border-amber-300/18 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
+        <div className="rounded-[18px] border border-[color:var(--gold)]/18 bg-[color:var(--mist)] px-4 py-3 text-sm text-[color:var(--gold)]">
           {feedback}
         </div>
       )}
 
       <section className="space-y-3">
-        <div className="flex flex-col gap-4 rounded-[24px] border border-white/10 bg-black/18 p-4 md:flex-row md:items-center">
+        <div className="flex flex-col gap-4 rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4 md:flex-row md:items-center">
           <div className="flex-shrink-0">
             <p className="section-label px-1">Biblioteca de atlas</p>
           </div>
@@ -514,7 +514,7 @@ export function AtlasPanel({
                 setSearchQuery(event.target.value);
                 setVisibleCount(8);
               }}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/35"
+              className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35"
               placeholder="buscar atlas..."
             />
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -525,7 +525,7 @@ export function AtlasPanel({
         </div>
 
         {atlasMaps.length > 0 && filteredAtlasMaps.length === 0 && (
-          <div className="rounded-[18px] border border-dashed border-white/12 bg-white/[0.03] px-4 py-6 text-sm text-[color:var(--ink-2)]">
+          <div className="rounded-[18px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-card)]/50 px-4 py-6 text-sm text-[color:var(--text-secondary)]">
             Nenhum atlas corresponde a essa busca.
           </div>
         )}
@@ -542,8 +542,8 @@ export function AtlasPanel({
               className={cn(
                 "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
                 atlasMap.isActive
-                  ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
-                  : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                  ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] shadow-[0_0_40px_rgba(var(--gold-rgb),0.1)]"
+                  : "border-[var(--border-panel)] bg-[var(--bg-card)]/50 hover:border-[color:var(--gold)]/20 hover:bg-[var(--bg-card)]"
               )}
             >
               {/* Background Art Layer */}
@@ -557,10 +557,10 @@ export function AtlasPanel({
                         opacity: atlasMap.isActive ? 0.35 : 0.2
                       }} 
                     />
-                    <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/40 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-[color:var(--bg-panel)]/90 via-[color:var(--bg-panel)]/40 to-transparent" />
                   </>
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-20" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-[color:var(--text-primary)]/5 to-transparent opacity-20" />
                 )}
               </div>
 
@@ -574,8 +574,8 @@ export function AtlasPanel({
                       <div className={cn(
                         "flex h-12 w-20 shrink-0 items-center justify-center rounded-2xl border overflow-hidden transition-all",
                         atlasMap.isActive 
-                          ? "border-amber-400/30 bg-amber-400/10 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.2)]" 
-                          : "border-white/10 bg-white/5 text-white/40"
+                          ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)] shadow-[0_0_15px_rgba(var(--gold-rgb),0.2)]" 
+                          : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)]"
                       )}>
                         {mapAsset?.secureUrl ? (
                           <img src={mapAsset.secureUrl} className="h-full w-full object-cover" alt="" />
@@ -585,18 +585,18 @@ export function AtlasPanel({
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="truncate text-lg font-bold tracking-tight text-white">{atlasMap.name}</p>
+                          <p className="truncate text-lg font-bold tracking-tight text-[color:var(--text-primary)]">{atlasMap.name}</p>
                           {atlasMap.isActive && (
-                            <span className="flex h-5 items-center rounded-full bg-amber-400 px-2 text-[9px] font-black uppercase tracking-widest text-black">
+                            <span className="flex h-5 items-center rounded-full bg-[color:var(--gold)] px-2 text-[9px] font-black uppercase tracking-widest text-[color:var(--bg-panel)]">
                               No Palco
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50">
-                          <Compass size={11} className={cn(atlasMap.isActive ? "text-amber-400" : "text-white/40")} />
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-[color:var(--text-secondary)]">
+                          <Compass size={11} className={cn(atlasMap.isActive ? "text-[color:var(--gold)]" : "text-[color:var(--text-muted)]")} />
                           <span className="truncate italic">Exploração de Atlas</span>
                         </p>
-                        <p className="mt-1 text-[10px] uppercase tracking-wider text-white/30">
+                        <p className="mt-1 text-[10px] uppercase tracking-wider text-[color:var(--text-muted)]">
                           {mapAsset?.label || "sem pintura base"} • {pins.length} marcações
                         </p>
                       </div>
@@ -608,7 +608,7 @@ export function AtlasPanel({
                       {pins.slice(0, 4).map((pin) => (
                         <div 
                           key={pin.pin.id}
-                          className="h-8 w-8 rounded-full border-2 border-black ring-1 ring-white/10"
+                          className="h-8 w-8 rounded-full border-2 border-[var(--bg-panel)] ring-1 border-[var(--border-panel)]"
                         >
                           <img 
                             src={pin.imageAsset?.secureUrl} 
@@ -618,7 +618,7 @@ export function AtlasPanel({
                         </div>
                       ))}
                       {pins.length > 4 && (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-black bg-white/10 text-[9px] font-bold text-white ring-1 ring-white/10">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[var(--bg-panel)] bg-[var(--bg-input)] text-[9px] font-bold text-[color:var(--text-primary)] ring-1 border-[var(--border-panel)]">
                           +{pins.length - 4}
                         </div>
                       )}
@@ -635,8 +635,8 @@ export function AtlasPanel({
                         className={cn(
                           "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-[10px] font-bold uppercase tracking-widest transition-all",
                           atlasMap.isActive
-                            ? "border-amber-400/20 bg-amber-400/5 text-amber-400/40 cursor-default"
-                            : "border-white/10 bg-white/5 text-white hover:border-amber-400/50 hover:bg-amber-400/10"
+                            ? "border-[color:var(--gold)]/20 bg-[color:var(--mist)] text-[color:var(--gold)]/40 cursor-default"
+                            : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-primary)] hover:border-[color:var(--gold)]/50 hover:bg-[color:var(--mist)]"
                         )}
                       >
                         {pendingKey === `activate:${atlasMap.id}` ? (
@@ -687,8 +687,8 @@ export function AtlasPanel({
                             className={cn(
                               "flex h-10 w-10 items-center justify-center rounded-xl border transition-all",
                               editingAtlasId === atlasMap.id
-                                ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
-                                : "border-white/10 bg-white/5 text-white/40 hover:text-white"
+                                ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] text-[color:var(--gold)]"
+                                : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
                             )}
                           >
                             <Settings2 size={16} />
@@ -696,7 +696,7 @@ export function AtlasPanel({
                         </div>
                       )}
 
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all group-hover:border-amber-400/30 group-hover:text-amber-300">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)] transition-all group-hover:border-[color:var(--gold)]/30 group-hover:text-[color:var(--gold)]">
                         {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </div>
                     </div>
@@ -705,7 +705,7 @@ export function AtlasPanel({
 
                 {isExpanded && (
                   <div 
-                    className="mt-5 space-y-5 rounded-[20px] border border-white/5 bg-black/40 p-4 backdrop-blur-xl"
+                    className="mt-5 space-y-5 rounded-[20px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-4 backdrop-blur-xl"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {editingAtlasId === atlasMap.id ? (
@@ -716,7 +716,7 @@ export function AtlasPanel({
                             <input
                               value={draftAtlasName}
                               onChange={(e) => setDraftAtlasName(e.target.value)}
-                              className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-amber-400/40"
+                              className="mt-1.5 w-full rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--gold)]/40"
                             />
                           </label>
                           <label className="block">
@@ -724,10 +724,10 @@ export function AtlasPanel({
                             <button
                               type="button"
                               onClick={() => setIsEditAtlasAssetPickerOpen(true)}
-                              className="mt-1.5 flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm transition hover:border-amber-300/25 cursor-pointer"
+                              className="mt-1.5 flex w-full items-center gap-3 rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-2 text-sm transition hover:border-[color:var(--gold)]/25 cursor-pointer"
                             >
-                              <ImageIcon size={16} className="shrink-0 text-[color:var(--ink-3)]" />
-                              <span className={draftAtlasAssetId ? "text-white truncate" : "text-[color:var(--ink-3)]"}>
+                              <ImageIcon size={16} className="shrink-0 text-[color:var(--text-muted)]" />
+                              <span className={draftAtlasAssetId ? "text-[color:var(--text-primary)] truncate" : "text-[color:var(--text-muted)]"}>
                                 {draftAtlasAssetId
                                   ? (mapAssets.find((a) => a.id === draftAtlasAssetId)?.label ?? "mapa")
                                   : "sem mapa base"}
@@ -745,13 +745,13 @@ export function AtlasPanel({
                           />
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/5 mt-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--border-panel)] mt-2">
                           <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={() => handleUpdateAtlas(atlasMap.id)}
                               disabled={isPending}
-                              className="inline-flex items-center gap-2 rounded-xl bg-amber-400/10 border border-amber-400/30 px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber-300 hover:bg-amber-400/20"
+                              className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--mist)] border border-[color:var(--gold)]/30 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[color:var(--gold)] hover:bg-[color:var(--gold)]/20"
                             >
                               {pendingKey === `update-atlas:${atlasMap.id}` ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}
                               Salvar
@@ -759,7 +759,7 @@ export function AtlasPanel({
                             <button
                               type="button"
                               onClick={() => setEditingAtlasId(null)}
-                              className="inline-flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white/60 hover:text-white"
+                              className="inline-flex items-center gap-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-panel)] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
                             >
                               Cancelar
                             </button>
@@ -811,7 +811,7 @@ export function AtlasPanel({
           <button
             type="button"
             onClick={() => setVisibleCount((current) => current + 8)}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition hover:border-white/20"
+            className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)]/50 px-4 py-3 text-sm font-semibold text-[color:var(--text-primary)] transition hover:border-[color:var(--gold)]/20"
           >
             carregar mais atlas
           </button>

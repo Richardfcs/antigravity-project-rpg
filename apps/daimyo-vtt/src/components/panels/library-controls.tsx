@@ -1,6 +1,7 @@
 "use client";
 
-import { BookmarkCheck, CalendarClock, Star } from "lucide-react";
+import { BookmarkCheck, CalendarClock, Star, Settings2, X } from "lucide-react";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 import type {
@@ -39,8 +40,8 @@ export function LibraryFilterPills({
           className={cn(
             "shrink-0 rounded-[12px] border px-4 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition-all",
             value === option.id
-              ? "border-amber-400/40 bg-amber-400/15 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.1)]"
-              : "border-white/10 bg-white/[0.03] text-white/40 hover:border-white/20 hover:text-white/80"
+              ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] text-[color:var(--gold)] shadow-[0_0_15px_rgba(var(--gold-rgb),0.1)]"
+              : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)] hover:border-[color:var(--gold)]/20 hover:text-[color:var(--text-primary)]"
           )}
         >
           {option.label}
@@ -61,7 +62,7 @@ export function LibrarySortSelect({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value as LibrarySortMode)}
-      className="rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-xs font-medium text-white outline-none transition focus:border-amber-400/35 focus:bg-black/60"
+      className="rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-2.5 text-xs font-medium text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/35 focus:bg-[var(--bg-card)]"
     >
       <option value="name">Ordem Alfabética</option>
       <option value="prepared">Prontos Primeiro</option>
@@ -80,6 +81,8 @@ export function LibraryFlagControls({
   canManage: boolean;
   onToggle: (flag: keyof LibraryPreparedFlags) => void;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   const buttons = [
     {
       id: "favorite" as const,
@@ -101,26 +104,50 @@ export function LibraryFlagControls({
     }
   ];
 
+  if (!canManage) return null;
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {buttons.map((button) => (
-        <button
-          key={button.id}
-          type="button"
-          disabled={!canManage}
-          onClick={() => onToggle(button.id)}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] transition-all disabled:cursor-not-allowed",
-            button.active
-              ? "border-amber-400/40 bg-amber-400/15 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.1)]"
-              : "border-white/10 bg-white/[0.03] text-white/30 hover:border-white/20 hover:text-white/70"
-          )}
-          title={button.label}
-        >
-          <button.icon size={12} className={button.active ? "fill-amber-400/20" : ""} />
-          {button.label}
-        </button>
-      ))}
+    <div className="relative">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-xl border transition-all",
+          isOpen 
+            ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] text-[color:var(--gold)] shadow-[0_0_15px_rgba(var(--gold-rgb),0.2)]" 
+            : "border-[var(--border-panel)] bg-[var(--bg-panel)]/60 text-[color:var(--text-muted)] hover:border-[color:var(--gold)]/20 hover:text-[color:var(--text-primary)] backdrop-blur-md"
+        )}
+      >
+        {isOpen ? <X size={14} /> : <Settings2 size={14} />}
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div 
+            className="absolute bottom-full right-0 z-50 mb-2 flex min-w-[140px] flex-col gap-1 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-panel)] p-2 shadow-2xl backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="px-2 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] text-[color:var(--text-muted)]">Classificar</p>
+            {buttons.map((button) => (
+              <button
+                key={button.id}
+                type="button"
+                onClick={() => { onToggle(button.id); }}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[9px] font-black uppercase tracking-widest transition-all",
+                  button.active
+                    ? "bg-[color:var(--gold)]/10 text-[color:var(--gold)] shadow-[inset_0_0_10px_rgba(var(--gold-rgb),0.05)]"
+                    : "text-[color:var(--text-muted)] hover:bg-[color:var(--mist)] hover:text-[color:var(--text-primary)]"
+                )}
+              >
+                <button.icon size={12} className={button.active ? "fill-[color:var(--gold)]/20" : ""} />
+                {button.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

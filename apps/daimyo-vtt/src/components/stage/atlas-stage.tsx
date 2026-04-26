@@ -1118,111 +1118,100 @@ export function AtlasStage({
         isFocus ? "p-3 md:p-3.5" : "p-3"
       )}
     >
-      <div className="shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="hud-chip h-9 px-3 border-amber-300/20 bg-amber-300/10 text-amber-100">
-              <Compass size={22} className="xl:size-[14] xl:mr-1.5" />
-              <span className="hidden xl:inline whitespace-nowrap">modo atlas</span>
-            </span>
-            <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
-              {atlasMap.name}
-            </span>
-            {canEdit && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditMode((current) => !current);
-                  setEditor(null);
-                }}
-                className={cn(
-                  "hud-chip h-11 px-4 md:h-9 md:px-3 transition",
-                  editMode
-                    ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
-                    : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]"
-                )}
-              >
-                <Sparkles size={22} className="xl:size-[14] xl:mr-1.5" />
-                <span className="hidden xl:inline whitespace-nowrap">{editMode ? "editando" : "editar atlas"}</span>
-              </button>
+      <div className="shrink-0 flex flex-wrap items-center gap-1.5">
+        <span className="hud-chip h-9 px-2.5 border-amber-300/20 bg-amber-300/10 text-amber-100">
+          <Compass size={14} className="mr-1" />
+          <span className="hidden sm:inline whitespace-nowrap text-[10px]">modo atlas</span>
+        </span>
+        <span className="hud-chip h-9 px-2.5 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] text-[10px]">
+          {atlasMap.name}
+        </span>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => {
+              setEditMode((current) => !current);
+              setEditor(null);
+            }}
+            className={cn(
+              "hud-chip h-9 px-2.5 transition text-[10px]",
+              editMode
+                ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
+                : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]"
             )}
-            {canEdit && onRequestLibrary && (
-              <button
-                type="button"
-                onClick={() => onRequestLibrary("atlas")}
-                className="hud-chip h-11 px-4 md:h-9 md:px-3 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] transition hover:border-amber-300/24 hover:bg-amber-300/10 hover:text-amber-100 cursor-pointer"
-              >
-                <Settings2 size={16} className="xl:size-[14] xl:mr-1.5" />
-                <span className="hidden xl:inline whitespace-nowrap">gerenciar atlas</span>
-              </button>
-            )}
-            {navigatingSubmap && onResetNavigation && (
-              <button
-                type="button"
-                onClick={onResetNavigation}
-                className="hud-chip h-11 px-4 md:h-9 md:px-3 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]"
-              >
-                <Compass size={16} className="xl:size-[14] xl:mr-1.5" />
-                <span className="hidden xl:inline whitespace-nowrap">voltar ao atlas ativo</span>
-              </button>
-            )}
-          </div>
-        </div>
+          >
+            <Sparkles size={14} />
+            <span className="hidden sm:inline whitespace-nowrap">{editMode ? "editando" : "editar"}</span>
+          </button>
+        )}
+        {canEdit && onRequestLibrary && (
+          <button
+            type="button"
+            onClick={() => onRequestLibrary("atlas")}
+            className="hud-chip h-9 px-2.5 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] transition hover:border-amber-300/24 hover:bg-amber-300/10 hover:text-amber-100 cursor-pointer text-[10px]"
+          >
+            <Settings2 size={14} />
+            <span className="hidden sm:inline whitespace-nowrap">gerenciar</span>
+          </button>
+        )}
+        {navigatingSubmap && onResetNavigation && (
+          <button
+            type="button"
+            onClick={onResetNavigation}
+            className="hud-chip h-9 px-2.5 border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] text-[10px]"
+          >
+            <Compass size={14} />
+            <span className="hidden sm:inline whitespace-nowrap">voltar</span>
+          </button>
+        )}
 
-        <div className="flex items-center gap-1 rounded-full border border-white/10 bg-black/18 p-1 shadow-inner">
+        <div className="flex items-center gap-0.5 rounded-full border border-white/10 bg-black/18 p-0.5 shadow-inner">
           {isFocus && canOpenFocusDrawer ? (
             <button
               type="button"
               onClick={() => setIsFocusDrawerOpen((current) => !current)}
               className={cn(
-                "rail-button h-11 w-11 xl:h-9 xl:w-auto xl:px-3 text-[9px] font-bold uppercase tracking-normal xl:tracking-wider",
+                "rail-button h-9 w-9",
                 isFocusDrawerOpen && "border-amber-300/22 bg-amber-300/10 text-amber-100"
               )}
             >
-              <ScrollText size={18} className="xl:size-[14] xl:mr-1.5" />
-              <span className="hidden xl:inline whitespace-nowrap">{editor ? "editor" : "detalhes"}</span>
+              <ScrollText size={14} />
             </button>
           ) : null}
           <button
             type="button"
             onClick={fitToViewport}
             title="Ajustar ao tamanho da tela"
-            className="rail-button h-11 w-11 xl:h-9 xl:w-auto xl:px-3 text-[9px] font-bold uppercase tracking-normal xl:tracking-wider"
+            className="rail-button h-9 w-9"
           >
-            <ScanSearch size={18} className="xl:size-[14] xl:mr-1.5" />
-            <span className="hidden xl:inline whitespace-nowrap">inteiro</span>
+            <ScanSearch size={14} />
           </button>
           <button
             type="button"
             onClick={() => centerViewport()}
             title="Centralizar mapa"
-            className="rail-button h-11 w-11 xl:h-9 xl:w-auto xl:px-3 text-[9px] font-bold uppercase tracking-normal xl:tracking-wider"
+            className="rail-button h-9 w-9"
           >
-            <Compass size={18} className="xl:size-[14] xl:mr-1.5" />
-            <span className="hidden xl:inline whitespace-nowrap">centro</span>
+            <Compass size={14} />
           </button>
-
-          <div className="mx-1 h-4 w-[1px] bg-white/10" />
-
-          <div className="flex items-center gap-1.5 px-1">
-            <button
-              type="button"
-              onClick={() => setZoom((current) => clamp(Number((current - 0.2).toFixed(2)), 0.6, 2.2))}
-              className="rail-button h-11 w-11 md:h-9 md:w-9"
-            >
-              <Minus size={14} />
-            </button>
-            <span className="min-w-[48px] text-center text-[10px] font-bold uppercase tracking-widest text-[color:var(--ink-2)]">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              type="button"
-              onClick={() => setZoom((current) => clamp(Number((current + 0.2).toFixed(2)), 0.6, 2.2))}
-              className="rail-button h-11 w-11 md:h-9 md:w-9"
-            >
-              <Plus size={14} />
-            </button>
-          </div>
+          <div className="mx-0.5 h-4 w-[1px] bg-white/10" />
+          <button
+            type="button"
+            onClick={() => setZoom((current) => clamp(Number((current - 0.2).toFixed(2)), 0.6, 2.2))}
+            className="rail-button h-9 w-9"
+          >
+            <Minus size={14} />
+          </button>
+          <span className="min-w-[36px] text-center text-[10px] font-bold text-[color:var(--ink-2)]">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            onClick={() => setZoom((current) => clamp(Number((current + 0.2).toFixed(2)), 0.6, 2.2))}
+            className="rail-button h-9 w-9"
+          >
+            <Plus size={14} />
+          </button>
         </div>
       </div>
 

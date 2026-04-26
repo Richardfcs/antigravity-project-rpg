@@ -90,12 +90,12 @@ export function DiagnosticsPanel({ infra }: DiagnosticsPanelProps) {
   ]);
 
   return (
-    <section className="space-y-4 rounded-[22px] border border-white/10 bg-black/18 p-4">
+    <section className="space-y-4 rounded-[22px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="section-label">Diagnostico da mesa</p>
-          <h3 className="mt-2 text-lg font-semibold text-white">Saude desta aba</h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--ink-2)]">
+          <h3 className="mt-2 text-lg font-semibold text-[color:var(--text-primary)]">Saude desta aba</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[color:var(--text-secondary)]">
             Leituras locais de sincronização, volume de dados e erros recentes para
             facilitar a manutenção da campanha.
           </p>
@@ -103,7 +103,7 @@ export function DiagnosticsPanel({ infra }: DiagnosticsPanelProps) {
         <button
           type="button"
           onClick={clearDiagnostics}
-          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
+          className="inline-flex items-center gap-2 rounded-full border border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-secondary)] transition hover:border-[var(--border-panel)]/40 hover:text-[color:var(--text-primary)]"
         >
           <RefreshCcw size={14} />
           limpar alertas
@@ -139,29 +139,29 @@ export function DiagnosticsPanel({ infra }: DiagnosticsPanelProps) {
         ].map((card) => (
           <article
             key={card.label}
-            className="rounded-[18px] border border-white/10 bg-white/[0.03] p-4"
+            className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-card)]/30 p-4"
           >
             <div className="flex items-center justify-between gap-3">
               <p className="section-label">{card.label}</p>
               {card.ok ? (
-                <CheckCircle2 size={16} className="text-emerald-200" />
+                <CheckCircle2 size={16} className="text-emerald-400" />
               ) : (
-                <AlertTriangle size={16} className="text-amber-100" />
+                <AlertTriangle size={16} className="text-[color:var(--gold)]" />
               )}
             </div>
-            <p className="mt-2 text-2xl font-semibold text-white">{card.value}</p>
-            <p className="mt-2 text-xs leading-5 text-[color:var(--ink-2)]">{card.detail}</p>
+            <p className="mt-2 text-2xl font-semibold text-[color:var(--text-primary)]">{card.value}</p>
+            <p className="mt-2 text-xs leading-5 text-[color:var(--text-secondary)]">{card.detail}</p>
           </article>
         ))}
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <div className="rounded-[18px] border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center gap-2 text-white">
-            <ShieldAlert size={16} className="text-amber-100" />
+        <div className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-card)]/30 p-4">
+          <div className="flex items-center gap-2 text-[color:var(--text-primary)]">
+            <ShieldAlert size={16} className="text-[color:var(--gold)]" />
             <h4 className="text-sm font-semibold">Infra e sessão</h4>
           </div>
-          <div className="mt-4 space-y-3 text-sm text-[color:var(--ink-2)]">
+          <div className="mt-4 space-y-3 text-sm text-[color:var(--text-secondary)]">
             <p>Supabase público: {infra.supabase ? "ok" : "faltando"}</p>
             <p>Service role: {infra.serviceRole ? "ok" : "faltando"}</p>
             <p>Cloudinary: {infra.cloudinary ? "ok" : "faltando"}</p>
@@ -173,12 +173,12 @@ export function DiagnosticsPanel({ infra }: DiagnosticsPanelProps) {
           </div>
         </div>
 
-        <div className="rounded-[18px] border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-center gap-2 text-white">
-            <Activity size={16} className="text-amber-100" />
+        <div className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-card)]/30 p-4">
+          <div className="flex items-center gap-2 text-[color:var(--text-primary)]">
+            <Activity size={16} className="text-[color:var(--gold)]" />
             <h4 className="text-sm font-semibold">Volume e erros recentes</h4>
           </div>
-          <div className="mt-4 grid gap-2 text-sm text-[color:var(--ink-2)] md:grid-cols-2">
+          <div className="mt-4 grid gap-2 text-sm text-[color:var(--text-secondary)] md:grid-cols-2">
             <p>Assets: {assets.length}</p>
             <p>Fichas: {characters.length}</p>
             <p>Cenas: {scenes.length}</p>
@@ -195,25 +195,25 @@ export function DiagnosticsPanel({ infra }: DiagnosticsPanelProps) {
               diagnostics.map((entry) => (
                 <div
                   key={entry.id}
-                  className="rounded-[14px] border border-white/8 bg-black/18 px-3 py-3 text-sm"
+                  className="rounded-[14px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-3 text-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-white">
+                    <span className="text-[color:var(--text-primary)]">
                       {entry.level === "error"
                         ? "Erro"
                         : entry.level === "warn"
                           ? "Aviso"
                           : "Info"}
                     </span>
-                    <span className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--ink-3)]">
+                    <span className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--text-muted)]">
                       {entry.source} · {formatTime(entry.createdAt)}
                     </span>
                   </div>
-                  <p className="mt-2 text-[color:var(--ink-2)]">{entry.message}</p>
+                  <p className="mt-2 text-[color:var(--text-secondary)]">{entry.message}</p>
                 </div>
               ))
             ) : (
-              <div className="rounded-[14px] border border-white/8 bg-black/18 px-3 py-3 text-sm text-[color:var(--ink-2)]">
+              <div className="rounded-[14px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-3 py-3 text-sm text-[color:var(--text-secondary)]">
                 Nenhum erro local foi capturado nesta aba desde que a sessão abriu.
               </div>
             )}

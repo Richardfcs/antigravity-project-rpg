@@ -73,17 +73,17 @@ export default async function GmSessionPage({ params }: GmPageProps) {
     listSessionEffectLayers(bootstrap.session.id),
     bootstrap.viewer
       ? listSessionNotesForViewer({
-          sessionId: bootstrap.session.id,
-          authorParticipantId: bootstrap.viewer.participantId,
-          role: bootstrap.viewer.role
-        })
+        sessionId: bootstrap.session.id,
+        authorParticipantId: bootstrap.viewer.participantId,
+        role: bootstrap.viewer.role
+      })
       : Promise.resolve([]),
     bootstrap.viewer
       ? listSessionMemoryEventsForViewer({
-          sessionId: bootstrap.session.id,
-          role: bootstrap.viewer.role,
-          viewerParticipantId: bootstrap.viewer.participantId
-        })
+        sessionId: bootstrap.session.id,
+        role: bootstrap.viewer.role,
+        viewerParticipantId: bootstrap.viewer.participantId
+      })
       : Promise.resolve([])
   ]);
 

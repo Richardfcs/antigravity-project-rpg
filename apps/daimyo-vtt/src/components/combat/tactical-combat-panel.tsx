@@ -25,6 +25,7 @@ import {
 import { HealthBar } from "@/components/combat/health-bar";
 import { CombatTurnQueue } from "@/components/combat/combat-turn-queue";
 import { CombatantStatusCard } from "@/components/combat/combatant-status-card";
+import { suggestNpcManeuver } from "@/lib/combat/ai";
 
 import { cn } from "@/lib/utils";
 import type {
@@ -97,7 +98,8 @@ const actionMeta: Array<{
   { id: "quick-contest", label: "disputa rapida", requiresTarget: true },
   { id: "regular-contest", label: "disputa regular", requiresTarget: true },
   { id: "do-nothing", label: "fazer nada", requiresTarget: false },
-  { id: "swap-technique", label: "trocar tecnica", requiresTarget: false }
+  { id: "swap-technique", label: "trocar tecnica", requiresTarget: false },
+  { id: "iai-strike", label: "iaijutsu", requiresTarget: true }
 ];
 
 const hitLocationOptions: Array<{ value: CombatHitLocationId; label: string }> = [
@@ -139,8 +141,8 @@ function ToggleChip({
       className={cn(
         "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition",
         active
-          ? "border-amber-300/24 bg-amber-300/12 text-amber-100"
-          : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
+          ? "border-[color:var(--accent)]/24 bg-[color:var(--accent)]/12 text-[color:var(--accent)]"
+          : "border-[color:var(--border-panel)] bg-[color:var(--bg-input)] text-[color:var(--ink-2)] hover:border-[color:var(--ink-3)] hover:text-[color:var(--ink-1)]"
       )}
     >
       {children}
@@ -207,6 +209,7 @@ export function TacticalCombatPanel({
     useState<AllOutAttackVariant | AllOutDefenseVariant>("determined");
   const [roundsNeeded, setRoundsNeeded] = useState(2);
   const [feintAttribute, setFeintAttribute] = useState<FeintType>("dx");
+  const [aiSuggestion, setAiSuggestion] = useState<{ maneuver: CombatActionType; reason: string } | null>(null);
 
   const availableTargets = useMemo(
     () => tokens.filter((entry) => entry.token.id !== activeEntry?.token.id),
@@ -366,24 +369,24 @@ export function TacticalCombatPanel({
     (actionType !== "swap-technique" || Boolean(techniqueId));
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-[22px] border border-white/10 bg-[rgba(5,10,18,0.96)] p-4 shadow-[0_24px_80px_rgba(2,6,23,0.55)] backdrop-blur">
+    <div className="flex h-full min-h-0 flex-col rounded-[22px] border border-[color:var(--border-panel)] bg-[color:var(--bg-panel)]/96 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="hud-chip border-rose-300/20 bg-rose-300/10 text-rose-100">
+            <span className="hud-chip border-[color:var(--red-accent)]/20 bg-[color:var(--red-accent)]/10 text-[color:var(--red-accent)]">
               <Swords size={14} />
               combate
             </span>
-            <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
+            <span className="hud-chip border-[color:var(--border-panel)] bg-[color:var(--bg-input)] text-[color:var(--ink-2)]">
               {combatState.totalTurns} combatentes
             </span>
             {combatState.enabled ? (
-              <span className="hud-chip border-amber-300/20 bg-amber-300/10 text-amber-100">
+              <span className="hud-chip border-[color:var(--gold)]/20 bg-[color:var(--gold)]/10 text-[color:var(--gold)]">
                 rodada {combatState.round}
               </span>
             ) : null}
             {combatFlow?.phase ? (
-              <span className="hud-chip border-white/10 bg-black/18 text-[color:var(--ink-2)]">
+              <span className="hud-chip border-[color:var(--border-panel)] bg-[color:var(--bg-deep)]/20 text-[color:var(--ink-2)]">
                 fase {combatFlow.phase}
               </span>
             ) : null}
@@ -593,8 +596,35 @@ export function TacticalCombatPanel({
                     <Sparkles size={10} />
                     Modo Visual
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (actorProfile) {
+                        const targetProf = selectedTarget?.character?.sheetProfile ?? null;
+                        const suggestion = suggestNpcManeuver(actorProfile, combatState, targetProf);
+                        setAiSuggestion(suggestion);
+                        setActionType(suggestion.maneuver);
+                      }
+                    }}
+                    className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-400/60 hover:text-emerald-400 transition-colors"
+                  >
+                    <Brain size={10} />
+                    Sugerir Ação (IA)
+                  </button>
                 </div>
               </div>
+
+              {aiSuggestion && (
+                <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Sugestão da IA</p>
+                    <button onClick={() => setAiSuggestion(null)} className="text-emerald-400/50 hover:text-emerald-400">
+                      <X size={10} />
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-emerald-100 font-medium">{aiSuggestion.reason}</p>
+                </div>
+              )}
 
               <div className="mt-3 flex flex-wrap gap-2">
                 {actionMeta.map((entry) => (

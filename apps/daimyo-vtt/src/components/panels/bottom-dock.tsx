@@ -55,8 +55,8 @@ export function BottomDock({
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition",
                     activeTab === tab.id
-                      ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
-                      : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
+                      ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)]"
+                      : "border-[var(--border-panel)] bg-[var(--bg-input)] text-[color:var(--text-secondary)] hover:border-[var(--border-panel)]/40"
                   )}
                 >
                   <tab.icon size={14} />
@@ -67,7 +67,7 @@ export function BottomDock({
           }
         />
       ) : (
-        <div className="flex min-w-0 flex-wrap gap-2 border-b border-white/8 pb-2">
+        <div className="flex flex-wrap gap-2 p-2">
           {visibleTabs.map((tab) => (
             <button
               key={tab.id}
@@ -76,8 +76,8 @@ export function BottomDock({
               className={cn(
                 "inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition",
                 activeTab === tab.id
-                  ? "border-amber-300/30 bg-amber-300/10 text-amber-100"
-                  : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
+                  ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)]"
+                  : "border-[var(--border-panel)] bg-[var(--bg-input)] text-[color:var(--text-secondary)] hover:border-[var(--border-panel)]/40"
               )}
             >
               <tab.icon size={14} />

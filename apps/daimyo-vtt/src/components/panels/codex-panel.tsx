@@ -200,14 +200,14 @@ export function CodexPanel({
 
   return (
     <section className="space-y-4">
-      <header className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+      <header className="rounded-[22px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <p className="section-label">Oficina da campanha</p>
-            <h3 className="mt-2 text-xl font-semibold text-white">
+            <h3 className="mt-2 text-xl font-semibold text-[color:var(--text-primary)]">
               Codex, arquétipos e arsenal do projeto base
             </h3>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-secondary)]">
               Esta área consulta o projeto base sem transplantar o hub inteiro
               para dentro do VTT. Aqui o mestre reaproveita arquétipos e consulta
               referências da oficina.
@@ -228,8 +228,8 @@ export function CodexPanel({
                 onClick={() => setActiveTab(tabId)}
                 className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
                   activeTab === tabId
-                    ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
-                    : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
+                    ? "border-[color:var(--gold)]/25 bg-[color:var(--mist)] text-[color:var(--gold)]"
+                    : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-secondary)] hover:border-[color:var(--gold)]/20"
                 }`}
               >
                 <Icon size={14} />
@@ -240,7 +240,7 @@ export function CodexPanel({
         </div>
       </header>
 
-      <section className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+      <section className="rounded-[22px] border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4">
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_repeat(2,minmax(180px,220px))]">
           <input
             value={searchQuery}
@@ -252,14 +252,14 @@ export function CodexPanel({
                   ? "buscar termo, categoria ou descrição"
                   : "buscar arma, armadura ou equipamento"
             }
-            className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition placeholder:text-[color:var(--ink-3)] focus:border-amber-300/30"
+            className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition placeholder:text-[color:var(--text-muted)] focus:border-[color:var(--gold)]/30"
           />
 
           {activeTab === "codex" ? (
             <select
               value={selectedCodexCategory}
               onChange={(event) => setSelectedCodexCategory(event.target.value)}
-              className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/30"
+              className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/30"
             >
               <option value="all">todas as categorias</option>
               {codexCategories.map((category) => (
@@ -272,7 +272,7 @@ export function CodexPanel({
             <select
               value={selectedEquipmentCategory}
               onChange={(event) => setSelectedEquipmentCategory(event.target.value)}
-              className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/30"
+              className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/30"
             >
               <option value="all">todo o arsenal</option>
               {["Armas", "Armaduras", "Equipamentos"]
@@ -290,7 +290,7 @@ export function CodexPanel({
               <select
                 value={importType}
                 onChange={(event) => setImportType(event.target.value as CharacterType)}
-                className="w-full rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/30"
+                className="w-full rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/30"
               >
                 <option value="player">protagonista</option>
                 <option value="npc">figura</option>
@@ -298,7 +298,7 @@ export function CodexPanel({
               <select
                 value={importTier}
                 onChange={(event) => setImportTier(event.target.value as CharacterTier)}
-                className="w-full rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/30"
+                className="w-full rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/30"
               >
                 <option value="full">ficha completa</option>
                 <option value="medium">ficha mediana</option>
@@ -312,7 +312,7 @@ export function CodexPanel({
               <select
                 value={importOwnerParticipantId}
                 onChange={(event) => setImportOwnerParticipantId(event.target.value)}
-                className="rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300/30"
+                className="rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition focus:border-[color:var(--gold)]/30"
               >
                 <option value="">sem vínculo inicial</option>
                 {playerParticipants.map((participant) => (
@@ -325,16 +325,16 @@ export function CodexPanel({
               <button
                 type="button"
                 onClick={() => setIsAssetPickerOpen(true)}
-                className="inline-flex items-center gap-2 rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition hover:bg-white/[0.04] focus:border-amber-300/30"
+                className="inline-flex items-center gap-2 rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition hover:bg-[var(--bg-card)] focus:border-[color:var(--gold)]/30"
               >
-                <ImageIcon size={16} className="text-[color:var(--ink-2)]" />
+                <ImageIcon size={16} className="text-[color:var(--text-muted)]" />
                 {importAssetId
                   ? (portraitAssets.find((a) => a.id === importAssetId)?.label ?? "retrato selecionado")
                   : "sem retrato inicial"}
               </button>
             )
           ) : (
-            <div className="rounded-[18px] border border-dashed border-white/10 bg-black/12 px-4 py-3 text-sm text-[color:var(--ink-3)]">
+            <div className="rounded-[18px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-card)]/50 px-4 py-3 text-sm text-[color:var(--text-muted)]">
               consulta somente leitura
             </div>
           )}
@@ -345,9 +345,9 @@ export function CodexPanel({
             <button
               type="button"
               onClick={() => setIsAssetPickerOpen(true)}
-              className="inline-flex w-full items-center gap-2 rounded-[18px] border border-white/10 bg-black/18 px-4 py-3 text-sm text-white outline-none transition hover:bg-white/[0.04] focus:border-amber-300/30"
+              className="inline-flex w-full items-center gap-2 rounded-[18px] border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none transition hover:bg-[var(--bg-card)] focus:border-[color:var(--gold)]/30"
             >
-              <ImageIcon size={16} className="text-[color:var(--ink-2)]" />
+              <ImageIcon size={16} className="text-[color:var(--text-muted)]" />
               {importAssetId
                 ? (portraitAssets.find((a) => a.id === importAssetId)?.label ?? "retrato selecionado")
                 : "sem retrato inicial"}
@@ -357,13 +357,13 @@ export function CodexPanel({
       </section>
 
       {feedback && (
-        <div className="rounded-[20px] border border-amber-300/18 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
+        <div className="rounded-[20px] border border-[color:var(--gold)]/18 bg-[color:var(--mist)] px-4 py-3 text-sm text-[color:var(--text-primary)]">
           {feedback}
         </div>
       )}
 
       {catalogLoading && (
-        <div className="rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-6 text-sm text-[color:var(--ink-2)]">
+        <div className="rounded-[22px] border border-[var(--border-panel)] bg-[var(--bg-card)]/50 px-4 py-6 text-sm text-[color:var(--text-muted)]">
           <span className="inline-flex items-center gap-2">
             <LoaderCircle size={16} className="animate-spin" />
             abrindo a oficina base...
@@ -384,8 +384,8 @@ export function CodexPanel({
                 className={cn(
                   "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
                   isExpanded
-                    ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
-                    : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                    ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] shadow-[0_0_40px_rgba(var(--gold-rgb),0.1)]"
+                    : "border-[var(--border-panel)] bg-[var(--bg-card)]/50 hover:border-[color:var(--gold)]/20 hover:bg-[var(--bg-card)]"
                 )}
               >
                 <div 
@@ -398,20 +398,20 @@ export function CodexPanel({
                         <div className={cn(
                           "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-all",
                           isExpanded 
-                            ? "border-amber-400/30 bg-amber-400/10 text-amber-300" 
-                            : "border-white/10 bg-white/5 text-white/40"
+                            ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)]" 
+                            : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)]"
                         )}>
                           <ShieldPlus size={20} />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <h4 className="truncate text-lg font-bold tracking-tight text-white">{archetype.name}</h4>
-                            <span className="hud-chip border-amber-300/18 bg-amber-300/10 text-[9px] text-amber-100 uppercase tracking-widest font-black">
+                            <h4 className="truncate text-lg font-bold tracking-tight text-[color:var(--text-primary)]">{archetype.name}</h4>
+                            <span className="hud-chip border-[color:var(--gold)]/18 bg-[color:var(--mist)] text-[9px] text-[color:var(--gold)] uppercase tracking-widest font-black">
                               {String(stats.clan ?? "sem clan")}
                             </span>
                           </div>
-                          <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50">
-                            <Info size={11} className="text-white/40" />
+                          <p className="mt-1 flex items-center gap-1.5 text-xs text-[color:var(--text-secondary)]">
+                            <Info size={11} className="text-[color:var(--text-muted)]" />
                             <span className="truncate italic">{String(stats.concept ?? "Sem conceito registrado.")}</span>
                           </p>
                         </div>
@@ -419,11 +419,11 @@ export function CodexPanel({
                     </div>
 
                     <div className="flex items-center justify-between gap-3 sm:justify-start">
-                      <span className="hud-chip border-white/10 bg-black/30 text-[10px] text-white/40">
+                      <span className="hud-chip border-[var(--border-panel)] bg-[var(--bg-card)]/50 text-[10px] text-[color:var(--text-primary)]">
                         {String(stats.points ?? "--")} pts
                       </span>
                       
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all group-hover:border-amber-400/30 group-hover:text-amber-300">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)] transition-all group-hover:border-[color:var(--gold)]/30 group-hover:text-[color:var(--gold)]">
                         {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </div>
                     </div>
@@ -431,18 +431,18 @@ export function CodexPanel({
 
                   {isExpanded && (
                     <div 
-                      className="mt-5 space-y-5 rounded-[20px] border border-white/5 bg-black/40 p-4 backdrop-blur-xl"
+                      className="mt-5 space-y-5 rounded-[20px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-4 backdrop-blur-xl"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex flex-wrap gap-2 text-xs text-[color:var(--ink-3)] font-medium">
-                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">PV {String(attributes.hp ?? 10)}</span>
-                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">PF {String(attributes.fp ?? 10)}</span>
-                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">ST {String(attributes.st ?? 10)}</span>
-                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">DX {String(attributes.dx ?? 10)}</span>
-                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">IQ {String(attributes.iq ?? 10)}</span>
-                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">HT {String(attributes.ht ?? 10)}</span>
-                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">VON {String(attributes.will ?? 10)}</span>
-                        <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">PER {String(attributes.per ?? 10)}</span>
+                      <div className="flex flex-wrap gap-2 text-xs text-[color:var(--text-muted)] font-medium">
+                        <span className="bg-[var(--bg-input)]/50 px-2 py-0.5 rounded-full border border-[var(--border-panel)]">PV {String(attributes.hp ?? 10)}</span>
+                        <span className="bg-[var(--bg-input)]/50 px-2 py-0.5 rounded-full border border-[var(--border-panel)]">PF {String(attributes.fp ?? 10)}</span>
+                        <span className="bg-[var(--bg-input)]/50 px-2 py-0.5 rounded-full border border-[var(--border-panel)]">ST {String(attributes.st ?? 10)}</span>
+                        <span className="bg-[var(--bg-input)]/50 px-2 py-0.5 rounded-full border border-[var(--border-panel)]">DX {String(attributes.dx ?? 10)}</span>
+                        <span className="bg-[var(--bg-input)]/50 px-2 py-0.5 rounded-full border border-[var(--border-panel)]">IQ {String(attributes.iq ?? 10)}</span>
+                        <span className="bg-[var(--bg-input)]/50 px-2 py-0.5 rounded-full border border-[var(--border-panel)]">HT {String(attributes.ht ?? 10)}</span>
+                        <span className="bg-[var(--bg-input)]/50 px-2 py-0.5 rounded-full border border-[var(--border-panel)]">VON {String(attributes.will ?? 10)}</span>
+                        <span className="bg-[var(--bg-input)]/50 px-2 py-0.5 rounded-full border border-[var(--border-panel)]">PER {String(attributes.per ?? 10)}</span>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -494,10 +494,10 @@ export function CodexPanel({
 
                           {typeof stats.equipment === "string" && stats.equipment.trim().length > 0 && (
                             <div>
-                              <h5 className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--ink-3)] mb-1.5 flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--ink-3)]"></span> Equipamento
+                              <h5 className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--text-muted)] mb-1.5 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--text-muted)]"></span> Equipamento
                               </h5>
-                              <p className="text-xs text-[color:var(--ink-2)] leading-relaxed whitespace-pre-wrap pl-2 border-l border-white/10">
+                              <p className="text-xs text-[color:var(--text-secondary)] leading-relaxed whitespace-pre-wrap pl-2 border-l border-[var(--border-panel)]">
                                 {String(stats.equipment).replace(/\s{3,}/g, '\n').trim()}
                               </p>
                             </div>
@@ -509,7 +509,7 @@ export function CodexPanel({
                         type="button"
                         onClick={() => runImport(archetype.id)}
                         disabled={!canManage || isPending}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300/24 bg-amber-300/10 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-100 transition hover:border-amber-300/40 disabled:opacity-60"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[color:var(--gold)]/24 bg-[color:var(--mist)] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[color:var(--gold)] transition hover:border-[color:var(--gold)]/40 disabled:opacity-60"
                       >
                         {pendingKey === archetype.id ? (
                           <LoaderCircle size={14} className="animate-spin" />
@@ -537,8 +537,8 @@ export function CodexPanel({
                 className={cn(
                   "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
                   isExpanded
-                    ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
-                    : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                    ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] shadow-[0_0_40px_rgba(var(--gold-rgb),0.1)]"
+                    : "border-[var(--border-panel)] bg-[var(--bg-card)]/50 hover:border-[color:var(--gold)]/20 hover:bg-[var(--bg-card)]"
                 )}
               >
                 <div 
@@ -551,19 +551,19 @@ export function CodexPanel({
                         <div className={cn(
                           "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all",
                           isExpanded 
-                            ? "border-amber-400/30 bg-amber-400/10 text-amber-300" 
-                            : "border-white/10 bg-white/5 text-white/40"
+                            ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)]" 
+                            : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)]"
                         )}>
                           <BookOpenText size={18} />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <h4 className="truncate text-base font-bold tracking-tight text-white">{entry.title}</h4>
-                            <span className="hud-chip border-amber-300/18 bg-amber-300/10 text-[9px] text-amber-100 uppercase tracking-widest font-black">
+                            <h4 className="truncate text-base font-bold tracking-tight text-[color:var(--text-primary)]">{entry.title}</h4>
+                            <span className="hud-chip border-[color:var(--gold)]/18 bg-[color:var(--mist)] text-[9px] text-[color:var(--gold)] uppercase tracking-widest font-black">
                               {entry.category}
                             </span>
                           </div>
-                          <p className="mt-1 flex items-center gap-1.5 text-[10px] text-white/40 uppercase tracking-widest font-bold">
+                          <p className="mt-1 flex items-center gap-1.5 text-[10px] text-[color:var(--text-muted)] uppercase tracking-widest font-bold">
                             {entry.tags.slice(0, 3).join(" • ")}
                           </p>
                         </div>
@@ -571,7 +571,7 @@ export function CodexPanel({
                     </div>
 
                     <div className="flex gap-2">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all group-hover:border-amber-400/30 group-hover:text-amber-300">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)] transition-all group-hover:border-[color:var(--gold)]/30 group-hover:text-[color:var(--gold)]">
                         {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </div>
                     </div>
@@ -579,23 +579,23 @@ export function CodexPanel({
 
                   {isExpanded && (
                     <div 
-                      className="mt-5 rounded-[20px] border border-white/5 bg-black/40 p-5 backdrop-blur-xl"
+                      className="mt-5 rounded-[20px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-5 backdrop-blur-xl"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="text-sm leading-6 text-[color:var(--ink-2)] prose-invert max-w-none">
                         <ReactMarkdown 
                           remarkPlugins={[remarkGfm, remarkBreaks]}
                           components={{
-                            h3: ({node, ...props}) => <h3 className="text-sm font-bold text-amber-400 mt-4 mb-2 uppercase tracking-wide" {...props} />,
+                            h3: ({node, ...props}) => <h3 className="text-sm font-bold text-[color:var(--gold)] mt-4 mb-2 uppercase tracking-wide" {...props} />,
                             p: ({node, ...props}) => <p className="mb-2" {...props} />,
-                            ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-2 text-[color:var(--ink-3)]" {...props} />,
+                            ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-2 text-[color:var(--text-secondary)]" {...props} />,
                             li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                            blockquote: ({node, ...props}) => <blockquote className="border-l-2 border-amber-500/50 pl-3 italic text-[color:var(--ink-3)] mb-3" {...props} />,
-                            strong: ({node, ...props}) => <strong className="font-semibold text-amber-100" {...props} />,
+                            blockquote: ({node, ...props}) => <blockquote className="border-l-2 border-[color:var(--gold)]/50 pl-3 italic text-[color:var(--text-muted)] mb-3" {...props} />,
+                            strong: ({node, ...props}) => <strong className="font-semibold text-[color:var(--text-primary)]" {...props} />,
                             table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="w-full text-left border-collapse" {...props} /></div>,
-                            thead: ({node, ...props}) => <thead className="border-b border-white/20 bg-white/5" {...props} />,
-                            th: ({node, ...props}) => <th className="p-2 font-semibold text-white text-xs uppercase tracking-wider" {...props} />,
-                            td: ({node, ...props}) => <td className="p-2 border-b border-white/5 text-[color:var(--ink-2)]" {...props} />,
+                            thead: ({node, ...props}) => <thead className="border-b border-[var(--border-panel)] bg-[var(--bg-input)]" {...props} />,
+                            th: ({node, ...props}) => <th className="p-2 font-semibold text-[color:var(--text-primary)] text-xs uppercase tracking-wider" {...props} />,
+                            td: ({node, ...props}) => <td className="p-2 border-b border-[var(--border-panel)]/50 text-[color:var(--text-secondary)]" {...props} />,
                           }}
                         >
                           {entry.markdown}
@@ -620,8 +620,8 @@ export function CodexPanel({
                 className={cn(
                   "group relative overflow-hidden rounded-[24px] border transition-all duration-300",
                   isExpanded
-                    ? "border-amber-400/40 bg-amber-400/[0.03] shadow-[0_0_40px_rgba(251,191,36,0.1)]"
-                    : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                    ? "border-[color:var(--gold)]/40 bg-[color:var(--mist)] shadow-[0_0_40px_rgba(var(--gold-rgb),0.1)]"
+                    : "border-[var(--border-panel)] bg-[var(--bg-card)]/50 hover:border-[color:var(--gold)]/20 hover:bg-[var(--bg-card)]"
                 )}
               >
                 <div 
@@ -634,19 +634,19 @@ export function CodexPanel({
                         <div className={cn(
                           "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all",
                           isExpanded 
-                            ? "border-amber-400/30 bg-amber-400/10 text-amber-300" 
-                            : "border-white/10 bg-white/5 text-white/40"
+                            ? "border-[color:var(--gold)]/30 bg-[color:var(--mist)] text-[color:var(--gold)]" 
+                            : "border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)]"
                         )}>
                           <Swords size={18} />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <h4 className="truncate text-base font-bold tracking-tight text-white">{entry.name}</h4>
-                            <span className="hud-chip border-amber-300/18 bg-amber-300/10 text-[9px] text-amber-100 uppercase tracking-widest font-black">
+                            <h4 className="truncate text-base font-bold tracking-tight text-[color:var(--text-primary)]">{entry.name}</h4>
+                            <span className="hud-chip border-[color:var(--gold)]/18 bg-[color:var(--mist)] text-[9px] text-[color:var(--gold)] uppercase tracking-widest font-black">
                               {entry.category}
                             </span>
                           </div>
-                          <p className="mt-1 flex items-center gap-1.5 text-[10px] text-white/40 uppercase tracking-widest font-bold">
+                          <p className="mt-1 flex items-center gap-1.5 text-[10px] text-[color:var(--text-muted)] uppercase tracking-widest font-bold">
                             {entry.tags.slice(0, 2).join(" • ")}
                           </p>
                         </div>
@@ -654,7 +654,7 @@ export function CodexPanel({
                     </div>
 
                     <div className="flex gap-2">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all group-hover:border-amber-400/30 group-hover:text-amber-300">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-panel)] bg-[var(--bg-card)] text-[color:var(--text-muted)] transition-all group-hover:border-[color:var(--gold)]/30 group-hover:text-[color:var(--gold)]">
                         {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </div>
                     </div>
@@ -662,7 +662,7 @@ export function CodexPanel({
 
                   {isExpanded && (
                     <div 
-                      className="mt-5 rounded-[20px] border border-white/5 bg-black/40 p-4 backdrop-blur-xl"
+                      className="mt-5 rounded-[20px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-4 backdrop-blur-xl"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="grid gap-2 text-sm text-[color:var(--ink-2)] md:grid-cols-2">
@@ -670,9 +670,9 @@ export function CodexPanel({
                           .filter(([key]) => key !== "id" && key !== "nome")
                           .slice(0, 8)
                           .map(([key, value]) => (
-                            <div key={key} className="rounded-xl border border-white/8 bg-black/18 px-3 py-2">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{key}</p>
-                              <p className="mt-1 text-sm font-semibold text-white">{String(value)}</p>
+                            <div key={key} className="rounded-xl border border-[var(--border-panel)] bg-[var(--bg-input)]/50 px-3 py-2">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">{key}</p>
+                              <p className="mt-1 text-sm font-semibold text-[color:var(--text-primary)]">{String(value)}</p>
                             </div>
                           ))}
                       </div>
@@ -689,7 +689,7 @@ export function CodexPanel({
         ((activeTab === "archetypes" && filteredArchetypes.length === 0) ||
           (activeTab === "codex" && filteredCodexEntries.length === 0) ||
           (activeTab === "equipment" && filteredEquipmentEntries.length === 0)) && (
-          <div className="rounded-[22px] border border-dashed border-white/10 bg-white/[0.03] px-4 py-6 text-sm text-[color:var(--ink-2)]">
+          <div className="rounded-[22px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-card)]/50 px-4 py-6 text-sm text-[color:var(--text-muted)]">
             Nada corresponde aos filtros atuais nesta parte da oficina.
           </div>
         )}
@@ -701,7 +701,7 @@ export function CodexPanel({
           <button
             type="button"
             onClick={() => setVisibleCount((current) => current + 10)}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-2)] transition hover:border-white/20 hover:text-white"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--border-panel)] bg-[var(--bg-card)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-muted)] transition hover:border-[color:var(--gold)]/20 hover:text-[color:var(--text-primary)]"
           >
             <ScrollText size={14} />
             carregar mais
