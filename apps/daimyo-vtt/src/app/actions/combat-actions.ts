@@ -56,7 +56,6 @@ import {
 } from "@/lib/private-events/repository";
 import { requireSessionViewer } from "@/lib/session/access";
 import { updateSessionCombatState, listSessionParticipants } from "@/lib/session/repository";
-import { createSessionMessage } from "@/lib/chat/repository";
 
 interface CombatActionResult {
   ok: boolean;
@@ -121,25 +120,6 @@ function appendResolution(
     updatedAt: resolution.createdAt,
     ...patch
   } satisfies SessionCombatFlow;
-}
-
-async function publishCombatMessage(input: {
-  sessionId: string;
-  viewer: { participantId: string | null; displayName: string };
-  resolution: CombatResolutionRecord | null;
-  isPrivate?: boolean;
-}) {
-  if (!input.resolution) return;
-  
-  await createSessionMessage({
-    sessionId: input.sessionId,
-    participantId: input.viewer.participantId,
-    displayName: input.viewer.displayName,
-    kind: "combat",
-    body: input.resolution.summary,
-    payload: input.resolution as unknown as Record<string, unknown>,
-    isPrivate: input.isPrivate ?? false
-  });
 }
 
 function consumeFeintPenaltyForDefense(
@@ -982,13 +962,6 @@ export async function executeCombatActionAction(input: {
         combatFlow: appendResolution(session.combatFlow, contest.resolution)
       });
 
-      await publishCombatMessage({
-        sessionId: session.id,
-        viewer,
-        resolution: contest.resolution,
-        isPrivate: input.action.isPrivate
-      });
-
       return {
         ok: true,
         session: updatedSession,
@@ -1517,13 +1490,6 @@ export async function respondCombatPromptAction(input: {
           pendingPrompt: null,
           updatedAt: new Date().toISOString()
         }
-      });
-
-      await publishCombatMessage({
-        sessionId: session.id,
-        viewer,
-        resolution,
-        isPrivate: false
       });
 
       return { ok: true, session: updatedSession, resolution };

@@ -1,4 +1,4 @@
-export type SessionMessageKind = "chat" | "roll" | "system" | "oracle" | "master-log" | "combat";
+export type SessionMessageKind = "chat" | "roll" | "system" | "oracle" | "master-log";
 
 
 export interface SessionMessageRecord {

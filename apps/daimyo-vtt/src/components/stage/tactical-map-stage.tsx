@@ -42,10 +42,10 @@ import {
   updateMapTokenAction
 } from "@/app/actions/map-actions";
 import { TacticalCombatPanel } from "@/components/combat/tactical-combat-panel";
-import { TacticalLogPanel } from "@/components/combat/tactical-log-panel";
+import { CombatLogPanel } from "@/components/combat/combat-log-panel";
 import { PlayerTurnOverlay } from "@/components/combat/player-turn-overlay";
 import { DefensePromptOverlay } from "@/components/combat/defense-prompt-overlay";
-import { UnifiedNotification } from "@/components/combat/unified-notification";
+import { CombatNotification } from "@/components/combat/combat-notification";
 import { CharacterVisualPicker } from "@/components/ui/character-visual-picker";
 import { AssetVisualPicker } from "@/components/ui/asset-visual-picker";
 import { DiceRollOverlay } from "@/components/combat/dice-roll-overlay";
@@ -60,7 +60,6 @@ import { cn } from "@/lib/utils";
 import { useMapStore } from "@/stores/map-store";
 import type { SessionAssetRecord } from "@/types/asset";
 import type { SessionCharacterRecord } from "@/types/character";
-import type { SessionMessageRecord } from "@/types/message";
 import type {
   CombatDefenseOption,
   CombatDraftAction,
@@ -233,7 +232,6 @@ export function TacticalMapStage({
   const [freeTokenAssetId, setFreeTokenAssetId] = useState("");
   const [freeTokenFaction, setFreeTokenFaction] = useState<TokenFaction | "">("");
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [activeNotification, setActiveNotification] = useState<SessionMessageRecord | null>(null);
 
   if (!map) return null;
 
@@ -296,25 +294,11 @@ export function TacticalMapStage({
     prevHpsRef.current = nextHps;
   }, [tokens]);
 
-  // Detector de Notificações Unificadas (Roll e Combat)
-  useEffect(() => {
-    if (chatMessages.length === 0) return;
-    const lastMsg = chatMessages[chatMessages.length - 1];
-    
-    // Ignora se já processamos ou se não for tipo notificável
-    if (lastMsg.id === lastProcessedMessageIdRef.current) return;
-    if (lastMsg.kind !== "roll" && lastMsg.kind !== "combat") return;
-
-    // Se for privado e não formos GM, não mostramos notificação
-    if (lastMsg.isPrivate && !canManageCombat) return;
-
-    setActiveNotification(lastMsg);
-  }, [chatMessages, canManageCombat]);
-
   // Detector de Rolagens para Popups de Dados
   useEffect(() => {
     const res = combatFlow?.lastResolution;
     if (!res || res.id === lastResolutionIdRef.current) return;
+
     lastResolutionIdRef.current = res.id;
 
     // Dispara popup para o Atacante
@@ -1168,17 +1152,12 @@ export function TacticalMapStage({
     />
   ) : null;
 
-  const tacticalLogPanel = (
-    <TacticalLogPanel
-      sessionCode={sessionCode}
-      viewer={viewerParticipantId ? { 
-        participantId: viewerParticipantId, 
-        displayName: "Participante", 
-        role: canManageCombat ? "gm" : "player" 
-      } : null}
+  const combatLogPanel = combatFlow ? (
+    <CombatLogPanel
+      log={[...combatFlow.log].reverse()}
       onClose={() => setIsCombatLogOpen(false)}
     />
-  );
+  ) : null;
 
   return (
     <div
@@ -1360,11 +1339,11 @@ export function TacticalMapStage({
               );
             })()}
 
-          {/* Notificação Unificada (Roll, Combat, etc) */}
-          {activeNotification && (
-            <UnifiedNotification 
-              message={activeNotification} 
-              onClose={() => setActiveNotification(null)}
+          {/* Notificação de Resultado de Combate */}
+          {combatFlow.lastResolution && (
+            <CombatNotification 
+              key={combatFlow.lastResolution.id}
+              resolution={combatFlow.lastResolution} 
             />
           )}
         </>
@@ -2319,10 +2298,10 @@ export function TacticalMapStage({
         </div>
       )}
 
-      {isCombatLogOpen && tacticalLogPanel && (
+      {isCombatLogOpen && combatLogPanel && (
         <div className="pointer-events-none absolute inset-y-3 left-3 z-[30] flex w-[min(360px,calc(100%-1.5rem))] justify-start md:w-[340px]">
           <div className="pointer-events-auto h-full max-h-full w-full overflow-hidden animate-in slide-in-from-left duration-500">
-            {tacticalLogPanel}
+            {combatLogPanel}
           </div>
         </div>
       )}

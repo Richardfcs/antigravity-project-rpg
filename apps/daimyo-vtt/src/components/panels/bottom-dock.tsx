@@ -1,8 +1,7 @@
-import { AudioLines, Dices, MessageSquareText, ScrollText } from "lucide-react";
+import { AudioLines, Dices, ScrollText } from "lucide-react";
 
 import { CompactPanelHeader } from "@/components/layout/compact-panel-header";
 import { AudioPanel } from "@/components/panels/audio-panel";
-import { ChatPanel } from "@/components/panels/chat-panel";
 import { DicePanel } from "@/components/panels/dice-panel";
 import { NotesPanel } from "@/components/panels/notes-panel";
 import { cn } from "@/lib/utils";
@@ -22,7 +21,6 @@ interface BottomDockProps {
 }
 
 const tabs = [
-  { id: "chat" as const, label: "Conversa", icon: MessageSquareText },
   { id: "dice" as const, label: "Dados", icon: Dices },
   { id: "notes" as const, label: "Caderno", icon: ScrollText },
   { id: "audio" as const, label: "Trilhas", icon: AudioLines }
@@ -37,7 +35,9 @@ export function BottomDock({
   embedded = false
 }: BottomDockProps) {
   const visibleTabs = showAudio ? tabs : tabs.filter((tab) => tab.id !== "audio");
-  const resolvedActiveTab = !showAudio && activeTab === "audio" ? "chat" : activeTab;
+  const resolvedActiveTab = !showAudio && activeTab === "audio" 
+    ? (tabs.find(t => t.id !== "audio")?.id ?? "dice")
+    : (activeTab === "chat" ? "dice" : activeTab);
 
   return (
     <section className="flex h-full min-h-0 flex-col">
@@ -94,10 +94,6 @@ export function BottomDock({
             : "scrollbar-thin mt-2.5 min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1"
         }
       >
-        {resolvedActiveTab === "chat" && (
-          <ChatPanel sessionCode={snapshot.code} viewer={viewer} />
-        )}
-
         {resolvedActiveTab === "dice" && (
           <DicePanel sessionCode={snapshot.code} viewer={viewer} />
         )}

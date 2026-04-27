@@ -254,7 +254,6 @@ export interface CombatDraftAction {
   waitTrigger?: string | null;
   roundsNeeded?: number | null;
   isStyle?: boolean;
-  isPrivate?: boolean;
 }
 
 export interface CombatRollRecord {
