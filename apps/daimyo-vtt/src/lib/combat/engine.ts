@@ -137,7 +137,7 @@ const hitLocationData: Record<
   vitals: { attackModifier: -3, injuryMultiplier: 3 },
   face: { attackModifier: -5, injuryMultiplier: 1 },
   neck: { attackModifier: -5, injuryMultiplier: 1.5 },
-  skull: { attackModifier: -7, drMultiplier: 2, injuryMultiplier: 4 },
+  skull: { attackModifier: -7, injuryMultiplier: 4 },
   arm: { attackModifier: -2, injuryMultiplier: 1 },
   hand: { attackModifier: -4, injuryMultiplier: 1 },
   leg: { attackModifier: -2, injuryMultiplier: 1 },
@@ -393,7 +393,7 @@ function getManualAttackModifier(
   );
 }
 
-function getAttackTarget(
+export function getAttackTarget(
   profile: SessionCharacterSheetProfile,
   action: CombatDraftAction,
   mode: CharacterWeaponMode | null
@@ -520,7 +520,7 @@ export function listValidDefenseOptions(
   return [...new Set(options)];
 }
 
-function getThrustDamage(st: number): { dice: number; adds: number } {
+export function getThrustDamage(st: number): { dice: number; adds: number } {
   if (st <= 8) return { dice: 1, adds: -3 };
   if (st <= 10) return { dice: 1, adds: -2 };
   if (st <= 12) return { dice: 1, adds: -1 };
@@ -537,7 +537,7 @@ function getThrustDamage(st: number): { dice: number; adds: number } {
   return { dice: 2 + extraDice, adds: addsTable[step] ?? 0 };
 }
 
-function getSwingDamage(st: number): { dice: number; adds: number } {
+export function getSwingDamage(st: number): { dice: number; adds: number } {
   if (st <= 8) return { dice: 1, adds: -2 };
   if (st <= 9) return { dice: 1, adds: -1 };
   if (st <= 10) return { dice: 1, adds: 0 };
@@ -598,7 +598,9 @@ function rollDamage(
     (weapon?.state === "spent" ? 1 : 0) +
     bonus;
   const rawDice = Array.from({ length: Math.max(1, diceCount) }, () => rollDie(random));
-  const total = Math.max(1, rawDice.reduce((sum, die) => sum + die, 0) + adds);
+  const totalBeforeClamp = rawDice.reduce((sum, die) => sum + die, 0) + adds;
+  const isCrushing = spec.damageType === "cr";
+  const total = Math.max(isCrushing ? 0 : 1, totalBeforeClamp);
 
   return { total, rawDice };
 }
@@ -644,18 +646,51 @@ function injuryMultiplier(location: CombatHitLocationId, type: CombatDamageType)
 
 function getEffectiveDr(
   profile: SessionCharacterSheetProfile,
-  location: CombatHitLocationId
+  location: CombatHitLocationId,
+  armorDivisor: number = 1
 ) {
-  const baseDr = profile.armor.reduce((total, armor) => {
-    if (armor.zone === "all" || armor.zone === location) {
+  // 1. Soma RD de todas as armaduras que cobrem esta zona
+  const equipmentDr = profile.armor.reduce((total, armor) => {
+    const isCovered = armor.zone === "all" || 
+                     (Array.isArray(armor.zone) ? armor.zone.includes(location) : armor.zone === location);
+    if (isCovered) {
       return total + armor.dr;
     }
-
     return total;
   }, 0);
+
+  // 2. Obtém o valor manual/procedural dos campos rápidos (Topo, Meio, Base)
+  const getRawDr = (key: string) => parseInt(String(profile.raw?.[key] || "0"), 10);
+  let statusDr = 0;
+  
+  if (location === "eye") {
+    statusDr = 0; // Olhos não recebem proteção genérica
+  } else if (location === "torso" || location === "vitals") {
+    statusDr = getRawDr("drMiddle");
+  } else if (location === "skull" || location === "face" || location === "neck") {
+    statusDr = getRawDr("drTop");
+  } else {
+    statusDr = getRawDr("drBottom");
+  }
+
+  // Usamos o maior valor (para evitar contagem dupla se a armadura já estiver no campo rápido)
+  // ou a soma se o usuário estiver usando o campo rápido como bônus (mais comum em VTTs simplificados)
+  // Decisão: Usar o maior valor entre "Equipamento Detalhado" e "Resumo da Ficha" 
+  // para permitir que o mestre sobrescreva manualmente sem precisar criar itens de armadura.
+  let totalDr = Math.max(equipmentDr, statusDr);
+  
+  // 3. RD Intrínseca: Crânio tem RD 2 natural (GURPS B400)
+  if (location === "skull") {
+    totalDr += 2;
+  }
+
   const locationMeta = hitLocationData[location];
-  const scaled = locationMeta?.drMultiplier ? baseDr * locationMeta.drMultiplier : baseDr;
-  const divided = locationMeta?.drDivisor ? scaled / locationMeta.drDivisor : scaled;
+  const scaled = locationMeta?.drMultiplier ? totalDr * locationMeta.drMultiplier : totalDr;
+  
+  // 4. Aplicar Divisor de Armadura
+  const divisor = armorDivisor > 0 ? armorDivisor : 1;
+  const divided = (locationMeta?.drDivisor ? scaled / locationMeta.drDivisor : scaled) / divisor;
+  
   return Math.max(0, Math.floor(divided));
 }
 
@@ -847,8 +882,9 @@ function buildDamageBreakdown(input: {
   hitLocation: CombatHitLocationId;
   ignoreDr?: boolean;
   multiplier?: number;
+  armorDivisor?: number;
 }) {
-  const effectiveDr = input.ignoreDr ? 0 : getEffectiveDr(input.targetProfile, input.hitLocation);
+  const effectiveDr = input.ignoreDr ? 0 : getEffectiveDr(input.targetProfile, input.hitLocation, input.armorDivisor);
   const penetratingDamage = Math.max(0, input.damageRoll.total - effectiveDr);
   const multiplier =
     (input.multiplier ?? 1) * injuryMultiplier(input.hitLocation, input.damageType);
@@ -1325,7 +1361,8 @@ export function finishAttackResolution(input: {
     damageType: mode?.damage.damageType ?? "cr",
     hitLocation,
     ignoreDr: critical.ignoreDr,
-    multiplier: critical.damageMultiplier
+    multiplier: critical.damageMultiplier,
+    armorDivisor: mode?.damage.armorDivisor || 1
   });
   const damageResult = applyDamageToTarget({
     profile: finalTargetProfile,
@@ -2213,21 +2250,36 @@ export function getAvailableCombatActions(
   isIaiPossible: boolean;
 } {
   const maneuvers: CombatActionType[] = [
-    "move", "attack", "ranged-attack", "all-out-attack", 
-    "feint", "all-out-defense", "aim", "ready", 
+    "move", "attack", "all-out-defense", "ready", 
     "evaluate", "wait", "do-nothing", "swap-technique"
   ];
 
-  const weapon = profile.weapons.find(w => w.id === weaponId) || profile.weapons[0];
+  const activeWeapon = profile.weapons.find(w => w.id === weaponId) || 
+                       profile.weapons.find(w => w.state === "ready") || 
+                       profile.weapons[0];
   
+  const hasRanged = profile.weapons.some(w => w.category === "ranged" || w.category === "Arco" || w.category === "Arremesso");
+  const isRangedActive = activeWeapon?.category === "ranged" || activeWeapon?.category === "Arco" || activeWeapon?.category === "Arremesso";
+
+  if (hasRanged) {
+    maneuvers.push("ranged-attack");
+    maneuvers.push("aim");
+  }
+
+  // Só permite Ataque Total se tiver arma pronta ou for natural
+  if (activeWeapon?.state === "ready" || activeWeapon?.category === "Natural") {
+    maneuvers.push("all-out-attack");
+    maneuvers.push("feint");
+  }
+
   // No cenário de Daimyo/GURPS, Iaijutsu é possível se a arma NÃO estiver em punho (state != ready)
-  const isIaiPossible = !!weapon && weapon.state !== "ready";
+  const isIaiPossible = !!activeWeapon && activeWeapon.state !== "ready" && activeWeapon.category !== "Natural";
 
   if (isIaiPossible) {
     maneuvers.push("iai-strike");
   }
 
-  const skillName = weapon?.modes[0]?.skill || "Briga";
+  const skillName = activeWeapon?.modes[0]?.skill || "Briga";
   const skill = profile.skills.find(s => s.name === skillName);
   const nh = skill?.level ?? 10;
   const level = getMaestriaLevel(nh);

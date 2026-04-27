@@ -85,11 +85,6 @@ export function EnemyGenerator({ sessionCode }: EnemyGeneratorProps) {
   };
 
   const threatLevels: { id: ThreatLevel, label: string, color: string }[] = [
-    { id: 'civil', label: 'Civil', color: 'bg-[var(--bg-card)]' },
-    { id: 'recruta', label: 'Recruta', color: 'bg-blue-900' },
-    { id: 'capanga', label: 'Capanga', color: 'bg-emerald-900' },
-    { id: 'veterano', label: 'Veterano', color: 'bg-amber-700' },
-    { id: 'elite', label: 'Elite', color: 'bg-rose-900' },
     { id: 'civil', label: 'Civil', color: 'bg-[var(--color-bg-civil)]' },
     { id: 'recruta', label: 'Recruta', color: 'bg-[var(--color-bg-recruta)]' },
     { id: 'capanga', label: 'Capanga', color: 'bg-[var(--color-bg-capanga)]' },

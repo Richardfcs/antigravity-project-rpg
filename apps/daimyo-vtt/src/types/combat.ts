@@ -94,6 +94,7 @@ export interface CharacterDamageSpec {
   dice: number;
   adds: number;
   damageType: CombatDamageType;
+  armorDivisor?: number;
   raw: string;
 }
 
@@ -127,7 +128,7 @@ export interface CharacterWeaponRecord {
 export interface CharacterArmorRecord {
   id: string;
   name: string;
-  zone: CombatHitLocationId | "all";
+  zone: CombatHitLocationId | CombatHitLocationId[] | "all";
   dr: number;
   notes?: string;
 }

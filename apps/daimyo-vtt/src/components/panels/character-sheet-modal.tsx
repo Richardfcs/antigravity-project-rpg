@@ -22,7 +22,9 @@ import {
   RotateCcw,
   Dices,
   EyeOff,
-  Eye
+  Eye,
+  PlusCircle,
+  ShieldAlert
 } from "lucide-react";
 
 import type { SessionCharacterRecord } from "@/types/character";
@@ -31,12 +33,14 @@ import type { SessionViewerIdentity } from "@/types/session";
 import { 
   updateCharacterProfileAction, 
   getBaseArchetypesAction, 
-  applyBaseArchetypeAction 
+  applyBaseArchetypeAction,
+  getArsenalAction
 } from "@/app/actions/character-actions";
 import { rollDiceAction } from "@/app/actions/chat-actions";
 import { useCharacterStore } from "@/stores/character-store";
 import { useChatStore } from "@/stores/chat-store";
 import { cn } from "@/lib/utils";
+import { formatDamageSpec, parseDamageSpec } from "@/lib/combat/sheet-profile";
 
 interface CharacterSheetModalProps {
   sessionCode: string;
@@ -61,11 +65,17 @@ export function CharacterSheetModal({
   const [archetypes, setArchetypes] = useState<any[]>([]);
   const [showArchetypeSelector, setShowArchetypeSelector] = useState(false);
   const [archetypeSearch, setArchetypeSearch] = useState("");
+  const [equipment, setEquipment] = useState<any[]>([]);
+  const [showArsenalSelector, setShowArsenalSelector] = useState(false);
+  const [arsenalSearch, setArsenalSearch] = useState("");
 
   useEffect(() => {
     if (canManage) {
       getBaseArchetypesAction({ sessionCode }).then(res => {
         if (res.ok) setArchetypes(res.archetypes);
+      });
+      getArsenalAction({ sessionCode }).then(res => {
+        if (res.ok) setEquipment(res.equipment);
       });
     }
   }, [sessionCode, canManage]);
@@ -240,20 +250,20 @@ export function CharacterSheetModal({
       weapons: prev.weapons.map((w) => {
         if (w.id === id) {
           const updated = { ...w, [field]: value };
-          // Sincroniza o primeiro modo se o dano bruto mudar
           if (field === "rawDamage") {
-            if (updated.modes.length === 0) {
-              updated.modes = [{ 
-                id: crypto.randomUUID(), 
-                label: "Principal", 
-                skill: "Combate", 
-                damage: { base: value.toLowerCase().includes("geb") ? "swing" : "thrust", dice: 0, adds: 0, damageType: "cr", raw: value },
+            const parsed = parseDamageSpec(String(value));
+            if (updated.modes.length > 0) {
+              updated.modes[0] = { ...updated.modes[0], damage: parsed };
+            } else {
+              updated.modes = [{
+                id: crypto.randomUUID(),
+                label: "Principal",
+                skill: "Combate",
+                damage: parsed,
                 reach: "1",
                 parry: "0",
                 tags: []
               }];
-            } else {
-              updated.modes = updated.modes.map((m, i) => i === 0 ? { ...m, damage: { ...m.damage, raw: value } } : m);
             }
           }
           return updated;
@@ -268,6 +278,74 @@ export function CharacterSheetModal({
       ...prev,
       weapons: prev.weapons.filter((w) => w.id !== id)
     }));
+  };
+
+  const handleApplyWeapon = (item: any) => {
+    const stats = item.stats || {};
+    const rawDamage = stats.dano || "";
+    
+    // Divide modos se houver (ex: GeB+1 cort / GdP+1 perf)
+    const parts = rawDamage.split("/").map((p: string) => p.trim()).filter(Boolean);
+    const modes = parts.map((part: string, idx: number) => {
+      const isGeb = part.toLowerCase().includes("geb") || part.toLowerCase().includes("swing");
+      const isGdp = part.toLowerCase().includes("gdp") || part.toLowerCase().includes("thrust");
+      
+      let typeLabel = "Principal";
+      if (part.includes("cort")) typeLabel = "Corte";
+      else if (part.includes("perf")) typeLabel = "Perfuração";
+      else if (part.includes("esm")) typeLabel = "Esmagamento";
+      else if (part.includes("pi")) typeLabel = "Perfuração (P)";
+
+      const hasDuplicateType = parts.filter((p: string) => {
+         if (part.includes("cort") && p.includes("cort")) return true;
+         if (part.includes("perf") && p.includes("perf")) return true;
+         if (part.includes("esm") && p.includes("esm")) return true;
+         return false;
+      }).length > 1;
+
+      const label = (parts.length > 1 && hasDuplicateType) 
+        ? `${isGeb ? "GeB" : isGdp ? "GdP" : ""} ${typeLabel}`.trim()
+        : (parts.length > 1 ? typeLabel : "Principal");
+      
+      const skillMap: Record<string, string> = {
+        "Lâmina": "Kenjutsu",
+        "Haste": "Sojutsu",
+        "Esmagamento": "Kobujutsu",
+        "Força Bruta": "Machado/Maça",
+        "Especialista": "Armas Especiais",
+        "Arco": "Kyujutsu",
+        "Arremesso": "Arremesso"
+      };
+      
+      return {
+        id: crypto.randomUUID(),
+        label,
+        skill: skillMap[stats.tipo] || "Combate",
+        damage: parseDamageSpec(part),
+        reach: stats.alcance || "1",
+        parry: stats.aparar || "0",
+        tags: []
+      };
+    });
+
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
+      ...prev,
+      weapons: [
+        ...prev.weapons,
+        {
+          id: crypto.randomUUID(),
+          name: item.name,
+          category: stats.tipo || "Arma",
+          quality: stats.custo || "Padrão",
+          rawDamage,
+          state: "ready",
+          modes
+        }
+      ]
+    }));
+    setShowArsenalSelector(false);
+    setFeedback(`${item.name} adicionado ao arsenal!`);
+    setTimeout(() => setFeedback(null), 3000);
   };
 
   const updateRaw = (field: string, value: string | number | boolean) => {
@@ -390,42 +468,17 @@ export function CharacterSheetModal({
     if (Array.isArray(val)) return val.join("\n");
     return String(val || "");
   };
+
   const getRawNumber = (field: string, fallback = 0) => {
     const val = draftProfile.raw?.[field];
     return typeof val === "number" ? val : fallback;
   };
 
-  const getGURPSDamage = (stVal: number) => {
-    // Tabela GURPS: [GdP (Thrust), GeB (Swing)]
-    const table: Record<number, [string, string]> = {
-      1: ['1d-6', '1d-5'], 2: ['1d-6', '1d-5'], 3: ['1d-5', '1d-4'], 4: ['1d-5', '1d-4'],
-      5: ['1d-4', '1d-3'], 6: ['1d-4', '1d-3'], 7: ['1d-3', '1d-2'], 8: ['1d-3', '1d-2'],
-      9: ['1d-2', '1d-1'], 10: ['1d-2', '1d'], 11: ['1d-1', '1d+1'], 12: ['1d-1', '1d+2'],
-      13: ['1d', '2d-1'], 14: ['1d', '2d'], 15: ['1d+1', '2d+1'], 16: ['1d+1', '2d+2'],
-      17: ['1d+2', '3d-1'], 18: ['1d+2', '3d'], 19: ['2d-1', '3d+1'], 20: ['2d-1', '3d+2']
-    };
-    if (stVal < 1) return { gdp: '1d-6', geb: '1d-5' };
-    if (stVal > 20) {
-      const dice = Math.floor(stVal / 10);
-      return { gdp: `${dice}d`, geb: `${dice + 2}d` }; 
-    }
-    return { gdp: table[stVal][0], geb: table[stVal][1] };
-  };
-
-  const resolveDynamicDamage = (raw: string | null | undefined, stVal: number) => {
-    if (!raw) return "";
-    const currentDmg = getGURPSDamage(stVal);
-    let result = raw.toUpperCase();
-    
-    // Substitui GeB e GdP pelos valores da tabela
-    result = result.replace(/\bGEB\b/g, currentDmg.geb);
-    result = result.replace(/\bGDP\b/g, currentDmg.gdp);
-    
-    return result;
-  };
-
   const st = draftProfile.attributes.st || 10;
-  const dmg = getGURPSDamage(st);
+  const dmg = {
+    gdp: formatDamageSpec({ base: "thrust", dice: 0, adds: 0, raw: "GdP", damageType: "cr" }, st),
+    geb: formatDamageSpec({ base: "swing", dice: 0, adds: 0, raw: "GeB", damageType: "cr" }, st)
+  };
   const [activeTab, setActiveTab] = useState<"bio" | "combat" | "traits">("bio");
   
   const tabs = [
@@ -700,7 +753,7 @@ export function CharacterSheetModal({
                     </div>
                   </section>
 
-                  <section className="space-y-4">
+                   <section className="space-y-4">
                     <div className="flex items-center gap-2 px-2">
                       <Shield size={14} className="text-sky-500" />
                       <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Defesas Ativas</h4>
@@ -744,13 +797,9 @@ export function CharacterSheetModal({
                         <input type="number" value={draftProfile.defenses.parry} onChange={(e) => updateDefense("parry", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-[color:var(--text-primary)] outline-none" />
                         <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase block mt-1">(Skill / 2) + 3</span>
                       </div>
-                      <div className="rounded-3xl border border-[var(--border-panel)] bg-[var(--bg-input)]/40 p-4 text-center">
-                        <span className="text-[8px] font-black text-[color:var(--text-muted)] uppercase tracking-widest mb-1 block">Bloqueio</span>
-                        <input type="number" value={draftProfile.defenses.block} onChange={(e) => updateDefense("block", e.target.value)} disabled={!canManage} className="w-full bg-transparent text-center text-xl font-bold text-[color:var(--text-primary)] outline-none" />
-                        <span className="text-[7px] font-bold text-[color:var(--text-muted)]/40 uppercase block mt-1">(Skill / 2) + 3</span>
-                      </div>
                     </div>
                   </section>
+
                 </div>
               </div>
             )}
@@ -822,6 +871,37 @@ export function CharacterSheetModal({
                     <span className="text-3xl font-black text-[color:var(--gold)]">{dmg.gdp}</span>
                   </div>
                 </div>
+
+                {/* Proteção (RD) */}
+                <section className="rounded-[40px] border border-[color:var(--gold)]/10 bg-[color:var(--mist)] p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="h-10 w-10 rounded-2xl bg-[color:var(--gold)]/10 flex items-center justify-center text-[color:var(--gold)] border border-[color:var(--gold)]/20">
+                      <Shield size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Proteção & RD</h4>
+                      <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Resistência a Danos por Zona</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { key: "drTop", label: "Topo", desc: "Cabeça/Pescoço" },
+                      { key: "drMiddle", label: "Meio", desc: "Torso/Vitais" },
+                      { key: "drBottom", label: "Base", desc: "Membros" }
+                    ].map((dr) => (
+                      <div key={dr.key} className="rounded-2xl bg-[var(--bg-input)] border border-[var(--border-panel)] p-4 flex flex-col items-center">
+                        <span className="text-[8px] font-black text-[color:var(--text-muted)] uppercase tracking-widest mb-1">{dr.label}</span>
+                        <input 
+                          type="number" 
+                          value={getRawNumber(dr.key) as any} 
+                          onChange={(e) => updateRaw(dr.key, parseInt(e.target.value, 10) || 0)} 
+                          className="w-full bg-transparent text-center text-2xl font-black text-[color:var(--text-primary)] outline-none"
+                        />
+                        <span className="text-[7px] font-bold text-[color:var(--text-muted)] uppercase mt-1">{dr.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
 
                 {/* Condições Temporárias */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1020,7 +1100,7 @@ export function CharacterSheetModal({
                         className={cn(
                           "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
                           draftProfile.combat.posture === p.id 
-                            ? "bg-[color:var(--gold)] border-[color:var(--gold)]/40 text-[color:var(--mist)] shadow-lg shadow-[color:var(--gold)]/20" 
+                            ? "bg-[color:var(--gold)] border-[color:var(--gold)]/40 text-[color:var(--bg-deep)] shadow-lg shadow-[color:var(--gold)]/20" 
                             : "bg-[var(--bg-input)] border-[var(--border-panel)] text-[color:var(--text-muted)] hover:bg-[var(--bg-card)]"
                         )}
                       >
@@ -1031,22 +1111,72 @@ export function CharacterSheetModal({
                 </section>
 
                 <section className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8">
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-2xl bg-[color:var(--mist)] flex items-center justify-center text-[color:var(--gold)] border border-[color:var(--gold)]/20">
-                        <Swords size={20} />
+                    <div className="flex items-center justify-between mb-8">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-2xl bg-[color:var(--mist)] flex items-center justify-center text-[color:var(--gold)] border border-[color:var(--gold)]/20">
+                          <Swords size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Arsenal de Armas</h4>
+                          <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Armas prontas para combate</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Arsenal de Armas</h4>
-                        <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Armas prontas para combate</p>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => setShowArsenalSelector(!showArsenalSelector)}
+                          className="rounded-2xl bg-[var(--bg-input)] px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)] transition hover:text-[color:var(--text-primary)] border border-[var(--border-panel)]"
+                        >
+                          {showArsenalSelector ? "Fechar Arsenal" : "Consultar Codex"}
+                        </button>
+                        {canManage && (
+                          <button onClick={addWeapon} className="rounded-2xl bg-[color:var(--gold)] px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-[color:var(--bg-deep)] transition hover:opacity-90 active:scale-95 shadow-lg shadow-[color:var(--gold)]/20">
+                            Novo Registro
+                          </button>
+                        )}
                       </div>
                     </div>
-                    {canManage && (
-                      <button onClick={addWeapon} className="rounded-2xl bg-[color:var(--gold)] px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-[color:var(--mist)] transition hover:opacity-90 active:scale-95 shadow-lg shadow-[color:var(--gold)]/20">
-                        Novo Registro
-                      </button>
+
+                    {showArsenalSelector && (
+                      <div className="mb-8 rounded-[32px] border border-[color:var(--gold)]/20 bg-[color:var(--mist)] p-6 animate-in zoom-in-95 duration-300">
+                        <div className="relative mb-6">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" size={18} />
+                          <input 
+                            type="text" 
+                            value={arsenalSearch}
+                            onChange={(e) => setArsenalSearch(e.target.value)}
+                            placeholder="Buscar no Codex Arsenal (ex: Katana, Yari, Naginata...)" 
+                            className="w-full rounded-2xl bg-[var(--bg-input)] border border-[var(--border-panel)] py-4 pl-12 pr-6 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--gold)]/40"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[320px] overflow-y-auto custom-scrollbar pr-2">
+                          {equipment
+                            .filter((item: any) => 
+                              item.category === "Armas" && 
+                              item.name.toLowerCase().includes(arsenalSearch.toLowerCase())
+                            )
+                            .map((item: any) => (
+                              <button
+                                key={item.id}
+                                onClick={() => handleApplyWeapon(item)}
+                                className="group flex items-center justify-between gap-4 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4 transition hover:border-[color:var(--gold)]/40 hover:bg-[color:var(--mist)]"
+                              >
+                                <div className="text-left">
+                                  <h5 className="text-[10px] font-black text-[color:var(--text-primary)] uppercase tracking-tight">{item.name}</h5>
+                                  <p className="text-[9px] font-bold text-[color:var(--gold)]">{item.stats.dano}</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-right">
+                                    <span className="text-[8px] font-black text-[color:var(--text-muted)] block uppercase">Alcance</span>
+                                    <span className="text-[10px] font-bold text-[color:var(--text-secondary)]">{item.stats.alcance}</span>
+                                  </div>
+                                  <PlusCircle size={16} className="text-[color:var(--gold)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
                     )}
-                  </div>
 
                   <div className="space-y-3">
                     {draftProfile.weapons.map((w) => (
@@ -1081,9 +1211,11 @@ export function CharacterSheetModal({
                               placeholder="GeB+2" 
                               className="w-full rounded-xl bg-[var(--bg-card)] px-3 py-2 text-[10px] font-bold text-[color:var(--gold)] outline-none text-right border border-[var(--border-panel)]" 
                             />
-                            {w.rawDamage && (w.rawDamage.includes("GeB") || w.rawDamage.includes("GdP") || w.rawDamage.includes("geb") || w.rawDamage.includes("gdp")) && (
-                              <div className="absolute -bottom-1 right-0 translate-y-full opacity-0 group-hover/dmg:opacity-100 transition-opacity bg-[color:var(--gold)] text-[color:var(--mist)] text-[8px] font-black px-2 py-0.5 rounded-md pointer-events-none z-20 shadow-xl whitespace-nowrap">
-                                TOTAL: {resolveDynamicDamage(w.rawDamage, st)}
+                            {w.rawDamage && (
+                              <div className="mt-1 flex justify-end">
+                                <span className="text-[9px] font-black text-[color:var(--gold)] uppercase opacity-60">
+                                  Total: {formatDamageSpec(parseDamageSpec(w.rawDamage), st)}
+                                </span>
                               </div>
                             )}
                           </div>
@@ -1232,7 +1364,7 @@ export function CharacterSheetModal({
               <button
                 onClick={handleSave}
                 disabled={isPending}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-3 rounded-2xl bg-[color:var(--gold)] px-8 py-3 text-[10px] font-black uppercase tracking-widest text-[color:var(--mist)] transition hover:opacity-90 hover:shadow-[0_0_20px_rgba(var(--gold-rgb),0.2)] active:scale-95 disabled:opacity-50"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-3 rounded-2xl bg-[color:var(--gold)] px-8 py-3 text-[10px] font-black uppercase tracking-widest text-[color:var(--bg-deep)] transition hover:opacity-90 hover:shadow-[0_0_20px_rgba(var(--gold-rgb),0.2)] active:scale-95 disabled:opacity-50"
               >
                 {isPending ? <Activity size={16} className="animate-spin" /> : <Save size={16} />}
                 {isPending ? "Gravando..." : "Sincronizar Bushido"}

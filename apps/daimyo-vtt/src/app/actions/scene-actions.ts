@@ -22,6 +22,12 @@ import {
   deleteSessionScene
 } from "@/lib/scenes/repository";
 import { createSessionMessage } from "@/lib/chat/repository";
+import {
+  buildSheetProfileFromBaseTemplate,
+  createEmptySheetProfile
+} from "@/lib/combat/sheet-profile";
+import type { SessionCharacterSheetProfile } from "@/types/combat";
+import { loadBaseCatalog } from "@/lib/content-bridge/base-loader";
 import { requireSessionViewer } from "@/lib/session/access";
 import type { SessionCharacterRecord } from "@/types/character";
 import type {
@@ -227,18 +233,41 @@ export async function addAssetNpcToSceneAction(input: {
       );
     }
 
-    const character =
-      (await findSessionCharacterByAssetId(session.id, asset.id)) ??
-      (await createSessionCharacter({
+    let character = await findSessionCharacterByAssetId(session.id, asset.id);
+
+    if (!character) {
+      // Automação de Alto Nível: Tenta encontrar um arquétipo pelo nome do asset
+      const catalog = await loadBaseCatalog();
+      const assetLabel = asset.label.toLowerCase();
+      const archetype = catalog.archetypes.find(a => 
+        assetLabel.includes(a.name.toLowerCase()) || 
+        a.name.toLowerCase().includes(assetLabel)
+      );
+
+      let sheetProfile: SessionCharacterSheetProfile | null = null;
+      let hpMax = 10;
+      let fpMax = 10;
+      
+      if (archetype) {
+        sheetProfile = buildSheetProfileFromBaseTemplate(archetype);
+        hpMax = sheetProfile.attributes.hpMax;
+        fpMax = sheetProfile.attributes.fpMax;
+      } else {
+        sheetProfile = createEmptySheetProfile({ name: asset.label });
+      }
+
+      character = await createSessionCharacter({
         sessionId: session.id,
         name: asset.label,
         type: "npc",
-        tier: "summary",
+        tier: archetype ? "medium" : "summary",
         assetId: asset.id,
-        hpMax: 10,
-        fpMax: 10,
-        initiative: 0
-      }));
+        hpMax,
+        fpMax,
+        initiative: sheetProfile ? Math.round(sheetProfile.derived.basicSpeed * 100) : 0,
+        sheetProfile
+      });
+    }
 
     const sceneCast = await createSceneCastEntry({
       sessionId: session.id,

@@ -19,6 +19,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import type { TacticalStageToken } from "@/lib/maps/selectors";
+import { formatDamageSpec, parseDamageSpec } from "@/lib/combat/sheet-profile";
 
 interface CombatSheetCardProps {
   title: string;
@@ -246,7 +247,7 @@ export function CombatSheetCard({
                           </p>
                           <p className="mt-1">
                             est. {weapon.state}
-                            {mode ? ` · ${mode.label} · ${mode.damage.raw}` : (weapon.rawDamage ? ` · ${weapon.rawDamage}` : "")}
+                            {mode ? ` · ${mode.label} · ${formatDamageSpec(mode.damage, profile.attributes.st)} (${mode.damage.raw})` : (weapon.rawDamage ? ` · ${formatDamageSpec(parseDamageSpec(weapon.rawDamage), profile.attributes.st)} (${weapon.rawDamage})` : "")}
                           </p>
                         </div>
                       );

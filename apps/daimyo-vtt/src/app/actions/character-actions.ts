@@ -431,3 +431,19 @@ export async function getBaseArchetypesAction(input: {
     };
   }
 }
+
+export async function getArsenalAction(input: {
+  sessionCode: string;
+}): Promise<{ ok: boolean; equipment: any[]; message?: string }> {
+  try {
+    await requireSessionViewer(input.sessionCode, "gm");
+    const catalog = await loadBaseCatalog();
+    return { ok: true, equipment: catalog.equipmentEntries };
+  } catch (error) {
+    return {
+      ok: false,
+      equipment: [],
+      message: error instanceof Error ? error.message : "Falha ao carregar arsenal."
+    };
+  }
+}

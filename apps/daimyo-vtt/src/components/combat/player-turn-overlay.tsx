@@ -15,8 +15,10 @@ import type {
   CombatDraftAction,
   CombatHitLocationId,
   FeintType,
-  SessionCombatFlow
+  SessionCombatFlow,
+  SessionCharacterSheetProfile
 } from "@/types/combat";
+import { formatDamageSpec } from "@/lib/combat/sheet-profile";
 import { HealthBar } from "./health-bar";
 import { ManeuverCard } from "./maneuver-card";
 import {
@@ -33,7 +35,7 @@ import {
   Target
 } from "lucide-react";
 import "@/styles/combat-animations.css";
-import { getAvailableCombatActions } from "@/lib/combat/engine";
+import { getAvailableCombatActions, getAttackTarget } from "@/lib/combat/engine";
 
 interface PlayerTurnOverlayProps {
   token: TacticalStageToken;
@@ -126,6 +128,53 @@ export function PlayerTurnOverlay({
   const weaponModes = selectedWeapon?.modes ?? [];
   const selectedMode = weaponModes.find((m: CharacterWeaponMode) => m.id === weaponModeId) || weaponModes[0] || null;
 
+  const isAttackManeuver = selectedManeuver === "attack" || selectedManeuver === "ranged-attack" || selectedManeuver === "all-out-attack";
+
+  const targetToken = useMemo(() => 
+    combatState.turnOrder.find(t => t.token.id === targetTokenId),
+    [combatState.turnOrder, targetTokenId]
+  );
+
+  const attackNH = useMemo(() => {
+    if (!profile || !isAttackManeuver) return null;
+    
+    // Simular o draft action para o cálculo
+    const draft: CombatDraftAction = {
+      actorTokenId: token.token.id,
+      targetTokenId,
+      actionType: selectedManeuver,
+      weaponId: weaponId || selectedWeapon?.id || null,
+      weaponModeId: weaponModeId || selectedMode?.id || null,
+      hitLocation,
+      attackVariant,
+      deceptiveLevel,
+      rapidStrike,
+      dualWeapon,
+      modifiers: {
+        manualToHit,
+        manualDamage,
+        rangeMeters,
+        sizeModifier,
+        aimTurns,
+        hitLocation
+      }
+    };
+    
+    return getAttackTarget(profile, draft, selectedMode);
+  }, [profile, selectedManeuver, targetTokenId, weaponId, selectedWeapon, weaponModeId, selectedMode, hitLocation, attackVariant, deceptiveLevel, rapidStrike, dualWeapon, manualToHit, manualDamage, rangeMeters, sizeModifier, aimTurns, isAttackManeuver]);
+
+  const nhProbability = useMemo(() => {
+    if (attackNH === null) return null;
+    const nh = Math.min(16, Math.max(3, attackNH));
+    // Tabela simplificada de 3d6
+    const probMap: Record<number, string> = {
+      3: "0.5%", 4: "1.9%", 5: "4.6%", 6: "9.3%", 7: "16.2%", 8: "25.9%", 
+      9: "37.5%", 10: "50%", 11: "62.5%", 12: "74.1%", 13: "83.8%", 
+      14: "90.7%", 15: "95.4%", 16: "98.1%"
+    };
+    return probMap[nh] || (nh > 16 ? "98.1%+" : "0.5%-");
+  }, [attackNH]);
+
   const { maneuvers: availableManeuverIds, techniques: filteredTechniques } = useMemo(() => {
     if (!token.character?.sheetProfile) return { maneuvers: [], techniques: [] };
     return getAvailableCombatActions(token.character.sheetProfile, weaponId);
@@ -145,7 +194,6 @@ export function PlayerTurnOverlay({
     (entry) => entry.token.id !== token.token.id
   );
 
-  const isAttackManeuver = selectedManeuver === "attack" || selectedManeuver === "ranged-attack" || selectedManeuver === "all-out-attack";
   const needsDetails = isAttackManeuver || selectedManeuver === "feint" || selectedManeuver === "all-out-defense" || selectedManeuver === "swap-technique";
 
   const handleNext = () => {
@@ -319,7 +367,7 @@ export function PlayerTurnOverlay({
                           }`}
                         >
                           <p className="font-bold text-sm uppercase">{m.label}</p>
-                          <p className="text-[10px] opacity-40">{m.damage.raw} {m.damage.damageType}</p>
+                          <p className="text-[10px] opacity-40">{formatDamageSpec(m.damage, profile?.attributes.st ?? 10)} {m.damage.damageType} ({m.damage.raw})</p>
                         </button>
                       ))}
                     </div>
@@ -736,6 +784,22 @@ export function PlayerTurnOverlay({
                   </div>
                 )}
               </div>
+
+              {attackNH !== null && (
+                <div className="mt-4 p-5 rounded-[24px] bg-[color:var(--accent)] border border-[color:var(--accent)]/30 flex items-center justify-between shadow-2xl shadow-[color:var(--accent)]/20 relative overflow-hidden">
+                  {/* Detalhe estético: brilho interno */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
+                  
+                  <div className="relative z-10">
+                    <p className="text-[9px] font-black uppercase text-[#050505]/50 tracking-[0.2em] mb-1">Potencial de Acerto</p>
+                    <p className="text-3xl font-black text-[#050505] tracking-tighter">NH {attackNH}</p>
+                  </div>
+                  <div className="relative z-10 text-right">
+                    <p className="text-[9px] font-black uppercase text-[#050505]/50 tracking-[0.2em] mb-1">Probabilidade</p>
+                    <p className="text-3xl font-black text-[#050505] tracking-tighter">{nhProbability}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
