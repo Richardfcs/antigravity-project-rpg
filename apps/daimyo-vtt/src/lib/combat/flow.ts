@@ -35,9 +35,11 @@ const combatActionTypes = new Set<CombatActionType>([
   "ready",
   "concentrate",
   "evaluate",
+  "iai-strike",
   "swap-technique",
   "quick-contest",
   "regular-contest",
+  "clash-simple",
   "do-nothing"
 ]);
 

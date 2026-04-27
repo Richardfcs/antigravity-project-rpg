@@ -23,6 +23,7 @@ import {
   resolveRapidStrike,
   resolveDualWeaponAttack,
   resolveIaiStrike,
+  resolveClashSimple,
   advanceTurnState,
   type CombatTokenContext
 } from "@/lib/combat/engine";
@@ -54,7 +55,8 @@ import {
   findPrivateEventById
 } from "@/lib/private-events/repository";
 import { requireSessionViewer } from "@/lib/session/access";
-import { updateSessionCombatState } from "@/lib/session/repository";
+import { updateSessionCombatState, listSessionParticipants } from "@/lib/session/repository";
+import { createSessionMessage } from "@/lib/chat/repository";
 
 interface CombatActionResult {
   ok: boolean;
@@ -119,6 +121,25 @@ function appendResolution(
     updatedAt: resolution.createdAt,
     ...patch
   } satisfies SessionCombatFlow;
+}
+
+async function publishCombatMessage(input: {
+  sessionId: string;
+  viewer: { participantId: string | null; displayName: string };
+  resolution: CombatResolutionRecord | null;
+  isPrivate?: boolean;
+}) {
+  if (!input.resolution) return;
+  
+  await createSessionMessage({
+    sessionId: input.sessionId,
+    participantId: input.viewer.participantId,
+    displayName: input.viewer.displayName,
+    kind: "combat",
+    body: input.resolution.summary,
+    payload: input.resolution as unknown as Record<string, unknown>,
+    isPrivate: input.isPrivate ?? false
+  });
 }
 
 function consumeFeintPenaltyForDefense(
@@ -509,6 +530,7 @@ export async function skipTurnAction(input: {
       id: `combat-resolution-${Date.now()}`,
       createdAt: new Date().toISOString(),
       actorTokenId: actor.tokenId,
+      actorName: actor.label,
       targetTokenId: null,
       actionType: "do-nothing",
       summary: `${actor.label} pula o turno (acao ignorada pelo GM).`,
@@ -602,7 +624,8 @@ export async function executeCombatActionAction(input: {
         profile: actorProfile,
         newTechniqueId: input.action.techniqueId ?? "",
         replaceTechniqueId: input.action.replaceTechniqueId ?? null,
-        round: session.combatRound
+        round: session.combatRound,
+        isStyle: input.action.isStyle
       });
       const updatedActor = await updateSessionCharacterProfile({
         characterId: actor.character.id,
@@ -616,6 +639,7 @@ export async function executeCombatActionAction(input: {
         id: `combat-resolution-${Date.now()}`,
         createdAt: new Date().toISOString(),
         actorTokenId: actor.tokenId,
+        actorName: actor.label,
         targetTokenId: null,
         actionType: input.action.actionType,
         summary: `${actor.label} troca o foco de suas tecnicas. Este esforco mental consome o turno e o impede de se defender ate o proximo turno.`,
@@ -698,13 +722,61 @@ export async function executeCombatActionAction(input: {
         resolution: result.resolution
       };
     }
+    if (input.action.actionType === "clash-simple") {
+      const targetToken = await findMapTokenById(input.action.targetTokenId ?? "");
+      if (!targetToken) throw new Error("Alvo nao encontrado.");
+
+      const targetCharacter = await findSessionCharacterById(targetToken.characterId ?? "");
+      const targetContext: CombatTokenContext = {
+        tokenId: targetToken.id,
+        label: targetToken.label,
+        ownerParticipantId: targetCharacter?.ownerParticipantId ?? null,
+        character: targetCharacter
+      };
+
+      const result = resolveClashSimple({ actor, target: targetContext, draftAction: input.action });
+
+      if (result.actorProfile) {
+        await persistCombatProfiles({
+          actorCharacterId: actor.character.id,
+          actorProfile: result.actorProfile,
+          targetCharacterId: targetContext.character?.id,
+          targetProfile: result.targetProfile
+        });
+      }
+
+      const nextActorState: CombatantTurnState = { 
+        ...actorState, 
+        hasActed: true, 
+        lastManeuver: input.action.actionType 
+      };
+
+      const updatedSession = await syncCombatSession({
+        sessionId: session.id,
+        combatEnabled: true,
+        combatRound: session.combatRound,
+        combatTurnIndex: session.combatTurnIndex,
+        combatActiveTokenId: session.combatActiveTokenId,
+        combatFlow: appendResolution(flow, result.resolution!, {
+          combatantStates: { ...flow.combatantStates, [actor.tokenId]: nextActorState }
+        })
+      });
+
+      return {
+        ok: true,
+        session: updatedSession,
+        resolution: result.resolution
+      };
+    }
 
     if (input.action.actionType === "move") {
       const resolution: CombatResolutionRecord = {
         id: `combat-resolution-${Date.now()}`,
         createdAt: new Date().toISOString(),
         actorTokenId: actor.tokenId,
+        actorName: actor.label,
         targetTokenId: input.action.targetTokenId,
+        targetName: target?.label,
         actionType: "move",
         summary: `${actor.label} usa o turno para se mover e reposicionar.`,
         appliedConditions: []
@@ -729,6 +801,7 @@ export async function executeCombatActionAction(input: {
         id: `combat-resolution-${Date.now()}`,
         createdAt: new Date().toISOString(),
         actorTokenId: actor.tokenId,
+        actorName: actor.label,
         targetTokenId: null,
         actionType: "wait",
         summary: `${actor.label} assume a manobra Esperar. Gatilho: ${trigger}.`,
@@ -909,6 +982,13 @@ export async function executeCombatActionAction(input: {
         combatFlow: appendResolution(session.combatFlow, contest.resolution)
       });
 
+      await publishCombatMessage({
+        sessionId: session.id,
+        viewer,
+        resolution: contest.resolution,
+        isPrivate: input.action.isPrivate
+      });
+
       return {
         ok: true,
         session: updatedSession,
@@ -1049,11 +1129,18 @@ export async function executeCombatActionAction(input: {
       const targetIsPlayerControlled = Boolean(target.ownerParticipantId);
       const prepared = prepareAttackResolution({
         actor, target, draftAction: input.action, variant,
-        promptPlayerDefense: targetIsPlayerControlled && defenses.length > 0 && viewer.participantId !== target.ownerParticipantId,
+        promptPlayerDefense: defenses.length > 0, // Sempre pergunta se houver defesa valida
         targetState
       });
 
-      if (prepared.status === "awaiting-defense" && prepared.prompt && target.ownerParticipantId) {
+      if (prepared.status === "awaiting-defense" && prepared.prompt) {
+        let targetParticipantId = target.ownerParticipantId;
+        if (!targetParticipantId) {
+          const participants = await listSessionParticipants(session.id);
+          const gm = participants.find(p => p.role === "gm");
+          targetParticipantId = gm?.id || viewer.participantId;
+        }
+
         const promptPayload = {
           promptKind: "defense" as const,
           sessionId: session.id,
@@ -1061,6 +1148,7 @@ export async function executeCombatActionAction(input: {
           targetTokenId: target.tokenId,
           actionType: input.action.actionType,
           options: prepared.prompt.options,
+          defenseLevels: prepared.prompt.defenseLevels,
           summary: prepared.prompt.summary,
           attackRoll: prepared.prompt.attackRoll,
           canRetreat: prepared.prompt.canRetreat,
@@ -1070,7 +1158,7 @@ export async function executeCombatActionAction(input: {
         };
         const event = await createPrivateEvent({
           sessionId: session.id,
-          targetParticipantId: target.ownerParticipantId,
+          targetParticipantId: targetParticipantId,
           sourceParticipantId: viewer.participantId,
           kind: "combat",
           title: "Defesa ativa",
@@ -1091,7 +1179,7 @@ export async function executeCombatActionAction(input: {
             activeAction: prepared.draftAction,
             pendingPrompt: {
               eventId: event.id,
-              participantId: target.ownerParticipantId,
+              participantId: targetParticipantId,
               payload: promptPayload
             },
             combatantStates: { ...flow.combatantStates, [actor.tokenId]: nextActorState },
@@ -1219,11 +1307,7 @@ export async function executeCombatActionAction(input: {
     const targetIsPlayerControlled = Boolean(target.ownerParticipantId);
     const targetState = flow.combatantStates[target.tokenId] ?? null;
     
-    // Mestre sempre pode optar pela defesa (NPC vs NPC ou NPC vs Player)
-    const shouldPrompt = defenses.length > 0 && (
-      (targetIsPlayerControlled && viewer.participantId !== target.ownerParticipantId) ||
-      viewer.role === "gm"
-    );
+    const shouldPrompt = defenses.length > 0;
 
     const prepared = prepareAttackResolution({
       actor,
@@ -1234,9 +1318,14 @@ export async function executeCombatActionAction(input: {
       variant: input.action.allOutVariant as AllOutAttackVariant
     });
 
-    const targetOwnerId = target.ownerParticipantId ?? (viewer.role === "gm" ? viewer.participantId : null);
+    let targetParticipantId = target.ownerParticipantId;
+    if (!targetParticipantId && shouldPrompt) {
+      const participants = await listSessionParticipants(session.id);
+      const gm = participants.find(p => p.role === "gm");
+      targetParticipantId = gm?.id || viewer.participantId;
+    }
 
-    if (prepared.status === "awaiting-defense" && prepared.prompt && targetOwnerId) {
+    if (prepared.status === "awaiting-defense" && prepared.prompt && targetParticipantId) {
       const promptPayload = {
         promptKind: "defense" as const,
         sessionId: session.id,
@@ -1244,6 +1333,7 @@ export async function executeCombatActionAction(input: {
         targetTokenId: target.tokenId,
         actionType: input.action.actionType,
         options: prepared.prompt.options,
+        defenseLevels: prepared.prompt.defenseLevels,
         summary: prepared.prompt.summary,
         attackRoll: prepared.prompt.attackRoll,
         canRetreat: prepared.prompt.canRetreat,
@@ -1253,7 +1343,7 @@ export async function executeCombatActionAction(input: {
       };
       const event = await createPrivateEvent({
         sessionId: session.id,
-        targetParticipantId: targetOwnerId,
+        targetParticipantId: targetParticipantId,
         sourceParticipantId: viewer.participantId,
         kind: "combat",
         title: "Defesa ativa",
@@ -1274,7 +1364,7 @@ export async function executeCombatActionAction(input: {
           activeAction: prepared.draftAction,
           pendingPrompt: {
             eventId: event.id,
-            participantId: targetOwnerId,
+            participantId: targetParticipantId,
             payload: promptPayload
           },
           updatedAt: new Date().toISOString()
@@ -1412,7 +1502,8 @@ export async function respondCombatPromptAction(input: {
 
       const resolution = {
         ...result.resolution,
-        actorTokenId: actor.tokenId
+        actorTokenId: actor.tokenId,
+        actorName: actor.label
       };
 
       const updatedSession = await syncCombatSession({
@@ -1426,6 +1517,13 @@ export async function respondCombatPromptAction(input: {
           pendingPrompt: null,
           updatedAt: new Date().toISOString()
         }
+      });
+
+      await publishCombatMessage({
+        sessionId: session.id,
+        viewer,
+        resolution,
+        isPrivate: false
       });
 
       return { ok: true, session: updatedSession, resolution };

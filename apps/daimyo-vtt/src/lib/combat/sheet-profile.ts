@@ -198,6 +198,57 @@ export function computeDodge(basicSpeed: number, encumbranceLevel = 0) {
   return Math.max(3, base - clamp(encumbranceLevel, 0, 4));
 }
 
+export function calculateEncumbrance(st: number, weightKg: number): { 
+  level: number; 
+  moveMult: number; 
+  dodgePenalty: number; 
+  currentSlots: number; 
+  maxSlots: number 
+} {
+  const currentSlots = Math.ceil(weightKg);
+  const maxSlots = st;
+  
+  if (currentSlots <= maxSlots) {
+    return { level: 0, moveMult: 1.0, dodgePenalty: 0, currentSlots, maxSlots };
+  }
+  if (currentSlots <= maxSlots * 2) {
+    return { level: 1, moveMult: 0.8, dodgePenalty: -1, currentSlots, maxSlots };
+  }
+  if (currentSlots <= maxSlots * 3) {
+    return { level: 2, moveMult: 0.6, dodgePenalty: -2, currentSlots, maxSlots };
+  }
+  if (currentSlots <= maxSlots * 6) {
+    return { level: 3, moveMult: 0.4, dodgePenalty: -3, currentSlots, maxSlots };
+  }
+  return { level: 4, moveMult: 0.2, dodgePenalty: -4, currentSlots, maxSlots };
+}
+
+function calculateItemSlots(weightRaw: any): number {
+  const weight = extractNumber(String(weightRaw || "0"));
+  if (weight < 0.5) return 0;
+  return Math.ceil(weight);
+}
+
+export function calculateTotalSlots(profile: SessionCharacterSheetProfile): number {
+  const weaponSlots = (profile.weapons || []).reduce((sum, w) => sum + calculateItemSlots(w.weight), 0);
+  const armorSlots = (profile.armor || []).reduce((sum, a) => sum + calculateItemSlots(a.weight), 0);
+  return weaponSlots + armorSlots;
+}
+
+export function getEncumbranceLevelFromSlots(slots: number, st: number): number {
+  return calculateEncumbrance(st, slots).level;
+}
+
+export function getSlotThresholds(st: number) {
+  return [
+    { level: 0, label: "Nenhuma", limit: st, move: 1.0, dodge: 0 },
+    { level: 1, label: "Leve", limit: st * 2, move: 0.8, dodge: -1 },
+    { level: 2, label: "Média", limit: st * 3, move: 0.6, dodge: -2 },
+    { level: 3, label: "Pesada", limit: st * 6, move: 0.4, dodge: -3 },
+    { level: 4, label: "Muito Pesada", limit: st * 10, move: 0.2, dodge: -4 },
+  ];
+}
+
 export function computeInitiativeScore(profile: SessionCharacterSheetProfile) {
   return clamp(Math.round(profile.derived.basicSpeed * 100), -99, 999);
 }
@@ -274,13 +325,13 @@ function normalizeTechniques(
 }
 
 function normalizeWeapons(rawWeapons: unknown): CharacterWeaponRecord[] {
-  if (!Array.isArray(rawWeapons)) return [];
-
-  return rawWeapons
-    .map((entry, index) => {
+  const result: CharacterWeaponRecord[] = [];
+  
+  if (Array.isArray(rawWeapons)) {
+    rawWeapons.forEach((entry, index) => {
       const candidate = asObject(entry) as Partial<CharacterWeaponRecord> | null;
       const name = candidate?.name;
-      if (!candidate || !name) return null;
+      if (!candidate || !name) return;
 
       const modes = Array.isArray(candidate.modes)
         ? candidate.modes.map((mode, modeIndex) => ({
@@ -289,7 +340,7 @@ function normalizeWeapons(rawWeapons: unknown): CharacterWeaponRecord[] {
           }))
         : [];
 
-      return {
+      result.push({
         id: candidate.id ?? `${slugify(name)}-${index}`,
         name,
         category: candidate.category ?? "Arma",
@@ -298,9 +349,44 @@ function normalizeWeapons(rawWeapons: unknown): CharacterWeaponRecord[] {
         rawDamage: candidate.rawDamage ?? null,
         notes: candidate.notes,
         modes
-      } as CharacterWeaponRecord;
-    })
-    .filter(Boolean) as CharacterWeaponRecord[];
+      } as CharacterWeaponRecord);
+    });
+  }
+
+  // Garantir que Mãos nuas exista
+  const hasUnarmed = result.some(w => w.name.toLowerCase().includes("mãos nuas") || w.name.toLowerCase().includes("maos nuas"));
+  if (!hasUnarmed) {
+    result.unshift({
+      id: "fists",
+      name: "Mãos nuas",
+      category: "Natural",
+      state: "ready",
+      quality: null,
+      rawDamage: "GdP-1 cr",
+      modes: [
+        {
+          id: "punch",
+          label: "Soco",
+          skill: "Briga",
+          damage: parseDamageSpec("GdP-1 cr"),
+          reach: "C",
+          parry: "0",
+          tags: ["unarmed"]
+        },
+        {
+          id: "kick",
+          label: "Chute",
+          skill: "Briga",
+          damage: parseDamageSpec("GdP cr"),
+          reach: "C,1",
+          parry: "Não",
+          tags: ["unarmed"]
+        }
+      ]
+    } as CharacterWeaponRecord);
+  }
+
+  return result;
 }
 
 function normalizeArmor(rawArmor: unknown): CharacterArmorRecord[] {
@@ -410,13 +496,15 @@ export function normalizeSheetProfile(
       bleeding: toNumber(candidateCombat?.bleeding, 0),
       evaluateBonus: toNumber(candidateCombat?.evaluateBonus, 0),
       pendingTechniqueSwapId: candidateCombat?.pendingTechniqueSwapId ?? null,
-      lastTechniqueSwapRound: candidateCombat?.lastTechniqueSwapRound ?? null
+      lastTechniqueSwapRound: candidateCombat?.lastTechniqueSwapRound ?? null,
+      loadoutStyleTechniqueIds: Array.isArray(candidateCombat?.loadoutStyleTechniqueIds) ? candidateCombat.loadoutStyleTechniqueIds : [],
+      pendingSwap: candidateCombat?.pendingSwap ?? null
     },
     raw: asObject(candidate.raw) ?? {}
   } as SessionCharacterSheetProfile;
 }
 
-export function buildSheetProfileFromBaseTemplate(template: CharacterTemplate): SessionCharacterSheetProfile {
+export function buildSheetProfileFromBaseTemplate(template: CharacterTemplate, equipmentCatalog: any[] = []): SessionCharacterSheetProfile {
   const stats = template.stats as Record<string, unknown>;
   const attributesRaw = asObject(stats.attributes) ?? {};
   const attributes = {
@@ -439,8 +527,8 @@ export function buildSheetProfileFromBaseTemplate(template: CharacterTemplate): 
   const styleName = parseStyleName(template);
   const techniques = normalizeTechniques(stats.skills, styleName, skills[0]?.name ?? "Combate");
   const equipment = typeof stats.equipment === "string" ? stats.equipment : "";
-  const weapons = buildWeaponsFromEquipmentString(equipment, skills[0]?.name ?? "Combate");
-  const armor = buildArmorFromEquipmentString(equipment);
+  const weapons = buildWeaponsFromEquipmentString(equipment, skills[0]?.name ?? "Combate", equipmentCatalog);
+  const armor = buildArmorFromEquipmentString(equipment, equipmentCatalog);
   
   const profile: SessionCharacterSheetProfile = {
     version: 1,
@@ -463,10 +551,14 @@ export function buildSheetProfileFromBaseTemplate(template: CharacterTemplate): 
       loadoutTechniqueIds: [],
       posture: "standing",
       shock: 0,
+      fatigue: 0,
+      pain: 0,
       bleeding: 0,
       evaluateBonus: 0,
+      loadoutStyleTechniqueIds: [],
       pendingTechniqueSwapId: null,
-      lastTechniqueSwapRound: null
+      lastTechniqueSwapRound: null,
+      pendingSwap: null
     },
     raw: {
       totalPoints: toNumber(stats.points, 0),
@@ -485,7 +577,25 @@ export function buildSheetProfileFromBaseTemplate(template: CharacterTemplate): 
 
   const raw = profile.raw as Record<string, any>;
 
-  // Automação de RD de Alto Nível
+  // --- Automação de Vantagens e Perks ---
+  const advantages = Array.isArray(stats.advantages) ? stats.advantages.map(String) : [];
+  const hasCombatReflexes = advantages.some(a => a.toLowerCase().includes("reflexos em combate"));
+  const hasHighPainThreshold = advantages.some(a => a.toLowerCase().includes("hipoalgia"));
+
+  if (hasCombatReflexes) {
+    profile.defenses.dodge += 1;
+    profile.defenses.parry += 1;
+    profile.defenses.block += 1;
+    // Iniciativa já é baseada no Basic Speed, mas Reflexos dá +1 em testes de susto e iniciativa se for rolada
+    // Aqui vamos considerar o bônus passivo nas defesas.
+  }
+
+  const profileNotes = [...profile.notes];
+  if (hasCombatReflexes) profileNotes.push("Vantagem: Reflexos em Combate (+1 Defesas, +1 IQ p/ acordar)");
+  if (hasHighPainThreshold) profileNotes.push("Vantagem: Hipoalgia (Ignora penalidade de Choque)");
+  profile.notes = profileNotes;
+
+  // --- Automação de RD de Alto Nível ---
   const searchStr = `${template.name} ${raw.concept || ""} ${profile.summary || ""}`.toLowerCase();
   const isElite = searchStr.includes("mestre") || searchStr.includes("líder") || searchStr.includes("chefe") || 
                   searchStr.includes("comandante") || searchStr.includes("capitão") || searchStr.includes("samurai") ||
@@ -506,14 +616,27 @@ export function buildSheetProfileFromBaseTemplate(template: CharacterTemplate): 
   });
 
   // 2. Aplica "Status RD" apenas se NÃO houver armaduras específicas
-  // Se o usuário definiu armadura só pra uma parte, respeitamos isso (as outras ficam 0)
   const hasSpecificArmor = profile.armor.length > 0;
 
   if (!hasSpecificArmor) {
     if (isElite) {
       drTop = 2; drMiddle = 5; drBottom = 3;
+      profile.armor.push({ 
+        id: `elite-dr-${Date.now()}`, 
+        name: "Armadura de Elite", 
+        dr: 5, 
+        zone: "all",
+        notes: "RD Automática por Rank"
+      });
     } else if (isSoldier) {
       drTop = 1; drMiddle = 2; drBottom = 1;
+      profile.armor.push({ 
+        id: `soldier-dr-${Date.now()}`, 
+        name: "Armadura de Soldado", 
+        dr: 2, 
+        zone: ["torso", "vitals", "arm", "leg"],
+        notes: "RD Automática por Rank"
+      });
     }
   }
 
@@ -524,6 +647,18 @@ export function buildSheetProfileFromBaseTemplate(template: CharacterTemplate): 
   const ensured = ensureTechniqueLoadout(profile);
   profile.techniques = ensured.techniques;
   profile.combat.loadoutTechniqueIds = ensured.loadout;
+  profile.weapons = normalizeWeapons(profile.weapons);
+
+  // Final encumbrance calculation
+  const totalSlots = calculateTotalSlots(profile);
+  const enc = calculateEncumbrance(profile.attributes.st, totalSlots);
+  profile.derived.encumbranceLevel = enc.level;
+  profile.derived.move = Math.max(1, Math.floor(profile.derived.basicSpeed * enc.moveMult));
+  profile.defenses.dodge = Math.max(3, profile.defenses.dodge - enc.level); // Aplica penalidade de carga na esquiva base
+  if (profile.raw) {
+    (profile.raw as any).slotsUsed = totalSlots;
+  }
+
   return profile;
 }
 
@@ -550,12 +685,31 @@ export function createEmptySheetProfile(input?: {
   const skills = [{ id: "combate", name: "Combate", level: attributes.dx, notes: "" }];
   const weapons = [{
     id: "fists",
-    name: "Maos Nuas",
+    name: "Mãos nuas",
     category: "Natural",
     state: "ready",
     quality: null,
-    rawDamage: "GdP cr",
-    modes: [createWeaponMode({ id: "fists-mode", label: "Golpe", skill: "Briga", rawDamage: "GdP cr", reach: "C,1", parry: "0" })]
+    rawDamage: "GdP-1 cr",
+    modes: [
+      {
+        id: "punch",
+        label: "Soco",
+        skill: "Briga",
+        damage: parseDamageSpec("GdP-1 cr"),
+        reach: "C",
+        parry: "0",
+        tags: ["unarmed"]
+      },
+      {
+        id: "kick",
+        label: "Chute",
+        skill: "Briga",
+        damage: parseDamageSpec("GdP cr"),
+        reach: "C,1",
+        parry: "Não",
+        tags: ["unarmed"]
+      }
+    ]
   }] as CharacterWeaponRecord[];
   
   return {
@@ -579,10 +733,14 @@ export function createEmptySheetProfile(input?: {
       loadoutTechniqueIds: [],
       posture: "standing",
       shock: 0,
+      fatigue: 0,
+      pain: 0,
       bleeding: 0,
       evaluateBonus: 0,
+      loadoutStyleTechniqueIds: [],
       pendingTechniqueSwapId: null,
-      lastTechniqueSwapRound: null
+      lastTechniqueSwapRound: null,
+      pendingSwap: null
     },
     raw: {}
   } as SessionCharacterSheetProfile;
@@ -596,25 +754,76 @@ function parseStyleName(template: CharacterTemplate) {
   return "Combate Geral";
 }
 
-function buildWeaponsFromEquipmentString(
+export function buildWeaponsFromEquipmentString(
   equipment: string,
-  fallbackSkill: string
+  fallbackSkill: string,
+  catalog: any[] = []
 ): CharacterWeaponRecord[] {
   const weaponSegments = equipment.split(/Arma Principal:|Arma Secund[áa]ria:/i).map(e => e.trim()).filter(Boolean);
   
   const getSmartSkill = (weaponName: string, fallback: string): string => {
     const n = weaponName.toLowerCase();
-    if (n.includes("katana") || n.includes("tachi") || n.includes("wakizashi") || n.includes("espada")) return "Kenjutsu";
-    if (n.includes("yari") || n.includes("naginata") || n.includes("bo") || n.includes("bastão") || n.includes("lança")) return "Sojutsu";
-    if (n.includes("tetsubo") || n.includes("kanabo") || n.includes("clava") || n.includes("porrete")) return "Kobujutsu";
-    if (n.includes("ono") || n.includes("machado") || n.includes("mace")) return "Machado/Maça";
-    if (n.includes("yumi") || n.includes("arco")) return "Arqueiria";
-    if (n.includes("shuriken") || n.includes("faca")) return "Arremesso";
-    if (n.includes("kusarigama") || n.includes("corrente")) return "Kusarigamajutsu";
+    if (n.includes("katana") || n.includes("tachi") || n.includes("wakizashi") || n.includes("espada") || n.includes("nagamaki")) return "Kenjutsu";
+    if (n.includes("yari") || n.includes("naginata") || n.includes("bo") || n.includes("bastão") || n.includes("lança") || n.includes("sodegarami")) return "Sojutsu";
+    if (n.includes("tetsubo") || n.includes("kanabo") || n.includes("clava") || n.includes("porrete") || n.includes("tonfa") || n.includes("nunchaku")) return "Kobujutsu";
+    if (n.includes("ono") || n.includes("machado") || n.includes("mace") || n.includes("otsuchi")) return "Machado/Maça";
+    if (n.includes("yumi") || n.includes("arco") || n.includes("daikyu") || n.includes("hankyu")) return "Arqueiria";
+    if (n.includes("shuriken") || n.includes("faca") || n.includes("kunai") || n.includes("uchi-ne") || n.includes("tetsumaru")) return "Arremesso";
+    if (n.includes("kusarigama") || n.includes("corrente") || n.includes("manriki")) return "Kusarigamajutsu";
+    if (n.includes("sai") || n.includes("jitte")) return "Jitte/Sai";
     return fallback;
   };
 
+  const parseWeaponFromCatalog = (segment: string) => {
+    const nameMatch = segment.match(/^(.+?)(?:\s+de\s+Qualidade\s+(Fina|Muito Fina|Boa|Barata))?(?:\||$)/i);
+    let name = nameMatch?.[1]?.trim();
+    const quality = nameMatch?.[2]?.trim() || "Boa";
+    
+    if (!name) return null;
+
+    // Tentar encontrar item exato ou parcial no catálogo
+    const catalogItem = catalog.find(item => 
+      item.category === "Armas" && 
+      (item.name.toLowerCase() === name?.toLowerCase() || 
+       name?.toLowerCase().includes(item.name.toLowerCase()))
+    );
+
+    if (catalogItem) {
+      let rawDamage = catalogItem.stats?.dano || "GdP cr";
+      
+      // Aplicar bônus de qualidade de dano (GURPS: Fina = +1 Corte/Perf, Muito Fina = +2)
+      if (quality.toLowerCase() === "fina" && (rawDamage.includes("cort") || rawDamage.includes("perf") || rawDamage.includes("cut") || rawDamage.includes("imp"))) {
+        rawDamage = rawDamage.replace(/([+-])(\d+)/, (m: string, sign: string, val: string) => `${sign}${Number(val) + 1}`) 
+                   || (rawDamage + "+1");
+      } else if (quality.toLowerCase() === "muito fina" && (rawDamage.includes("cort") || rawDamage.includes("perf") || rawDamage.includes("cut") || rawDamage.includes("imp"))) {
+        rawDamage = rawDamage.replace(/([+-])(\d+)/, (m: string, sign: string, val: string) => `${sign}${Number(val) + 2}`)
+                   || (rawDamage + "+2");
+      }
+
+      return {
+        id: `${slugify(catalogItem.name)}-${Math.random().toString(36).slice(2, 5)}`,
+        name: quality !== "Boa" ? `${catalogItem.name} (${quality})` : catalogItem.name,
+        category: "Arma",
+        state: "ready",
+        quality: quality,
+        rawDamage: rawDamage,
+        modes: [createWeaponMode({ 
+          id: `${slugify(catalogItem.name)}-mode`, 
+          label: "Principal", 
+          skill: getSmartSkill(catalogItem.name, fallbackSkill), 
+          rawDamage: rawDamage,
+          reach: catalogItem.stats?.alcance || "1",
+          parry: catalogItem.stats?.aparar || "0"
+        })]
+      } as CharacterWeaponRecord;
+    }
+    return null;
+  };
+
   return weaponSegments.map((segment, index) => {
+    const catalogWeapon = parseWeaponFromCatalog(segment);
+    if (catalogWeapon) return catalogWeapon;
+
     const nameMatch = segment.match(/^(.+?)(?:\||$)/);
     const damageMatch = segment.match(/Dano:\s*(.+?)(?:\||$)/i);
     const name = nameMatch?.[1]?.trim() ?? "Arma";
@@ -631,7 +840,7 @@ function buildWeaponsFromEquipmentString(
   });
 }
 
-function buildArmorFromEquipmentString(equipment: string): CharacterArmorRecord[] {
+function buildArmorFromEquipmentString(equipment: string, catalog: any[] = []): CharacterArmorRecord[] {
   // Suporta múltiplas armaduras separadas por || ou nova linha
   const segments = equipment.split(/\|\||\n/).map(s => s.trim()).filter(s => s.includes("Armadura:") || s.includes("RD:"));
   
@@ -639,19 +848,96 @@ function buildArmorFromEquipmentString(equipment: string): CharacterArmorRecord[
     const armorMatch = segment.match(/Armadura:\s*(.+?)(?:\||$)/i);
     const drMatch = segment.match(/RD:\s*(.+?)(?:\||$)/i);
     const localMatch = segment.match(/Local:\s*(.+?)(?:\||$)/i);
+
+    const name = armorMatch?.[1]?.trim();
+    if (name && catalog.length > 0) {
+      const catalogItem = catalog.find(item => 
+        (item.category === "Equipamento" || item.category === "Armas") && 
+        item.name.toLowerCase() === name.toLowerCase() &&
+        (!!item.stats?.rd || !!item.stats?.local)
+      );
+
+      if (catalogItem) {
+        const rd = parseInt(catalogItem.stats?.rd || "0", 10);
+        const local = (catalogItem.stats?.local || "torso").toLowerCase();
+        
+        let zones: CombatHitLocationId[] | "all" = "all";
+        if (local.includes("tudo") || local.includes("corpo inteiro")) {
+          zones = "all";
+        } else if (local.includes("cabeça") || local.includes("elmo")) {
+          zones = ["skull", "face"];
+        } else if (local.includes("crânio")) {
+          zones = ["skull"];
+        } else if (local.includes("rosto") || local.includes("máscara")) {
+          zones = ["face"];
+        } else if (local.includes("pescoço")) {
+          zones = ["neck"];
+        } else if (local.includes("braços")) {
+          zones = ["arm"];
+        } else if (local.includes("mãos") || local.includes("manoplas")) {
+          zones = ["hand"];
+        } else if (local.includes("pernas") || local.includes("coxotes")) {
+          zones = ["leg"];
+        } else if (local.includes("pés")) {
+          zones = ["foot"];
+        } else if (local.includes("tronco") || local.includes("peito") || local.includes("corpo")) {
+          zones = ["torso", "vitals"];
+        }
+
+        if (local.includes("+")) {
+           const extra: CombatHitLocationId[] = [];
+           if (local.includes("braços")) extra.push("arm");
+           if (local.includes("pernas")) extra.push("leg");
+           if (local.includes("mãos")) extra.push("hand");
+           if (zones !== "all") {
+             zones = Array.from(new Set([...zones, ...extra])) as CombatHitLocationId[];
+           }
+        }
+
+        return {
+          id: `armadura-${index}-${slugify(catalogItem.name)}`,
+          name: catalogItem.name,
+          zone: zones,
+          dr: rd,
+          notes: ""
+        } as CharacterArmorRecord;
+      }
+    }
     
     if (!armorMatch?.[1] && !drMatch?.[1]) return null;
     
     const drValue = extractNumber(drMatch?.[1] ?? "0", 0);
     const local = (localMatch?.[1] || "corpo").toLowerCase();
+    
     let zones: CombatHitLocationId[] | "all" = "all";
     
-    if (local.includes("cabeça") || local.includes("topo")) zones = ["skull", "face", "eye", "neck"];
-    else if (local.includes("tronco") || local.includes("meio")) zones = ["torso", "vitals"];
-    else if (local.includes("membros") || local.includes("base")) zones = ["arm", "leg", "hand", "foot"];
+    if (local.includes("tudo") || local.includes("corpo inteiro")) {
+      zones = "all";
+    } else {
+      const detectedZones: CombatHitLocationId[] = [];
+      
+      // Mapeamento de termos comuns para hit locations do GURPS
+      if (local.includes("cabeça") || local.includes("elmo") || local.includes("topo")) detectedZones.push("skull", "face");
+      if (local.includes("pescoço") || local.includes("neck")) detectedZones.push("neck");
+      if (local.includes("tronco") || local.includes("peito") || local.includes("meio") || local.includes("corpo")) detectedZones.push("torso");
+      if (local.includes("vitais") || local.includes("vitals")) detectedZones.push("vitals");
+      if (local.includes("braços") || local.includes("braço") || local.includes("arms")) detectedZones.push("arm");
+      if (local.includes("mãos") || local.includes("mão") || local.includes("hands")) detectedZones.push("hand");
+      if (local.includes("pernas") || local.includes("perna") || local.includes("legs")) detectedZones.push("leg");
+      if (local.includes("pés") || local.includes("pé") || local.includes("feet")) detectedZones.push("foot");
+      if (local.includes("olhos") || local.includes("eyes")) detectedZones.push("eye");
+      
+      if (detectedZones.length > 0) {
+        zones = detectedZones;
+      } else if (local.includes("membros")) {
+        zones = ["arm", "leg", "hand", "foot"];
+      } else if (local.includes("base")) {
+        zones = ["leg", "foot"];
+      }
+    }
 
     return { 
-      id: `armadura-${index}`, 
+      id: `armadura-${index}-${slugify(armorMatch?.[1] ?? "item")}`, 
       name: armorMatch?.[1]?.trim() ?? "Armadura", 
       zone: zones, 
       dr: drValue, 
@@ -698,3 +984,4 @@ function ensureTechniqueLoadout(profile: SessionCharacterSheetProfile) {
   const loadout = profile.combat.loadoutTechniqueIds.slice(0, 3);
   return { techniques: profile.techniques, loadout };
 }
+

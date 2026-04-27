@@ -19,6 +19,7 @@ import type {
   SessionCharacterSheetProfile
 } from "@/types/combat";
 import { formatDamageSpec } from "@/lib/combat/sheet-profile";
+import { cn } from "@/lib/utils";
 import { HealthBar } from "./health-bar";
 import { ManeuverCard } from "./maneuver-card";
 import {
@@ -63,7 +64,8 @@ const maneuverMeta: Record<CombatActionType, { label: string; desc: string; requ
   "concentrate": { label: "Concentrar", desc: "Foco em magias ou habilidades.", requiresTarget: false },
   "swap-technique": { label: "Trocar Técnica", desc: "Alternar foco de combate.", requiresTarget: false },
   "quick-contest": { label: "Disputa Rápida", desc: "Confronto direto de atributos.", requiresTarget: true },
-  "regular-contest": { label: "Disputa Regular", desc: "Confronto prolongado.", requiresTarget: true }
+  "regular-contest": { label: "Disputa Regular", desc: "Confronto prolongado.", requiresTarget: true },
+  "clash-simple": { label: "Clash Simples", desc: "Disputa de NH; vencedor acerta. (Custo: 1 PF)", requiresTarget: true },
 };
 
 function getFeintAttribute(actionType: CombatActionType): FeintType | undefined {
@@ -114,7 +116,10 @@ export function PlayerTurnOverlay({
   const [rapidStrike, setRapidStrike] = useState<boolean>(false);
   const [dualWeapon, setDualWeapon] = useState<boolean>(false);
   const [techniqueId, setTechniqueId] = useState<string | null>(null);
-  const [newLoadoutIds, setNewLoadoutIds] = useState<string[]>(profile?.combat?.loadoutTechniqueIds || []);
+  const [newLoadoutIds, setNewLoadoutIds] = useState<string[]>(token.character?.sheetProfile?.combat.loadoutTechniqueIds || []);
+  const [swapType, setSwapType] = useState<"technique" | "style">("technique");
+  const [swapNewId, setSwapNewId] = useState<string | null>(null);
+  const [swapOldId, setSwapOldId] = useState<string | null>(null);
   const [manualToHit, setManualToHit] = useState<number>(0);
   const [manualDamage, setManualDamage] = useState<number>(0);
   const [rangeMeters, setRangeMeters] = useState<number | null>(null);
@@ -128,7 +133,7 @@ export function PlayerTurnOverlay({
   const weaponModes = selectedWeapon?.modes ?? [];
   const selectedMode = weaponModes.find((m: CharacterWeaponMode) => m.id === weaponModeId) || weaponModes[0] || null;
 
-  const isAttackManeuver = selectedManeuver === "attack" || selectedManeuver === "ranged-attack" || selectedManeuver === "all-out-attack";
+  const isAttackManeuver = selectedManeuver === "attack" || selectedManeuver === "ranged-attack" || selectedManeuver === "all-out-attack" || selectedManeuver === "iai-strike" || selectedManeuver === "clash-simple";
 
   const targetToken = useMemo(() => 
     combatState.turnOrder.find(t => t.token.id === targetTokenId),
@@ -175,8 +180,8 @@ export function PlayerTurnOverlay({
     return probMap[nh] || (nh > 16 ? "98.1%+" : "0.5%-");
   }, [attackNH]);
 
-  const { maneuvers: availableManeuverIds, techniques: filteredTechniques } = useMemo(() => {
-    if (!token.character?.sheetProfile) return { maneuvers: [], techniques: [] };
+  const { maneuvers: availableManeuverIds, techniques: filteredTechniques, styleTechniques } = useMemo(() => {
+    if (!token.character?.sheetProfile) return { maneuvers: [], techniques: [], styleTechniques: [] };
     return getAvailableCombatActions(token.character.sheetProfile, weaponId);
   }, [token.character?.sheetProfile, weaponId]);
 
@@ -224,8 +229,8 @@ export function PlayerTurnOverlay({
       actorTokenId: token.token.id,
       targetTokenId,
       actionType: selectedManeuver,
-      weaponId: (isAttackManeuver || selectedManeuver === "iai-strike") ? (weaponId || selectedWeapon?.id || null) : null,
-      weaponModeId: (isAttackManeuver || selectedManeuver === "iai-strike") ? (weaponModeId || selectedMode?.id || null) : null,
+      weaponId: isAttackManeuver ? (weaponId || selectedWeapon?.id || null) : null,
+      weaponModeId: isAttackManeuver ? (weaponModeId || selectedMode?.id || null) : null,
       hitLocation: isAttackManeuver ? hitLocation : "torso",
       allOutVariant: selectedManeuver === "all-out-attack" ? allOutVariant : undefined,
       allOutDefenseVariant: selectedManeuver === "all-out-defense" ? allOutDefenseVariant : undefined,
@@ -233,8 +238,10 @@ export function PlayerTurnOverlay({
       deceptiveLevel: selectedManeuver === "attack" ? deceptiveLevel : 0,
       rapidStrike: selectedManeuver === "attack" ? rapidStrike : false,
       dualWeapon: selectedManeuver === "attack" ? dualWeapon : false,
-      techniqueId,
-      loadoutTechniqueIds: selectedManeuver === "swap-technique" ? newLoadoutIds : undefined,
+      techniqueId: selectedManeuver === "swap-technique" ? swapNewId : techniqueId,
+      replaceTechniqueId: selectedManeuver === "swap-technique" ? swapOldId : undefined,
+      isStyle: selectedManeuver === "swap-technique" ? swapType === "style" : undefined,
+      loadoutTechniqueIds: undefined, // Removido pois agora usamos swap unitário
       waitTrigger: selectedManeuver === "wait" ? (techniqueId || "Ataque por Gatilho") : undefined,
       modifiers: {
         manualToHit,
@@ -374,7 +381,7 @@ export function PlayerTurnOverlay({
                   </div>
                 )}
 
-                {selectedWeapon && (isAttackManeuver || selectedManeuver === "iai-strike") && (
+                {selectedWeapon && isAttackManeuver && (
                   <div className="space-y-4">
                     <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--ink-1)]/30 flex items-center gap-2">
                       <Swords size={12} /> Técnicas Disponíveis (Slots de Memória Muscular)
@@ -405,6 +412,22 @@ export function PlayerTurnOverlay({
                             <p className="text-[10px] opacity-40 leading-tight mt-1">Nível {t.level}</p>
                           </button>
                         ))}
+                      {styleTechniques.map((techName: string) => (
+                        <button
+                          key={techName}
+                          type="button"
+                          onClick={() => setTechniqueId(techName)}
+                          className={`p-4 rounded-2xl border text-left transition-all ${
+                            techniqueId === techName ? "border-[color:var(--gold)]/50 bg-[color:var(--gold)]/10 text-[color:var(--ink-1)]" : "border-[color:var(--border-panel)] bg-[color:var(--bg-input)] text-[color:var(--ink-1)]/30"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="font-bold text-xs uppercase text-[color:var(--gold)]">{techName}</p>
+                            <Zap size={10} className="text-[color:var(--gold)]/40" />
+                          </div>
+                          <p className="text-[10px] opacity-40 leading-tight mt-1">Técnica de Estilo</p>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -564,41 +587,84 @@ export function PlayerTurnOverlay({
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--ink-1)]/30 flex items-center gap-2">
-                        <Sparkles size={12} /> Slots de Memória Muscular ({newLoadoutIds.length}/{filteredTechniques.length > 0 ? filteredTechniques.length : profile?.techniques?.length || 0})
+                        <Sparkles size={12} /> Gestão de Memória Muscular
                       </h3>
-                      <p className="text-[10px] font-bold text-[color:var(--accent)]/50 uppercase">Manobra de Preparação</p>
+                      <p className="text-[10px] font-bold text-[color:var(--accent)]/50 uppercase">Manobra de Concentração</p>
                     </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {(token.character?.sheetProfile?.techniques || []).map((t: any) => {
-                        const isSelected = newLoadoutIds.includes(t.id);
-                        return (
-                          <button
-                            key={t.id}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setNewLoadoutIds(newLoadoutIds.filter(id => id !== t.id));
-                              } else {
-                                // Aqui poderíamos limitar pelo nível de maestria se quisermos forçar na UI
-                                setNewLoadoutIds([...newLoadoutIds, t.id]);
-                              }
-                            }}
-                            className={`p-4 rounded-2xl border text-left transition-all ${
-                              isSelected ? "border-[color:var(--accent)] bg-[color:var(--accent)]/10 text-[color:var(--ink-1)]" : "border-[color:var(--border-panel)] bg-[color:var(--bg-input)] text-[color:var(--ink-1)]/30 hover:border-white/20"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <p className="font-bold text-xs uppercase">{t.name}</p>
-                              {isSelected && <Zap size={14} className="text-[color:var(--accent)] fill-[color:var(--accent)]" />}
-                            </div>
-                            <p className="text-[10px] opacity-40 leading-tight mt-1">Estilo: {t.style}</p>
-                          </button>
-                        );
-                      })}
+
+                    <div className="flex gap-2 p-1 rounded-2xl bg-white/[0.03] border border-white/5">
+                      {(["technique", "style"] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => {
+                            setSwapType(type);
+                            setSwapNewId(null);
+                            setSwapOldId(null);
+                          }}
+                          className={cn(
+                            "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition",
+                            swapType === type ? "bg-[color:var(--accent)]/10 text-[color:var(--accent)] border border-[color:var(--accent)]/20" : "text-[color:var(--ink-1)]/30 hover:text-white"
+                          )}
+                        >
+                          {type === "technique" ? "Manobra (M3)" : "Estilo (Budô)"}
+                        </button>
+                      ))}
                     </div>
-                    <div className="p-4 rounded-2xl bg-[color:var(--bg-input)] border border-[color:var(--border-panel)] text-center">
-                      <p className="text-[10px] text-[color:var(--ink-1)]/40 italic">Ao confirmar, seu turno será usado para "mentalizar" este novo estilo de combate.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-[color:var(--ink-1)]/40">Nova Tecnica</span>
+                        <div className="grid gap-2">
+                          {(swapType === "technique" ? (token.character?.sheetProfile?.techniques || []) : []).map((t: any) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => setSwapNewId(t.id)}
+                              className={cn(
+                                "p-3 rounded-xl border text-left transition-all text-xs uppercase font-bold",
+                                swapNewId === t.id ? "border-[color:var(--accent)] bg-[color:var(--accent)]/10 text-white" : "border-white/5 bg-white/[0.02] text-[color:var(--ink-1)]/30"
+                              )}
+                            >
+                              {t.name}
+                            </button>
+                          ))}
+                          {swapType === "style" && (
+                            <p className="text-[10px] text-[color:var(--ink-1)]/30 italic">Use o painel tatico para ver tecnicas de estilo disponiveis (Catalogo).</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-[color:var(--ink-1)]/40">Substituir</span>
+                        <div className="grid gap-2">
+                          {(swapType === "technique" ? (token.character?.sheetProfile?.combat.loadoutTechniqueIds || []) : (token.character?.sheetProfile?.combat.loadoutStyleTechniqueIds || [])).map((id: string) => (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => setSwapOldId(id)}
+                              className={cn(
+                                "p-3 rounded-xl border text-left transition-all text-xs uppercase font-bold",
+                                swapOldId === id ? "border-rose-500/50 bg-rose-500/10 text-white" : "border-white/5 bg-white/[0.02] text-[color:var(--ink-1)]/30"
+                              )}
+                            >
+                              {swapType === "technique" ? (token.character?.sheetProfile?.techniques.find((t: any) => t.id === id)?.name || id) : id}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-4">
+                      <div className="p-3 rounded-xl bg-amber-500/10 text-amber-500">
+                        <Zap size={20} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-[10px] font-black uppercase text-amber-500 tracking-widest">Manobra de Concentração</p>
+                        <p className="text-[9px] text-amber-500/60 leading-relaxed mt-1">
+                          A troca de postura mental exige foco total. Seu turno será encerrado e você ficará <span className="font-black text-amber-500">SEM DEFESA</span> até o início do seu próximo turno. Qualquer dano recebido pode quebrar seu foco.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -630,7 +696,7 @@ export function PlayerTurnOverlay({
                 )}
 
                 {/* Localização (Apenas se for ataque direto) */}
-                {(isAttackManeuver || selectedManeuver === "iai-strike") && (
+                {isAttackManeuver && (
                   <div className="space-y-4">
                     <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--ink-1)]/30 flex items-center gap-2">
                       <Target size={12} /> Onde atacar?
@@ -747,6 +813,19 @@ export function PlayerTurnOverlay({
                     </div>
                   </div>
                 )}
+                {(selectedManeuver === "clash-simple") && (
+                  <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center gap-3 mb-4">
+                    <Swords size={20} className="text-indigo-400" />
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-indigo-400 tracking-widest">Disputa de Clash</p>
+                      <p className="text-xs text-indigo-200/80">
+                        {selectedManeuver === "clash-simple" 
+                          ? "Disputa rápida de NH. Quem vencer a margem acerta o golpe." 
+                          : "Disputa em 5 etapas. Vencer etapas drena vida e o vencedor final dá um golpe em cheio."}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {selectedManeuver === "wait" && (
                   <div className="space-y-4 mb-4">
                     <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--ink-1)]/30 flex items-center gap-2">
@@ -774,7 +853,7 @@ export function PlayerTurnOverlay({
                     <p className="font-bold text-[color:var(--ink-1)]">{availableTargets.find(t => t.token.id === targetTokenId)?.label}</p>
                   </div>
                 )}
-                {(isAttackManeuver || selectedManeuver === "iai-strike") && currentStep === "details" && (
+                {isAttackManeuver && currentStep === "details" && (
                   <div className="p-4 rounded-2xl bg-[color:var(--accent)]/5 border border-[color:var(--accent)]/10">
                     <p className="text-[10px] font-black uppercase text-[color:var(--accent)]/50 mb-1">Configuração de Ataque</p>
                     <p className="text-sm text-[color:var(--ink-1)]/80">

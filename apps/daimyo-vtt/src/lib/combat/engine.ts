@@ -46,6 +46,7 @@ export interface PreparedAttackPrompt {
   attackRoll: CombatRollRecord;
   canRetreat: boolean;
   canAcrobatic: boolean;
+  defenseLevels?: Record<string, number> | null;
 }
 
 export interface ResolvedCombatExchange {
@@ -930,6 +931,15 @@ function applyDamageToTarget(input: {
   };
   const appliedConditions: string[] = [];
 
+  // GURPS: Se estiver concentrado (ex: trocando tecnica) e receber dano, deve testar Vontade
+  if (input.profile.combat.pendingSwap && input.breakdown.injury > 0) {
+    const conc = checkConcentrationBreak(input.profile, input.breakdown.injury, random);
+    if (conc.broken) {
+      nextProfile.combat.pendingSwap = null;
+      appliedConditions.push("Concentração Interrompida");
+    }
+  }
+
   if (
     input.breakdown.injury > input.profile.attributes.hpMax / 2 ||
     input.forceGraveWound
@@ -1212,14 +1222,28 @@ export function prepareAttackResolution(input: {
   }
 
   if (input.promptPlayerDefense) {
+    const defenseLevels: Record<string, number> = {};
+    defenses.forEach(opt => {
+      defenseLevels[opt] = getDefenseTargetWithModifiers(
+        targetProfile,
+        opt,
+        input.targetState,
+        undefined, // Sem resposta ainda
+        (input.draftAction.deceptiveLevel || 0),
+        random,
+        input.iaiStrike
+      );
+    });
+
     return {
       status: "awaiting-defense",
       draftAction: input.draftAction,
       actorProfile,
       targetProfile,
       prompt: {
-        summary: `${baseSummary} O alvo pode tentar defesa ativa.`,
+        summary: `${baseSummary} O ataque foi bem sucedido (${formatRollResult(attackRoll)}). O alvo pode tentar defesa ativa.`,
         options: defenses,
+        defenseLevels,
         attackRoll,
         canRetreat: defenses.some((option) => option === "dodge" || option === "parry"),
         canAcrobatic: defenses.includes("dodge")
@@ -1273,7 +1297,9 @@ export function finishAttackResolution(input: {
         id: randomId("combat-resolution"),
         createdAt: new Date().toISOString(),
         actorTokenId: input.actor.tokenId,
+        actorName: input.actor.label,
         targetTokenId: input.target.tokenId,
+        targetName: input.target.label,
         actionType: input.draftAction.actionType,
         summary: "Ataque invalido: faltou ficha completa no ator ou no alvo.",
         appliedConditions: []
@@ -1322,7 +1348,9 @@ export function finishAttackResolution(input: {
         id: randomId("combat-resolution"),
         createdAt: new Date().toISOString(),
         actorTokenId: input.actor.tokenId,
+        actorName: input.actor.label,
         targetTokenId: input.target.tokenId,
+        targetName: input.target.label,
         actionType: input.draftAction.actionType,
         summary: `${baseSummary} ${input.target.label} evita o golpe com ${defenseOption}${feverishNote} ${formatRollResult(defenseRoll)}.`,
         attackRoll: input.attackRoll,
@@ -1396,7 +1424,9 @@ export function finishAttackResolution(input: {
       id: randomId("combat-resolution"),
       createdAt: new Date().toISOString(),
       actorTokenId: input.actor.tokenId,
+      actorName: input.actor.label,
       targetTokenId: input.target.tokenId,
+      targetName: input.target.label,
       actionType: input.draftAction.actionType,
       summary: `${summaryParts.join(" ")}${feverishNote} ${formatRollResult(input.attackRoll)}`,
       attackRoll: input.attackRoll,
@@ -1524,29 +1554,17 @@ export function applyTechniqueSwap(input: {
   newTechniqueId: string;
   replaceTechniqueId?: string | null;
   round: number;
+  isStyle?: boolean;
 }) {
-  const known = new Set(input.profile.techniques.map((technique) => technique.id));
-
-  if (!known.has(input.newTechniqueId)) {
-    return input.profile;
-  }
-
-  const currentLoadout = [...input.profile.combat.loadoutTechniqueIds];
-  const replaceIndex = input.replaceTechniqueId
-    ? currentLoadout.findIndex((entry) => entry === input.replaceTechniqueId)
-    : currentLoadout.length - 1;
-  const safeIndex = replaceIndex >= 0 ? replaceIndex : Math.max(0, currentLoadout.length - 1);
-  const nextLoadout = [...currentLoadout];
-
-  nextLoadout[safeIndex] = input.newTechniqueId;
-
   return {
     ...input.profile,
     combat: {
       ...input.profile.combat,
-      loadoutTechniqueIds: [...new Set(nextLoadout)].slice(0, 3),
-      pendingTechniqueSwapId: null,
-      lastTechniqueSwapRound: input.round
+      pendingSwap: {
+        newId: input.newTechniqueId,
+        replaceId: input.replaceTechniqueId ?? null,
+        isStyle: !!input.isStyle
+      }
     }
   } satisfies SessionCharacterSheetProfile;
 }
@@ -1620,7 +1638,9 @@ export function resolveFeint(input: {
         id: randomId("combat-resolution"),
         createdAt: new Date().toISOString(),
         actorTokenId: input.actor.tokenId,
+        actorName: input.actor.label,
         targetTokenId: input.target.tokenId,
+        targetName: input.target.label,
         actionType: input.draftAction.actionType,
         summary: "Finta invalida: ficha incompleta.",
         appliedConditions: []
@@ -1649,7 +1669,9 @@ export function resolveFeint(input: {
       id: randomId("combat-resolution"),
       createdAt: new Date().toISOString(),
       actorTokenId: input.actor.tokenId,
+      actorName: input.actor.label,
       targetTokenId: input.target.tokenId,
+      targetName: input.target.label,
       actionType: input.draftAction.actionType,
       summary,
       contestRolls: { actor: actorRoll, target: targetRoll },
@@ -2097,6 +2119,44 @@ export function applyStartOfTurnEffects(input: {
     summaryParts.push("Shock resetado.");
   }
 
+  if (nextProfile.combat.pendingSwap) {
+    const swap = nextProfile.combat.pendingSwap;
+    if (swap.isStyle) {
+      const currentLoadout = [...nextProfile.combat.loadoutStyleTechniqueIds];
+      const replaceIndex = swap.replaceId ? currentLoadout.indexOf(swap.replaceId) : -1;
+      const safeIndex = replaceIndex >= 0 ? replaceIndex : (currentLoadout.length < 2 ? currentLoadout.length : 0);
+      const nextLoadout = [...currentLoadout];
+      nextLoadout[safeIndex] = swap.newId;
+      
+      nextProfile = {
+        ...nextProfile,
+        combat: {
+          ...nextProfile.combat,
+          loadoutStyleTechniqueIds: [...new Set(nextLoadout.filter(Boolean))].slice(0, 2),
+          pendingSwap: null
+        }
+      };
+      summaryParts.push(`Postura mental alterada: foco na tecnica '${swap.newId}'.`);
+    } else {
+      const currentLoadout = [...nextProfile.combat.loadoutTechniqueIds];
+      const replaceIndex = swap.replaceId ? currentLoadout.indexOf(swap.replaceId) : -1;
+      const safeIndex = replaceIndex >= 0 ? replaceIndex : (currentLoadout.length < 3 ? currentLoadout.length : 2);
+      const nextLoadout = [...currentLoadout];
+      nextLoadout[safeIndex] = swap.newId;
+
+      nextProfile = {
+        ...nextProfile,
+        combat: {
+          ...nextProfile.combat,
+          loadoutTechniqueIds: [...new Set(nextLoadout.filter(Boolean))].slice(0, 3),
+          pendingSwap: null
+        }
+      };
+      const techName = nextProfile.techniques.find(t => t.id === swap.newId)?.name || swap.newId;
+      summaryParts.push(`Postura mental alterada: foco na tecnica '${techName}'.`);
+    }
+  }
+
   if (nextProfile.combat.bleeding > 0) {
     const bleedDmg = nextProfile.combat.bleeding;
     effects.bleedingDamage = bleedDmg;
@@ -2248,9 +2308,13 @@ export function getAvailableCombatActions(
   maneuvers: CombatActionType[];
   techniques: CharacterTechniqueRecord[];
   isIaiPossible: boolean;
+  styleTechniques: string[];
 } {
+  const loadoutIds = profile.combat.loadoutTechniqueIds || [];
+  
+  // Shoden (Level 1) - Always available
   const maneuvers: CombatActionType[] = [
-    "move", "attack", "all-out-defense", "ready", 
+    "clash-simple", "attack", "move", "all-out-defense", "ready", 
     "evaluate", "wait", "do-nothing", "swap-technique"
   ];
 
@@ -2266,34 +2330,35 @@ export function getAvailableCombatActions(
     maneuvers.push("aim");
   }
 
-  // Só permite Ataque Total se tiver arma pronta ou for natural
+  // Chuden/Okuden (Level 2/3) - Only if in loadout
   if (activeWeapon?.state === "ready" || activeWeapon?.category === "Natural") {
     maneuvers.push("all-out-attack");
-    maneuvers.push("feint");
+    if (loadoutIds.includes("m3-feint") || loadoutIds.includes("m3-beat") || loadoutIds.includes("m3-ruse")) {
+       maneuvers.push("feint");
+    }
   }
 
-  // No cenário de Daimyo/GURPS, Iaijutsu é possível se a arma NÃO estiver em punho (state != ready)
-  const isIaiPossible = !!activeWeapon && activeWeapon.state !== "ready" && activeWeapon.category !== "Natural";
-
+  // Iaijutsu requires m3-iai in loadout
+  const isIaiPossible = !!activeWeapon && activeWeapon.state !== "ready" && activeWeapon.category !== "Natural" && loadoutIds.includes("m3-iai");
   if (isIaiPossible) {
     maneuvers.push("iai-strike");
   }
 
-  const skillName = activeWeapon?.modes[0]?.skill || "Briga";
-  const skill = profile.skills.find(s => s.name === skillName);
-  const nh = skill?.level ?? 10;
-  const level = getMaestriaLevel(nh);
-  const maxSlots = getMaxTechniqueSlots(level);
+
+  if (loadoutIds.includes("m2-contest")) {
+    maneuvers.push("quick-contest");
+    maneuvers.push("regular-contest");
+  }
 
   const equippedIds = profile.combat.loadoutTechniqueIds || [];
   const availableTechniques = (profile.techniques || [])
-    .filter(t => equippedIds.includes(t.id))
-    .slice(0, maxSlots);
+    .filter(t => equippedIds.includes(t.id));
 
   return {
     maneuvers,
     techniques: availableTechniques,
-    isIaiPossible
+    isIaiPossible,
+    styleTechniques: profile.combat.loadoutStyleTechniqueIds || []
   };
 }
 
@@ -2342,3 +2407,82 @@ export function resolveIaiStrike(input: {
     actorProfile: nextActorProfile
   };
 }
+
+// ---------------------------------------------------------------------------
+// Clash (Homebrew)
+// ---------------------------------------------------------------------------
+
+export function resolveClashSimple(input: {
+  actor: CombatTokenContext;
+  target: CombatTokenContext;
+  draftAction: CombatDraftAction;
+  random?: () => number;
+}): ResolvedCombatExchange {
+  const random = input.random ?? Math.random;
+  const actorProfile = getProfile(input.actor.character);
+  const targetProfile = getProfile(input.target.character);
+
+  if (!actorProfile || !targetProfile) {
+    throw new Error("Perfis invalidos para o Clash.");
+  }
+
+  // Custo de 1 PF para iniciar o Clash
+  actorProfile.combat.currentFp = Math.max(0, actorProfile.combat.currentFp - 1);
+
+  const actorWeapon = getWeapon(actorProfile, input.draftAction.weaponId);
+  const actorMode = getWeaponMode(actorWeapon, input.draftAction.weaponModeId);
+  const targetWeapon = targetProfile.weapons.find(w => w.state === "ready") || targetProfile.weapons[0];
+  const targetMode = targetWeapon?.modes[0] || null;
+
+  const actorNH = getAttackTarget(actorProfile, input.draftAction, actorMode);
+  // Para o alvo, simulamos uma ação de ataque padrão para pegar o NH
+  const targetDraft: CombatDraftAction = { ...input.draftAction, actorTokenId: input.target.tokenId, targetTokenId: input.actor.tokenId };
+  const targetNH = getAttackTarget(targetProfile, targetDraft, targetMode);
+
+  const actorRoll = buildRollRecord(actorNH, random);
+  const targetRoll = buildRollRecord(targetNH, random);
+
+  const actorWinner = actorRoll.margin > targetRoll.margin;
+  const targetWinner = targetRoll.margin > actorRoll.margin;
+
+  const winner = actorWinner ? input.actor : (targetWinner ? input.target : null);
+  const loser = actorWinner ? input.target : (targetWinner ? input.actor : null);
+  const winnerProfile = actorWinner ? actorProfile : targetProfile;
+  const winnerWeapon = actorWinner ? actorWeapon : targetWeapon;
+  const winnerMode = actorWinner ? actorMode : targetMode;
+  const winnerRoll = actorWinner ? actorRoll : targetRoll;
+
+  if (!winner || !loser) {
+    return {
+      actorProfile,
+      targetProfile,
+      resolution: {
+        id: randomId("clash"),
+        createdAt: new Date().toISOString(),
+        actorTokenId: input.actor.tokenId,
+        actorName: input.actor.label,
+        targetTokenId: input.target.tokenId,
+        targetName: input.target.label,
+        actionType: "clash-simple",
+        summary: `Clash Simples: Empate técnico! Ambas as laminas se chocam sem um vencedor claro. ${input.actor.label} (NH ${actorNH} -> ${actorRoll.total}) vs ${input.target.label} (NH ${targetNH} -> ${targetRoll.total})`,
+        appliedConditions: []
+      }
+    } satisfies ResolvedCombatExchange;
+  }
+
+  // O vencedor faz um ataque direto que o perdedor não pode defender (pois perdeu o clash)
+  return finishAttackResolution({
+    actor: winner,
+    target: loser,
+    draftAction: {
+      ...input.draftAction,
+      actorTokenId: winner.tokenId,
+      targetTokenId: loser.tokenId,
+      weaponId: winnerWeapon?.id || null,
+      weaponModeId: winnerMode?.id || null
+    },
+    attackRoll: winnerRoll,
+    random
+  });
+}
+

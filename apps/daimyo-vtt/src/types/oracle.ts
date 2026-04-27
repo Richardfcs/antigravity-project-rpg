@@ -58,6 +58,12 @@ export interface EnemyStats {
   aparar: number;
   bloqueio: number;
   armas: string;
+  armor?: string;
+  rd?: string;
+  carga?: string;
+  cargaLevel?: number;
+  pesoTotal?: string;
   notas: string;
   isNPC: boolean;
+  loadoutTechniqueIds?: string[];
 }

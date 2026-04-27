@@ -26,7 +26,7 @@ import { HealthBar } from "@/components/combat/health-bar";
 import { CombatTurnQueue } from "@/components/combat/combat-turn-queue";
 import { CombatantStatusCard } from "@/components/combat/combatant-status-card";
 import { suggestNpcManeuver } from "@/lib/combat/ai";
-
+import { getStylesAction } from "@/app/actions/character-actions";
 import { cn } from "@/lib/utils";
 import type {
   TacticalCombatStateView,
@@ -70,36 +70,39 @@ interface TacticalCombatPanelProps {
   onRemoveToken?: (tokenId: string) => void;
   onAdjustResource?: (tokenId: string, resource: "hp" | "fp", delta: number) => void;
   onUpdateResource?: (tokenId: string, resource: "hp" | "fp", value: number) => void;
-  onToggleStatus?: (tokenId: string, status: TokenStatusPreset) => void;
   selectedTokenId?: string | null;
+  sessionCode: string;
   isPending?: boolean;
   pendingKey?: string | null;
+  onToggleStatus?: (tokenId: string, status: TokenStatusPreset) => void;
 }
 
 const actionMeta: Array<{
   id: CombatActionType;
   label: string;
   requiresTarget: boolean;
+  level: number;
   description?: string;
 }> = [
-  { id: "move", label: "mover", requiresTarget: false },
-  { id: "attack", label: "ataque", requiresTarget: true },
-  { id: "ranged-attack", label: "distancia", requiresTarget: true },
-  { id: "all-out-attack", label: "ataque total", requiresTarget: true },
-  { id: "feint", label: "finta", requiresTarget: true },
-  { id: "feint-beat", label: "finta (batida)", requiresTarget: true },
-  { id: "feint-mental", label: "finta (mental)", requiresTarget: true },
-  { id: "aim", label: "mirar", requiresTarget: true },
-  { id: "evaluate", label: "avaliar", requiresTarget: true },
-  { id: "all-out-defense", label: "defesa total", requiresTarget: false },
-  { id: "ready", label: "preparar", requiresTarget: false },
-  { id: "concentrate", label: "concentrar", requiresTarget: false },
-  { id: "wait", label: "esperar", requiresTarget: false },
-  { id: "quick-contest", label: "disputa rapida", requiresTarget: true },
-  { id: "regular-contest", label: "disputa regular", requiresTarget: true },
-  { id: "do-nothing", label: "fazer nada", requiresTarget: false },
-  { id: "swap-technique", label: "trocar tecnica", requiresTarget: false },
-  { id: "iai-strike", label: "iaijutsu", requiresTarget: true }
+  { id: "move", label: "mover", requiresTarget: false, level: 1 },
+  { id: "attack", label: "ataque", requiresTarget: true, level: 1 },
+  { id: "ranged-attack", label: "distancia", requiresTarget: true, level: 1 },
+  { id: "all-out-attack", label: "ataque total", requiresTarget: true, level: 1 },
+  { id: "feint", label: "finta", requiresTarget: true, level: 3 },
+  { id: "feint-beat", label: "finta (batida)", requiresTarget: true, level: 3 },
+  { id: "feint-mental", label: "finta (mental)", requiresTarget: true, level: 3 },
+  { id: "aim", label: "mirar", requiresTarget: true, level: 1 },
+  { id: "evaluate", label: "avaliar", requiresTarget: true, level: 1 },
+  { id: "all-out-defense", label: "defesa total", requiresTarget: false, level: 1 },
+  { id: "ready", label: "preparar", requiresTarget: false, level: 1 },
+  { id: "concentrate", label: "concentrar", requiresTarget: false, level: 1 },
+  { id: "wait", label: "esperar", requiresTarget: false, level: 1 },
+  { id: "quick-contest", label: "disputa rapida", requiresTarget: true, level: 2 },
+  { id: "regular-contest", label: "disputa regular", requiresTarget: true, level: 2 },
+  { id: "do-nothing", label: "fazer nada", requiresTarget: false, level: 1 },
+  { id: "swap-technique", label: "trocar tecnica", requiresTarget: false, level: 1 },
+  { id: "iai-strike", label: "iaijutsu", requiresTarget: true, level: 3 },
+  { id: "clash-simple", label: "clash simples", requiresTarget: true, level: 1 }
 ];
 
 const hitLocationOptions: Array<{ value: CombatHitLocationId; label: string }> = [
@@ -151,7 +154,7 @@ function ToggleChip({
 }
 
 const isAttackManeuver = (type: CombatActionType) =>
-  type === "attack" || type === "ranged-attack" || type === "all-out-attack";
+  type === "attack" || type === "ranged-attack" || type === "all-out-attack" || type === "iai-strike" || type === "clash-simple";
 
 const isRangedManeuver = (type: CombatActionType) =>
   type === "ranged-attack" || type === "aim";
@@ -175,6 +178,7 @@ export function TacticalCombatPanel({
   onUpdateResource,
   onToggleStatus,
   selectedTokenId,
+  sessionCode,
   isPending = false,
   pendingKey = null
 }: TacticalCombatPanelProps) {
@@ -209,6 +213,8 @@ export function TacticalCombatPanel({
     useState<AllOutAttackVariant | AllOutDefenseVariant>("determined");
   const [roundsNeeded, setRoundsNeeded] = useState(2);
   const [feintAttribute, setFeintAttribute] = useState<FeintType>("dx");
+  const [swapType, setSwapType] = useState<"technique" | "style">("technique");
+  const [catalogStyles, setCatalogStyles] = useState<any[]>([]);
   const [aiSuggestion, setAiSuggestion] = useState<{ maneuver: CombatActionType; reason: string } | null>(null);
 
   const availableTargets = useMemo(
@@ -236,6 +242,30 @@ export function TacticalCombatPanel({
   const pendingPrompt = combatFlow?.pendingPrompt ?? null;
   const lastResolution = combatFlow?.lastResolution ?? null;
   const combatLog = combatFlow?.log.slice(-6).reverse() ?? [];
+  const visibleActions = useMemo(() => {
+    return actionMeta.filter(action => {
+      if (action.level === 1) return true;
+      // Map action IDs to Mastery IDs used in the sheet
+      const masteryId = action.id === "feint" ? "m3-feint" : 
+                        action.id === "feint-beat" ? "m3-beat" :
+                        action.id === "feint-mental" ? "m3-ruse" :
+                        action.id === "iai-strike" ? "m3-iai" : action.id;
+      return (actorProfile?.combat.loadoutTechniqueIds ?? []).includes(masteryId);
+    });
+  }, [actorProfile]);
+
+  const styleTechniques = useMemo(() => {
+    return (actorProfile?.combat.loadoutStyleTechniqueIds ?? []);
+  }, [actorProfile]);
+
+  const availableStyleTechs = useMemo(() => {
+    const sName = actorProfile?.style.name;
+    const styleData = catalogStyles.find(s => s.nome === sName);
+    return (styleData?.tecnicas ?? []) as Array<{ nome: string; desc: string }>;
+  }, [catalogStyles, actorProfile?.style.name]);
+
+  const isSwapPending = Boolean(actorProfile?.combat.pendingSwap);
+
   const currentActionMeta =
     actionMeta.find((entry) => entry.id === actionType) ?? actionMeta[0];
 
@@ -287,6 +317,14 @@ export function TacticalCombatPanel({
   }, [selectedWeapon]);
 
   useEffect(() => {
+    if (actionType === "swap-technique" && catalogStyles.length === 0) {
+      getStylesAction({ sessionCode }).then(res => {
+        if (res.ok) setCatalogStyles(res.styles);
+      });
+    }
+  }, [actionType, sessionCode, catalogStyles.length]);
+
+  useEffect(() => {
     const options = pendingPrompt?.payload.options ?? [];
     setPromptDefense(options[0] ?? "none");
     setPromptRetreat(false);
@@ -317,11 +355,12 @@ export function TacticalCombatPanel({
             ? techniqueId
             : loadedTechniques[0]?.id ?? techniqueId,
       replaceTechniqueId: actionType === "swap-technique" ? replaceTechniqueId : null,
-      hitLocation,
+      isStyle: actionType === "swap-technique" ? swapType === "style" : undefined,
+      hitLocation: isAttackManeuver(actionType) ? hitLocation : "torso",
       modifiers: {
         manualToHit: readNumber(manualToHit),
         manualDamage: readNumber(manualDamage),
-        hitLocation,
+        hitLocation: isAttackManeuver(actionType) ? hitLocation : "torso",
         rangeMeters: rangeMeters.trim() ? readNumber(rangeMeters) : null,
         aimTurns: aimTurns.trim() ? readNumber(aimTurns) : null,
         braced,
@@ -627,7 +666,7 @@ export function TacticalCombatPanel({
               )}
 
               <div className="mt-3 flex flex-wrap gap-2">
-                {actionMeta.map((entry) => (
+                {visibleActions.map((entry) => (
                   <ToggleChip
                     key={entry.id}
                     active={entry.id === actionType}
@@ -705,6 +744,19 @@ export function TacticalCombatPanel({
                   </label>
                 )}
 
+                {styleTechniques.length > 0 && isAttackManeuver(actionType) && (
+                  <label className="space-y-1.5 text-sm">
+                    <span className="section-label">tecnica de estilo</span>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {styleTechniques.map((t) => (
+                        <ToggleChip key={t} active={techniqueId === t} onClick={() => setTechniqueId(techniqueId === t ? null : t)}>
+                          {t}
+                        </ToggleChip>
+                      ))}
+                    </div>
+                  </label>
+                )}
+
                 <label className="space-y-1.5 text-sm">
                   <span className="section-label">arma</span>
                   <select
@@ -744,19 +796,54 @@ export function TacticalCombatPanel({
                       Custa o Turno Inteiro — voce nao podera se defender
                     </div>
 
+                    {isSwapPending && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-wide">
+                        <Timer size={12} />
+                        Troca ja agendada para o proximo turno
+                      </div>
+                    )}
+
+                    <div className="flex gap-1 p-1 rounded-2xl bg-white/[0.03] border border-white/5">
+                      {(["technique", "style"] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => {
+                            setSwapType(type);
+                            setTechniqueId(null);
+                            setReplaceTechniqueId(null);
+                          }}
+                          className={cn(
+                            "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition",
+                            swapType === type ? "bg-amber-300/10 text-amber-100 border border-amber-300/20" : "text-[color:var(--ink-3)] hover:text-white"
+                          )}
+                        >
+                          {type === "technique" ? "Manobra" : "Estilo"}
+                        </button>
+                      ))}
+                    </div>
+
                     <label className="space-y-1.5 text-sm">
-                      <span className="section-label">nova tecnica</span>
+                      <span className="section-label">nova {swapType === "technique" ? "tecnica" : "tecnica de estilo"}</span>
                       <select
                         value={techniqueId ?? ""}
                         onChange={(event) => setTechniqueId(event.target.value || null)}
                         className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
                       >
                         <option value="">escolha</option>
-                        {allTechniques.map((technique) => (
-                          <option key={technique.id} value={technique.id}>
-                            {technique.name}
-                          </option>
-                        ))}
+                        {swapType === "technique" ? (
+                          allTechniques.map((technique) => (
+                            <option key={technique.id} value={technique.id}>
+                              {technique.name}
+                            </option>
+                          ))
+                        ) : (
+                          availableStyleTechs.map((tech) => (
+                            <option key={tech.nome} value={tech.nome}>
+                              {tech.nome}
+                            </option>
+                          ))
+                        )}
                       </select>
                     </label>
 
@@ -768,11 +855,19 @@ export function TacticalCombatPanel({
                         className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
                       >
                         <option value="">escolha</option>
-                        {loadedTechniques.map((technique) => (
-                          <option key={technique.id} value={technique.id}>
-                            {technique.name}
-                          </option>
-                        ))}
+                        {swapType === "technique" ? (
+                          loadedTechniques.map((technique) => (
+                            <option key={technique.id} value={technique.id}>
+                              {technique.name}
+                            </option>
+                          ))
+                        ) : (
+                          styleTechniques.map((techId) => (
+                            <option key={techId} value={techId}>
+                              {techId}
+                            </option>
+                          ))
+                        )}
                       </select>
                     </label>
                   </>
@@ -955,14 +1050,50 @@ export function TacticalCombatPanel({
                     "section-label",
                     pendingPrompt.payload.promptKind === "ht-check" ? "text-rose-400" : "text-sky-100"
                   )}>
-                    {pendingPrompt.payload.promptKind === "ht-check" ? "Teste de HT Pendente" : "Defesa pendente"}
+                        {pendingPrompt.payload.promptKind === "ht-check" ? "Teste de HT Pendente" : "Defesa pendente"}
                   </p>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-[color:var(--ink-2)]">
                   {pendingPrompt.payload.summary}
                 </p>
+                {pendingPrompt.payload.promptKind === "defense" && pendingPrompt.payload.defenseLevels && (
+                  <div className="mt-4 overflow-hidden rounded-[20px] bg-gradient-to-br from-amber-200/50 to-amber-500/50 p-[1px]">
+                    <div className="flex items-center justify-between bg-[rgba(20,15,5,0.95)] px-5 py-4 rounded-[19px]">
+                      <div className="space-y-0.5">
+                        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-200/50">NH Efetivo</p>
+                        <span className="text-3xl font-black text-amber-200 tracking-tighter">
+                          NH {(() => {
+                            const baseLevel = pendingPrompt.payload.defenseLevels[promptDefense] || 10;
+                            let finalLevel = baseLevel;
+                            if (promptRetreat) finalLevel += (promptDefense === "dodge" ? 3 : 1);
+                            if (promptFeverish) finalLevel += 2;
+                            return Math.min(16, Math.max(3, finalLevel));
+                          })()}
+                        </span>
+                      </div>
+                      <div className="text-right space-y-0.5">
+                        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-200/50">Probabilidade</p>
+                        <span className="text-3xl font-black text-amber-200 tracking-tighter italic">
+                          {(() => {
+                            const baseLevel = pendingPrompt.payload.defenseLevels[promptDefense] || 10;
+                            let finalLevel = baseLevel;
+                            if (promptRetreat) finalLevel += (promptDefense === "dodge" ? 3 : 1);
+                            if (promptFeverish) finalLevel += 2;
+                            const nh = Math.min(16, Math.max(3, finalLevel));
+                            const probMap: Record<number, string> = {
+                              3: "0.5%", 4: "1.9%", 5: "4.6%", 6: "9.3%", 7: "16.2%", 8: "25.9%", 
+                              9: "37.5%", 10: "50%", 11: "62.5%", 12: "74.1%", 13: "83.8%", 
+                              14: "90.7%", 15: "95.4%", 16: "98.1%"
+                            };
+                            return probMap[nh] || (nh > 16 ? "98.1%" : "0.5%");
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
-                <div className="mt-3 grid gap-3">
+                <div className="mt-4 grid gap-4">
                   {pendingPrompt.payload.promptKind === "ht-check" ? (
                     <button
                       type="button"
@@ -974,50 +1105,55 @@ export function TacticalCombatPanel({
                     </button>
                   ) : (
                     <>
-                      <label className="space-y-1.5 text-sm">
-                        <span className="section-label">assumir defesa</span>
-                        <select
-                          value={promptDefense}
-                          onChange={(event) => setPromptDefense(event.target.value as CombatDefenseOption)}
-                          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
-                        >
-                          {(pendingPrompt.payload.options ?? []).map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {pendingPrompt.payload.canRetreat ? (
-                          <ToggleChip
-                            active={promptRetreat}
-                            onClick={() => setPromptRetreat((current) => !current)}
+                      <div className="space-y-3">
+                        <label className="space-y-1.5 text-[10px] font-black uppercase tracking-widest text-[color:var(--ink-2)]">
+                          Opção de Defesa
+                          <select
+                            value={promptDefense}
+                            onChange={(event) => setPromptDefense(event.target.value as CombatDefenseOption)}
+                            className="mt-1.5 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-white/20"
                           >
-                            recuo
-                          </ToggleChip>
-                        ) : null}
-                        {pendingPrompt.payload.canAcrobatic ? (
+                            {(pendingPrompt.payload.options ?? []).map((option) => (
+                              <option key={option} value={option}>
+                                {option.toUpperCase()}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {pendingPrompt.payload.canRetreat ? (
+                            <ToggleChip
+                              active={promptRetreat}
+                              onClick={() => setPromptRetreat((current) => !current)}
+                            >
+                              recuo (+3)
+                            </ToggleChip>
+                          ) : null}
+                          {pendingPrompt.payload.canAcrobatic ? (
+                            <ToggleChip
+                              active={promptAcrobatic}
+                              onClick={() => setPromptAcrobatic((current) => !current)}
+                            >
+                              acrobatica (+2)
+                            </ToggleChip>
+                          ) : null}
                           <ToggleChip
-                            active={promptAcrobatic}
-                            onClick={() => setPromptAcrobatic((current) => !current)}
+                            active={promptFeverish}
+                            onClick={() => setPromptFeverish((current) => !current)}
                           >
-                            acrobatica
+                            febril (+2)
                           </ToggleChip>
-                        ) : null}
-                        <ToggleChip
-                          active={promptFeverish}
-                          onClick={() => setPromptFeverish((current) => !current)}
-                        >
-                          febril (-1 PF)
-                        </ToggleChip>
+                        </div>
                       </div>
+
                       <button
                         type="button"
                         onClick={handlePromptResolve}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-300/22 bg-sky-300/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-sky-100 transition hover:border-sky-300/34"
+                        className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-sky-500/10 border border-sky-400/20 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-sky-100 transition hover:bg-sky-500/20"
                       >
-                        resolver pelo mestre
+                        <Shield size={14} />
+                        Resolver como Mestre
                       </button>
                     </>
                   )}

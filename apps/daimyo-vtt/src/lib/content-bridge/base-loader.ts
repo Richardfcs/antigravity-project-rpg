@@ -26,6 +26,7 @@ interface BaseCatalog {
   codexEntries: CodexEntry[];
   codexCategories: BaseCodexCategory[];
   equipmentEntries: EquipmentEntry[];
+  styles: any[];
 }
 
 let cachedCatalogPromise: Promise<BaseCatalog> | null = null;
@@ -41,10 +42,10 @@ async function fileExists(filePath: string) {
 
 async function findProjectRoot() {
   const seeds = [
+    path.join(process.cwd(), "apps", "daimyo-vtt"), // Prioriza a pasta da aplicação
     process.cwd(),
     path.resolve("."),
-    path.join(process.cwd(), "apps", "daimyo-vtt"), // Caso esteja rodando da raiz
-    path.join(process.cwd(), "..") // Caso esteja rodando de dentro de apps
+    path.join(process.cwd(), "..") 
   ];
 
   for (const seed of seeds) {
@@ -54,6 +55,7 @@ async function findProjectRoot() {
       const targetFile = path.join(currentPath, "js", "archetypes-db.js");
 
       if (await fileExists(targetFile)) {
+        console.log(`[BaseLoader] Raiz do projeto localizada em: ${currentPath}`);
         return currentPath;
       }
 
@@ -229,10 +231,11 @@ function mapEquipmentEntry(
 
 async function loadBaseCatalogInternal(): Promise<BaseCatalog> {
   const projectRoot = await findProjectRoot();
-  const [archetypeSandbox, librarySandbox, weaponsSandbox] = await Promise.all([
+  const [archetypeSandbox, librarySandbox, weaponsSandbox, stylesSandbox] = await Promise.all([
     executeScript(path.join(projectRoot, "js", "archetypes-db.js")),
     executeScript(path.join(projectRoot, "js", "library-data.js")),
-    executeScript(path.join(projectRoot, "js", "weapons-data.js"))
+    executeScript(path.join(projectRoot, "js", "weapons-data.js")),
+    executeScript(path.join(projectRoot, "js", "styles-data.js"))
   ]);
 
   const archetypeSource = archetypeSandbox as unknown as {
@@ -248,6 +251,7 @@ async function loadBaseCatalogInternal(): Promise<BaseCatalog> {
     };
   }).LibraryManager;
   const weaponsWindow = weaponsSandbox.window as Record<string, unknown[]>;
+  const stylesWindow = stylesSandbox.window as Record<string, unknown[]>;
 
   const codexItems = libraryManager?.getItems?.() ?? [];
   const codexCategories = libraryManager?.getCategories?.() ?? [];
@@ -259,6 +263,9 @@ async function loadBaseCatalogInternal(): Promise<BaseCatalog> {
     : [];
   const gear = Array.isArray(weaponsWindow.gearDB)
     ? (weaponsWindow.gearDB as Record<string, unknown>[])
+    : [];
+  const styles = Array.isArray(stylesWindow.stylesDB)
+    ? (stylesWindow.stylesDB as Record<string, unknown>[])
     : [];
 
   return {
@@ -272,7 +279,8 @@ async function loadBaseCatalogInternal(): Promise<BaseCatalog> {
       ...weapons.map((entry) => mapEquipmentEntry("weapon", entry)),
       ...armors.map((entry) => mapEquipmentEntry("armor", entry)),
       ...gear.map((entry) => mapEquipmentEntry("gear", entry))
-    ]
+    ],
+    styles: styles.length > 0 ? styles : codexItems.filter((item: any) => item.cat === "Budo")
   };
 }
 

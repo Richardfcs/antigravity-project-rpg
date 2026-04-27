@@ -29,7 +29,8 @@ export type CombatActionType =
   | "quick-contest"
   | "regular-contest"
   | "do-nothing"
-  | "iai-strike";
+  | "iai-strike"
+  | "clash-simple";
 
 export type AllOutAttackVariant = "determined" | "strong" | "double" | "long";
 export type AttackVariant = "standard" | "defensive" | "committed" | "deceptive";
@@ -123,6 +124,7 @@ export interface CharacterWeaponRecord {
   rawDamage?: string | null;
   notes?: string;
   modes: CharacterWeaponMode[];
+  weight?: string | null;
 }
 
 export interface CharacterArmorRecord {
@@ -131,6 +133,7 @@ export interface CharacterArmorRecord {
   zone: CombatHitLocationId | CombatHitLocationId[] | "all";
   dr: number;
   notes?: string;
+  weight?: string | null;
 }
 
 export interface CharacterConditionRecord {
@@ -167,6 +170,7 @@ export interface CharacterDefenseProfile {
 export interface CharacterStyleProfile {
   name: string;
   source?: string | null;
+  allStyleTechniques?: string[];
 }
 
 export interface CharacterCombatStateProfile {
@@ -177,12 +181,20 @@ export interface CharacterCombatStateProfile {
   loadoutTechniqueIds: string[];
   posture: CombatPosture;
   shock: number;
+  fatigue: number;
+  pain: number;
   bleeding: number;
   evaluateBonus: number;
   attackVariant?: AttackVariant | null;
   deceptiveLevel?: number;
   pendingTechniqueSwapId?: string | null;
   lastTechniqueSwapRound?: number | null;
+  pendingSwap?: {
+    newId: string;
+    replaceId: string | null;
+    isStyle: boolean;
+  } | null;
+  loadoutStyleTechniqueIds: string[];
 }
 
 export interface SessionCharacterSheetProfile {
@@ -241,6 +253,8 @@ export interface CombatDraftAction {
   feintType?: FeintType | null;
   waitTrigger?: string | null;
   roundsNeeded?: number | null;
+  isStyle?: boolean;
+  isPrivate?: boolean;
 }
 
 export interface CombatRollRecord {
@@ -269,7 +283,9 @@ export interface CombatResolutionRecord {
   id: string;
   createdAt: string;
   actorTokenId: string | null;
+  actorName?: string;
   targetTokenId: string | null;
+  targetName?: string;
   actionType: CombatActionType;
   summary: string;
   attackRoll?: CombatRollRecord | null;
@@ -306,6 +322,7 @@ export interface CombatPromptPayload {
   requestedAt: string;
   expiresAt?: string | null;
   maneuverOptions?: CombatActionType[] | null;
+  defenseLevels?: Record<string, number> | null;
   htCheck?: {
     kind: "consciousness" | "survival";
     targetValue: number;

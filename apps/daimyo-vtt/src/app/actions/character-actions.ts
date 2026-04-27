@@ -31,7 +31,33 @@ export async function setActiveCharacterAction(input: {
       return updateSessionCharacterProfile({
         characterId: c.id,
         sheetProfile: {
-          ...(c.sheetProfile || { version: 1, attributes: { st: 10, dx: 10, iq: 10, ht: 10, hpMax: 10, fpMax: 10, will: 10, per: 10 }, derived: { basicSpeed: 5, move: 5, encumbranceLevel: 0 }, defenses: { dodge: 8, parry: 8, block: 0 }, style: { name: "Básico" }, skills: [], techniques: [], weapons: [], armor: [], notes: [], conditions: [], combat: { currentHp: 10, currentFp: 10, activeWeaponId: null, activeWeaponModeId: null, loadoutTechniqueIds: [], posture: "standing", shock: 0, bleeding: 0, evaluateBonus: 0 } }),
+          ...(c.sheetProfile || { 
+            version: 1, 
+            attributes: { st: 10, dx: 10, iq: 10, ht: 10, hpMax: 10, fpMax: 10, will: 10, per: 10 }, 
+            derived: { basicSpeed: 5, move: 5, encumbranceLevel: 0 }, 
+            defenses: { dodge: 8, parry: 8, block: 0 }, 
+            style: { name: "Básico" }, 
+            skills: [], 
+            techniques: [], 
+            weapons: [], 
+            armor: [], 
+            notes: [], 
+            conditions: [], 
+            combat: { 
+              currentHp: 10, 
+              currentFp: 10, 
+              activeWeaponId: null, 
+              activeWeaponModeId: null, 
+              loadoutTechniqueIds: [], 
+              loadoutStyleTechniqueIds: [],
+              posture: "standing", 
+              shock: 0, 
+              fatigue: 0,
+              pain: 0,
+              bleeding: 0, 
+              evaluateBonus: 0 
+            } 
+          }),
           raw: nextRaw
         }
       });
@@ -400,7 +426,8 @@ export async function applyBaseArchetypeAction(input: {
       throw new Error("Arquétipo não encontrado.");
     }
 
-    const sheetProfile = buildSheetProfileFromBaseTemplate(archetype);
+    const catalog = await loadBaseCatalog();
+    const sheetProfile = buildSheetProfileFromBaseTemplate(archetype, catalog.equipmentEntries);
 
     const updated = await updateSessionCharacterProfile({
       characterId: character.id,
@@ -444,6 +471,22 @@ export async function getArsenalAction(input: {
       ok: false,
       equipment: [],
       message: error instanceof Error ? error.message : "Falha ao carregar arsenal."
+    };
+  }
+}
+
+export async function getStylesAction(input: {
+  sessionCode: string;
+}): Promise<{ ok: boolean; styles: any[]; message?: string }> {
+  try {
+    await requireSessionViewer(input.sessionCode, "gm");
+    const catalog = await loadBaseCatalog();
+    return { ok: true, styles: catalog.styles };
+  } catch (error) {
+    return {
+      ok: false,
+      styles: [],
+      message: error instanceof Error ? error.message : "Falha ao carregar estilos."
     };
   }
 }

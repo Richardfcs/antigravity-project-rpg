@@ -10,7 +10,8 @@ import {
   Brain, 
   Timer, 
   Crosshair,
-  Ban
+  Ban,
+  Swords
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import "@/styles/combat-animations.css";
@@ -44,6 +45,7 @@ const maneuverIcons: Partial<Record<CombatActionType, LucideIcon>> = {
   "quick-contest": Zap,
   "regular-contest": Zap,
   "iai-strike": Zap,
+  "clash-simple": Swords,
   "do-nothing": Ban
 };
 

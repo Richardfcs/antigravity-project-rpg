@@ -9,13 +9,17 @@ import {
   ChevronRight,
   Zap,
   Target,
-  Sparkles
+  Sparkles,
+  MoveRight,
+  Binary
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import "@/styles/combat-animations.css";
 
 interface DefensePromptOverlayProps {
   summary: string;
   options: CombatDefenseOption[];
+  defenseLevels?: Record<string, number> | null;
   canRetreat?: boolean;
   canAcrobatic?: boolean;
   onResolve: (option: CombatDefenseOption, retreat: boolean, acrobatic: boolean, manualModifier: number, feverish: boolean) => void;
@@ -24,6 +28,7 @@ interface DefensePromptOverlayProps {
 export function DefensePromptOverlay({
   summary,
   options,
+  defenseLevels,
   canRetreat,
   canAcrobatic,
   onResolve
@@ -34,83 +39,121 @@ export function DefensePromptOverlay({
   const [feverish, setFeverish] = useState(false);
   const [manualModifier, setManualModifier] = useState(0);
 
-  const getOptionLabel = (opt: CombatDefenseOption) => {
-    switch (opt) {
-      case "dodge": return "Esquiva";
-      case "parry": return "Aparar";
-      case "block": return "Bloqueio";
-      default: return "Nenhuma";
-    }
+  const defenseLabels: Record<string, { label: string; sub: string }> = {
+    dodge: { label: "ESQUIVA", sub: "Baseado em Velocidade Básica." },
+    parry: { label: "APARAR", sub: "Baseado em perícia de combate." },
+    block: { label: "BLOQUEIO", sub: "Uso do escudo equipado." },
+    none: { label: "SEM DEFESA", sub: "Aceitar o golpe sem reagir." }
   };
 
-  const getOptionDesc = (opt: CombatDefenseOption) => {
-    switch (opt) {
-      case "dodge": return "Baseado em Velocidade Básica.";
-      case "parry": return "Baseado em perícia de combate.";
-      case "block": return "Uso do escudo equipado.";
-      default: return "Aceitar o golpe sem defender.";
-    }
-  };
+  const finalNH = (() => {
+    const baseLevel = (defenseLevels as any)?.[selected] || 10;
+    let level = baseLevel + manualModifier;
+    if (retreat) level += (selected === "dodge" ? 3 : 1);
+    if (feverish) level += 2;
+    return Math.min(16, Math.max(3, level));
+  })();
+
+  const finalProb = (() => {
+    const nh = finalNH;
+    const probMap: Record<number, string> = {
+      3: "0.5%", 4: "1.9%", 5: "4.6%", 6: "9.3%", 7: "16.2%", 8: "25.9%", 
+      9: "37.5%", 10: "50%", 11: "62.5%", 12: "74.1%", 13: "83.8%", 
+      14: "90.7%", 15: "95.4%", 16: "98.1%"
+    };
+    return probMap[nh] || (nh > 16 ? "98.1%" : "0.5%");
+  })();
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 combat-overlay-backdrop">
-      <div className="relative w-full max-w-2xl bg-[#0d0d0e] border border-red-500/20 rounded-[32px] shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden flex flex-col combat-defense-alert">
-        {/* Header de Alerta */}
-        <div className="p-8 border-b border-red-500/10 bg-gradient-to-r from-red-500/10 to-transparent flex items-center gap-6">
-          <div className="w-16 h-16 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 backdrop-blur-md bg-black/40">
+      <div className="relative w-full max-w-2xl bg-[rgba(10,10,12,0.98)] border border-white/5 rounded-[40px] shadow-[0_40px_100px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col combat-defense-alert animate-in fade-in zoom-in duration-300">
+        
+        {/* Header - Estilo "Premium" */}
+        <div className="relative flex items-center gap-6 border-b border-white/5 px-8 py-8">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-rose-500/30 bg-rose-500/10 text-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.2)]">
             <ShieldAlert size={32} />
           </div>
           <div>
-            <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Sob Ataque!</h2>
-            <p className="text-red-500/60 font-bold uppercase tracking-widest text-xs mt-1">
-              Escolha sua defesa ativa
-            </p>
+            <h2 className="text-4xl font-black tracking-tighter text-white uppercase italic leading-none">Sob Ataque!</h2>
+            <p className="text-sm font-bold tracking-[0.3em] text-rose-500 uppercase opacity-80 mt-1">Escolha sua defesa ativa</p>
           </div>
         </div>
 
-        <div className="p-8 space-y-8">
-          {/* Resumo do Ataque */}
-          <div className="p-5 rounded-2xl bg-white/5 border border-white/5 flex items-start gap-4">
-            <div className="mt-1 p-2 rounded-lg bg-red-500/10 text-red-400">
-              <Target size={16} />
+        <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh]">
+          {/* Gold Probability Box - Santuário Design */}
+          {options.length > 0 && (
+            <div className="overflow-hidden rounded-[24px] bg-gradient-to-br from-amber-200 to-amber-500 p-[1px] shadow-[0_20px_50px_rgba(245,158,11,0.15)]">
+              <div className="flex items-center justify-between bg-[rgba(20,15,5,0.92)] px-8 py-6 backdrop-blur-md rounded-[23px]">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200/50">Potencial de Defesa</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-5xl font-black text-amber-200 tracking-tighter">
+                      NH {finalNH}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="text-right space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200/50">Probabilidade</p>
+                  <span className="text-5xl font-black text-amber-200 tracking-tighter italic">
+                    {finalProb}
+                  </span>
+                </div>
+              </div>
             </div>
-            <p className="text-sm font-medium text-white/80 leading-relaxed italic">
+          )}
+
+          {/* Resumo do Ataque */}
+          <div className="p-5 rounded-3xl bg-white/[0.03] border border-white/5 flex items-start gap-4">
+            <div className="mt-1 p-2 rounded-xl bg-white/5 text-[color:var(--ink-2)]">
+              <Target size={20} />
+            </div>
+            <p className="text-sm italic leading-relaxed text-[color:var(--ink-2)] opacity-90">
               &quot;{summary}&quot;
             </p>
           </div>
 
           {/* Opções de Defesa */}
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+          <div className="space-y-3">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--ink-2)] flex items-center gap-2">
               <Shield size={12} /> Métodos Disponíveis
             </h3>
-            <div className="grid grid-cols-1 gap-3">
-              {options.map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() => setSelected(opt)}
-                  className={`
-                    p-4 rounded-2xl border text-left flex items-center justify-between transition-all group
-                    ${selected === opt 
-                      ? 'bg-red-500/10 border-red-500/50 text-white' 
-                      : 'bg-white/5 border-white/5 text-white/40 hover:border-white/20'}
-                  `}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`
-                      p-2 rounded-lg transition-colors
-                      ${selected === opt ? 'bg-red-500 text-black' : 'bg-white/5 text-white/20'}
-                    `}>
-                      {opt === "none" ? <Target size={20} /> : <ShieldCheck size={20} />}
+            <div className="grid gap-2.5">
+              {options.map((opt) => {
+                const active = selected === opt;
+                const info = defenseLabels[opt] || { label: opt.toUpperCase(), sub: "" };
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => setSelected(opt)}
+                    className={cn(
+                      "group relative flex items-center gap-4 rounded-[24px] border px-6 py-4 transition-all duration-300",
+                      active 
+                        ? "border-rose-500/40 bg-rose-500/10 shadow-[0_0_20px_rgba(244,63,94,0.05)]" 
+                        : "border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <div className={cn(
+                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-all",
+                      active 
+                        ? "border-rose-500/30 bg-rose-500/20 text-rose-500" 
+                        : "border-white/10 bg-white/5 text-[color:var(--ink-2)] group-hover:text-white"
+                    )}>
+                      {opt === "none" ? <Target size={22} /> : <Shield size={22} className={cn(active && "fill-rose-500/20")} />}
                     </div>
-                    <div>
-                      <p className="font-bold text-sm uppercase tracking-tight">{getOptionLabel(opt)}</p>
-                      <p className="text-[10px] opacity-40 font-medium">{getOptionDesc(opt)}</p>
+                    <div className="text-left">
+                      <p className={cn("text-lg font-black tracking-tight", active ? "text-white" : "text-[color:var(--ink-2)]")}>
+                        {info.label}
+                      </p>
+                      <p className="text-xs text-[color:var(--ink-2)] opacity-50">{info.sub}</p>
                     </div>
-                  </div>
-                  {selected === opt && <ChevronRight size={20} className="text-red-500" />}
-                </button>
-              ))}
+                    <MoveRight className={cn(
+                      "ml-auto h-5 w-5 transition-all",
+                      active ? "text-rose-500 translate-x-0 opacity-100" : "text-white/0 -translate-x-4 opacity-0"
+                    )} />
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -119,61 +162,59 @@ export function DefensePromptOverlay({
             {canRetreat && (
               <button
                 onClick={() => setRetreat(!retreat)}
-                className={`
-                  p-4 rounded-2xl border flex flex-col items-center gap-1 transition-all
-                  ${retreat 
-                    ? 'bg-sky-500/10 border-sky-500/50 text-sky-400' 
-                    : 'bg-white/5 border-white/5 text-white/20 hover:border-white/20'}
-                `}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-2 rounded-[20px] border py-4 transition-all",
+                  retreat ? "border-amber-400/40 bg-amber-400/10 text-amber-400" : "border-white/5 bg-white/[0.02] text-[color:var(--ink-2)] hover:border-white/10"
+                )}
               >
                 <Zap size={16} />
-                <span className="text-[10px] font-black uppercase">Recuar (+3)</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Recuar (+3)</span>
               </button>
             )}
             {canAcrobatic && (
               <button
                 onClick={() => setAcrobatic(!acrobatic)}
-                className={`
-                  p-4 rounded-2xl border flex flex-col items-center gap-1 transition-all
-                  ${acrobatic 
-                    ? 'bg-purple-500/10 border-purple-500/50 text-purple-400' 
-                    : 'bg-white/5 border-white/5 text-white/20 hover:border-white/20'}
-                `}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-2 rounded-[20px] border py-4 transition-all",
+                  acrobatic ? "border-amber-400/40 bg-amber-400/10 text-amber-400" : "border-white/5 bg-white/[0.02] text-[color:var(--ink-2)] hover:border-white/10"
+                )}
               >
                 <Sparkles size={16} />
-                <span className="text-[10px] font-black uppercase">Acrobática (+2)</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Acrobática (+2)</span>
               </button>
             )}
             <button
               onClick={() => setFeverish(!feverish)}
-              className={`
-                p-4 rounded-2xl border flex flex-col items-center gap-1 transition-all
-                ${feverish 
-                  ? 'bg-amber-500/10 border-amber-500/50 text-amber-400' 
-                  : 'bg-white/5 border-white/5 text-white/20 hover:border-white/20'}
-              `}
+              className={cn(
+                "flex flex-col items-center justify-center gap-2 rounded-[20px] border py-4 transition-all",
+                feverish ? "border-amber-400/40 bg-amber-400/10 text-amber-400" : "border-white/5 bg-white/[0.02] text-[color:var(--ink-2)] hover:border-white/10"
+              )}
             >
               <Zap size={16} fill={feverish ? "currentColor" : "none"} />
-              <span className="text-[10px] font-black uppercase">Febril (+2)</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">Febril (+2)</span>
             </button>
-            <div className="bg-white/5 border border-white/5 rounded-2xl p-2 flex flex-col items-center gap-1">
-              <span className="text-[8px] font-black uppercase text-white/20">Manual</span>
-              <input 
-                type="number"
-                value={manualModifier}
-                onChange={(e) => setManualModifier(parseInt(e.target.value) || 0)}
-                className="w-full bg-transparent text-center text-sm font-bold text-white outline-none"
-              />
+            <div className="flex flex-col items-center justify-center gap-1 rounded-[20px] border border-white/5 bg-white/[0.02] py-3 text-[color:var(--ink-2)]">
+              <span className="text-[8px] font-black uppercase tracking-widest opacity-50">Manual</span>
+              <div className="flex items-center gap-2">
+                <Binary size={12} className="opacity-30" />
+                <input 
+                  type="number"
+                  value={manualModifier}
+                  onChange={(e) => setManualModifier(parseInt(e.target.value) || 0)}
+                  className="w-10 bg-transparent text-center text-xl font-black text-white outline-none"
+                />
+              </div>
             </div>
           </div>
 
           {/* Confirmar */}
           <button
             onClick={() => onResolve(selected, retreat, acrobatic, manualModifier, feverish)}
-            className="w-full py-5 rounded-2xl bg-red-500 text-black flex items-center justify-center gap-3 text-sm font-black uppercase tracking-[0.2em] transition-all hover:bg-red-400 hover:scale-[1.02] active:scale-[0.98] shadow-[0_8px_32px_rgba(239,68,68,0.25)] mt-4"
+            className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[24px] bg-rose-500 py-6 text-sm font-black uppercase tracking-[0.3em] text-white shadow-[0_15px_40px_rgba(244,63,94,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98] mt-4"
           >
-            <Shield size={18} fill="currentColor" />
+            <Shield size={20} className="transition-transform group-hover:scale-125" />
             Confirmar Defesa
+            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
           </button>
         </div>
       </div>

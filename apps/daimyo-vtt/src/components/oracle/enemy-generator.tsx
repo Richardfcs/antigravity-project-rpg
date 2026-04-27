@@ -22,8 +22,8 @@ export function EnemyGenerator({ sessionCode }: EnemyGeneratorProps) {
 
   const rollEnemy = () => {
     setIsGenerating(true);
-    setTimeout(() => {
-      const newEnemy = generateEnemy(threat);
+    setTimeout(async () => {
+      const newEnemy = await generateEnemy(threat);
       setEnemy(newEnemy);
       setMonster(null);
       setIsGenerating(false);

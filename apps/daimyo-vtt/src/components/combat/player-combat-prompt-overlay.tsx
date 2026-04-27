@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { LoaderCircle, Shield, Swords } from "lucide-react";
+import { LoaderCircle, Shield, Swords, ShieldAlert, Zap, MoveRight, Sparkles, Binary } from "lucide-react";
 
 import { respondCombatPromptAction } from "@/app/actions/combat-actions";
 import { useImmersiveEventStore } from "@/stores/immersive-event-store";
+import { cn } from "@/lib/utils";
 import type { SessionPrivateEventRecord } from "@/types/immersive-event";
 import type {
   CombatDefenseOption,
@@ -52,6 +53,7 @@ function normalizeCombatPayload(
         ? (payload.actionType as CombatPromptPayload["actionType"])
         : "attack",
     options,
+    defenseLevels: (payload.defenseLevels as Record<string, number>) || null,
     summary: payload.summary,
     attackRoll:
       typeof payload.attackRoll === "object" && payload.attackRoll !== null
@@ -127,126 +129,220 @@ export function PlayerCombatPromptOverlay({
     });
   };
 
+  const defenseLabels: Record<string, { label: string; sub: string }> = {
+    dodge: { label: "ESQUIVA", sub: "Baseado em Velocidade Básica." },
+    parry: { label: "APARAR", sub: "Baseado em perícia de combate." },
+    block: { label: "BLOQUEIO", sub: "Uso do escudo equipado." },
+    none: { label: "SEM DEFESA", sub: "Aceitar o golpe sem reagir." }
+  };
+
+  const finalNH = (() => {
+    const baseLevel = payload.defenseLevels?.[defenseOption] || 10;
+    let level = baseLevel + manualModifier;
+    if (retreat) level += (defenseOption === "dodge" ? 3 : 1);
+    if (feverish) level += 2;
+    return Math.min(16, Math.max(3, level));
+  })();
+
+  const finalProb = (() => {
+    const nh = finalNH;
+    const probMap: Record<number, string> = {
+      3: "0.5%", 4: "1.9%", 5: "4.6%", 6: "9.3%", 7: "16.2%", 8: "25.9%", 
+      9: "37.5%", 10: "50%", 11: "62.5%", 12: "74.1%", 13: "83.8%", 
+      14: "90.7%", 15: "95.4%", 16: "98.1%"
+    };
+    return probMap[nh] || (nh > 16 ? "98.1%" : "0.5%");
+  })();
+
   return (
     <div className="pointer-events-none fixed inset-0 z-[110] flex items-end justify-center p-3 sm:items-center">
-      <div className="pointer-events-auto w-full max-w-2xl rounded-[28px] border border-sky-300/18 bg-[rgba(4,10,18,0.95)] p-5 shadow-[0_28px_90px_rgba(2,6,23,0.58)] backdrop-blur">
-        <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-300/18 bg-sky-300/10 text-sky-100">
-            <Shield size={20} />
+      <div className="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-[40px] border border-white/5 bg-[rgba(10,10,10,0.95)] shadow-[0_40px_100px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+        
+        {/* Header - Estilo "Premium" */}
+        <div className="relative flex items-center gap-5 border-b border-white/5 px-8 py-8">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-rose-500/30 bg-rose-500/10 text-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.2)]">
+            <ShieldAlert size={32} />
           </div>
-          <div className="min-w-0">
-            <p className="section-label text-sky-100">Defesa ativa</p>
-            <h3 className="mt-1 text-xl font-semibold text-white">
-              {heroName ? `${heroName}, reaja ao golpe` : "Escolha sua resposta"}
-            </h3>
-            <p className="mt-2 text-sm leading-7 text-[color:var(--ink-2)]">
-              {payload.summary}
-            </p>
+          <div>
+            <h2 className="text-4xl font-black tracking-tighter text-white uppercase italic">Sob Ataque!</h2>
+            <p className="text-sm font-bold tracking-[0.3em] text-rose-500 uppercase opacity-80">Escolha sua defesa ativa</p>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {payload.attackRoll ? (
-            <span className="hud-chip border-white/10 bg-white/[0.04] text-[color:var(--ink-2)]">
-              <Swords size={14} />
-              ataque {payload.attackRoll.total} / {payload.attackRoll.target}
-            </span>
-          ) : null}
-          {payload.expiresAt ? (
-            <span className="hud-chip border-white/10 bg-black/18 text-[color:var(--ink-2)]">
-              expira em breve
-            </span>
-          ) : null}
-        </div>
+        <div className="px-8 py-6 space-y-6">
+          {/* Summary Box */}
+          <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] p-5">
+            <div className="flex gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5 text-[color:var(--ink-2)]">
+                <Swords size={20} />
+              </div>
+              <p className="text-sm italic leading-relaxed text-[color:var(--ink-2)] opacity-90">
+                {payload.summary}
+              </p>
+            </div>
+          </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+          {/* Gold Probability Box - Santuário Design */}
+          {payload.options.length > 0 && (
+            <div className="overflow-hidden rounded-[24px] bg-gradient-to-br from-amber-200 to-amber-500 p-[1px] shadow-[0_20px_50px_rgba(245,158,11,0.15)]">
+              <div className="flex items-center justify-between bg-[rgba(20,15,5,0.92)] px-8 py-6 backdrop-blur-md rounded-[23px]">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200/50">Potencial de Defesa</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-5xl font-black text-amber-200 tracking-tighter">
+                      NH {(() => {
+                        const dl = payload.defenseLevels as any;
+                        const baseLevel = (dl && typeof dl === "object" ? dl[defenseOption] : null) || 10;
+                        let level = baseLevel + manualModifier;
+                        if (retreat) level += (defenseOption === "dodge" ? 3 : 1);
+                        if (feverish) level += 2;
+                        return Math.min(16, Math.max(3, level));
+                      })()}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="text-right space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200/50">Probabilidade</p>
+                  <span className="text-5xl font-black text-amber-200 tracking-tighter italic">
+                    {(() => {
+                      const dl = payload.defenseLevels as any;
+                      const baseLevel = (dl && typeof dl === "object" ? dl[defenseOption] : null) || 10;
+                      let level = baseLevel + manualModifier;
+                      if (retreat) level += (defenseOption === "dodge" ? 3 : 1);
+                      if (feverish) level += 2;
+                      const nh = Math.min(16, Math.max(3, level));
+                      const probMap: Record<number, string> = {
+                        3: "0.5%", 4: "1.9%", 5: "4.6%", 6: "9.3%", 7: "16.2%", 8: "25.9%", 
+                        9: "37.5%", 10: "50%", 11: "62.5%", 12: "74.1%", 13: "83.8%", 
+                        14: "90.7%", 15: "95.4%", 16: "98.1%"
+                      };
+                      return probMap[nh] || (nh > 16 ? "98.1%" : "0.5%");
+                    })()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Métodos Disponíveis */}
           <div className="space-y-3">
-            <label className="space-y-1.5 text-sm">
-              <span className="section-label">opcao de defesa</span>
-              <select
-                value={defenseOption}
-                onChange={(event) => setDefenseOption(event.target.value as CombatDefenseOption)}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-white/20"
-              >
-                {payload.options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--ink-2)]">
+              <Shield size={12} /> Métodos Disponíveis
+            </p>
+            <div className="grid gap-2.5">
+              {payload.options.map((option) => {
+                const active = defenseOption === option;
+                const info = defenseLabels[option] || { label: option.toUpperCase(), sub: "" };
+                return (
+                  <button
+                    key={option}
+                    onClick={() => setDefenseOption(option)}
+                    className={cn(
+                      "group relative flex items-center gap-4 rounded-[24px] border px-6 py-4 transition-all duration-300",
+                      active 
+                        ? "border-rose-500/40 bg-rose-500/10 shadow-[0_0_20px_rgba(244,63,94,0.05)]" 
+                        : "border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <div className={cn(
+                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-all",
+                      active 
+                        ? "border-rose-500/30 bg-rose-500/20 text-rose-500" 
+                        : "border-white/10 bg-white/5 text-[color:var(--ink-2)] group-hover:text-white"
+                    )}>
+                      <Shield size={22} className={cn(active && "fill-rose-500/20")} />
+                    </div>
+                    <div className="text-left">
+                      <p className={cn("text-lg font-black tracking-tight", active ? "text-white" : "text-[color:var(--ink-2)]")}>
+                        {info.label}
+                      </p>
+                      <p className="text-xs text-[color:var(--ink-2)] opacity-50">{info.sub}</p>
+                    </div>
+                    <MoveRight className={cn(
+                      "ml-auto h-5 w-5 transition-all",
+                      active ? "text-rose-500 translate-x-0 opacity-100" : "text-white/0 -translate-x-4 opacity-0"
+                    )} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-            <div className="flex flex-wrap gap-2">
-              {payload.canRetreat ? (
-                <button
-                  type="button"
-                  onClick={() => setRetreat((current) => !current)}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition ${
-                    retreat
-                      ? "border-amber-300/24 bg-amber-300/12 text-amber-100"
-                      : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
-                  }`}
-                >
-                  recuo
-                </button>
-              ) : null}
-              {payload.canAcrobatic ? (
-                <button
-                  type="button"
-                  onClick={() => setAcrobatic((current) => !current)}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition ${
-                    acrobatic
-                      ? "border-amber-300/24 bg-amber-300/12 text-amber-100"
-                      : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
-                  }`}
-                >
-                  acrobatica
-                </button>
-              ) : null}
+          {/* Opções Extra */}
+          <div className="grid grid-cols-4 gap-3">
+            {payload.canRetreat && (
               <button
                 type="button"
-                onClick={() => setFeverish((current) => !current)}
-                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition ${
-                  feverish
-                    ? "border-amber-300/24 bg-amber-300/12 text-amber-100"
-                    : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20 hover:text-white"
-                }`}
+                onClick={() => setRetreat(!retreat)}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-2 rounded-[20px] border py-4 transition-all",
+                  retreat ? "border-amber-400/40 bg-amber-400/10 text-amber-400" : "border-white/5 bg-white/[0.02] text-[color:var(--ink-2)] hover:border-white/10"
+                )}
               >
-                febril (+2)
+                <Zap size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">Recuar (+3)</span>
               </button>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--ink-2)] focus-within:border-white/20">
-                <span>manual</span>
+            )}
+            {payload.canAcrobatic && (
+              <button
+                type="button"
+                onClick={() => setAcrobatic(!acrobatic)}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-2 rounded-[20px] border py-4 transition-all",
+                  acrobatic ? "border-amber-400/40 bg-amber-400/10 text-amber-400" : "border-white/5 bg-white/[0.02] text-[color:var(--ink-2)] hover:border-white/10"
+                )}
+              >
+                <Sparkles size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">Acrobática (+2)</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setFeverish(!feverish)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-2 rounded-[20px] border py-4 transition-all",
+                feverish ? "border-amber-400/40 bg-amber-400/10 text-amber-400" : "border-white/5 bg-white/[0.02] text-[color:var(--ink-2)] hover:border-white/10"
+              )}
+            >
+              <Zap size={16} />
+              <span className="text-[10px] font-black uppercase tracking-widest">Febril (+2)</span>
+            </button>
+            <div className="flex flex-col items-center justify-center gap-1 rounded-[20px] border border-white/5 bg-white/[0.02] py-3 text-[color:var(--ink-2)]">
+              <span className="text-[8px] font-black uppercase tracking-widest opacity-50">Manual</span>
+              <div className="flex items-center gap-2">
+                <Binary size={12} className="opacity-30" />
                 <input 
                   type="number"
                   value={manualModifier}
                   onChange={(e) => setManualModifier(parseInt(e.target.value) || 0)}
-                  className="w-8 bg-transparent text-white outline-none"
+                  className="w-10 bg-transparent text-center text-xl font-black text-white outline-none"
                 />
               </div>
             </div>
           </div>
 
-          <div className="rounded-[22px] border border-white/10 bg-black/18 p-4">
-            <p className="section-label">Resumo</p>
-            <p className="mt-2 text-sm leading-7 text-[color:var(--ink-2)]">
-              Se voce nao conseguir se defender, o dano sera calculado em seguida
-              com RD, local atingido e efeitos automaticos.
-            </p>
+          {/* Confirm Button */}
+          <button
+            type="button"
+            onClick={handleRespond}
+            disabled={isPending}
+            className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[24px] bg-rose-500 py-6 text-sm font-black uppercase tracking-[0.3em] text-white shadow-[0_15px_40px_rgba(244,63,94,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+          >
+            {isPending ? (
+              <LoaderCircle size={20} className="animate-spin" />
+            ) : (
+              <>
+                <Shield size={20} className="transition-transform group-hover:scale-125" />
+                Confirmar Defesa
+              </>
+            )}
+            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
+          </button>
 
-            <button
-              type="button"
-              onClick={handleRespond}
-              disabled={isPending}
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-sky-300/22 bg-sky-300/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-sky-100 transition hover:border-sky-300/34 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isPending ? <LoaderCircle size={14} className="animate-spin" /> : <Shield size={14} />}
-              confirmar defesa
-            </button>
-
-            {feedback ? (
-              <p className="mt-3 text-xs leading-6 text-rose-100">{feedback}</p>
-            ) : null}
-          </div>
+          {feedback && (
+            <p className="text-center text-xs font-bold text-rose-400 uppercase tracking-widest animate-pulse">{feedback}</p>
+          )}
         </div>
       </div>
     </div>

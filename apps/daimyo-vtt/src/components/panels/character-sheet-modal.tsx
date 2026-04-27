@@ -24,6 +24,8 @@ import {
   EyeOff,
   Eye,
   PlusCircle,
+  Plus,
+  Trash2,
   ShieldAlert
 } from "lucide-react";
 
@@ -34,13 +36,25 @@ import {
   updateCharacterProfileAction, 
   getBaseArchetypesAction, 
   applyBaseArchetypeAction,
-  getArsenalAction
+  getArsenalAction,
+  getStylesAction
 } from "@/app/actions/character-actions";
 import { rollDiceAction } from "@/app/actions/chat-actions";
 import { useCharacterStore } from "@/stores/character-store";
 import { useChatStore } from "@/stores/chat-store";
 import { cn } from "@/lib/utils";
-import { formatDamageSpec, parseDamageSpec } from "@/lib/combat/sheet-profile";
+import { 
+  formatDamageSpec, 
+  parseDamageSpec, 
+  calculateTotalSlots, 
+  getEncumbranceLevelFromSlots,
+  getSlotThresholds
+} from "@/lib/combat/sheet-profile";
+import { 
+  calculateSkillPenalties, 
+  getSkillRollTarget,
+  formatSkillRollSummary 
+} from "@/lib/combat/skill-calculator";
 
 interface CharacterSheetModalProps {
   sessionCode: string;
@@ -66,8 +80,10 @@ export function CharacterSheetModal({
   const [showArchetypeSelector, setShowArchetypeSelector] = useState(false);
   const [archetypeSearch, setArchetypeSearch] = useState("");
   const [equipment, setEquipment] = useState<any[]>([]);
+  const [arsenalCategory, setArsenalCategory] = useState<"Tudo" | "Armas" | "Armaduras" | "Equipamentos">("Tudo");
   const [showArsenalSelector, setShowArsenalSelector] = useState(false);
   const [arsenalSearch, setArsenalSearch] = useState("");
+  const [styles, setStyles] = useState<any[]>([]);
 
   useEffect(() => {
     if (canManage) {
@@ -76,6 +92,9 @@ export function CharacterSheetModal({
       });
       getArsenalAction({ sessionCode }).then(res => {
         if (res.ok) setEquipment(res.equipment);
+      });
+      getStylesAction({ sessionCode }).then(res => {
+        if (res.ok) setStyles(res.styles);
       });
     }
   }, [sessionCode, canManage]);
@@ -100,8 +119,11 @@ export function CharacterSheetModal({
       loadoutTechniqueIds: [],
       posture: "standing",
       shock: 0,
+      fatigue: 0,
+      pain: 0,
       bleeding: 0,
-      evaluateBonus: 0
+      evaluateBonus: 0,
+      loadoutStyleTechniqueIds: []
     },
     raw: {
       totalPoints: 150,
@@ -158,6 +180,18 @@ export function CharacterSheetModal({
   const [draftProfile, setDraftProfile] = useState<SessionCharacterSheetProfile>(
     character.sheetProfile || defaultProfile
   );
+
+  const st = draftProfile.attributes.st;
+  const slotsUsed = calculateTotalSlots(draftProfile);
+  const encumbranceLevel = getEncumbranceLevelFromSlots(slotsUsed, st);
+  const slotThresholds = getSlotThresholds(st);
+
+  // Sincroniza o nível de carga derivado automaticamente
+  useEffect(() => {
+    if (draftProfile.derived.encumbranceLevel !== encumbranceLevel) {
+      updateDerived("encumbranceLevel", String(encumbranceLevel));
+    }
+  }, [slotsUsed, st]);
 
   const updateAttribute = (attr: keyof typeof draftProfile.attributes, value: string) => {
     const num = parseInt(value, 10);
@@ -233,6 +267,31 @@ export function CharacterSheetModal({
       defenses: { ...prev.defenses, [field]: num }
     }));
   };
+
+  const addSkill = () => {
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
+      ...prev,
+      skills: [
+        ...(prev.skills || []),
+        { id: crypto.randomUUID(), name: "", level: 10 }
+      ]
+    }));
+  };
+
+  const updateSkill = (id: string, field: string, value: any) => {
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
+      ...prev,
+      skills: (prev.skills || []).map((s) => (s.id === id ? { ...s, [field]: value } : s))
+    }));
+  };
+
+  const removeSkill = (id: string) => {
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
+      ...prev,
+      skills: (prev.skills || []).filter((s) => s.id !== id)
+    }));
+  };
+
 
   const addWeapon = () => {
     setDraftProfile((prev: SessionCharacterSheetProfile) => ({
@@ -339,12 +398,105 @@ export function CharacterSheetModal({
           quality: stats.custo || "Padrão",
           rawDamage,
           state: "ready",
-          modes
+          modes,
+          weight: stats.peso
         }
       ]
     }));
     setShowArsenalSelector(false);
     setFeedback(`${item.name} adicionado ao arsenal!`);
+    setTimeout(() => setFeedback(null), 3000);
+  };
+
+  const HIT_LOCATIONS = [
+    { id: "skull", label: "Crânio" },
+    { id: "face", label: "Rosto" },
+    { id: "eye", label: "Olhos" },
+    { id: "neck", label: "Pescoço" },
+    { id: "torso", label: "Tronco" },
+    { id: "vitals", label: "Vitais" },
+    { id: "arm", label: "Braços" },
+    { id: "hand", label: "Mãos" },
+    { id: "leg", label: "Pernas" },
+    { id: "foot", label: "Pés" }
+  ];
+
+  const addArmor = () => {
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
+      ...prev,
+      armor: [
+        ...prev.armor,
+        { id: crypto.randomUUID(), name: "", zone: ["torso"], dr: 0 }
+      ]
+    }));
+  };
+
+  const updateArmor = (id: string, field: string, value: any) => {
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
+      ...prev,
+      armor: prev.armor.map((a) => (a.id === id ? { ...a, [field]: value } : a))
+    }));
+  };
+
+  const removeArmor = (id: string) => {
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
+      ...prev,
+      armor: prev.armor.filter((a) => a.id !== id)
+    }));
+  };
+
+  const handleApplyArmor = (item: any) => {
+    const stats = item.stats || {};
+    const rd = parseInt(stats.rd || "0", 10);
+    const local = (stats.local || "torso").toLowerCase();
+    
+    let zones: any[] = ["torso"];
+    if (local.includes("tudo") || local.includes("corpo inteiro")) {
+      zones = ["skull", "face", "neck", "torso", "vitals", "arm", "hand", "leg", "foot"];
+    } else if (local.includes("cabeça") || local.includes("elmo")) {
+      zones = ["skull", "face"];
+    } else if (local.includes("crânio")) {
+      zones = ["skull"];
+    } else if (local.includes("rosto") || local.includes("máscara")) {
+      zones = ["face"];
+    } else if (local.includes("pescoço")) {
+      zones = ["neck"];
+    } else if (local.includes("braços")) {
+      zones = ["arm"];
+    } else if (local.includes("mãos") || local.includes("manoplas")) {
+      zones = ["hand"];
+    } else if (local.includes("pernas") || local.includes("coxotes")) {
+      zones = ["leg"];
+    } else if (local.includes("pés")) {
+      zones = ["foot"];
+    } else if (local.includes("tronco") || local.includes("peito") || local.includes("corpo") || local.includes("couraça")) {
+      zones = ["torso", "vitals"];
+    }
+    
+    // Suporte para múltiplas zonas (ex: "Tronco+Braços")
+    if (local.includes("+")) {
+      const extraZones: any[] = [];
+      if (local.includes("braços")) extraZones.push("arm");
+      if (local.includes("pernas")) extraZones.push("leg");
+      if (local.includes("mãos")) extraZones.push("hand");
+      zones = Array.from(new Set([...zones, ...extraZones]));
+    }
+
+    setDraftProfile((prev: SessionCharacterSheetProfile) => ({
+      ...prev,
+      armor: [
+        ...prev.armor,
+        {
+          id: crypto.randomUUID(),
+          name: item.name,
+          zone: zones,
+          dr: rd,
+          weight: stats.peso
+        }
+      ]
+    }));
+    setShowArsenalSelector(false);
+    setFeedback(`${item.name} adicionado às defesas!`);
     setTimeout(() => setFeedback(null), 3000);
   };
 
@@ -404,20 +556,36 @@ export function CharacterSheetModal({
     });
   };
 
-  const handleQuickRoll = (formula: string, target: number, label: string) => {
+  const handleQuickRoll = (formula: string, target: number, label: string, isSkillRoll: boolean = false) => {
     startTransition(async () => {
+      let finalTarget = target;
+      let modifierDescription = "";
+      
+      if (isSkillRoll) {
+        const choque = draftProfile.combat.shock || 0;
+        const fadiga = draftProfile.combat.fatigue || 0;
+        const dor = draftProfile.combat.pain || 0;
+        
+        const skillInfo = getSkillRollTarget(target, encumbranceLevel, choque, fadiga, dor);
+        finalTarget = skillInfo.target;
+        
+        if (skillInfo.modifier.totalPenalty > 0) {
+          modifierDescription = ` [${skillInfo.modifier.description}]`;
+        }
+      }
+      
       const res = await rollDiceAction({
         sessionCode,
         formula,
-        target,
-        label,
+        target: finalTarget,
+        label: label + modifierDescription,
         isPrivate: isPrivateRoll,
         tokenId
       });
       
       if (res.ok && res.message) {
         upsertMessage(res.message);
-        setFeedback(`Rolagem de ${label} enviada!`);
+        setFeedback(`Rolagem de ${label}${modifierDescription || ""} enviada!`);
         setTimeout(() => setFeedback(null), 2000);
       }
     });
@@ -428,30 +596,10 @@ export function CharacterSheetModal({
 
     setFeedback(null);
     startTransition(async () => {
-      // Sincroniza RD dos campos raw para o array de armor
-      const drTop = parseInt(String(draftProfile.raw?.drTop || "0"), 10);
-      const drMiddle = parseInt(String(draftProfile.raw?.drMiddle || "0"), 10);
-      const drBottom = parseInt(String(draftProfile.raw?.drBottom || "0"), 10);
-
-      const nextArmor = [
-        { id: "dr-top", name: "Proteção Superior", zone: "head", dr: drTop },
-        { id: "dr-face", name: "Proteção Facial", zone: "face", dr: drTop },
-        { id: "dr-neck", name: "Proteção Pescoço", zone: "neck", dr: drTop },
-        { id: "dr-torso", name: "Proteção Tronco", zone: "torso", dr: drMiddle },
-        { id: "dr-vitals", name: "Proteção Vitais", zone: "vitals", dr: drMiddle },
-        { id: "dr-arms", name: "Proteção Braços", zone: "all", dr: drMiddle }, // Simplificado
-        { id: "dr-legs", name: "Proteção Pernas", zone: "all", dr: drBottom }  // Simplificado
-      ].filter(a => a.dr > 0);
-
-      const finalProfile = {
-        ...draftProfile,
-        armor: nextArmor as any
-      };
-
       const result = await updateCharacterProfileAction({
         sessionCode,
         characterId: character.id,
-        sheetProfile: finalProfile
+        sheetProfile: draftProfile
       });
 
       if (result.ok && result.character) {
@@ -474,7 +622,6 @@ export function CharacterSheetModal({
     return typeof val === "number" ? val : fallback;
   };
 
-  const st = draftProfile.attributes.st || 10;
   const dmg = {
     gdp: formatDamageSpec({ base: "thrust", dice: 0, adds: 0, raw: "GdP", damageType: "cr" }, st),
     geb: formatDamageSpec({ base: "swing", dice: 0, adds: 0, raw: "GeB", damageType: "cr" }, st)
@@ -814,7 +961,7 @@ export function CharacterSheetModal({
                       <div className="flex flex-col">
                         <input 
                           type="number" 
-                          value={draftProfile.combat.currentHp} 
+                          value={draftProfile.combat.currentHp ?? 0} 
                           onChange={(e) => updateCombat("currentHp", parseInt(e.target.value, 10))}
                           className="w-24 bg-transparent text-center text-5xl font-black text-[color:var(--text-primary)] outline-none"
                         />
@@ -840,7 +987,7 @@ export function CharacterSheetModal({
                       <div className="flex flex-col">
                         <input 
                           type="number" 
-                          value={draftProfile.combat.currentFp} 
+                          value={draftProfile.combat.currentFp ?? 0} 
                           onChange={(e) => updateCombat("currentFp", parseInt(e.target.value, 10))}
                           className="w-24 bg-transparent text-center text-5xl font-black text-[color:var(--text-primary)] outline-none"
                         />
@@ -872,36 +1019,6 @@ export function CharacterSheetModal({
                   </div>
                 </div>
 
-                {/* Proteção (RD) */}
-                <section className="rounded-[40px] border border-[color:var(--gold)]/10 bg-[color:var(--mist)] p-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="h-10 w-10 rounded-2xl bg-[color:var(--gold)]/10 flex items-center justify-center text-[color:var(--gold)] border border-[color:var(--gold)]/20">
-                      <Shield size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Proteção & RD</h4>
-                      <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Resistência a Danos por Zona</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    {[
-                      { key: "drTop", label: "Topo", desc: "Cabeça/Pescoço" },
-                      { key: "drMiddle", label: "Meio", desc: "Torso/Vitais" },
-                      { key: "drBottom", label: "Base", desc: "Membros" }
-                    ].map((dr) => (
-                      <div key={dr.key} className="rounded-2xl bg-[var(--bg-input)] border border-[var(--border-panel)] p-4 flex flex-col items-center">
-                        <span className="text-[8px] font-black text-[color:var(--text-muted)] uppercase tracking-widest mb-1">{dr.label}</span>
-                        <input 
-                          type="number" 
-                          value={getRawNumber(dr.key) as any} 
-                          onChange={(e) => updateRaw(dr.key, parseInt(e.target.value, 10) || 0)} 
-                          className="w-full bg-transparent text-center text-2xl font-black text-[color:var(--text-primary)] outline-none"
-                        />
-                        <span className="text-[7px] font-bold text-[color:var(--text-muted)] uppercase mt-1">{dr.desc}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
 
                 {/* Condições Temporárias */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -920,36 +1037,118 @@ export function CharacterSheetModal({
                       <div className="flex items-center gap-4">
                         <input 
                           type="range" min="0" max="4" step="1"
-                          value={draftProfile.combat.shock}
+                          value={draftProfile.combat.shock ?? 0}
                           onChange={(e) => updateCombat("shock", parseInt(e.target.value, 10))}
                           className="w-32 accent-rose-500"
                         />
                         <span className="w-8 text-center text-xl font-black text-rose-500">-{draftProfile.combat.shock}</span>
                       </div>
                     </div>
+                    
+                    <div className="flex items-center justify-between bg-[var(--bg-input)] p-4 rounded-2xl border border-[var(--border-panel)]">
+                      <span className="text-[10px] font-black text-[color:var(--text-muted)] uppercase">Penalidade de Fadiga</span>
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="range" min="0" max="6" step="1"
+                          value={draftProfile.combat.fatigue ?? 0}
+                          onChange={(e) => updateCombat("fatigue", parseInt(e.target.value, 10))}
+                          className="w-32 accent-amber-500"
+                        />
+                        <span className="w-8 text-center text-xl font-black text-amber-500">-{draftProfile.combat.fatigue}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between bg-[var(--bg-input)] p-4 rounded-2xl border border-[var(--border-panel)]">
+                      <span className="text-[10px] font-black text-[color:var(--text-muted)] uppercase">Penalidade de Dor</span>
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="range" min="0" max="6" step="1"
+                          value={draftProfile.combat.pain ?? 0}
+                          onChange={(e) => updateCombat("pain", parseInt(e.target.value, 10))}
+                          className="w-32 accent-purple-500"
+                        />
+                        <span className="w-8 text-center text-xl font-black text-purple-500">-{draftProfile.combat.pain}</span>
+                      </div>
+                    </div>
                   </section>
 
                   <section className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="h-10 w-10 rounded-2xl bg-sky-500/10 flex items-center justify-center text-sky-500 border border-sky-500/20">
-                        <Dumbbell size={20} />
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                          <Package size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Inventário por Slots</h4>
+                          <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Capacidade Base: {st} Slots (1x ST)</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Nível de Carga</h4>
-                        <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Afeta Deslocamento e Esquiva</p>
+                      <div className="text-right">
+                        <span className={cn(
+                          "text-xl font-black",
+                          slotsUsed > st ? "text-rose-500" : "text-emerald-500"
+                        )}>
+                          {slotsUsed}
+                        </span>
+                        <span className="text-xs font-bold text-[color:var(--text-muted)]"> / {st}</span>
                       </div>
                     </div>
-                    <select
-                      value={draftProfile.derived.encumbranceLevel}
-                      onChange={(e) => updateDerived("encumbranceLevel", e.target.value)}
-                      className="w-full rounded-2xl bg-[var(--bg-input)] border border-[var(--border-panel)] p-4 text-xs font-bold text-[color:var(--text-primary)] outline-none focus:border-sky-500/40"
-                    >
-                      <option value="0">Nenhuma (x1.0)</option>
-                      <option value="1">Leve (x0.8, -1 Esquiva)</option>
-                      <option value="2">Média (x0.6, -2 Esquiva)</option>
-                      <option value="3">Pesada (x0.4, -3 Esquiva)</option>
-                      <option value="4">Mto. Pesada (x0.2, -4 Esquiva)</option>
-                    </select>
+
+                    <div className="space-y-2">
+                      {slotThresholds.map((t) => {
+                        const isActive = encumbranceLevel === t.level;
+                        const isExceeded = slotsUsed > t.limit;
+                        
+                        return (
+                          <div 
+                            key={t.level}
+                            className={cn(
+                              "flex items-center justify-between px-4 py-2.5 rounded-2xl border transition-all",
+                              isActive 
+                                ? "bg-[color:var(--gold)]/10 border-[color:var(--gold)]/40 shadow-inner" 
+                                : isExceeded 
+                                  ? "bg-rose-500/5 border-rose-500/10 opacity-40" 
+                                  : "bg-[var(--bg-input)] border-[var(--border-panel)] opacity-60"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                isActive ? "bg-[color:var(--gold)] animate-pulse" : "bg-[color:var(--text-muted)]"
+                              )} />
+                              <span className={cn(
+                                "text-[10px] font-black uppercase tracking-widest",
+                                isActive ? "text-[color:var(--gold)]" : "text-[color:var(--text-muted)]"
+                              )}>
+                                {t.label}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span className="text-[9px] font-bold text-[color:var(--text-muted)]">
+                                Até {t.limit} Slots
+                              </span>
+                              <div className="flex gap-2">
+                                <span className={cn(
+                                  "text-[9px] font-black px-2 py-0.5 rounded bg-black/20",
+                                  isActive ? "text-[color:var(--gold)]" : "text-[color:var(--text-muted)]"
+                                )}>
+                                  {Math.round(t.move * 100)}% Mov
+                                </span>
+                                {t.dodge !== 0 && (
+                                  <span className="text-[9px] font-black px-2 py-0.5 rounded bg-rose-500/20 text-rose-400">
+                                    {t.dodge} Esq
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <p className="mt-6 text-[9px] text-[color:var(--text-muted)] leading-relaxed italic border-t border-[var(--border-panel)] pt-4">
+                      * Itens abaixo de 0.5kg não ocupam slots. Pesos são arredondados para cima (1.5kg = 2 slots).
+                    </p>
                   </section>
                 </div>
 
@@ -1068,6 +1267,80 @@ export function CharacterSheetModal({
                       );
                     })}
                   </div>
+
+                  <div className="h-px bg-sky-500/10 my-8" />
+
+                  {/* Estilo de Luta e Técnicas Exclusivas */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-[10px] font-black text-[color:var(--gold)] uppercase tracking-widest">Maestria de Estilo (Budô)</span>
+                      <div className="h-px flex-1 bg-[color:var(--gold)]/10" />
+                      <span className="text-[8px] font-bold text-[color:var(--text-muted)] uppercase">2 Técnicas de Estilo</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* Seletor de Estilo */}
+                      <div className="relative group sm:col-span-1">
+                        <select
+                          value={draftProfile.style.name}
+                          onChange={(e) => {
+                            setDraftProfile(prev => ({
+                              ...prev,
+                              style: { ...prev.style, name: e.target.value },
+                              combat: { ...prev.combat, loadoutStyleTechniqueIds: [] } // Reseta técnicas ao mudar estilo
+                            }));
+                          }}
+                          className="w-full appearance-none rounded-2xl border border-[color:var(--gold)]/20 bg-[var(--bg-input)] px-4 py-4 text-xs font-bold text-[color:var(--gold)] outline-none focus:border-[color:var(--gold)]/60 transition-all cursor-pointer"
+                        >
+                          <option value="Básico">-- Selecionar Estilo --</option>
+                          {styles.map(s => (
+                            <option key={s.id} value={s.nome}>{s.nome}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--gold)] pointer-events-none opacity-40" />
+                        <div className="mt-2 text-[8px] font-black uppercase tracking-widest text-[color:var(--gold)]/40 text-center">
+                          ESTILO ATIVO
+                        </div>
+                      </div>
+
+                      {/* Slots de Técnica do Estilo */}
+                      {[0, 1].map((slotIdx) => {
+                        const selectedTechId = draftProfile.combat.loadoutStyleTechniqueIds?.[slotIdx];
+                        const currentStyleData = styles.find(s => s.nome === draftProfile.style.name);
+                        const availableTechs = currentStyleData?.tecnicas || [];
+
+                        return (
+                          <div key={slotIdx} className="relative group">
+                            <select
+                              value={selectedTechId || ""}
+                              onChange={(e) => {
+                                const nextTechs = [...(draftProfile.combat.loadoutStyleTechniqueIds || [])];
+                                nextTechs[slotIdx] = e.target.value;
+                                updateCombat("loadoutStyleTechniqueIds", nextTechs.filter(Boolean));
+                              }}
+                              disabled={!currentStyleData}
+                              className="w-full appearance-none rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-4 text-xs font-bold text-[color:var(--text-primary)] outline-none focus:border-sky-500/40 transition-all cursor-pointer disabled:opacity-30"
+                            >
+                              <option value="">-- Técnica {slotIdx + 1} --</option>
+                              {availableTechs.map((t: any) => {
+                                const isSelectedElsewhere = (draftProfile.combat.loadoutStyleTechniqueIds || []).includes(t.nome) && selectedTechId !== t.nome;
+                                return (
+                                  <option key={t.nome} value={t.nome} disabled={isSelectedElsewhere}>
+                                    {t.nome} {isSelectedElsewhere ? "[EM USO]" : ""}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)] pointer-events-none opacity-40" />
+                            <div className="mt-2 text-[8px] font-black uppercase tracking-widest text-[color:var(--text-muted)] text-center">
+                              TÉCNICA {slotIdx + 1}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="mt-6 flex items-center justify-center gap-2 rounded-2xl bg-[color:var(--mist)] p-4 border border-[color:var(--gold)]/10">
                     <RotateCcw size={14} className="text-[color:var(--gold)]" />
                     <p className="text-[9px] font-bold text-[color:var(--gold)]/60 uppercase tracking-widest">A troca de postura mental gasta 1 turno de concentração</p>
@@ -1117,79 +1390,167 @@ export function CharacterSheetModal({
                           <Swords size={20} />
                         </div>
                         <div>
-                          <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Arsenal de Armas</h4>
-                          <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Armas prontas para combate</p>
+                          <h4 className="text-sm font-black uppercase tracking-widest text-[color:var(--text-primary)]">Arsenal de Combate</h4>
+                          <p className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase tracking-tighter">Armas e Armaduras prontas para uso</p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => setShowArsenalSelector(!showArsenalSelector)}
-                          className="rounded-2xl bg-[var(--bg-input)] px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)] transition hover:text-[color:var(--text-primary)] border border-[var(--border-panel)]"
-                        >
-                          {showArsenalSelector ? "Fechar Arsenal" : "Consultar Codex"}
-                        </button>
-                        {canManage && (
-                          <button onClick={addWeapon} className="rounded-2xl bg-[color:var(--gold)] px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-[color:var(--bg-deep)] transition hover:opacity-90 active:scale-95 shadow-lg shadow-[color:var(--gold)]/20">
-                            Novo Registro
+                      <div className="flex flex-col sm:flex-row gap-4 w-full sm:items-center">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" size={16} />
+                          <input 
+                            type="text" 
+                            value={arsenalSearch}
+                            onChange={(e) => {
+                              setArsenalSearch(e.target.value);
+                              if (!showArsenalSelector) setShowArsenalSelector(true);
+                            }}
+                            onFocus={() => setShowArsenalSelector(true)}
+                            placeholder="Buscar no Codex (Katana, O-Yoroi, Shuriken...)" 
+                            className="w-full rounded-2xl bg-[var(--bg-input)] border border-[var(--border-panel)] py-3 pl-12 pr-6 text-xs text-[color:var(--text-primary)] outline-none focus:border-[color:var(--gold)]/40 transition-all focus:ring-1 focus:ring-[color:var(--gold)]/20"
+                          />
+                        </div>
+
+                        <div className="flex bg-[var(--bg-input)] p-1 rounded-2xl border border-[var(--border-panel)]">
+                          {(["Tudo", "Armas", "Armaduras", "Equipamentos"] as const).map((cat) => (
+                            <button
+                              key={cat}
+                              onClick={() => {
+                                setArsenalCategory(cat);
+                                setShowArsenalSelector(true);
+                              }}
+                              className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                                arsenalCategory === cat 
+                                  ? "bg-[color:var(--gold)] text-[color:var(--bg-panel)] shadow-lg shadow-[color:var(--gold)]/10" 
+                                  : "text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
+                              }`}
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+
+                        {showArsenalSelector && (
+                          <button 
+                            onClick={() => { setShowArsenalSelector(false); setArsenalSearch(""); }}
+                            className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 transition-colors px-2"
+                          >
+                            Fechar
                           </button>
                         )}
                       </div>
                     </div>
 
                     {showArsenalSelector && (
-                      <div className="mb-8 rounded-[32px] border border-[color:var(--gold)]/20 bg-[color:var(--mist)] p-6 animate-in zoom-in-95 duration-300">
-                        <div className="relative mb-6">
-                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" size={18} />
-                          <input 
-                            type="text" 
-                            value={arsenalSearch}
-                            onChange={(e) => setArsenalSearch(e.target.value)}
-                            placeholder="Buscar no Codex Arsenal (ex: Katana, Yari, Naginata...)" 
-                            className="w-full rounded-2xl bg-[var(--bg-input)] border border-[var(--border-panel)] py-4 pl-12 pr-6 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--gold)]/40"
-                          />
+                      <div className="mb-8 rounded-[32px] border border-[color:var(--gold)]/30 bg-[color:var(--mist)] p-6 shadow-2xl shadow-black/40 animate-in fade-in slide-in-from-top-4 duration-300 overflow-hidden relative">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[color:var(--gold)]/40 to-transparent" />
+                        
+                        <div className="flex items-center justify-between mb-4 px-2">
+                          <span className="text-[10px] font-bold text-[color:var(--gold)]/60 uppercase tracking-widest">
+                            {arsenalSearch ? `Resultados para "${arsenalSearch}"` : `Catálogo: ${arsenalCategory}`}
+                          </span>
+                          <span className="text-[10px] text-[color:var(--text-muted)]">
+                            {equipment.filter((item: any) => {
+                              const matchesSearch = item.name.toLowerCase().includes(arsenalSearch.toLowerCase());
+                              const matchesCat = arsenalCategory === "Tudo" || item.category === arsenalCategory;
+                              return matchesSearch && matchesCat;
+                            }).length} itens encontrados
+                          </span>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[320px] overflow-y-auto custom-scrollbar pr-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[360px] overflow-y-auto custom-scrollbar pr-2">
                           {equipment
-                            .filter((item: any) => 
-                              item.category === "Armas" && 
-                              item.name.toLowerCase().includes(arsenalSearch.toLowerCase())
-                            )
-                            .map((item: any) => (
-                              <button
-                                key={item.id}
-                                onClick={() => handleApplyWeapon(item)}
-                                className="group flex items-center justify-between gap-4 rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-panel)] p-4 transition hover:border-[color:var(--gold)]/40 hover:bg-[color:var(--mist)]"
-                              >
-                                <div className="text-left">
-                                  <h5 className="text-[10px] font-black text-[color:var(--text-primary)] uppercase tracking-tight">{item.name}</h5>
-                                  <p className="text-[9px] font-bold text-[color:var(--gold)]">{item.stats.dano}</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <div className="text-right">
-                                    <span className="text-[8px] font-black text-[color:var(--text-muted)] block uppercase">Alcance</span>
-                                    <span className="text-[10px] font-bold text-[color:var(--text-secondary)]">{item.stats.alcance}</span>
+                            .filter((item: any) => {
+                              const matchesSearch = item.name.toLowerCase().includes(arsenalSearch.toLowerCase());
+                              const matchesCat = arsenalCategory === "Tudo" || item.category === arsenalCategory;
+                              return matchesSearch && matchesCat;
+                            })
+                            .map((item: any) => {
+                              const isArmor = item.category === "Armaduras" || !!item.stats?.rd;
+                              const isWeapon = item.category === "Armas";
+                              
+                              return (
+                                <button
+                                  key={item.id}
+                                  onClick={() => {
+                                    if (isWeapon) handleApplyWeapon(item);
+                                    else if (isArmor) handleApplyArmor(item);
+                                    else {
+                                      setDraftProfile((prev: any) => ({
+                                        ...prev,
+                                        notes: [...(prev.notes || []), `${item.name}: ${item.stats?.efeito || item.stats?.notas || ""}`]
+                                      }));
+                                      setFeedback(`${item.name} adicionado às notas!`);
+                                      setTimeout(() => setFeedback(null), 3000);
+                                    }
+                                  }}
+                                  className="group relative flex flex-col items-start p-4 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border-panel)] transition-all hover:border-[color:var(--gold)]/40 hover:bg-[color:var(--mist)] hover:shadow-lg text-left"
+                                >
+                                  <div className="flex items-center justify-between w-full mb-1">
+                                    <span className="text-xs font-black text-[color:var(--text-primary)] group-hover:text-[color:var(--gold)] transition-colors">
+                                      {item.name}
+                                    </span>
+                                    {isWeapon ? <Swords size={12} className="text-sky-400/50" /> : isArmor ? <Shield size={12} className="text-emerald-400/50" /> : <Package size={12} className="text-amber-400/50" />}
                                   </div>
-                                  <PlusCircle size={16} className="text-[color:var(--gold)] opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </div>
-                              </button>
-                            ))}
+                                  
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {isWeapon && (
+                                      <>
+                                        <span className="text-[8px] bg-sky-500/10 text-sky-400 px-1.5 py-0.5 rounded border border-sky-500/20">{item.stats?.dano}</span>
+                                        <span className="text-[8px] bg-white/5 text-[color:var(--text-muted)] px-1.5 py-0.5 rounded">Alc {item.stats?.alcance}</span>
+                                      </>
+                                    )}
+                                    {isArmor && (
+                                      <>
+                                        <span className="text-[8px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">RD {item.stats?.rd}</span>
+                                        <span className="text-[8px] bg-white/5 text-[color:var(--text-muted)] px-1.5 py-0.5 rounded">{item.stats?.local}</span>
+                                      </>
+                                    )}
+                                    <div className="flex items-center gap-3 ml-auto bg-amber-500/5 px-2 py-0.5 rounded-lg border border-amber-500/10">
+                                      <div className="flex flex-col items-end">
+                                        <span className="text-[8px] text-amber-500 font-black uppercase leading-none">{item.stats?.peso || "-"}</span>
+                                        <span className="text-[6px] text-amber-500/60 font-bold uppercase tracking-tighter">Peso</span>
+                                      </div>
+                                      <div className="w-px h-4 bg-amber-500/20" />
+                                      <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-amber-500 font-black leading-none">{item.stats?.peso ? Math.ceil(parseFloat(item.stats.peso)) : 0}</span>
+                                        <span className="text-[6px] text-amber-500/60 font-bold uppercase tracking-tighter">Slots</span>
+                                      </div>
+                                      <div className="w-px h-4 bg-amber-500/20" />
+                                      <span className="text-[9px] text-[color:var(--text-muted)] italic opacity-60 font-black">{item.stats?.custo || "-"}</span>
+                                    </div>
+                                  </div>
+
+                                  {item.stats?.notas && (
+                                    <p className="text-[9px] text-[color:var(--text-muted)] mt-2 line-clamp-1 group-hover:line-clamp-none transition-all">
+                                      {item.stats.notas}
+                                    </p>
+                                  )}
+
+                                  <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-[color:var(--gold)]/0 group-hover:ring-[color:var(--gold)]/20 transition-all" />
+                                </button>
+                              );
+                            })}
                         </div>
                       </div>
                     )}
 
-                  <div className="space-y-3">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4 px-2">
+                      <span className="text-[10px] font-black text-[color:var(--gold)] uppercase tracking-widest">Armas de Ataque</span>
+                    </div>
                     {draftProfile.weapons.map((w) => (
                       <div key={w.id} className="grid grid-cols-1 sm:grid-cols-[1fr_100px_100px_48px] items-center gap-4 rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-input)]/40 p-3 transition-all hover:bg-[var(--bg-input)] hover:border-[color:var(--gold)]/20">
-                        <div className="px-2">
-                          <label className="block sm:hidden text-[7px] font-black text-[color:var(--text-muted)] uppercase mb-1">Nome da Arma</label>
-                          <input 
-                            value={w.name} 
-                            onChange={(e) => updateWeapon(w.id, "name", e.target.value)} 
-                            disabled={!canManage} 
-                            placeholder="Katana, Arco, etc..." 
-                            className="w-full bg-transparent text-sm font-black text-[color:var(--text-primary)] outline-none" 
-                          />
+                        <div className="px-2 flex items-center gap-2">
+                          <Swords size={12} className="text-[color:var(--gold)]/40" />
+                          <div className="flex-1">
+                            <span className="text-xs font-black text-[color:var(--text-primary)] uppercase tracking-tight block">{w.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[7px] font-bold text-[color:var(--text-muted)] uppercase tracking-widest">Equipamento de Campanha</span>
+                              <span className="text-[7px] font-black text-amber-500/60 uppercase px-1.5 py-0.5 rounded bg-amber-500/5 border border-amber-500/10">
+                                {w.weight || "0 kg"} ({Math.ceil(parseFloat(String(w.weight || "0")))} SLOTS)
+                              </span>
+                            </div>
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 sm:contents gap-4">
                           <div>
@@ -1204,13 +1565,9 @@ export function CharacterSheetModal({
                           </div>
                           <div className="relative group/dmg">
                             <label className="block sm:hidden text-[7px] font-black text-[color:var(--text-muted)] uppercase mb-1">Dano</label>
-                            <input 
-                              value={w.rawDamage || ""} 
-                              onChange={(e) => updateWeapon(w.id, "rawDamage", e.target.value)} 
-                              disabled={!canManage} 
-                              placeholder="GeB+2" 
-                              className="w-full rounded-xl bg-[var(--bg-card)] px-3 py-2 text-[10px] font-bold text-[color:var(--gold)] outline-none text-right border border-[var(--border-panel)]" 
-                            />
+                            <div className="w-full rounded-xl bg-[var(--bg-card)] px-3 py-2 text-[10px] font-black text-[color:var(--gold)] text-right border border-[var(--border-panel)]">
+                              {w.rawDamage}
+                            </div>
                             {w.rawDamage && (
                               <div className="mt-1 flex justify-end">
                                 <span className="text-[9px] font-black text-[color:var(--gold)] uppercase opacity-60">
@@ -1229,7 +1586,79 @@ export function CharacterSheetModal({
                         </div>
                       </div>
                     ))}
-                    {draftProfile.weapons.length === 0 && (
+                    
+                    <div className="h-px bg-[var(--border-panel)] my-6" />
+
+                    <div className="flex items-center gap-2 mb-4 px-2">
+                      <span className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Armaduras e Proteção Localizada</span>
+                    </div>
+                    {draftProfile.armor.map((a) => (
+                      <div key={a.id} className="grid grid-cols-1 sm:grid-cols-[1fr_80px_auto_48px] items-start gap-4 rounded-[24px] border border-[var(--border-panel)] bg-[var(--bg-input)]/40 p-3 transition-all hover:bg-[var(--bg-input)] hover:border-sky-500/20">
+                        <div className="px-2 pt-1">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Shield size={12} className="text-sky-500/40" />
+                            <div className="flex-1">
+                              <span className="text-xs font-black text-[color:var(--text-primary)] uppercase tracking-tight block">{a.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[7px] font-bold text-[color:var(--text-muted)] uppercase tracking-widest">Proteção Certificada</span>
+                                <span className="text-[7px] font-black text-amber-500/60 uppercase px-1.5 py-0.5 rounded bg-amber-500/5 border border-amber-500/10">
+                                  {a.weight || "0 kg"} ({Math.ceil(parseFloat(String(a.weight || "0")))} SLOTS)
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {HIT_LOCATIONS.map((loc) => {
+                              const isCovered = Array.isArray(a.zone) ? a.zone.includes(loc.id as any) : a.zone === "all";
+                              return (
+                                <button
+                                  key={loc.id}
+                                  onClick={() => {
+                                    if (!canManage) return;
+                                    const currentZones = Array.isArray(a.zone) ? [...a.zone] : ["torso"];
+                                    const nextZones = isCovered 
+                                      ? currentZones.filter(z => z !== loc.id)
+                                      : [...currentZones, loc.id];
+                                    updateArmor(a.id, "zone", nextZones.length > 0 ? nextZones : ["torso"]);
+                                  }}
+                                  className={cn(
+                                    "px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border transition-all",
+                                    isCovered 
+                                      ? "bg-sky-500/10 border-sky-500/30 text-sky-400" 
+                                      : "bg-transparent border-[var(--border-panel)] text-[color:var(--text-muted)] hover:border-sky-500/20"
+                                  )}
+                                >
+                                  {loc.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="pt-1">
+                          <label className="block text-[7px] font-black text-[color:var(--text-muted)] uppercase mb-1 text-center">RD FIXA</label>
+                          <div className="w-full rounded-xl bg-sky-500/10 px-3 py-2 text-sm font-black text-sky-500 text-center border border-sky-500/20">
+                            {a.dr}
+                          </div>
+                        </div>
+                        <div className="pt-2 flex justify-center">
+                          <button 
+                            onClick={() => updateArmor(a.id, "zone", HIT_LOCATIONS.map(l => l.id))}
+                            className="text-[8px] font-black text-sky-500/40 hover:text-sky-500 uppercase tracking-widest transition-colors"
+                          >
+                            Tudo
+                          </button>
+                        </div>
+                        <div className="flex justify-center pt-1">
+                          {canManage && (
+                            <button onClick={() => removeArmor(a.id)} className="rounded-xl p-2 text-[color:var(--text-muted)]/20 transition hover:bg-rose-500/20 hover:text-rose-400">
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {(draftProfile.weapons.length === 0 && draftProfile.armor.length === 0) && (
                       <div className="flex flex-col items-center justify-center py-12 rounded-[32px] border border-dashed border-[var(--border-panel)] bg-[var(--bg-input)]/20 text-[color:var(--text-muted)]/20">
                         <Swords size={32} strokeWidth={1} />
                         <p className="mt-4 text-[10px] font-black uppercase tracking-[0.4em]">Arsenal Vazio</p>
@@ -1241,26 +1670,52 @@ export function CharacterSheetModal({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-8">
                     <div className="flex items-center gap-3 mb-6">
-                      <Shield className="text-sky-500" size={18} />
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Resistência de Dano (RD)</h4>
+                      <ShieldAlert className="text-sky-500" size={18} />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)]">Resumo da Resistência (RD)</h4>
                     </div>
-                    <div className="space-y-3">
-                      {[
-                        { key: "drTop", label: "Cabeça & Ombros" },
-                        { key: "drMiddle", label: "Tronco & Braços" },
-                        { key: "drBottom", label: "Pernas & Pés" }
-                      ].map(dr => (
-                        <div key={dr.key} className="flex items-center justify-between rounded-2xl bg-[var(--bg-input)] p-4 border border-[var(--border-panel)] transition hover:bg-[var(--bg-card)]">
-                          <span className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase">{dr.label}</span>
-                          <input 
-                            type="number" 
-                            value={getRawNumber(dr.key)} 
-                            onChange={(e) => updateRaw(dr.key, parseInt(e.target.value, 10))} 
-                            disabled={!canManage} 
-                            className="w-16 rounded-xl bg-[var(--bg-panel)] p-2 text-center text-sm font-black text-[color:var(--text-primary)] outline-none border border-[var(--border-panel)] focus:border-sky-500/40" 
-                          />
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-2xl bg-sky-500/5 border border-sky-500/10">
+                        <p className="text-[9px] font-bold text-sky-500 uppercase tracking-widest mb-3">Proteção Automatizada</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {HIT_LOCATIONS.map(loc => {
+                            const totalDr = (draftProfile.armor || []).reduce((sum, a) => {
+                              const isCovered = Array.isArray(a.zone) ? a.zone.includes(loc.id as any) : a.zone === "all";
+                              return isCovered ? sum + a.dr : sum;
+                            }, 0);
+                            return (
+                              <div key={loc.id} className="flex justify-between items-center px-3 py-1.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-panel)]">
+                                <span className="text-[8px] font-black text-[color:var(--text-muted)] uppercase">{loc.label}</span>
+                                <span className="text-xs font-black text-sky-500">{totalDr}</span>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
+                      </div>
+
+                      <div className="h-px bg-[var(--border-panel)] my-4" />
+
+                      <div className="space-y-2">
+                        <p className="text-[8px] font-black text-[color:var(--text-muted)] uppercase tracking-widest mb-1 px-1">Ajustes Manuais / Bônus</p>
+                        {[
+                          { key: "drTop", label: "Topo (Cabeça/Pescoço)" },
+                          { key: "drMiddle", label: "Meio (Tronco/Vitais)" },
+                          { key: "drBottom", label: "Base (Membros)" }
+                        ].map(dr => (
+                          <div key={dr.key} className="flex items-center justify-between rounded-xl bg-[var(--bg-input)] p-3 border border-[var(--border-panel)] transition hover:bg-[var(--bg-card)]">
+                            <span className="text-[8px] font-bold text-[color:var(--text-muted)] uppercase">{dr.label}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[8px] font-black text-sky-500/40">+</span>
+                              <input 
+                                type="number" 
+                                value={getRawNumber(dr.key)} 
+                                onChange={(e) => updateRaw(dr.key, parseInt(e.target.value, 10))} 
+                                disabled={!canManage} 
+                                className="w-12 rounded-lg bg-[var(--bg-panel)] p-1 text-center text-xs font-black text-[color:var(--text-primary)] outline-none border border-[var(--border-panel)] focus:border-sky-500/40" 
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -1318,15 +1773,90 @@ export function CharacterSheetModal({
                   <div className="flex items-center gap-3 mb-6">
                     <Brain className="text-sky-500" size={18} />
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-[color:var(--text-primary)]">Perícias & Técnicas</h4>
+                    {encumbranceLevel > 0 && (
+                      <span className="ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        Carga {["Nenhuma", "Leve", "Média", "Pesada", "Muito Pesada"][encumbranceLevel]}
+                      </span>
+                    )}
                   </div>
-                  <textarea
-                    value={getRawString("skills")}
-                    onChange={(e) => updateRaw("skills", e.target.value)}
-                    disabled={!canManage}
-                    rows={8}
-                    className="w-full resize-none bg-transparent text-sm text-[color:var(--text-secondary)] outline-none custom-scrollbar leading-relaxed"
-                    placeholder="Katana-14, Furtividade-13, Liderança-12..."
-                  />
+                  <div className="space-y-3">
+                    {(draftProfile.skills || []).map((skill) => {
+                      const choque = draftProfile.combat.shock || 0;
+                      const fadiga = draftProfile.combat.fatigue || 0;
+                      const dor = draftProfile.combat.pain || 0;
+                      const penalties = calculateSkillPenalties(skill.level, encumbranceLevel, choque, fadiga, dor);
+                      const effectiveLevel = Math.max(0, skill.level - penalties.totalPenalty);
+                      const targetRoll = 14 + skill.level - effectiveLevel;
+                      
+                      return (
+                        <div key={skill.id} className="group relative flex items-center gap-3 rounded-2xl bg-[var(--bg-input)] p-3 border border-[var(--border-panel)] transition-all hover:bg-[var(--bg-card)] hover:border-sky-500/30">
+                          <input
+                            value={skill.name}
+                            onChange={(e) => updateSkill(skill.id, "name", e.target.value)}
+                            disabled={!canManage}
+                            placeholder="Nome da Perícia"
+                            className="flex-1 bg-transparent text-sm font-bold text-[color:var(--text-primary)] outline-none placeholder:text-[color:var(--text-muted)]/20"
+                          />
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black text-[color:var(--text-muted)] uppercase tracking-tighter">NH</span>
+                            <input
+                              type="number"
+                              value={skill.level}
+                              onChange={(e) => updateSkill(skill.id, "level", parseInt(e.target.value, 10))}
+                              disabled={!canManage}
+                              className="w-10 rounded-lg bg-[var(--bg-panel)] p-1 text-center text-xs font-black text-sky-400 outline-none border border-[var(--border-panel)] focus:border-sky-500/40"
+                            />
+                          </div>
+                          {penalties.totalPenalty > 0 && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20" title={penalties.description}>
+                              -{penalties.totalPenalty}
+                            </span>
+                          )}
+                          <span className="text-[9px] font-medium text-[color:var(--text-muted)]" title="Alvo 3d6">
+                            3d6 ≤ {targetRoll}
+                          </span>
+                          <button
+                            onClick={() => handleQuickRoll("3d6", skill.level, skill.name, true)}
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 transition hover:bg-sky-500/20 active:scale-90"
+                          >
+                            <Dices size={14} />
+                          </button>
+                          {canManage && (
+                            <button
+                              onClick={() => removeSkill(skill.id)}
+                              className="flex h-8 w-8 items-center justify-center rounded-xl text-red-500/20 transition hover:bg-red-500/10 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {canManage && (
+                      <button
+                        onClick={addSkill}
+                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--border-panel)] p-4 text-[10px] font-black uppercase tracking-widest text-[color:var(--text-muted)] transition hover:bg-[var(--bg-input)] hover:text-sky-500 hover:border-sky-500/30"
+                      >
+                        <Plus size={14} />
+                        Adicionar Nova Perícia
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mt-8 pt-8 border-t border-[var(--border-panel)]/40">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-[8px] font-black text-[color:var(--text-muted)] uppercase tracking-widest">Editor de Texto (Massa)</span>
+                      <div className="h-px flex-1 bg-[var(--border-panel)]/40" />
+                    </div>
+                    <textarea
+                      value={getRawString("skills")}
+                      onChange={(e) => updateRaw("skills", e.target.value)}
+                      disabled={!canManage}
+                      rows={4}
+                      className="w-full resize-none bg-transparent text-[10px] text-[color:var(--text-muted)] outline-none custom-scrollbar leading-relaxed opacity-40 hover:opacity-100 transition-opacity"
+                      placeholder="Katana-14, Furtividade-13, Liderança-12..."
+                    />
+                  </div>
                 </section>
 
                 <section className="rounded-[40px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/60 p-8">
