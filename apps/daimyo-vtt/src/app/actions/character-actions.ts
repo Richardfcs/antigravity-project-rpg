@@ -46,6 +46,7 @@ export async function setActiveCharacterAction(input: {
             combat: { 
               currentHp: 10, 
               currentFp: 10, 
+              inspiration: 0,
               activeWeaponId: null, 
               activeWeaponModeId: null, 
               loadoutTechniqueIds: [], 
@@ -143,6 +144,12 @@ interface UpdateCharacterProfileInput {
   sheetProfile?: SessionCharacterSheetProfile | null;
 }
 
+type CombatStatusPatch =
+  | { kind: "resource"; resource: "hp" | "fp"; value: number }
+  | { kind: "numeric"; field: "shock" | "bleeding" | "pain" | "fatigue" | "inspiration"; value: number }
+  | { kind: "posture"; value: SessionCharacterSheetProfile["combat"]["posture"] }
+  | { kind: "condition"; mode: "add" | "remove"; id?: string; label: string; value?: number; notes?: string };
+
 function buildInfraError() {
   return {
     ok: false,
@@ -158,9 +165,15 @@ export async function createCharacterAction(
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode);
+    const isGm = viewer.role === "gm";
+    const nextType: CharacterType = isGm ? input.type : "player";
     const ownerParticipantId =
-      input.type === "player" ? (input.ownerParticipantId ?? null) : null;
+      nextType === "player"
+        ? isGm
+          ? (input.ownerParticipantId ?? null)
+          : viewer.participantId
+        : null;
 
     if (ownerParticipantId) {
       const participant = await findParticipantById(ownerParticipantId);
@@ -181,7 +194,7 @@ export async function createCharacterAction(
     const character = await createSessionCharacter({
       sessionId: session.id,
       name: input.name,
-      type: input.type,
+      type: nextType,
       tier: input.tier,
       ownerParticipantId,
       assetId: input.assetId ?? null,
@@ -281,6 +294,116 @@ export async function updateCharacterResourceAction(
   }
 }
 
+export async function updateCharacterCombatStatusAction(input: {
+  sessionCode: string;
+  characterId: string;
+  patch: CombatStatusPatch;
+}): Promise<CharacterActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const character = await findSessionCharacterById(input.characterId);
+
+    if (!character || character.sessionId !== session.id || !character.sheetProfile) {
+      throw new Error("Ficha completa nao encontrada nesta sessao.");
+    }
+
+    const profile = character.sheetProfile;
+    let nextProfile: SessionCharacterSheetProfile = profile;
+
+    if (input.patch.kind === "resource") {
+      nextProfile = {
+        ...profile,
+        combat: {
+          ...profile.combat,
+          currentHp:
+            input.patch.resource === "hp"
+              ? Math.max(-profile.attributes.hpMax * 10, Math.min(profile.attributes.hpMax, Math.round(input.patch.value)))
+              : profile.combat.currentHp,
+          currentFp:
+            input.patch.resource === "fp"
+              ? Math.max(-profile.attributes.fpMax * 2, Math.min(profile.attributes.fpMax, Math.round(input.patch.value)))
+              : profile.combat.currentFp
+        }
+      };
+    }
+
+    if (input.patch.kind === "numeric") {
+      const max = input.patch.field === "inspiration" ? 99 : 20;
+      nextProfile = {
+        ...profile,
+        combat: {
+          ...profile.combat,
+          [input.patch.field]: Math.max(0, Math.min(max, Math.round(input.patch.value)))
+        }
+      };
+    }
+
+    if (input.patch.kind === "posture") {
+      nextProfile = {
+        ...profile,
+        combat: {
+          ...profile.combat,
+          posture: input.patch.value
+        }
+      };
+    }
+
+    if (input.patch.kind === "condition") {
+      const patch = input.patch;
+      const conditionId =
+        (patch.id ??
+          patch.label
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "")) ||
+        `condition-${Date.now()}`;
+      const conditions =
+        patch.mode === "remove"
+          ? profile.conditions.filter(
+              (condition) => condition.id !== conditionId && condition.label !== patch.label
+            )
+          : [
+              ...profile.conditions.filter(
+                (condition) => condition.id !== conditionId && condition.label !== patch.label
+              ),
+              {
+                id: conditionId,
+                label: patch.label,
+                value: patch.value,
+                source: "manual" as const,
+                notes: patch.notes
+              }
+            ];
+
+      nextProfile = {
+        ...profile,
+        conditions
+      };
+    }
+
+    const updated = await updateSessionCharacterProfile({
+      characterId: character.id,
+      sheetProfile: nextProfile
+    });
+
+    return { ok: true, character: updated };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Falha ao atualizar estados de combate."
+    };
+  }
+}
+
 export async function adjustCharacterInitiativeAction(
   input: AdjustCharacterInitiativeInput
 ): Promise<CharacterActionResult> {
@@ -321,16 +444,23 @@ export async function updateCharacterProfileAction(
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode);
     const character = await findSessionCharacterById(input.characterId);
 
     if (!character || character.sessionId !== session.id) {
       throw new Error("Ficha nao encontrada nesta sessao.");
     }
 
-    const nextType = input.type ?? character.type;
+    const ownsCharacter = character.ownerParticipantId === viewer.participantId;
+    const isGm = viewer.role === "gm";
+
+    if (!isGm && !ownsCharacter) {
+      throw new Error("Voce so pode editar fichas vinculadas ao seu jogador.");
+    }
+
+    const nextType = isGm ? (input.type ?? character.type) : character.type;
     const nextOwnerParticipantId =
-      input.ownerParticipantId !== undefined
+      isGm && input.ownerParticipantId !== undefined
         ? nextType === "player"
           ? input.ownerParticipantId
           : null
@@ -360,7 +490,7 @@ export async function updateCharacterProfileAction(
       type: nextType,
       tier: input.tier ?? character.tier,
       ownerParticipantId: nextOwnerParticipantId,
-      assetId: input.assetId,
+      assetId: isGm ? input.assetId : character.assetId,
       sheetProfile: input.sheetProfile
     });
 
@@ -414,11 +544,16 @@ export async function applyBaseArchetypeAction(input: {
   }
 
   try {
-    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const { session, viewer } = await requireSessionViewer(input.sessionCode);
     const character = await findSessionCharacterById(input.characterId);
 
     if (!character || character.sessionId !== session.id) {
       throw new Error("Ficha não encontrada nesta sessão.");
+    }
+
+    const ownsCharacter = character.ownerParticipantId === viewer.participantId;
+    if (viewer.role !== "gm" && !ownsCharacter) {
+      throw new Error("Voce so pode aplicar arquetipos nas suas proprias fichas.");
     }
 
     const archetype = await findBaseArchetypeById(input.archetypeId);
@@ -447,7 +582,7 @@ export async function getBaseArchetypesAction(input: {
   sessionCode: string;
 }): Promise<{ ok: boolean; archetypes: any[]; message?: string }> {
   try {
-    await requireSessionViewer(input.sessionCode, "gm");
+    await requireSessionViewer(input.sessionCode);
     const catalog = await loadBaseCatalog();
     return { ok: true, archetypes: catalog.archetypes };
   } catch (error) {
@@ -463,7 +598,7 @@ export async function getArsenalAction(input: {
   sessionCode: string;
 }): Promise<{ ok: boolean; equipment: any[]; message?: string }> {
   try {
-    await requireSessionViewer(input.sessionCode, "gm");
+    await requireSessionViewer(input.sessionCode);
     const catalog = await loadBaseCatalog();
     return { ok: true, equipment: catalog.equipmentEntries };
   } catch (error) {
@@ -479,7 +614,7 @@ export async function getStylesAction(input: {
   sessionCode: string;
 }): Promise<{ ok: boolean; styles: any[]; message?: string }> {
   try {
-    await requireSessionViewer(input.sessionCode, "gm");
+    await requireSessionViewer(input.sessionCode);
     const catalog = await loadBaseCatalog();
     return { ok: true, styles: catalog.styles };
   } catch (error) {

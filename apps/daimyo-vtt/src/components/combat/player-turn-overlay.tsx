@@ -16,7 +16,8 @@ import type {
   CombatHitLocationId,
   FeintType,
   SessionCombatFlow,
-  SessionCharacterSheetProfile
+  SessionCharacterSheetProfile,
+  TacticalRollMode
 } from "@/types/combat";
 import { formatDamageSpec } from "@/lib/combat/sheet-profile";
 import { cn } from "@/lib/utils";
@@ -125,8 +126,11 @@ export function PlayerTurnOverlay({
   const [rangeMeters, setRangeMeters] = useState<number | null>(null);
   const [sizeModifier, setSizeModifier] = useState<number>(0);
   const [aimTurns, setAimTurns] = useState<number>(0);
+  const [rollMode, setRollMode] = useState<TacticalRollMode>("normal");
+  const [useInspiration, setUseInspiration] = useState(false);
 
   const activeState = combatFlow?.combatantStates[token.token.id] ?? null;
+  const inspiration = profile?.combat?.inspiration ?? 0;
 
   const weapons = profile?.weapons ?? [];
   const selectedWeapon = weapons.find((w: CharacterWeaponRecord) => w.id === weaponId) || weapons[0] || null;
@@ -225,6 +229,8 @@ export function PlayerTurnOverlay({
   };
 
   const handleConfirm = () => {
+    const finalRollMode: TacticalRollMode =
+      useInspiration && rollMode === "normal" ? "advantage" : rollMode;
     onExecute({
       actorTokenId: token.token.id,
       targetTokenId,
@@ -243,6 +249,8 @@ export function PlayerTurnOverlay({
       isStyle: selectedManeuver === "swap-technique" ? swapType === "style" : undefined,
       loadoutTechniqueIds: undefined, // Removido pois agora usamos swap unitário
       waitTrigger: selectedManeuver === "wait" ? (techniqueId || "Ataque por Gatilho") : undefined,
+      rollMode: isAttackManeuver ? finalRollMode : "normal",
+      inspirationSpent: isAttackManeuver && useInspiration && inspiration > 0,
       modifiers: {
         manualToHit,
         manualDamage,
@@ -255,22 +263,22 @@ export function PlayerTurnOverlay({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[color:var(--bg-deep)]/60 backdrop-blur-sm p-4 sm:p-8 overflow-y-auto">
-      <div className="w-full max-w-5xl bg-[color:var(--bg-panel)] border border-[color:var(--border-panel)] rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-full">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[color:var(--bg-deep)]/60 p-2 backdrop-blur-sm sm:p-4">
+      <div className="flex max-h-[calc(100vh-1rem)] w-full max-w-4xl flex-col overflow-hidden rounded-[22px] border border-[color:var(--border-panel)] bg-[color:var(--bg-panel)] shadow-2xl sm:max-h-[calc(100vh-2rem)]">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-5 border-b border-[color:var(--border-panel)] bg-gradient-to-r from-[color:var(--accent)]/8 to-transparent p-6 sm:p-8">
-          <div className="flex items-center gap-5">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[color:var(--accent)]/40 bg-[color:var(--accent)]/20 text-[color:var(--accent)]">
-              <Swords size={32} />
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--border-panel)] bg-gradient-to-r from-[color:var(--accent)]/8 to-transparent p-3 sm:p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:var(--accent)]/40 bg-[color:var(--accent)]/20 text-[color:var(--accent)]">
+              <Swords size={22} />
             </div>
             <div>
-              <h2 className="text-3xl font-black uppercase tracking-tighter text-[color:var(--ink-1)]">Sua Vez</h2>
+              <h2 className="text-xl font-black uppercase tracking-tighter text-[color:var(--ink-1)]">Sua Vez</h2>
               <p className="text-xs font-bold uppercase tracking-widest text-[color:var(--accent)]/70">
                 {token.label} · Rodada {combatState.round}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
             <HealthBar label="HP" current={hp} max={hpMax} />
             <HealthBar label="FP" current={fp} max={fpMax} variant="fp" />
             <button onClick={onClose} className="p-2 text-[color:var(--ink-1)]/30 hover:text-[color:var(--ink-1)] transition-colors">
@@ -281,13 +289,13 @@ export function PlayerTurnOverlay({
 
         <div className="flex-1 flex flex-col lg:flex-row min-h-0">
           {/* Main Area */}
-          <div className="flex-[3] p-8 overflow-y-auto border-r border-[color:var(--border-panel)] scrollbar-none">
+          <div className="flex-[3] overflow-y-auto border-r border-[color:var(--border-panel)] p-4 scrollbar-none sm:p-5">
             {currentStep === "maneuver" && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--ink-1)]/30 flex items-center gap-2">
                   <Zap size={12} /> Selecione sua manobra
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
                   {availableManeuvers.map((m: any) => (
                     <ManeuverCard
                       key={m.id}
@@ -793,7 +801,7 @@ export function PlayerTurnOverlay({
           </div>
 
           {/* Action Area */}
-          <div className="flex-[2] p-8 bg-white/[0.01] flex flex-col">
+          <div className="flex flex-[2] flex-col bg-white/[0.01] p-4 sm:p-5">
             <div className="flex-1">
                 {selectedManeuver === "all-out-attack" && (
                   <div className="p-4 rounded-2xl bg-[color:var(--red-accent)]/10 border border-[color:var(--red-accent)]/50 flex items-center gap-3 mb-4">
@@ -864,6 +872,45 @@ export function PlayerTurnOverlay({
                 )}
               </div>
 
+              {isAttackManeuver && (
+                <div className="mt-3 rounded-2xl border border-[color:var(--border-panel)] bg-[color:var(--bg-input)]/70 p-3">
+                  <p className="mb-2 text-[9px] font-black uppercase tracking-[0.18em] text-[color:var(--ink-1)]/30">
+                    Rolagem
+                  </p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(["normal", "advantage", "disadvantage"] as TacticalRollMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setRollMode(mode)}
+                        className={cn(
+                          "rounded-xl border px-2 py-2 text-[9px] font-black uppercase tracking-[0.12em] transition",
+                          rollMode === mode
+                            ? "border-[color:var(--accent)]/50 bg-[color:var(--accent)]/12 text-[color:var(--accent)]"
+                            : "border-[color:var(--border-panel)] text-[color:var(--ink-1)]/35 hover:text-[color:var(--ink-1)]"
+                        )}
+                      >
+                        {mode === "normal" ? "Normal" : mode === "advantage" ? "Vant." : "Desv."}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => inspiration > 0 && setUseInspiration((current) => !current)}
+                    disabled={inspiration <= 0}
+                    className={cn(
+                      "mt-2 flex w-full items-center justify-between rounded-xl border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition",
+                      useInspiration && inspiration > 0
+                        ? "border-amber-300/45 bg-amber-300/12 text-amber-200"
+                        : "border-[color:var(--border-panel)] text-[color:var(--ink-1)]/35 hover:text-[color:var(--ink-1)] disabled:opacity-40"
+                    )}
+                  >
+                    <span>Usar Inspiracao</span>
+                    <span>{inspiration} disp.</span>
+                  </button>
+                </div>
+              )}
+
               {attackNH !== null && (
                 <div className="mt-4 p-5 rounded-[24px] bg-[color:var(--accent)] border border-[color:var(--accent)]/30 flex items-center justify-between shadow-2xl shadow-[color:var(--accent)]/20 relative overflow-hidden">
                   {/* Detalhe estético: brilho interno */}
@@ -886,7 +933,7 @@ export function PlayerTurnOverlay({
                 {currentStep !== "maneuver" && (
                   <button
                     onClick={handleBack}
-                    className="flex-1 py-5 rounded-2xl border border-[color:var(--border-panel)] text-[color:var(--ink-1)]/40 font-black uppercase tracking-widest text-xs hover:bg-[color:var(--bg-input)] transition-all"
+                    className="flex-1 rounded-2xl border border-[color:var(--border-panel)] py-3 text-xs font-black uppercase tracking-widest text-[color:var(--ink-1)]/40 transition-all hover:bg-[color:var(--bg-input)]"
                   >
                     Voltar
                   </button>
@@ -894,7 +941,7 @@ export function PlayerTurnOverlay({
                 <button
                   onClick={handleNext}
                   disabled={currentStep === "target" && selectedMeta.requiresTarget && !targetTokenId}
-                  className="flex-[2] py-5 rounded-2xl bg-[color:var(--accent)] text-[#050505] font-black uppercase tracking-[0.2em] text-sm shadow-xl hover:opacity-90 transition-all disabled:opacity-30 disabled:grayscale"
+                  className="flex-[2] rounded-2xl bg-[color:var(--accent)] py-3 text-sm font-black uppercase tracking-[0.2em] text-[#050505] shadow-xl transition-all hover:opacity-90 disabled:opacity-30 disabled:grayscale"
                 >
                   {currentStep === "details" || (!selectedMeta.requiresTarget && !isAttackManeuver) ? "Girar e Resolver" : "Próximo"}
                 </button>

@@ -224,6 +224,7 @@ export function AudioPanel({ sessionCode, viewer }: AudioPanelProps) {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
+            sessionCode,
             resourceType: "video",
             folder: `daimyo-vtt/${buildSessionTag(sessionCode)}/audio`,
             tags: [`session:${buildSessionTag(sessionCode)}`, "kind:audio"],

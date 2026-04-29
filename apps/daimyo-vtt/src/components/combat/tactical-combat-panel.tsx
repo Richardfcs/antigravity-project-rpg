@@ -42,7 +42,8 @@ import type {
   CombatHitLocationId,
   CharacterTechniqueRecord,
   FeintType,
-  SessionCombatFlow
+  SessionCombatFlow,
+  TacticalRollMode
 } from "@/types/combat";
 
 interface PromptResponseInput {
@@ -75,6 +76,11 @@ interface TacticalCombatPanelProps {
   isPending?: boolean;
   pendingKey?: string | null;
   onToggleStatus?: (tokenId: string, status: TokenStatusPreset) => void;
+  onUpdateCombatNumeric?: (
+    tokenId: string,
+    field: "shock" | "bleeding" | "pain" | "fatigue" | "inspiration",
+    value: number
+  ) => void;
 }
 
 const actionMeta: Array<{
@@ -177,6 +183,7 @@ export function TacticalCombatPanel({
   onAdjustResource,
   onUpdateResource,
   onToggleStatus,
+  onUpdateCombatNumeric,
   selectedTokenId,
   sessionCode,
   isPending = false,
@@ -213,6 +220,8 @@ export function TacticalCombatPanel({
     useState<AllOutAttackVariant | AllOutDefenseVariant>("determined");
   const [roundsNeeded, setRoundsNeeded] = useState(2);
   const [feintAttribute, setFeintAttribute] = useState<FeintType>("dx");
+  const [rollMode, setRollMode] = useState<TacticalRollMode>("normal");
+  const [useInspiration, setUseInspiration] = useState(false);
   const [swapType, setSwapType] = useState<"technique" | "style">("technique");
   const [catalogStyles, setCatalogStyles] = useState<any[]>([]);
   const [aiSuggestion, setAiSuggestion] = useState<{ maneuver: CombatActionType; reason: string } | null>(null);
@@ -342,6 +351,9 @@ export function TacticalCombatPanel({
       return;
     }
 
+    const inspiration = actorProfile?.combat?.inspiration ?? 0;
+    const finalRollMode: TacticalRollMode =
+      useInspiration && rollMode === "normal" ? "advantage" : rollMode;
     const draftAction: CombatDraftAction = {
       actorTokenId: activeEntry.token.id,
       targetTokenId: currentActionMeta.requiresTarget ? selectedTarget?.token.id ?? null : null,
@@ -378,7 +390,9 @@ export function TacticalCombatPanel({
       allOutDefenseVariant: actionType === "all-out-defense" ? allOutVariant as AllOutDefenseVariant : undefined,
       feintAttribute: actionType.startsWith("feint") ? feintAttribute : undefined,
       waitTrigger: actionType === "wait" ? waitTrigger : undefined,
-      roundsNeeded: actionType === "regular-contest" ? roundsNeeded : undefined
+      roundsNeeded: actionType === "regular-contest" ? roundsNeeded : undefined,
+      rollMode: isAttackManeuver(actionType) ? finalRollMode : "normal",
+      inspirationSpent: isAttackManeuver(actionType) && useInspiration && inspiration > 0
     };
 
     onExecuteCombatAction(draftAction);
@@ -598,6 +612,7 @@ export function TacticalCombatPanel({
                 onSelect={onSelectCombatant}
                 onAdjustResource={onAdjustResource}
                 onToggleStatus={onToggleStatus}
+                onUpdateCombatNumeric={onUpdateCombatNumeric}
               />
             ))}
           </div>
@@ -1013,6 +1028,43 @@ export function TacticalCombatPanel({
                     acrobatico
                   </ToggleChip>
                 </div>
+
+                {isAttackManeuver(actionType) ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="section-label mb-2">rolagem do ataque</p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(["normal", "advantage", "disadvantage"] as TacticalRollMode[]).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setRollMode(mode)}
+                          className={cn(
+                            "rounded-xl border px-2 py-2 text-[9px] font-black uppercase tracking-[0.12em] transition",
+                            rollMode === mode
+                              ? "border-amber-300/35 bg-amber-300/10 text-amber-100"
+                              : "border-white/10 bg-white/[0.03] text-[color:var(--ink-3)] hover:text-white"
+                          )}
+                        >
+                          {mode === "normal" ? "Normal" : mode === "advantage" ? "Vant." : "Desv."}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => (actorProfile?.combat?.inspiration ?? 0) > 0 && setUseInspiration((current) => !current)}
+                      disabled={(actorProfile?.combat?.inspiration ?? 0) <= 0}
+                      className={cn(
+                        "mt-2 flex w-full items-center justify-between rounded-xl border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition",
+                        useInspiration && (actorProfile?.combat?.inspiration ?? 0) > 0
+                          ? "border-amber-300/45 bg-amber-300/12 text-amber-100"
+                          : "border-white/10 bg-white/[0.03] text-[color:var(--ink-3)] hover:text-white disabled:opacity-40"
+                      )}
+                    >
+                      <span>usar inspiracao</span>
+                      <span>{actorProfile?.combat?.inspiration ?? 0} disp.</span>
+                    </button>
+                  </div>
+                ) : null}
 
                 <button
                   type="button"

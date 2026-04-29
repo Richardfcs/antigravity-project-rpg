@@ -12,6 +12,7 @@ import type {
   CombatResolutionRecord,
   CombatRollRecord,
   CombatTargetModifiers,
+  CombatUndoSnapshot,
   AllOutAttackVariant,
   AllOutDefenseVariant,
   AttackVariant,
@@ -199,7 +200,26 @@ function normalizeRoll(raw: unknown): CombatRollRecord | null {
     dice: [dice[0], dice[1], dice[2]],
     target: asNumber(candidate.target, 0),
     margin: asNumber(candidate.margin, 0),
-    critical: normalizeCritical(candidate.critical)
+    critical: normalizeCritical(candidate.critical),
+    rollMode:
+      candidate.rollMode === "advantage" || candidate.rollMode === "disadvantage"
+        ? candidate.rollMode
+        : "normal",
+    rollOptions: Array.isArray(candidate.rollOptions)
+      ? candidate.rollOptions
+          .map((option) => {
+            const optionObj = asObject(option);
+            const optionDice = Array.isArray(optionObj?.dice)
+              ? optionObj.dice.map((value) => asNumber(value, 1)).slice(0, 3)
+              : [];
+            if (optionDice.length !== 3) return null;
+            return {
+              total: asNumber(optionObj?.total, optionDice[0] + optionDice[1] + optionDice[2]),
+              dice: [optionDice[0], optionDice[1], optionDice[2]] as [number, number, number]
+            };
+          })
+          .filter(Boolean) as CombatRollRecord["rollOptions"]
+      : undefined
   };
 }
 
@@ -278,7 +298,9 @@ function normalizeResolution(raw: unknown, index = 0): CombatResolutionRecord | 
         : asNumber(candidate.fpDelta, 0),
     appliedConditions: Array.isArray(candidate.appliedConditions)
       ? candidate.appliedConditions.map((value) => String(value))
-      : []
+      : [],
+    reverted: asBoolean(candidate.reverted, false),
+    metadata: asObject(candidate.metadata) ?? undefined
   };
 }
 
@@ -340,7 +362,12 @@ function normalizeDraftAction(raw: unknown): CombatDraftAction | null {
     roundsNeeded:
       candidate.roundsNeeded === null || candidate.roundsNeeded === undefined
         ? null
-        : Math.max(1, Math.floor(asNumber(candidate.roundsNeeded, 1)))
+        : Math.max(1, Math.floor(asNumber(candidate.roundsNeeded, 1))),
+    rollMode:
+      candidate.rollMode === "advantage" || candidate.rollMode === "disadvantage"
+        ? candidate.rollMode
+        : "normal",
+    inspirationSpent: asBoolean(candidate.inspirationSpent, false)
   };
 }
 
@@ -438,7 +465,51 @@ export function createEmptyCombatFlow(): SessionCombatFlow {
     lastResolution: null,
     log: [],
     combatantStates: {},
+    undoStack: [],
     updatedAt: new Date().toISOString()
+  };
+}
+
+function normalizeUndoSnapshot(raw: unknown, index = 0): CombatUndoSnapshot | null {
+  const candidate = asObject(raw);
+  const sessionRaw = asObject(candidate?.session);
+
+  if (!candidate || !sessionRaw) {
+    return null;
+  }
+
+  const combatFlowRaw =
+    sessionRaw.combatFlow === null || sessionRaw.combatFlow === undefined
+      ? null
+      : normalizeCombatFlow(sessionRaw.combatFlow);
+
+  return {
+    id: asString(candidate.id) ?? `combat-undo-${index}`,
+    label: asString(candidate.label) ?? "Acao tatica",
+    createdAt: asString(candidate.createdAt) ?? new Date().toISOString(),
+    session: {
+      combatEnabled: asBoolean(sessionRaw.combatEnabled, false),
+      combatRound: Math.max(1, Math.floor(asNumber(sessionRaw.combatRound, 1))),
+      combatTurnIndex: Math.max(0, Math.floor(asNumber(sessionRaw.combatTurnIndex, 0))),
+      combatActiveTokenId: asString(sessionRaw.combatActiveTokenId),
+      combatFlow: combatFlowRaw
+    },
+    characters: Array.isArray(candidate.characters)
+      ? candidate.characters
+          .map((entry) => {
+            const item = asObject(entry);
+            const characterId = asString(item?.characterId);
+            if (!characterId) return null;
+            return {
+              characterId,
+              sheetProfile: asObject(item?.sheetProfile) as CombatUndoSnapshot["characters"][number]["sheetProfile"]
+            };
+          })
+          .filter(Boolean) as CombatUndoSnapshot["characters"]
+      : [],
+    messageIds: Array.isArray(candidate.messageIds)
+      ? candidate.messageIds.map(String)
+      : []
   };
 }
 
@@ -527,6 +598,12 @@ export function normalizeCombatFlow(
     lastResolution,
     log: normalizedLog,
     combatantStates: normalizeCombatantStates(candidate?.combatantStates, base.combatantStates),
+    undoStack: Array.isArray(candidate?.undoStack)
+      ? candidate.undoStack
+          .map((entry, index) => normalizeUndoSnapshot(entry, index))
+          .filter(Boolean)
+          .slice(-10) as CombatUndoSnapshot[]
+      : base.undoStack,
     updatedAt: asString(candidate?.updatedAt) ?? base.updatedAt
   };
 }

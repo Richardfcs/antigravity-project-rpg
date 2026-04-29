@@ -161,6 +161,7 @@ export function AssetsPanel({ sessionCode, viewer, participants, party, cloudina
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            sessionCode,
             folder: `daimyo-vtt/${buildSessionTag(sessionCode)}/actors`,
             tags: [`session:${buildSessionTag(sessionCode)}`, `kind:${assetKind}`],
             context: { label: assetLabel.trim(), session: sessionCode }

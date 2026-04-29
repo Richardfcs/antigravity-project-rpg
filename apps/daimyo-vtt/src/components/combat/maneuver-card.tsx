@@ -67,7 +67,7 @@ export function ManeuverCard({
       disabled={disabled}
       data-selected={selected}
       className={`
-        relative flex flex-col items-start p-4 text-left border rounded-xl 
+        relative flex min-h-[108px] flex-col items-start rounded-xl border p-3 text-left
         combat-maneuver-card transition-all duration-200 group
         ${disabled ? 'opacity-40 cursor-not-allowed border-[color:var(--border-panel)] bg-[color:var(--bg-input)]/20' : 'cursor-pointer'}
         ${selected 
@@ -76,15 +76,15 @@ export function ManeuverCard({
       `}
     >
       <div className={`
-        p-2 rounded-lg mb-3 transition-colors
+        mb-2 rounded-lg p-1.5 transition-colors
         ${selected ? 'bg-[color:var(--accent)] text-[#050505]' : 'bg-[color:var(--bg-input)] text-[color:var(--ink-3)] group-hover:text-[color:var(--ink-1)]'}
       `}>
-        <Icon size={20} strokeWidth={2.5} />
+        <Icon size={16} strokeWidth={2.5} />
       </div>
 
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between w-full">
-          <span className={`font-black text-sm uppercase tracking-tight ${selected ? 'text-[color:var(--accent)]' : 'text-[color:var(--ink-1)]'}`}>
+          <span className={`text-xs font-black uppercase tracking-tight ${selected ? 'text-[color:var(--accent)]' : 'text-[color:var(--ink-1)]'}`}>
             {label}
           </span>
           {shortcut && (
@@ -93,7 +93,7 @@ export function ManeuverCard({
             </span>
           )}
         </div>
-        <p className="text-[11px] leading-tight text-[color:var(--ink-3)] font-medium line-clamp-2">
+        <p className="line-clamp-2 text-[10px] font-medium leading-tight text-[color:var(--ink-3)]">
           {description}
         </p>
         {badges.length > 0 ? (

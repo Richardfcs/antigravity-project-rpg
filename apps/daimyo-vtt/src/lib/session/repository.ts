@@ -371,6 +371,8 @@ export async function findParticipantByAuthUser(input: {
     .eq("session_id", input.sessionId)
     .eq("role", input.role)
     .eq("auth_user_id", input.authUserId)
+    .order("last_seen_at", { ascending: false })
+    .limit(1)
     .maybeSingle<ParticipantRow>();
 
   if (error) {
@@ -446,6 +448,7 @@ export async function listLinkedSessionsByAuthUser(authUserId: string) {
 export async function createSessionWithGm(input: {
   campaignName: string;
   gmName: string;
+  ownerUserId?: string | null;
 }) {
   const campaignName = sanitizeName(input.campaignName, 72);
   const gmName = sanitizeName(input.gmName);
@@ -461,6 +464,7 @@ export async function createSessionWithGm(input: {
         code,
         name: campaignName,
         gm_name: gmName,
+        owner_user_id: input.ownerUserId ?? null,
         status: "lobby"
       })
       .select("*")
@@ -480,6 +484,7 @@ export async function createSessionWithGm(input: {
           session_id: sessionRow.id,
           display_name: gmName,
           role: "gm",
+          auth_user_id: input.ownerUserId ?? null,
           status: "online"
         })
         .select("*")
@@ -501,6 +506,7 @@ export async function createSessionWithGm(input: {
 export async function joinSessionAsPlayer(input: {
   sessionCode: string;
   playerName: string;
+  authUserId?: string | null;
 }) {
   const sessionCode = normalizeSessionCode(input.sessionCode);
   const playerName = sanitizeName(input.playerName);
@@ -524,6 +530,7 @@ export async function joinSessionAsPlayer(input: {
       session_id: session.id,
       display_name: playerName,
       role: "player",
+      auth_user_id: input.authUserId ?? null,
       status: "online"
     })
     .select("*")

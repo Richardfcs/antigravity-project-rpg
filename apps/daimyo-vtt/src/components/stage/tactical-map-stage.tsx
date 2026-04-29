@@ -33,7 +33,11 @@ import {
   Grid
 } from "lucide-react";
 
-import { adjustCharacterResourceAction, updateCharacterResourceAction } from "@/app/actions/character-actions";
+import {
+  adjustCharacterResourceAction,
+  updateCharacterCombatStatusAction,
+  updateCharacterResourceAction
+} from "@/app/actions/character-actions";
 import {
   addAssetNpcToMapAction,
   addTokenToMapAction,
@@ -232,8 +236,6 @@ export function TacticalMapStage({
   const [freeTokenAssetId, setFreeTokenAssetId] = useState("");
   const [freeTokenFaction, setFreeTokenFaction] = useState<TokenFaction | "">("");
   const [feedback, setFeedback] = useState<string | null>(null);
-
-  if (!map) return null;
 
   const [damagePopups, setDamagePopups] = useState<Array<{ id: string; tokenId: string; delta: number; x: number; y: number }>>([]);
   const [rollPopups, setRollPopups] = useState<Array<{
@@ -1049,6 +1051,37 @@ export function TacticalMapStage({
     });
   };
 
+  const handleUpdateCombatNumeric = (
+    tokenId: string,
+    field: "shock" | "bleeding" | "pain" | "fatigue" | "inspiration",
+    value: number
+  ) => {
+    const entry = tokens.find((t) => t.token.id === tokenId);
+    if (!entry?.character?.id) {
+      setFeedback("Este token nao possui uma ficha vinculada.");
+      return;
+    }
+
+    runAsync(`combat-status:${entry.character.id}:${field}:${value}`, async () => {
+      const result = await updateCharacterCombatStatusAction({
+        sessionCode,
+        characterId: entry.character!.id,
+        patch: {
+          kind: "numeric",
+          field,
+          value
+        }
+      });
+
+      if (!result.ok || !result.character) {
+        setFeedback(result.message || "Falha ao atualizar efeito da ficha.");
+        return;
+      }
+
+      upsertCharacter(result.character);
+    });
+  };
+
   useEffect(() => {
     if (!selectedToken) {
       setTokenMenu(null);
@@ -1147,6 +1180,7 @@ export function TacticalMapStage({
       onAdjustResource={handleAdjustTokenResource}
       onUpdateResource={handleUpdateTokenResource}
       onToggleStatus={handleToggleTokenStatus}
+      onUpdateCombatNumeric={handleUpdateCombatNumeric}
       selectedTokenId={selectedTokenId}
       sessionCode={sessionCode}
     />
@@ -1155,6 +1189,8 @@ export function TacticalMapStage({
   const combatLogPanel = combatFlow ? (
     <CombatLogPanel
       log={[...combatFlow.log].reverse()}
+      sessionCode={sessionCode}
+      canManage={canManageCombat}
       onClose={() => setIsCombatLogOpen(false)}
     />
   ) : null;

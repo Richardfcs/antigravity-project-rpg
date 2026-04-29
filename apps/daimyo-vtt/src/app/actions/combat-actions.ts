@@ -38,7 +38,8 @@ import type {
   FeintType,
   SessionCharacterSheetProfile,
   SessionCombatFlow,
-  CombatPromptPayload
+  CombatPromptPayload,
+  CombatUndoSnapshot
 } from "@/types/combat";
 import { createEmptyCombatFlow, normalizeCombatFlow } from "@/lib/combat/flow";
 import { normalizeSheetProfile } from "@/lib/combat/sheet-profile";
@@ -119,6 +120,52 @@ function appendResolution(
     log: [...base.log, resolution].slice(-40),
     updatedAt: resolution.createdAt,
     ...patch
+  } satisfies SessionCombatFlow;
+}
+
+function buildUndoSnapshot(input: {
+  session: {
+    combatEnabled: boolean;
+    combatRound: number;
+    combatTurnIndex: number;
+    combatActiveTokenId: string | null;
+    combatFlow: SessionCombatFlow | null;
+  };
+  label: string;
+  characters: CombatTokenContext[];
+}): CombatUndoSnapshot {
+  const flow = input.session.combatFlow ? cloneFlow(input.session.combatFlow) : null;
+
+  return {
+    id: `combat-undo-${Date.now()}`,
+    label: input.label,
+    createdAt: new Date().toISOString(),
+    session: {
+      combatEnabled: input.session.combatEnabled,
+      combatRound: input.session.combatRound,
+      combatTurnIndex: input.session.combatTurnIndex,
+      combatActiveTokenId: input.session.combatActiveTokenId,
+      combatFlow: flow ? { ...flow, undoStack: [] } : null
+    },
+    characters: input.characters
+      .filter((context) => Boolean(context.character))
+      .map((context) => ({
+        characterId: context.character!.id,
+        sheetProfile: context.character!.sheetProfile
+      })),
+    messageIds: []
+  };
+}
+
+function pushUndoSnapshotToFlow(
+  flow: SessionCombatFlow | null,
+  snapshot: CombatUndoSnapshot
+) {
+  const base = cloneFlow(flow);
+  return {
+    ...base,
+    undoStack: [...base.undoStack, snapshot].slice(-10),
+    updatedAt: snapshot.createdAt
   } satisfies SessionCombatFlow;
 }
 
@@ -596,6 +643,34 @@ export async function executeCombatActionAction(input: {
       session.combatActiveTokenId !== input.action.actorTokenId
     ) {
       throw new Error("A acao so pode ser executada pelo combatente ativo.");
+    }
+
+    const undoSnapshot = buildUndoSnapshot({
+      session,
+      label: `Acao: ${input.action.actionType}`,
+      characters: target ? [actor, target] : [actor]
+    });
+    session.combatFlow = pushUndoSnapshotToFlow(session.combatFlow, undoSnapshot);
+
+    if (input.action.inspirationSpent) {
+      const actorProfile = normalizeSheetProfile(actor.character.sheetProfile);
+      const inspiration = Math.max(0, actorProfile.combat.inspiration ?? 0);
+
+      if (inspiration < 1) {
+        throw new Error("Este personagem nao possui Inspiracao disponivel.");
+      }
+
+      actor.character = await updateSessionCharacterProfile({
+        characterId: actor.character.id,
+        sheetProfile: {
+          ...actorProfile,
+          combat: {
+            ...actorProfile.combat,
+            inspiration: inspiration - 1
+          }
+        }
+      });
+      input.action.rollMode = input.action.rollMode ?? "advantage";
     }
 
     if (input.action.actionType === "swap-technique") {
@@ -1768,6 +1843,77 @@ export async function playerExecuteManeuverAction(input: {
     return {
       ok: false,
       message: error instanceof Error ? error.message : "Falha ao executar manobra do jogador."
+    };
+  }
+}
+
+export async function undoLastTacticalActionAction(input: {
+  sessionCode: string;
+}): Promise<CombatActionResult> {
+  if (!getInfraReadiness().serviceRole) {
+    return buildInfraError();
+  }
+
+  try {
+    const { session } = await requireSessionViewer(input.sessionCode, "gm");
+    const flow = cloneFlow(session.combatFlow);
+    const snapshot = flow.undoStack[flow.undoStack.length - 1];
+
+    if (!snapshot) {
+      throw new Error("Nao ha nenhuma acao tatica para retroceder.");
+    }
+
+    await Promise.all(
+      snapshot.characters.map((entry) =>
+        updateSessionCharacterProfile({
+          characterId: entry.characterId,
+          sheetProfile: entry.sheetProfile
+        })
+      )
+    );
+
+    const baseRestoredFlow = snapshot.session.combatFlow
+      ? cloneFlow(snapshot.session.combatFlow)
+      : createEmptyCombatFlow();
+    const undoResolution: CombatResolutionRecord = {
+      id: `combat-resolution-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      actorTokenId: null,
+      targetTokenId: null,
+      actionType: "do-nothing",
+      summary: `O mestre retrocedeu: ${snapshot.label}.`,
+      appliedConditions: ["Acao retrocedida"],
+      metadata: { undoSnapshotId: snapshot.id }
+    };
+    const restoredFlow = {
+      ...baseRestoredFlow,
+      undoStack: flow.undoStack.slice(0, -1),
+      lastResolution: undoResolution,
+      log: [...baseRestoredFlow.log, undoResolution].slice(-40),
+      updatedAt: undoResolution.createdAt
+    } satisfies SessionCombatFlow;
+
+    const updatedSession = await syncCombatSession({
+      sessionId: session.id,
+      combatEnabled: snapshot.session.combatEnabled,
+      combatRound: snapshot.session.combatRound,
+      combatTurnIndex: snapshot.session.combatTurnIndex,
+      combatActiveTokenId: snapshot.session.combatActiveTokenId,
+      combatFlow: restoredFlow
+    });
+    const characters = await listSessionCharacters(session.id);
+
+    return {
+      ok: true,
+      session: updatedSession,
+      characters,
+      resolution: undoResolution,
+      message: "Ultima acao tatica retrocedida."
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Falha ao retroceder a acao tatica."
     };
   }
 }

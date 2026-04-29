@@ -22,6 +22,10 @@ export function AppTray({
   children,
   className
 }: AppTrayProps) {
+  if (!open) {
+    return null;
+  }
+
   return (
     <section
       className={cn(

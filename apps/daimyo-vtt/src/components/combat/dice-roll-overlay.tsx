@@ -31,7 +31,7 @@ export function DiceRollOverlay({
 
   useEffect(() => {
     // Animação de "giro" do dado
-    let startTime = Date.now();
+    const startTime = Date.now();
     const duration = 800; // ms
 
     const animate = () => {

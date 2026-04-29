@@ -42,7 +42,7 @@ import {
   LibraryFlagControls,
   LibrarySortSelect
 } from "@/components/panels/library-controls";
-import { findCharacterByViewer, resolveCharacterAsset, sortCharactersByInitiative } from "@/lib/characters/selectors";
+import { resolveCharacterAsset, sortCharactersByInitiative } from "@/lib/characters/selectors";
 import {
   filterLibraryItemsByStatus,
   sortLibraryItems
@@ -366,6 +366,8 @@ export function CharactersPanel({ sessionCode, viewer, participants, party }: Ch
   const [visibleCount, setVisibleCount] = useState(10);
   const [isPending, startTransition] = useTransition();
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const canManage = viewer?.role === "gm";
+  const canCreate = Boolean(viewer);
 
   const characterLibraryFlags = useLibraryOrganizationStore((state) => selectLibraryFlags(state, sessionCode, "characters"));
   const toggleLibraryFlag = useLibraryOrganizationStore((state) => state.toggleFlag);
@@ -378,13 +380,16 @@ export function CharactersPanel({ sessionCode, viewer, participants, party }: Ch
 
   const filteredCharacters = useMemo(() => {
     const query = deferredSearchQuery.toLowerCase().trim();
-    const items = sortCharactersByInitiative(characters).filter(c => {
+    const scopedByViewer = canManage
+      ? characters
+      : characters.filter(c => c.ownerParticipantId === viewer?.participantId);
+    const items = sortCharactersByInitiative(scopedByViewer).filter(c => {
       if (!query) return true;
       return c.name.toLowerCase().includes(query);
     });
     const scoped = filterLibraryItemsByStatus(items, statusFilter, (c) => characterLibraryFlags[c.id]);
     return sortLibraryItems(scoped, { sortMode, getLabel: (c) => c.name, getFlags: (c) => characterLibraryFlags[c.id] });
-  }, [characters, deferredSearchQuery, statusFilter, sortMode, characterLibraryFlags]);
+  }, [canManage, characters, deferredSearchQuery, statusFilter, sortMode, characterLibraryFlags, viewer?.participantId]);
 
   const handleCreate = () => {
     if (!characterName.trim()) return;
@@ -392,28 +397,29 @@ export function CharactersPanel({ sessionCode, viewer, participants, party }: Ch
       const result = await createCharacterAction({
         sessionCode,
         name: characterName.trim(),
-        type: characterType,
+        type: canManage ? characterType : "player",
         tier: characterTier,
+        ownerParticipantId: canManage ? undefined : viewer?.participantId,
         assetId: selectedAssetId || null,
         hpMax: 10, fpMax: 10, initiative: 10 // Defaults, will be filled by archetype if selected
       });
       if (result.ok && result.character) {
+        let nextCharacter = result.character;
         if (selectedArchetypeId) {
-          await applyBaseArchetypeAction({ sessionCode, characterId: result.character.id, archetypeId: selectedArchetypeId });
+          const applied = await applyBaseArchetypeAction({ sessionCode, characterId: result.character.id, archetypeId: selectedArchetypeId });
+          if (applied.ok && applied.character) nextCharacter = applied.character;
         }
-        upsertCharacter(result.character);
+        upsertCharacter(nextCharacter);
         setCharacterName("");
         setSelectedArchetypeId("");
       }
     });
   };
 
-  const canManage = viewer?.role === "gm";
-
   return (
     <div className="space-y-6">
       {/* Create Character */}
-      {canManage && (
+      {canCreate && (
         <section className="rounded-[28px] border border-[var(--border-panel)] bg-[var(--bg-panel)]/40 p-6 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
@@ -432,10 +438,16 @@ export function CharactersPanel({ sessionCode, viewer, participants, party }: Ch
                 <input value={characterName} onChange={e => setCharacterName(e.target.value)} className="w-full rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--gold)]/30" placeholder="Ex: Musashi" />
               </div>
               <div className="grid gap-4 grid-cols-2">
-                <select value={characterType} onChange={e => setCharacterType(e.target.value as any)} className="rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)]">
-                  <option value="player">Protagonista</option>
-                  <option value="npc">Figura / NPC</option>
-                </select>
+                {canManage ? (
+                  <select value={characterType} onChange={e => setCharacterType(e.target.value as any)} className="rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)]">
+                    <option value="player">Protagonista</option>
+                    <option value="npc">Figura / NPC</option>
+                  </select>
+                ) : (
+                  <div className="rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm font-semibold text-[color:var(--text-primary)]">
+                    Protagonista
+                  </div>
+                )}
                 <select value={characterTier} onChange={e => setCharacterTier(e.target.value as any)} className="rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[color:var(--text-primary)]">
                   <option value="full">Ficha Completa</option>
                   <option value="medium">Ficha Mediana</option>
@@ -482,7 +494,7 @@ export function CharactersPanel({ sessionCode, viewer, participants, party }: Ch
               isOnline={c.ownerParticipantId ? party.some(p => p.id === c.ownerParticipantId && p.status !== "offline") : false}
               canAdjust={canManage || viewer?.participantId === c.ownerParticipantId}
               canManageInitiative={canManage}
-              canManageProfile={canManage}
+              canManageProfile={canManage || viewer?.participantId === c.ownerParticipantId}
               participantOptions={participants}
               assetOptions={assets}
               archetypeOptions={archetypes}

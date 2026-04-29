@@ -53,7 +53,7 @@ export function AppDrawer({
           ) : null}
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden p-2">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">{children}</div>
     </aside>
   );
 }

@@ -82,7 +82,7 @@ export function AuthSessionBridge({
 
       if (result.ok && result.route) {
         setStatusLabel("Mesa restaurada pela sua conta.");
-        router.refresh();
+        window.location.replace(result.route);
       }
     };
 

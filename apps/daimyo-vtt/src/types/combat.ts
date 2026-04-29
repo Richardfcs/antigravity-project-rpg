@@ -176,6 +176,7 @@ export interface CharacterStyleProfile {
 export interface CharacterCombatStateProfile {
   currentHp: number;
   currentFp: number;
+  inspiration: number;
   activeWeaponId: string | null;
   activeWeaponModeId: string | null;
   loadoutTechniqueIds: string[];
@@ -254,7 +255,9 @@ export interface CombatDraftAction {
   waitTrigger?: string | null;
   roundsNeeded?: number | null;
   isStyle?: boolean;
-}
+  rollMode?: TacticalRollMode;
+  inspirationSpent?: boolean;
+  }
 
 export interface CombatRollRecord {
   total: number;
@@ -262,6 +265,38 @@ export interface CombatRollRecord {
   target: number;
   margin: number;
   critical: "critical-success" | "critical-failure" | "none";
+  rollMode?: TacticalRollMode;
+  rollOptions?: TacticalRollSet[];
+}
+
+export type TacticalRollMode = "normal" | "advantage" | "disadvantage";
+
+export interface TacticalRollSet {
+  total: number;
+  dice: [number, number, number];
+}
+
+export interface TacticalSkillRollPayload {
+  rollKind: "skill";
+  formula: string;
+  skillId?: string | null;
+  skillName: string;
+  tokenId?: string | null;
+  characterId?: string | null;
+  targetNumber: number;
+  modifierTotal: number;
+  modifiers: Array<{
+    label: string;
+    value: number;
+  }>;
+  rollMode: TacticalRollMode;
+  rolls: TacticalRollSet[];
+  keptRollIndex: number;
+  total: number;
+  margin: number;
+  outcome: "critical-success" | "success" | "failure" | "critical-failure";
+  inspirationSpent?: boolean;
+  rerollOf?: string | null;
 }
 
 export interface CombatDamageBreakdown {
@@ -297,6 +332,26 @@ export interface CombatResolutionRecord {
   hpDelta?: number;
   fpDelta?: number;
   appliedConditions: string[];
+  reverted?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export interface CombatUndoSnapshot {
+  id: string;
+  label: string;
+  createdAt: string;
+  session: {
+    combatEnabled: boolean;
+    combatRound: number;
+    combatTurnIndex: number;
+    combatActiveTokenId: string | null;
+    combatFlow: SessionCombatFlow | null;
+  };
+  characters: Array<{
+    characterId: string;
+    sheetProfile: SessionCharacterSheetProfile | null;
+  }>;
+  messageIds: string[];
 }
 
 export interface FeintResult {
@@ -390,5 +445,6 @@ export interface SessionCombatFlow {
   lastResolution: CombatResolutionRecord | null;
   log: CombatResolutionRecord[];
   combatantStates: Record<string, CombatantTurnState>;
+  undoStack: CombatUndoSnapshot[];
   updatedAt: string;
 }

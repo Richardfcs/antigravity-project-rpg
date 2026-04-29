@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { MasterShell } from "@/components/shell/master-shell";
 import { listSessionAssets } from "@/lib/assets/repository";
@@ -39,6 +39,16 @@ export default async function GmSessionPage({ params }: GmPageProps) {
 
   if (!bootstrap) {
     notFound();
+  }
+
+  if (!bootstrap.viewer) {
+    redirect(
+      `/?${new URLSearchParams({
+        error:
+          "Acesso de mestre nao validado. Entre novamente com uma conta vinculada a esta mesa.",
+        code: bootstrap.session.code
+      }).toString()}`
+    );
   }
 
   const [

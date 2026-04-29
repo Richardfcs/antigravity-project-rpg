@@ -44,7 +44,7 @@ type CodexTab = "archetypes" | "codex" | "equipment";
 interface CodexPanelProps {
   sessionCode: string;
   viewer: SessionViewerIdentity | null;
-  participants: SessionParticipantRecord[];
+  participants?: SessionParticipantRecord[];
 }
 
 
@@ -52,7 +52,7 @@ interface CodexPanelProps {
 export function CodexPanel({
   sessionCode,
   viewer,
-  participants
+  participants = []
 }: CodexPanelProps) {
   const assets = useAssetStore((state) => state.assets);
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);

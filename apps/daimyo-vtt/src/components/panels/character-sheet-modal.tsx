@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 
 import type { SessionCharacterRecord } from "@/types/character";
-import type { SessionCharacterSheetProfile } from "@/types/combat";
+import type { SessionCharacterSheetProfile, TacticalRollMode } from "@/types/combat";
 import type { SessionViewerIdentity } from "@/types/session";
 import { 
   updateCharacterProfileAction, 
@@ -48,7 +48,9 @@ import {
   parseDamageSpec, 
   calculateTotalSlots, 
   getEncumbranceLevelFromSlots,
-  getSlotThresholds
+  getSlotThresholds,
+  normalizeStyleTechniqueId,
+  normalizeStyleTechniqueRecords
 } from "@/lib/combat/sheet-profile";
 import { 
   calculateSkillPenalties, 
@@ -114,6 +116,7 @@ export function CharacterSheetModal({
     combat: {
       currentHp: 10,
       currentFp: 10,
+      inspiration: 0,
       activeWeaponId: null,
       activeWeaponModeId: null,
       loadoutTechniqueIds: [],
@@ -556,10 +559,19 @@ export function CharacterSheetModal({
     });
   };
 
-  const handleQuickRoll = (formula: string, target: number, label: string, isSkillRoll: boolean = false) => {
+  const handleQuickRoll = (
+    formula: string,
+    target: number,
+    label: string,
+    isSkillRoll: boolean = false,
+    rollMode: TacticalRollMode = "normal",
+    useInspiration = false,
+    skillId?: string
+  ) => {
     startTransition(async () => {
       let finalTarget = target;
       let modifierDescription = "";
+      const modifiers: Array<{ label: string; value: number }> = [];
       
       if (isSkillRoll) {
         const choque = draftProfile.combat.shock || 0;
@@ -568,6 +580,15 @@ export function CharacterSheetModal({
         
         const skillInfo = getSkillRollTarget(target, encumbranceLevel, choque, fadiga, dor);
         finalTarget = skillInfo.target;
+        if (skillInfo.modifier.cargaPenalty) {
+          modifiers.push({ label: "Carga", value: -skillInfo.modifier.cargaPenalty });
+        }
+        if (skillInfo.modifier.choquePenalty) {
+          modifiers.push({ label: "Choque", value: -skillInfo.modifier.choquePenalty });
+        }
+        if (skillInfo.modifier.fadigaPenalty) {
+          modifiers.push({ label: "Fadiga", value: -skillInfo.modifier.fadigaPenalty });
+        }
         
         if (skillInfo.modifier.totalPenalty > 0) {
           modifierDescription = ` [${skillInfo.modifier.description}]`;
@@ -580,7 +601,13 @@ export function CharacterSheetModal({
         target: finalTarget,
         label: label + modifierDescription,
         isPrivate: isPrivateRoll,
-        tokenId
+        tokenId,
+        characterId: character.id,
+        skillId: skillId ?? null,
+        skillName: isSkillRoll ? label : null,
+        modifiers,
+        rollMode,
+        inspirationSpent: useInspiration
       });
       
       if (res.ok && res.message) {
@@ -596,10 +623,27 @@ export function CharacterSheetModal({
 
     setFeedback(null);
     startTransition(async () => {
+      const currentStyleData = styles.find((style) => style.nome === draftProfile.style.name);
+      const styleTechniques = normalizeStyleTechniqueRecords({
+        styleName: draftProfile.style.name,
+        techniques: currentStyleData?.tecnicas || [],
+        fallbackSkill: draftProfile.skills[0]?.name,
+        fallbackLevel: draftProfile.skills[0]?.level
+      });
+      const selectedStyleTechniques = styleTechniques.filter((technique) =>
+        draftProfile.combat.loadoutStyleTechniqueIds.includes(technique.id)
+      );
+      const profileToSave = {
+        ...draftProfile,
+        techniques: [
+          ...draftProfile.techniques.filter((technique) => !technique.tags.includes("style")),
+          ...selectedStyleTechniques
+        ]
+      } satisfies SessionCharacterSheetProfile;
       const result = await updateCharacterProfileAction({
         sessionCode,
         characterId: character.id,
-        sheetProfile: draftProfile
+        sheetProfile: profileToSave
       });
 
       if (result.ok && result.character) {
@@ -1006,6 +1050,25 @@ export function CharacterSheetModal({
                       Restaurar Energia
                     </button>
                   </div>
+
+                  <div className="rounded-[32px] border border-amber-400/20 bg-amber-400/5 p-6 text-center">
+                    <div className="flex items-center justify-center gap-3">
+                      <Sparkles size={18} className="text-amber-300" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-200">
+                        Inspiracao
+                      </span>
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      value={draftProfile.combat.inspiration ?? 0}
+                      onChange={(e) => updateCombat("inspiration", Math.max(0, parseInt(e.target.value, 10) || 0))}
+                      className="mt-3 w-24 bg-transparent text-center text-4xl font-black text-amber-100 outline-none"
+                    />
+                    <p className="mt-1 text-[9px] font-semibold uppercase tracking-widest text-amber-100/45">
+                      rerrolagens disponiveis
+                    </p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -1307,7 +1370,12 @@ export function CharacterSheetModal({
                       {[0, 1].map((slotIdx) => {
                         const selectedTechId = draftProfile.combat.loadoutStyleTechniqueIds?.[slotIdx];
                         const currentStyleData = styles.find(s => s.nome === draftProfile.style.name);
-                        const availableTechs = currentStyleData?.tecnicas || [];
+                        const availableTechs = normalizeStyleTechniqueRecords({
+                          styleName: draftProfile.style.name,
+                          techniques: currentStyleData?.tecnicas || [],
+                          fallbackSkill: draftProfile.skills[0]?.name,
+                          fallbackLevel: draftProfile.skills[0]?.level
+                        });
 
                         return (
                           <div key={slotIdx} className="relative group">
@@ -1322,11 +1390,12 @@ export function CharacterSheetModal({
                               className="w-full appearance-none rounded-2xl border border-[var(--border-panel)] bg-[var(--bg-input)] px-4 py-4 text-xs font-bold text-[color:var(--text-primary)] outline-none focus:border-sky-500/40 transition-all cursor-pointer disabled:opacity-30"
                             >
                               <option value="">-- Técnica {slotIdx + 1} --</option>
-                              {availableTechs.map((t: any) => {
-                                const isSelectedElsewhere = (draftProfile.combat.loadoutStyleTechniqueIds || []).includes(t.nome) && selectedTechId !== t.nome;
+                              {availableTechs.map((t) => {
+                                const techniqueId = normalizeStyleTechniqueId(draftProfile.style.name, t.name);
+                                const isSelectedElsewhere = (draftProfile.combat.loadoutStyleTechniqueIds || []).includes(techniqueId) && selectedTechId !== techniqueId;
                                 return (
-                                  <option key={t.nome} value={t.nome} disabled={isSelectedElsewhere}>
-                                    {t.nome} {isSelectedElsewhere ? "[EM USO]" : ""}
+                                  <option key={techniqueId} value={techniqueId} disabled={isSelectedElsewhere}>
+                                    {t.name} {isSelectedElsewhere ? "[EM USO]" : ""}
                                   </option>
                                 );
                               })}
@@ -1816,10 +1885,33 @@ export function CharacterSheetModal({
                             3d6 ≤ {targetRoll}
                           </span>
                           <button
-                            onClick={() => handleQuickRoll("3d6", skill.level, skill.name, true)}
+                            onClick={() => handleQuickRoll("3d6", skill.level, skill.name, true, "normal", false, skill.id)}
                             className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 transition hover:bg-sky-500/20 active:scale-90"
+                            title="Rolar normal"
                           >
                             <Dices size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleQuickRoll("3d6", skill.level, skill.name, true, "advantage", false, skill.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-300 transition hover:bg-emerald-500/20 active:scale-90"
+                            title="Rolar com vantagem"
+                          >
+                            V
+                          </button>
+                          <button
+                            onClick={() => handleQuickRoll("3d6", skill.level, skill.name, true, "disadvantage", false, skill.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/10 text-rose-300 transition hover:bg-rose-500/20 active:scale-90"
+                            title="Rolar com desvantagem"
+                          >
+                            D
+                          </button>
+                          <button
+                            onClick={() => handleQuickRoll("3d6", skill.level, skill.name, true, "normal", true, skill.id)}
+                            disabled={(draftProfile.combat.inspiration ?? 0) <= 0}
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-300 transition hover:bg-amber-500/20 active:scale-90 disabled:opacity-25"
+                            title="Gastar Inspiracao para rerrolar"
+                          >
+                            I
                           </button>
                           {canManage && (
                             <button

@@ -1099,9 +1099,13 @@ export function MasterShell({
             <div className="flex flex-wrap items-center gap-2">
               <AuthSessionBridge sessionCode={session.code} role="gm" viewer={viewer} />
               {!viewer ? (
-                <span className="hud-chip border-amber-300/18 bg-amber-300/8 text-amber-100">
-                  mestre nao vinculado
-                </span>
+                <button
+                  type="button"
+                  onClick={() => window.location.assign("/")}
+                  className="hud-chip border-amber-300/18 bg-amber-300/8 text-amber-100 hover:bg-amber-300/15 transition-colors"
+                >
+                  mestre nao vinculado · clique para logar
+                </button>
               ) : null}
             </div>
             <ThemeSettingsButton />

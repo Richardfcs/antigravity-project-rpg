@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   BellRing,
   ChevronRight,
+  Dices,
   Expand,
   Map,
   Music4,
@@ -35,10 +36,7 @@ import {
   findActiveAtlasMap,
   listAtlasStagePins
 } from "@/lib/atlas/selectors";
-import {
-  findCharacterByViewer,
-  sortCharactersByInitiative
-} from "@/lib/characters/selectors";
+import { sortCharactersByInitiative } from "@/lib/characters/selectors";
 import {
   buildTacticalCombatState,
   findActiveMap,
@@ -133,10 +131,14 @@ const ChatPanel = dynamic(
   () => import("@/components/panels/chat-panel").then((mod) => mod.ChatPanel),
   { ssr: false }
 );
-const SessionStatusDrawer = dynamic(
+const CharactersPanel = dynamic(
+  () => import("@/components/panels/characters-panel").then((mod) => mod.CharactersPanel),
+  { ssr: false }
+);
+const CodexPanel = dynamic(
   () =>
-    import("@/components/panels/session-status-drawer").then(
-      (mod) => mod.SessionStatusDrawer
+    import("@/components/panels/codex-panel").then(
+      (mod) => mod.CodexPanel
     ),
   { ssr: false }
 );
@@ -243,6 +245,7 @@ export function PlayerShell({
     targetAtlasMapId: string | null;
   } | null>(null);
   const [wikiOpen, setWikiOpen] = useState(false);
+  const [codexOpen, setCodexOpen] = useState(false);
   const [isImmersiveChatOpen, setIsImmersiveChatOpen] = useState(false);
   const [isImmersiveMinimized, setIsImmersiveMinimized] = useState(false);
   const [lastBroadcastStageMode, setLastBroadcastStageMode] = useState<StageMode>(
@@ -373,9 +376,15 @@ export function PlayerShell({
     () => sortCharactersByInitiative(liveCharacters),
     [liveCharacters]
   );
+  const playerCharacters = viewer
+    ? orderedCharacters.filter(
+        (character) => character.ownerParticipantId === viewer.participantId
+      )
+    : [];
   const currentCharacter =
-    findCharacterByViewer(orderedCharacters, viewer?.participantId) ??
-    orderedCharacters.find((character) => character.type === "player") ??
+    playerCharacters.find((character) => Boolean(character.sheetProfile?.raw?.isPrimary)) ??
+    playerCharacters.find((character) => character.hp > 0) ??
+    playerCharacters[0] ??
     null;
   const activeScene = findActiveScene(liveScenes, session.activeSceneId);
   const activeEntries = activeScene
@@ -612,6 +621,7 @@ export function PlayerShell({
       setLocalPresentationMode(broadcastPresentationMode);
       setIsImmersiveMinimized(false);
       setWikiOpen(false);
+      setCodexOpen(false);
       setPlayerBottomTab("stage");
       setPlayerOverlay("none");
       setSyncNotice("Voce voltou a seguir o foco do mestre.");
@@ -627,6 +637,7 @@ export function PlayerShell({
     setLocalPresentationMode(broadcastPresentationMode);
     setIsImmersiveMinimized(false);
     setWikiOpen(false);
+    setCodexOpen(false);
     setPlayerBottomTab("stage");
     setPlayerOverlay("none");
     setSyncNotice("Sessao alinhada com o foco atual do mestre.");
@@ -637,6 +648,7 @@ export function PlayerShell({
       const nextValue = !current;
 
       if (nextValue) {
+        setCodexOpen(false);
         setPlayerBottomTab("wiki");
         setLocalPresentationMode("standard");
         setIsImmersiveMinimized(false);
@@ -760,15 +772,33 @@ const renderedImmersiveStage =
 
   const showInlineStage =
     effectivePresentationMode !== "immersive" || resolvedImmersiveMinimized;
-  const supportTrayOpen = !isMobile || playerBottomTab !== "stage";
+  const supportTrayOpen =
+    playerBottomTab === "chat" ||
+    playerBottomTab === "notes" ||
+    playerBottomTab === "dice" ||
+    playerBottomTab === "codex" ||
+    playerBottomTab === "sheet";
 
   const handlePlayerViewJump = (
-    target: "stage" | "wiki" | "sheet" | "chat" | "notes"
+    target: "stage" | "wiki" | "codex" | "sheet" | "chat" | "notes" | "dice"
   ) => {
     if (target === "wiki") {
       setPlayerBottomTab("wiki");
       setPlayerOverlay("none");
+      setCodexOpen(false);
       setWikiOpen(true);
+      setLocalPresentationMode("standard");
+      setIsImmersiveMinimized(false);
+      setIsImmersiveChatOpen(false);
+      return;
+    }
+
+    if (target === "codex") {
+      setPlayerBottomTab("codex");
+      setPlayerOverlay("none");
+      setWikiOpen(false);
+      setCodexOpen(false);
+      setActiveDockTab("codex");
       setLocalPresentationMode("standard");
       setIsImmersiveMinimized(false);
       setIsImmersiveChatOpen(false);
@@ -777,13 +807,18 @@ const renderedImmersiveStage =
 
     if (target === "sheet") {
       setPlayerBottomTab("sheet");
-      setPlayerOverlay("sheet");
+      setPlayerOverlay("none");
+      setWikiOpen(false);
+      setCodexOpen(false);
+      setActiveDockTab("sheet");
       return;
     }
 
     if (target === "chat") {
       setPlayerBottomTab("chat");
       setPlayerOverlay("none");
+      setWikiOpen(false);
+      setCodexOpen(false);
       setActiveDockTab("chat");
       return;
     }
@@ -791,13 +826,25 @@ const renderedImmersiveStage =
     if (target === "notes") {
       setPlayerBottomTab("notes");
       setPlayerOverlay("none");
+      setWikiOpen(false);
+      setCodexOpen(false);
       setActiveDockTab("notes");
+      return;
+    }
+
+    if (target === "dice") {
+      setPlayerBottomTab("dice");
+      setPlayerOverlay("none");
+      setWikiOpen(false);
+      setCodexOpen(false);
+      setActiveDockTab("dice");
       return;
     }
 
     setPlayerBottomTab("stage");
     setPlayerOverlay("none");
     setWikiOpen(false);
+    setCodexOpen(false);
   };
 
   return (
@@ -837,7 +884,7 @@ const renderedImmersiveStage =
                   className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:border-white/20"
                 >
                   <Sparkles size={14} />
-                  {wikiOpen ? "fechar wiki" : "wiki"}
+                  {wikiOpen ? "fechar atlas" : "atlas"}
                 </button>
                 {(!followMaster || localPresentationMode === "immersive") && (
                   <button
@@ -897,8 +944,10 @@ const renderedImmersiveStage =
             {(
               [
                 ["stage", "palco", Sparkles],
-                ["wiki", "wiki", Map],
+                ["wiki", "atlas", Map],
+                ["codex", "codex", Sparkles],
                 ["sheet", "ficha", Shield],
+                ["dice", "dados", Dices],
                 ["chat", "conversa", BellRing],
                 ["notes", "caderno", ScrollText]
               ] as const
@@ -908,11 +957,13 @@ const renderedImmersiveStage =
                 type="button"
                 onClick={() => handlePlayerViewJump(target)}
                 className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] transition ${
-                  (target === "stage" && !wikiOpen && playerOverlay === "none") ||
+                  (target === "stage" && playerBottomTab === "stage" && !wikiOpen) ||
                   (target === "wiki" && wikiOpen) ||
-                  (target === "sheet" && playerOverlay === "sheet") ||
-                  (target === "chat" && activeDockTab === "chat" && playerBottomTab === "chat") ||
-                  (target === "notes" && activeDockTab === "notes" && playerBottomTab === "notes")
+                  (target === "codex" && playerBottomTab === "codex") ||
+                  (target === "sheet" && playerBottomTab === "sheet") ||
+                  (target === "dice" && playerBottomTab === "dice") ||
+                  (target === "chat" && playerBottomTab === "chat") ||
+                  (target === "notes" && playerBottomTab === "notes")
                     ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
                     : "border-white/10 bg-white/[0.04] text-[color:var(--ink-2)] hover:border-white/20"
                 }`}
@@ -1033,35 +1084,33 @@ const renderedImmersiveStage =
 
         {showInlineStage ? renderedStage : null}
 
-        <AppDrawer
-          title={currentCharacter?.name ?? "Minha ficha"}
-          open={playerOverlay === "sheet"}
-          onClose={() => setPlayerOverlay("none")}
-          className="lg:fixed lg:right-4 lg:top-4 lg:bottom-4 lg:z-[70] lg:w-[360px]"
-        >
-          <SessionStatusDrawer
-            sessionCode={session.code}
-            viewer={viewer}
-            participants={participants}
-            party={roster}
-            characters={liveCharacters}
-            assets={liveAssets}
-            defaultOpen
-            embedded
-          />
-        </AppDrawer>
+
 
         <AppTray
-          title="Apoio"
+          title={
+            activeDockTab === "notes"
+              ? "Caderno"
+              : activeDockTab === "chat"
+                ? "Conversa"
+                : activeDockTab === "dice"
+                  ? "Dados"
+                  : activeDockTab === "codex"
+                    ? "Codex"
+                    : "Ficha"
+          }
           open={supportTrayOpen}
-          onToggle={() => setPlayerBottomTab(!supportTrayOpen ? "chat" : "stage")}
+          onToggle={() => setPlayerBottomTab("stage")}
+          className="!fixed !bottom-4 !left-1/2 !z-[80] !h-[min(82vh,48rem)] !w-[min(940px,calc(100vw-1rem))] !-translate-x-1/2"
         >
-          <div className="h-[min(38vh,25rem)] min-h-[220px] max-h-[min(38vh,25rem)] overflow-hidden">
+          <div className="h-full min-h-0 overflow-hidden">
             <BottomDock
               snapshot={session}
               viewer={viewer}
               activeTab={activeDockTab}
               onTabChange={setActiveDockTab}
+              participants={participants}
+              party={roster}
+              characters={liveCharacters}
               showAudio={false}
               embedded
             />
@@ -1084,8 +1133,10 @@ const renderedImmersiveStage =
         {(
           [
             ["stage", "palco", Sparkles],
-            ["wiki", "wiki", Map],
+            ["wiki", "atlas", Map],
+            ["codex", "codex", Sparkles],
             ["sheet", "ficha", Shield],
+            ["dice", "dados", Dices],
             ["chat", "chat", BellRing],
             ["notes", "notas", ScrollText]
           ] as const
@@ -1093,7 +1144,9 @@ const renderedImmersiveStage =
           const active =
             (target === "stage" && playerBottomTab === "stage" && !wikiOpen) ||
             (target === "wiki" && wikiOpen) ||
-            (target === "sheet" && playerOverlay === "sheet") ||
+            (target === "codex" && playerBottomTab === "codex") ||
+            (target === "sheet" && playerBottomTab === "sheet") ||
+            (target === "dice" && playerBottomTab === "dice") ||
             (target === "chat" && playerBottomTab === "chat") ||
             (target === "notes" && playerBottomTab === "notes");
 

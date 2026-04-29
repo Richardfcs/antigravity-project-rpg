@@ -27,6 +27,11 @@ interface CombatantStatusCardProps {
   onSelect?: (tokenId: string) => void;
   onAdjustResource?: (tokenId: string, resource: "hp" | "fp", delta: number) => void;
   onToggleStatus?: (tokenId: string, status: TokenStatusPreset) => void;
+  onUpdateCombatNumeric?: (
+    tokenId: string,
+    field: "shock" | "bleeding" | "pain" | "fatigue" | "inspiration",
+    value: number
+  ) => void;
 }
 
 export function CombatantStatusCard({
@@ -34,7 +39,8 @@ export function CombatantStatusCard({
   isActive,
   onSelect,
   onAdjustResource,
-  onToggleStatus
+  onToggleStatus,
+  onUpdateCombatNumeric
 }: CombatantStatusCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const profile = entry.character?.sheetProfile;
@@ -260,6 +266,53 @@ export function CombatantStatusCard({
           </div>
 
           {/* Condições da Ficha */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1 text-[8px] font-black text-[color:var(--ink-3)] uppercase tracking-widest">
+              <HeartCrack size={10} /> Efeitos da Ficha
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { field: "shock", label: "Choque", value: profile.combat.shock ?? 0 },
+                { field: "bleeding", label: "Sang.", value: profile.combat.bleeding ?? 0 },
+                { field: "pain", label: "Dor", value: profile.combat.pain ?? 0 },
+                { field: "inspiration", label: "Insp.", value: profile.combat.inspiration ?? 0 }
+              ].map((item) => (
+                <div key={item.field} className="flex items-center justify-between gap-1 rounded-lg border border-white/8 bg-white/[0.03] px-2 py-1">
+                  <span className="text-[8px] font-black uppercase text-white/35">{item.label}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onUpdateCombatNumeric?.(
+                          entry.token.id,
+                          item.field as "shock" | "bleeding" | "pain" | "fatigue" | "inspiration",
+                          Math.max(0, item.value - 1)
+                        );
+                      }}
+                      className="text-white/35 hover:text-white"
+                    >
+                      <Minus size={9} />
+                    </button>
+                    <span className="w-4 text-center text-[9px] font-black text-white/70">{item.value}</span>
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onUpdateCombatNumeric?.(
+                          entry.token.id,
+                          item.field as "shock" | "bleeding" | "pain" | "fatigue" | "inspiration",
+                          item.value + 1
+                        );
+                      }}
+                      className="text-white/35 hover:text-white"
+                    >
+                      <Plus size={9} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {profile.conditions && profile.conditions.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-1 text-[8px] font-black text-[color:var(--ink-3)] uppercase tracking-widest">

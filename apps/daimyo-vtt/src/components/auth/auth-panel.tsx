@@ -24,6 +24,8 @@ interface AuthPanelProps {
   onAuthenticatedChange?: (state: {
     isAuthenticated: boolean;
     email: string | null;
+    userId: string | null;
+    linkedSessions: LinkedSessionSummary[];
   }) => void;
   onOpenCampaigns?: () => void;
 }
@@ -128,11 +130,8 @@ export function AuthPanel({
         }
 
         const currentEmail = session?.user?.email ?? null;
+        const currentUserId = session?.user?.id ?? null;
         setAuthEmail(currentEmail);
-        onAuthenticatedChangeRef.current?.({
-          isAuthenticated: Boolean(currentEmail),
-          email: currentEmail
-        });
         if (currentEmail) {
           setEmail(currentEmail);
         }
@@ -151,13 +150,22 @@ export function AuthPanel({
           return;
         }
 
+        let sessions: LinkedSessionSummary[] = [];
         if (result.ok) {
-          setLinkedSessions(result.sessions);
+          sessions = result.sessions;
+          setLinkedSessions(sessions);
           setFeedback(null);
         } else {
           setLinkedSessions([]);
           setFeedback(result.message ?? "Falha ao carregar as mesas vinculadas.");
         }
+
+        onAuthenticatedChangeRef.current?.({
+          isAuthenticated: Boolean(currentEmail),
+          email: currentEmail,
+          userId: currentUserId,
+          linkedSessions: sessions
+        });
       } catch (err) {
         console.warn("Supabase Auth Sync:", err);
         if (isMounted) {
@@ -165,7 +173,9 @@ export function AuthPanel({
           setLinkedSessions([]);
           onAuthenticatedChangeRef.current?.({
             isAuthenticated: false,
-            email: null
+            email: null,
+            userId: null,
+            linkedSessions: []
           });
         }
       } finally {
@@ -185,7 +195,9 @@ export function AuthPanel({
         setLinkedSessions([]);
         onAuthenticatedChangeRef.current?.({
           isAuthenticated: false,
-          email: null
+          email: null,
+          userId: null,
+          linkedSessions: []
         });
       } else {
         void syncAuthState();
@@ -255,7 +267,9 @@ export function AuthPanel({
         setFeedback("Conta conectada.");
         onAuthenticatedChangeRef.current?.({
           isAuthenticated: true,
-          email: normalizedEmail
+          email: normalizedEmail,
+          userId: signIn.data.user?.id ?? null,
+          linkedSessions
         });
       }
 
@@ -281,7 +295,9 @@ export function AuthPanel({
         setPassword("");
         onAuthenticatedChangeRef.current?.({
           isAuthenticated: false,
-          email: null
+          email: null,
+          userId: null,
+          linkedSessions: []
         });
       }
 

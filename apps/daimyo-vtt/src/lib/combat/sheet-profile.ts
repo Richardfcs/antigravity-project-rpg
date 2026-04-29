@@ -26,6 +26,55 @@ function slugify(value: string) {
     .replace(/(^-|-$)/g, "");
 }
 
+export function normalizeStyleTechniqueId(styleName: string, techniqueName: string) {
+  const styleSlug = slugify(styleName || "sem-estilo") || "sem-estilo";
+  const techniqueSlug = slugify(techniqueName || "tecnica") || "tecnica";
+  return `style:${styleSlug}:${techniqueSlug}`;
+}
+
+export function normalizeStyleTechniqueRecords(input: {
+  styleName: string;
+  techniques: unknown[];
+  fallbackSkill?: string;
+  fallbackLevel?: number;
+}): CharacterTechniqueRecord[] {
+  return input.techniques
+    .map((raw, index) => {
+      const candidate = asObject(raw);
+      const name =
+        typeof raw === "string"
+          ? raw
+          : typeof candidate?.nome === "string"
+            ? candidate.nome
+            : typeof candidate?.name === "string"
+              ? candidate.name
+              : `Tecnica ${index + 1}`;
+      const skill =
+        typeof candidate?.pericia === "string"
+          ? candidate.pericia
+          : typeof candidate?.skill === "string"
+            ? candidate.skill
+            : input.fallbackSkill ?? "Estilo";
+      const level = toNumber(candidate?.nivel ?? candidate?.level, input.fallbackLevel ?? 10);
+
+      return {
+        id: normalizeStyleTechniqueId(input.styleName, name),
+        name,
+        style: input.styleName,
+        skill,
+        level,
+        defaultModifier: toNumber(candidate?.modificador ?? candidate?.defaultModifier, 0),
+        tags: ["style", "catalog"],
+        notes:
+          typeof candidate?.descricao === "string"
+            ? candidate.descricao
+            : typeof candidate?.notes === "string"
+              ? candidate.notes
+              : undefined
+      } satisfies CharacterTechniqueRecord;
+    });
+}
+
 function toNumber(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value)
     ? value
@@ -488,6 +537,7 @@ export function normalizeSheetProfile(
     combat: {
       currentHp: toNumber(candidateCombat?.currentHp, attributes.hpMax),
       currentFp: toNumber(candidateCombat?.currentFp, attributes.fpMax),
+      inspiration: Math.max(0, Math.floor(toNumber(candidateCombat?.inspiration, 0))),
       activeWeaponId: candidateCombat?.activeWeaponId ?? weapons[0]?.id ?? null,
       activeWeaponModeId: candidateCombat?.activeWeaponModeId ?? weapons[0]?.modes[0]?.id ?? null,
       loadoutTechniqueIds: Array.isArray(candidateCombat?.loadoutTechniqueIds) ? candidateCombat.loadoutTechniqueIds : [],
@@ -546,6 +596,7 @@ export function buildSheetProfileFromBaseTemplate(template: CharacterTemplate, e
     combat: {
       currentHp: attributes.hpMax,
       currentFp: attributes.fpMax,
+      inspiration: 0,
       activeWeaponId: weapons[0]?.id ?? "fists",
       activeWeaponModeId: weapons[0]?.modes[0]?.id ?? "fists-mode",
       loadoutTechniqueIds: [],
@@ -728,6 +779,7 @@ export function createEmptySheetProfile(input?: {
     combat: {
       currentHp: attributes.hpMax,
       currentFp: attributes.fpMax,
+      inspiration: 0,
       activeWeaponId: weapons[0].id,
       activeWeaponModeId: weapons[0].modes[0]?.id ?? null,
       loadoutTechniqueIds: [],
@@ -776,7 +828,7 @@ export function buildWeaponsFromEquipmentString(
 
   const parseWeaponFromCatalog = (segment: string) => {
     const nameMatch = segment.match(/^(.+?)(?:\s+de\s+Qualidade\s+(Fina|Muito Fina|Boa|Barata))?(?:\||$)/i);
-    let name = nameMatch?.[1]?.trim();
+    const name = nameMatch?.[1]?.trim();
     const quality = nameMatch?.[2]?.trim() || "Boa";
     
     if (!name) return null;
@@ -984,4 +1036,3 @@ function ensureTechniqueLoadout(profile: SessionCharacterSheetProfile) {
   const loadout = profile.combat.loadoutTechniqueIds.slice(0, 3);
   return { techniques: profile.techniques, loadout };
 }
-

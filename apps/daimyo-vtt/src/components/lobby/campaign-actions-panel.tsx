@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Crown, UsersRound } from "lucide-react";
 
 import {
@@ -8,7 +8,9 @@ import {
   joinSessionAction
 } from "@/app/actions/session-actions";
 import { SubmitButton } from "@/components/lobby/submit-button";
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import type { InfraReadiness } from "@/types/infra";
+import type { LinkedSessionSummary } from "@/types/session";
 
 type LobbyAction = "create" | "join";
 
@@ -16,6 +18,7 @@ interface CampaignActionsPanelProps {
   infra: InfraReadiness;
   presetCode?: string;
   onBack?: () => void;
+  linkedSessions?: LinkedSessionSummary[];
 }
 
 const actionItems: Array<{
@@ -44,9 +47,60 @@ const actionItems: Array<{
 export function CampaignActionsPanel({
   infra,
   presetCode = "",
-  onBack
+  onBack,
+  linkedSessions = []
 }: CampaignActionsPanelProps) {
   const [activeAction, setActiveAction] = useState<LobbyAction>("create");
+  const [accessToken, setAccessToken] = useState("");
+
+  // Detect if the presetCode belongs to a GM session for this user
+  const isUserGmOfThisSession = useMemo(() => {
+    if (!presetCode || !linkedSessions.length) return false;
+    return linkedSessions.some(
+      (s) =>
+        s.sessionCode.toLowerCase() === presetCode.toLowerCase() &&
+        s.role === "gm"
+    );
+  }, [presetCode, linkedSessions]);
+
+  const [joinRole, setJoinRole] = useState<"gm" | "player">(
+    isUserGmOfThisSession ? "gm" : "player"
+  );
+  const canSubmit = infra.lobbyReady && Boolean(accessToken);
+
+  useEffect(() => {
+    let isMounted = true;
+    let client;
+
+    try {
+      client = createBrowserSupabaseClient();
+    } catch {
+      return;
+    }
+
+    const syncAccessToken = async () => {
+      const {
+        data: { session }
+      } = await client.auth.getSession();
+
+      if (isMounted) {
+        setAccessToken(session?.access_token ?? "");
+      }
+    };
+
+    void syncAccessToken();
+
+    const {
+      data: { subscription }
+    } = client.auth.onAuthStateChange(() => {
+      void syncAccessToken();
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const activeMeta = useMemo(
     () => actionItems.find((item) => item.id === activeAction) ?? actionItems[0],
@@ -111,6 +165,8 @@ export function CampaignActionsPanel({
               Abre a mesa e recebe o codigo curto.
             </p>
 
+            <input type="hidden" name="accessToken" value={accessToken} />
+
             <div className="grid gap-2">
               <label className="block">
                 <span className="section-label">Campanha</span>
@@ -118,7 +174,7 @@ export function CampaignActionsPanel({
                   name="campaignName"
                   type="text"
                   required
-                  disabled={!infra.lobbyReady}
+                  disabled={!canSubmit}
                   placeholder="A Era das Espadas Quebradas"
                   className="mt-1 w-full rounded-2xl border border-white/10 bg-black/20 px-3.5 py-2.5 text-sm text-white outline-none transition placeholder:text-[color:var(--ink-3)] focus:border-amber-300/35"
                 />
@@ -130,7 +186,7 @@ export function CampaignActionsPanel({
                   name="gmName"
                   type="text"
                   required
-                  disabled={!infra.lobbyReady}
+                  disabled={!canSubmit}
                   placeholder="Daimyo"
                   className="mt-1 w-full rounded-2xl border border-white/10 bg-black/20 px-3.5 py-2.5 text-sm text-white outline-none transition placeholder:text-[color:var(--ink-3)] focus:border-amber-300/35"
                 />
@@ -141,7 +197,7 @@ export function CampaignActionsPanel({
               <SubmitButton
                 idleLabel="Abrir mesa"
                 pendingLabel="Criando..."
-                disabled={!infra.lobbyReady}
+                disabled={!canSubmit}
                 className="border-amber-300/25 bg-amber-300/10 text-amber-50 hover:border-amber-300/40 hover:bg-amber-300/15"
               />
             </div>
@@ -157,6 +213,38 @@ export function CampaignActionsPanel({
               Entra direto com codigo e nome.
             </p>
 
+            <input type="hidden" name="role" value={joinRole} />
+            <input type="hidden" name="accessToken" value={accessToken} />
+
+            <div className="mb-2.5 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setJoinRole("player")}
+                className={[
+                  "flex flex-col items-center justify-center gap-1 rounded-xl border py-2.5 transition",
+                  joinRole === "player"
+                    ? "border-rose-300/35 bg-rose-300/10 text-rose-50"
+                    : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
+                ].join(" ")}
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em]">Jogador</span>
+                <span className="text-[9px] opacity-60">Entrar para jogar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setJoinRole("gm")}
+                className={[
+                  "flex flex-col items-center justify-center gap-1 rounded-xl border py-2.5 transition",
+                  joinRole === "gm"
+                    ? "border-amber-300/35 bg-amber-300/10 text-amber-50"
+                    : "border-white/10 bg-white/[0.03] text-[color:var(--ink-2)] hover:border-white/20"
+                ].join(" ")}
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em]">Mestre</span>
+                <span className="text-[9px] opacity-60">Recuperar acesso</span>
+              </button>
+            </div>
+
             <div className="grid gap-2">
               <label className="block">
                 <span className="section-label">Codigo</span>
@@ -164,7 +252,7 @@ export function CampaignActionsPanel({
                   name="sessionCode"
                   type="text"
                   required
-                  disabled={!infra.lobbyReady}
+                  disabled={!canSubmit}
                   defaultValue={presetCode}
                   placeholder="AKAI-01"
                   className="mt-1 w-full rounded-2xl border border-white/10 bg-black/20 px-3.5 py-2.5 font-mono text-sm uppercase tracking-[0.2em] text-white outline-none transition placeholder:text-[color:var(--ink-3)] focus:border-rose-300/35"
@@ -177,7 +265,7 @@ export function CampaignActionsPanel({
                   name="playerName"
                   type="text"
                   required
-                  disabled={!infra.lobbyReady}
+                  disabled={!canSubmit}
                   placeholder="Akemi"
                   className="mt-1 w-full rounded-2xl border border-white/10 bg-black/20 px-3.5 py-2.5 text-sm text-white outline-none transition placeholder:text-[color:var(--ink-3)] focus:border-rose-300/35"
                 />
@@ -188,7 +276,7 @@ export function CampaignActionsPanel({
               <SubmitButton
                 idleLabel="Entrar"
                 pendingLabel="Entrando..."
-                disabled={!infra.lobbyReady}
+                  disabled={!canSubmit}
                 className="border-rose-300/25 bg-rose-300/10 text-rose-50 hover:border-rose-300/40 hover:bg-rose-300/15"
               />
             </div>

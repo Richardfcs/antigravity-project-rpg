@@ -102,30 +102,31 @@ export async function createSessionAction(formData: FormData) {
     );
   }
 
-  let result:
-    | Awaited<ReturnType<typeof createSessionWithGm>>
-    | null = null;
+  let redirectPath: string;
 
   try {
     const campaignName = String(formData.get("campaignName") ?? "");
     const gmName = String(formData.get("gmName") ?? "");
+    const accessToken = String(formData.get("accessToken") ?? "");
+    const authUser = await verifySupabaseAccessToken(accessToken);
 
-    result = await createSessionWithGm({
+    const result = await createSessionWithGm({
       campaignName,
-      gmName
+      gmName,
+      ownerUserId: authUser.id
     });
+
+    const { session, participant } = result;
+    const cookieStore = await cookies();
+    cookieStore.set(buildSessionViewerCookie(buildViewerIdentity(session, participant)));
+    redirectPath = `/session/${session.code}/gm`;
   } catch (error) {
-    redirectTo(
-      buildLobbyRedirect({
-        error: formatActionError(error) ?? "Falha inesperada ao criar a sessão."
-      })
-    );
+    redirectPath = buildLobbyRedirect({
+      error: formatActionError(error) ?? "Falha inesperada ao criar a sessão."
+    });
   }
 
-  const { session, participant } = result;
-  const cookieStore = await cookies();
-  cookieStore.set(buildSessionViewerCookie(buildViewerIdentity(session, participant)));
-  redirectTo(`/session/${session.code}/gm`);
+  redirectTo(redirectPath);
 }
 
 export async function joinSessionAction(formData: FormData) {
@@ -140,32 +141,64 @@ export async function joinSessionAction(formData: FormData) {
     );
   }
 
-  let result:
-    | Awaited<ReturnType<typeof joinSessionAsPlayer>>
-    | null = null;
+  let redirectPath: string;
 
   try {
-    const sessionCode = String(formData.get("sessionCode") ?? "");
+    const sessionCode = normalizeSessionCode(String(formData.get("sessionCode") ?? ""));
     const playerName = String(formData.get("playerName") ?? "");
+    const role = (formData.get("role") as "gm" | "player") || "player";
+    const accessToken = String(formData.get("accessToken") ?? "");
+    const authUser = await verifySupabaseAccessToken(accessToken);
 
-    result = await joinSessionAsPlayer({
-      sessionCode,
-      playerName
-    });
+    if (role === "gm") {
+      const session = await findSessionByCode(sessionCode);
+      if (!session) {
+        throw new Error("Sala não encontrada.");
+      }
+      const participant = await findParticipantByAuthUser({
+        sessionId: session.id,
+        role: "gm",
+        authUserId: authUser.id
+      });
+
+      if (!participant) {
+        throw new Error("Esta conta nao e a mestre vinculada a essa mesa.");
+      }
+
+      const cookieStore = await cookies();
+      cookieStore.set(buildSessionViewerCookie(buildViewerIdentity(session, participant)));
+      redirectPath = `/session/${session.code}/gm`;
+    } else {
+      const session = await findSessionByCode(sessionCode);
+      if (!session) {
+        throw new Error("Sala nao encontrada para esse codigo.");
+      }
+      const linkedParticipant = await findParticipantByAuthUser({
+        sessionId: session.id,
+        role: "player",
+        authUserId: authUser.id
+      });
+      const participant =
+        linkedParticipant ??
+        (await joinSessionAsPlayer({
+          sessionCode,
+          playerName,
+          authUserId: authUser.id
+        })).participant;
+
+      const cookieStore = await cookies();
+      cookieStore.set(buildSessionViewerCookie(buildViewerIdentity(session, participant)));
+      redirectPath = `/session/${session.code}/player`;
+    }
   } catch (error) {
-    redirectTo(
-      buildLobbyRedirect({
-        error:
-          formatActionError(error) ?? "Falha inesperada ao entrar na sessão.",
-        code: normalizeSessionCode(String(formData.get("sessionCode") ?? ""))
-      })
-    );
+    const sessionCode = normalizeSessionCode(String(formData.get("sessionCode") ?? ""));
+    redirectPath = buildLobbyRedirect({
+      error: formatActionError(error) ?? "Falha inesperada ao entrar na sessão.",
+      code: sessionCode
+    });
   }
 
-  const { session, participant } = result;
-  const cookieStore = await cookies();
-  cookieStore.set(buildSessionViewerCookie(buildViewerIdentity(session, participant)));
-  redirectTo(`/session/${session.code}/player`);
+  redirectTo(redirectPath);
 }
 
 export async function resumeSessionAction(formData: FormData) {

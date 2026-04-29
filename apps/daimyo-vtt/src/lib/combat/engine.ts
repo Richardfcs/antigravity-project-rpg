@@ -18,6 +18,7 @@ import type {
   CombatResolutionRecord,
   CombatRollRecord,
   CombatTargetModifiers,
+  TacticalRollMode,
   FeintType,
   SessionCharacterSheetProfile,
   StartOfTurnEffects
@@ -175,8 +176,19 @@ function isCriticalFailure(total: number, target: number) {
   return total === 18 || (total === 17 && target <= 15) || total - target >= 10;
 }
 
-function buildRollRecord(target: number, random: () => number = Math.random): CombatRollRecord {
-  const rolled = roll3d6(random);
+function buildRollRecord(
+  target: number,
+  random: () => number = Math.random,
+  rollMode: TacticalRollMode = "normal"
+): CombatRollRecord {
+  const first = roll3d6(random);
+  const second = rollMode === "normal" ? null : roll3d6(random);
+  const rolled =
+    second && rollMode === "advantage"
+      ? first.total <= second.total ? first : second
+      : second && rollMode === "disadvantage"
+        ? first.total >= second.total ? first : second
+        : first;
   const margin = target - rolled.total;
 
   return {
@@ -188,7 +200,9 @@ function buildRollRecord(target: number, random: () => number = Math.random): Co
       ? "critical-success"
       : isCriticalFailure(rolled.total, target)
         ? "critical-failure"
-        : "none"
+        : "none",
+    rollMode,
+    rollOptions: second ? [first, second] : [first]
   };
 }
 
@@ -1133,7 +1147,7 @@ export function prepareAttackResolution(input: {
   const weapon = getWeapon(actorProfile, input.draftAction.weaponId);
   const mode = getWeaponMode(weapon, input.draftAction.weaponModeId);
   const attackTarget = getAttackTarget(actorProfile, input.draftAction, mode);
-  const attackRoll = buildRollRecord(attackTarget, random);
+  const attackRoll = buildRollRecord(attackTarget, random, input.draftAction.rollMode ?? "normal");
   const technique = getTechnique(actorProfile, input.draftAction.techniqueId);
   const baseSummary = buildAttackSummary({
     actor: input.actor,

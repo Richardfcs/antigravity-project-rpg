@@ -338,6 +338,7 @@ export async function spawnOracleEnemyAction(input: {
       combat: {
         currentHp: input.stats.hpMax,
         currentFp: input.stats.pfMax,
+        inspiration: 0,
         activeWeaponId: weaponRecord.id,
         activeWeaponModeId: weaponRecord.modes[0]?.id ?? null,
         loadoutTechniqueIds: input.stats.loadoutTechniqueIds || [],
@@ -468,6 +469,7 @@ export async function spawnOracleNpcAction(input: {
       combat: {
         currentHp: hpMax,
         currentFp: attrs.ht,
+        inspiration: 0,
         activeWeaponId: null,
         activeWeaponModeId: null,
         loadoutTechniqueIds: ["elite", "mestre"].includes(threat) 

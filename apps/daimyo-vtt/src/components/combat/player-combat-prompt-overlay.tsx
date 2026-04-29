@@ -155,23 +155,23 @@ export function PlayerCombatPromptOverlay({
   })();
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[110] flex items-end justify-center p-3 sm:items-center">
-      <div className="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-[40px] border border-white/5 bg-[rgba(10,10,10,0.95)] shadow-[0_40px_100px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+    <div className="pointer-events-none fixed inset-0 z-[110] flex items-end justify-center p-2 sm:items-center">
+      <div className="pointer-events-auto w-full max-w-xl overflow-hidden rounded-[24px] border border-white/5 bg-[rgba(10,10,10,0.95)] shadow-[0_28px_80px_rgba(0,0,0,0.75)] backdrop-blur-xl">
         
         {/* Header - Estilo "Premium" */}
-        <div className="relative flex items-center gap-5 border-b border-white/5 px-8 py-8">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl border border-rose-500/30 bg-rose-500/10 text-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.2)]">
-            <ShieldAlert size={32} />
+        <div className="relative flex items-center gap-3 border-b border-white/5 px-4 py-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.2)]">
+            <ShieldAlert size={22} />
           </div>
           <div>
-            <h2 className="text-4xl font-black tracking-tighter text-white uppercase italic">Sob Ataque!</h2>
-            <p className="text-sm font-bold tracking-[0.3em] text-rose-500 uppercase opacity-80">Escolha sua defesa ativa</p>
+            <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Sob Ataque!</h2>
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-rose-500 opacity-80">Escolha sua defesa ativa</p>
           </div>
         </div>
 
-        <div className="px-8 py-6 space-y-6">
+        <div className="space-y-4 px-4 py-4">
           {/* Summary Box */}
-          <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.03] p-5">
+          <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03] p-3">
             <div className="flex gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5 text-[color:var(--ink-2)]">
                 <Swords size={20} />
@@ -184,12 +184,12 @@ export function PlayerCombatPromptOverlay({
 
           {/* Gold Probability Box - Santuário Design */}
           {payload.options.length > 0 && (
-            <div className="overflow-hidden rounded-[24px] bg-gradient-to-br from-amber-200 to-amber-500 p-[1px] shadow-[0_20px_50px_rgba(245,158,11,0.15)]">
-              <div className="flex items-center justify-between bg-[rgba(20,15,5,0.92)] px-8 py-6 backdrop-blur-md rounded-[23px]">
+            <div className="overflow-hidden rounded-[18px] bg-gradient-to-br from-amber-200 to-amber-500 p-[1px] shadow-[0_16px_40px_rgba(245,158,11,0.15)]">
+              <div className="flex items-center justify-between rounded-[17px] bg-[rgba(20,15,5,0.92)] px-4 py-3 backdrop-blur-md">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200/50">Potencial de Defesa</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-black text-amber-200 tracking-tighter">
+                    <span className="text-3xl font-black tracking-tighter text-amber-200">
                       NH {(() => {
                         const dl = payload.defenseLevels as any;
                         const baseLevel = (dl && typeof dl === "object" ? dl[defenseOption] : null) || 10;
@@ -204,7 +204,7 @@ export function PlayerCombatPromptOverlay({
                 
                 <div className="text-right space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200/50">Probabilidade</p>
-                  <span className="text-5xl font-black text-amber-200 tracking-tighter italic">
+                  <span className="text-3xl font-black italic tracking-tighter text-amber-200">
                     {(() => {
                       const dl = payload.defenseLevels as any;
                       const baseLevel = (dl && typeof dl === "object" ? dl[defenseOption] : null) || 10;
@@ -239,22 +239,22 @@ export function PlayerCombatPromptOverlay({
                     key={option}
                     onClick={() => setDefenseOption(option)}
                     className={cn(
-                      "group relative flex items-center gap-4 rounded-[24px] border px-6 py-4 transition-all duration-300",
+                      "group relative flex items-center gap-3 rounded-[18px] border px-3 py-3 transition-all duration-300",
                       active 
                         ? "border-rose-500/40 bg-rose-500/10 shadow-[0_0_20px_rgba(244,63,94,0.05)]" 
                         : "border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]"
                     )}
                   >
                     <div className={cn(
-                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-all",
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-all",
                       active 
                         ? "border-rose-500/30 bg-rose-500/20 text-rose-500" 
                         : "border-white/10 bg-white/5 text-[color:var(--ink-2)] group-hover:text-white"
                     )}>
-                      <Shield size={22} className={cn(active && "fill-rose-500/20")} />
+                      <Shield size={18} className={cn(active && "fill-rose-500/20")} />
                     </div>
                     <div className="text-left">
-                      <p className={cn("text-lg font-black tracking-tight", active ? "text-white" : "text-[color:var(--ink-2)]")}>
+                      <p className={cn("text-sm font-black tracking-tight", active ? "text-white" : "text-[color:var(--ink-2)]")}>
                         {info.label}
                       </p>
                       <p className="text-xs text-[color:var(--ink-2)] opacity-50">{info.sub}</p>

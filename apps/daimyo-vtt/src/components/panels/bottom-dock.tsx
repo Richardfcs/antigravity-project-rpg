@@ -1,12 +1,18 @@
-import { AudioLines, Dices, ScrollText } from "lucide-react";
+import { AudioLines, BookOpenText, Dices, MessagesSquare, ScrollText, Shield } from "lucide-react";
 
 import { CompactPanelHeader } from "@/components/layout/compact-panel-header";
 import { AudioPanel } from "@/components/panels/audio-panel";
+import { ChatPanel } from "@/components/panels/chat-panel";
+import { CodexPanel } from "@/components/panels/codex-panel";
+import { CharactersPanel } from "@/components/panels/characters-panel";
 import { DicePanel } from "@/components/panels/dice-panel";
 import { NotesPanel } from "@/components/panels/notes-panel";
 import { cn } from "@/lib/utils";
+import type { SessionCharacterRecord } from "@/types/character";
+import type { OnlinePresence } from "@/types/presence";
 import type {
   DockTab,
+  SessionParticipantRecord,
   SessionShellSnapshot,
   SessionViewerIdentity
 } from "@/types/session";
@@ -18,11 +24,17 @@ interface BottomDockProps {
   onTabChange: (tab: DockTab) => void;
   showAudio?: boolean;
   embedded?: boolean;
+  participants?: SessionParticipantRecord[];
+  party?: OnlinePresence[];
+  characters?: SessionCharacterRecord[];
 }
 
 const tabs = [
+  { id: "chat" as const, label: "Conversa", icon: MessagesSquare },
   { id: "dice" as const, label: "Dados", icon: Dices },
   { id: "notes" as const, label: "Caderno", icon: ScrollText },
+  { id: "codex" as const, label: "Codex", icon: BookOpenText },
+  { id: "sheet" as const, label: "Ficha", icon: Shield },
   { id: "audio" as const, label: "Trilhas", icon: AudioLines }
 ];
 
@@ -32,12 +44,15 @@ export function BottomDock({
   activeTab,
   onTabChange,
   showAudio = true,
-  embedded = false
+  embedded = false,
+  participants = [],
+  party = [],
+  characters = []
 }: BottomDockProps) {
   const visibleTabs = showAudio ? tabs : tabs.filter((tab) => tab.id !== "audio");
   const resolvedActiveTab = !showAudio && activeTab === "audio" 
-    ? (tabs.find(t => t.id !== "audio")?.id ?? "dice")
-    : (activeTab === "chat" ? "dice" : activeTab);
+    ? (tabs.find(t => t.id !== "audio")?.id ?? "chat")
+    : activeTab;
 
   return (
     <section className="flex h-full min-h-0 flex-col">
@@ -94,12 +109,33 @@ export function BottomDock({
             : "scrollbar-thin mt-2.5 min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1"
         }
       >
+        {resolvedActiveTab === "chat" && (
+          <ChatPanel sessionCode={snapshot.code} viewer={viewer} />
+        )}
+
         {resolvedActiveTab === "dice" && (
           <DicePanel sessionCode={snapshot.code} viewer={viewer} />
         )}
 
         {resolvedActiveTab === "notes" && (
           <NotesPanel snapshot={snapshot} viewer={viewer} />
+        )}
+
+        {resolvedActiveTab === "codex" && (
+          <CodexPanel
+            sessionCode={snapshot.code}
+            viewer={viewer}
+            participants={participants}
+          />
+        )}
+
+        {resolvedActiveTab === "sheet" && (
+          <CharactersPanel
+            sessionCode={snapshot.code}
+            viewer={viewer}
+            participants={participants}
+            party={party}
+          />
         )}
 
         {showAudio && resolvedActiveTab === "audio" && (

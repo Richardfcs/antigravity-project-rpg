@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { PlayerShell } from "@/components/shell/player-shell";
 import { listSessionAssets } from "@/lib/assets/repository";
@@ -39,6 +39,16 @@ export default async function PlayerSessionPage({ params }: PlayerPageProps) {
 
   if (!bootstrap) {
     notFound();
+  }
+
+  if (!bootstrap.viewer) {
+    redirect(
+      `/?${new URLSearchParams({
+        error:
+          "Acesso de jogador nao validado. Entre novamente para participar desta mesa.",
+        code: bootstrap.session.code
+      }).toString()}`
+    );
   }
 
   const [

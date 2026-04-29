@@ -21,9 +21,9 @@ export type ExplorerSection =
   | "campaign"
   | "chat";
 
-export type DockTab = "chat" | "dice" | "audio" | "notes";
-export type PlayerBottomTab = "stage" | "wiki" | "sheet" | "chat" | "notes";
-export type PlayerOverlay = "none" | "sheet" | "wiki" | "chat" | "notes";
+export type DockTab = "chat" | "dice" | "audio" | "notes" | "codex" | "sheet";
+export type PlayerBottomTab = "stage" | "wiki" | "sheet" | "chat" | "notes" | "codex" | "dice";
+export type PlayerOverlay = "none" | "sheet" | "wiki" | "chat" | "notes" | "codex" | "dice";
 export type SyncState = "idle" | "booting" | "connected" | "degraded";
 export type SessionStatus = "lobby" | "active" | "closed";
 export type SessionParticipantStatus = "online" | "idle" | "offline";
