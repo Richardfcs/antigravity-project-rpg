@@ -92,6 +92,7 @@ export function useSessionMaps({
   initialMapTokens,
   enabled = true
 }: UseSessionMapsOptions) {
+  const hydrateMaps = useMapStore((state) => state.hydrateForScope);
   const setMaps = useMapStore((state) => state.setMaps);
   const upsertMap = useMapStore((state) => state.upsertMap);
   const removeMap = useMapStore((state) => state.removeMap);
@@ -100,9 +101,8 @@ export function useSessionMaps({
   const removeMapToken = useMapStore((state) => state.removeMapToken);
 
   useEffect(() => {
-    setMaps(initialMaps);
-    setMapTokens(initialMapTokens);
-  }, [initialMapTokens, initialMaps, setMapTokens, setMaps]);
+    hydrateMaps(sessionId, initialMaps, initialMapTokens);
+  }, [hydrateMaps, initialMapTokens, initialMaps, sessionId]);
 
   useEffect(() => {
     if (!enabled || !sessionId) {

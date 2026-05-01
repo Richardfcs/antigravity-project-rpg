@@ -83,15 +83,15 @@ export function useSessionAudio({
   initialPlayback,
   enabled = true
 }: UseSessionAudioOptions) {
+  const hydrateAudio = useAudioStore((state) => state.hydrateForScope);
   const setTracks = useAudioStore((state) => state.setTracks);
   const upsertTrack = useAudioStore((state) => state.upsertTrack);
   const removeTrack = useAudioStore((state) => state.removeTrack);
   const setPlayback = useAudioStore((state) => state.setPlayback);
 
   useEffect(() => {
-    setTracks(initialTracks);
-    setPlayback(initialPlayback);
-  }, [initialPlayback, initialTracks, setPlayback, setTracks]);
+    hydrateAudio(sessionId, initialTracks, initialPlayback);
+  }, [hydrateAudio, initialPlayback, initialTracks, sessionId]);
 
   useEffect(() => {
     if (!enabled || !sessionId) {

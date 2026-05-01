@@ -34,39 +34,36 @@ export function useSessionBootstrap({
   initialSyncState,
   initialLatencyLabel
 }: UseSessionBootstrapOptions) {
-  const setAssets = useAssetStore((state) => state.setAssets);
-  const setCharacters = useCharacterStore((state) => state.setCharacters);
-  const setSnapshot = useSessionStore((state) => state.setSnapshot);
-  const setViewer = useSessionStore((state) => state.setViewer);
-  const setSyncState = useSessionStore((state) => state.setSyncState);
-  const setLatencyLabel = useSessionStore((state) => state.setLatencyLabel);
-  const setMembers = usePresenceStore((state) => state.setMembers);
+  const sessionScopeKey = `${snapshot.code}:${viewer?.role ?? "guest"}`;
+  const hydrateAssets = useAssetStore((state) => state.hydrateForScope);
+  const hydrateCharacters = useCharacterStore((state) => state.hydrateForScope);
+  const hydrateSession = useSessionStore((state) => state.hydrateForScope);
+  const hydrateMembers = usePresenceStore((state) => state.hydrateForScope);
 
   useEffect(() => {
     startTransition(() => {
-      setSnapshot(snapshot);
-      setViewer(viewer);
-      setMembers(members);
-      setAssets(assets);
-      setCharacters(characters);
-      setSyncState(initialSyncState);
-      if (initialLatencyLabel) {
-        setLatencyLabel(initialLatencyLabel);
-      }
+      hydrateSession({
+        scopeKey: sessionScopeKey,
+        snapshot,
+        viewer,
+        initialSyncState,
+        initialLatencyLabel
+      });
+      hydrateMembers(sessionScopeKey, members);
+      hydrateAssets(sessionScopeKey, assets);
+      hydrateCharacters(sessionScopeKey, characters);
     });
   }, [
     assets,
     characters,
+    hydrateAssets,
+    hydrateCharacters,
+    hydrateMembers,
+    hydrateSession,
     initialLatencyLabel,
     initialSyncState,
     members,
-    setAssets,
-    setCharacters,
-    setLatencyLabel,
-    setMembers,
-    setSnapshot,
-    setSyncState,
-    setViewer,
+    sessionScopeKey,
     snapshot,
     viewer
   ]);

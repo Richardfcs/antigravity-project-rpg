@@ -74,6 +74,7 @@ export function useSessionScenes({
   initialSceneCast,
   enabled = true
 }: UseSessionScenesOptions) {
+  const hydrateScenes = useSceneStore((state) => state.hydrateForScope);
   const setScenes = useSceneStore((state) => state.setScenes);
   const upsertScene = useSceneStore((state) => state.upsertScene);
   const removeScene = useSceneStore((state) => state.removeScene);
@@ -82,9 +83,8 @@ export function useSessionScenes({
   const removeSceneCast = useSceneStore((state) => state.removeSceneCast);
 
   useEffect(() => {
-    setScenes(initialScenes);
-    setSceneCast(initialSceneCast);
-  }, [initialSceneCast, initialScenes, setSceneCast, setScenes]);
+    hydrateScenes(sessionId, initialScenes, initialSceneCast);
+  }, [hydrateScenes, initialSceneCast, initialScenes, sessionId]);
 
   useEffect(() => {
     if (!enabled || !sessionId) {

@@ -216,48 +216,93 @@ export function MasterShell({
     (state) => state.sessions[snapshot.code]
   );
 
-  const { storedSnapshot, patchSnapshot, setStageMode, setPresentationMode } = useSessionStore(
+  const sessionScopeKey = `gm:${snapshot.code}`;
+  const { storedSnapshot, sessionStoreScopeKey, sessionHasHydrated, patchSnapshot, setStageMode, setPresentationMode } = useSessionStore(
     useShallow((state) => ({
       storedSnapshot: state.snapshot,
+      sessionStoreScopeKey: state.scopeKey,
+      sessionHasHydrated: state.hasHydrated,
       patchSnapshot: state.patchSnapshot,
       setStageMode: state.setStageMode,
       setPresentationMode: state.setPresentationMode
     }))
   );
-  const members = usePresenceStore((state) => state.members);
-  const storedAssets = useAssetStore((state) => state.assets);
-  const { storedTracks, storedPlayback } = useAudioStore(
+  const { members, presenceScopeKey, presenceHasHydrated } = usePresenceStore(
     useShallow((state) => ({
-      storedTracks: state.tracks,
-      storedPlayback: state.playback
+      members: state.members,
+      presenceScopeKey: state.scopeKey,
+      presenceHasHydrated: state.hasHydrated
     }))
   );
-  const { storedCharacters, upsertCharacter } = useCharacterStore(
+  const { storedAssets, assetScopeKey, assetsHydrated } = useAssetStore(
+    useShallow((state) => ({
+      storedAssets: state.assets,
+      assetScopeKey: state.scopeKey,
+      assetsHydrated: state.hasHydrated
+    }))
+  );
+  const { storedTracks, storedPlayback, audioScopeKey, audioHydrated } = useAudioStore(
+    useShallow((state) => ({
+      storedTracks: state.tracks,
+      storedPlayback: state.playback,
+      audioScopeKey: state.scopeKey,
+      audioHydrated: state.hasHydrated
+    }))
+  );
+  const { storedCharacters, characterScopeKey, charactersHydrated, upsertCharacter } = useCharacterStore(
     useShallow((state) => ({
       storedCharacters: state.characters,
+      characterScopeKey: state.scopeKey,
+      charactersHydrated: state.hasHydrated,
       upsertCharacter: state.upsertCharacter
     }))
   );
-  const storedEffects = useEffectLayerStore((state) => state.effects);
-  const storedMemoryEvents = useSessionMemoryStore((state) => state.events);
-  const { storedScenes, storedSceneCast } = useSceneStore(
+  const {
+    storedEffects,
+    effectScopeKey,
+    effectsHydrated
+  } = useEffectLayerStore(
     useShallow((state) => ({
-      storedScenes: state.scenes,
-      storedSceneCast: state.sceneCast
+      storedEffects: state.effects,
+      effectScopeKey: state.scopeKey,
+      effectsHydrated: state.hasHydrated
     }))
   );
-  const { storedMaps, storedMapTokens, upsertMapToken } = useMapStore(
+  const {
+    storedMemoryEvents,
+    memoryScopeKey,
+    memoryHydrated
+  } = useSessionMemoryStore(
+    useShallow((state) => ({
+      storedMemoryEvents: state.events,
+      memoryScopeKey: state.scopeKey,
+      memoryHydrated: state.hasHydrated
+    }))
+  );
+  const { storedScenes, storedSceneCast, sceneScopeKey, scenesHydrated } = useSceneStore(
+    useShallow((state) => ({
+      storedScenes: state.scenes,
+      storedSceneCast: state.sceneCast,
+      sceneScopeKey: state.scopeKey,
+      scenesHydrated: state.hasHydrated
+    }))
+  );
+  const { storedMaps, storedMapTokens, mapScopeKey, mapsHydrated, upsertMapToken } = useMapStore(
     useShallow((state) => ({
       storedMaps: state.maps,
       storedMapTokens: state.mapTokens,
+      mapScopeKey: state.scopeKey,
+      mapsHydrated: state.hasHydrated,
       upsertMapToken: state.upsertMapToken
     }))
   );
-  const { storedAtlasMaps, storedAtlasPins, storedAtlasPinCharacters } = useAtlasStore(
+  const { storedAtlasMaps, storedAtlasPins, storedAtlasPinCharacters, atlasScopeKey, atlasHydrated } = useAtlasStore(
     useShallow((state) => ({
       storedAtlasMaps: state.atlasMaps,
       storedAtlasPins: state.atlasPins,
-      storedAtlasPinCharacters: state.atlasPinCharacters
+      storedAtlasPinCharacters: state.atlasPinCharacters,
+      atlasScopeKey: state.scopeKey,
+      atlasHydrated: state.hasHydrated
     }))
   );
 
@@ -350,28 +395,62 @@ export function MasterShell({
 
   useSessionDiagnostics({
     enabled: true,
-    syncState: (storedSnapshot ?? snapshot).syncState
+    syncState:
+      sessionHasHydrated && sessionStoreScopeKey === sessionScopeKey
+        ? (storedSnapshot ?? snapshot).syncState
+        : snapshot.syncState
   });
 
-  const session = storedSnapshot ?? snapshot;
-  const roster = members.length > 0 ? members : party;
-  const liveAssets = storedAssets.length > 0 ? storedAssets : assets;
-  const liveCharacters = storedCharacters.length > 0 ? storedCharacters : characters;
-  const liveScenes = storedScenes.length > 0 ? storedScenes : scenes;
-  const liveSceneCast = storedSceneCast.length > 0 ? storedSceneCast : sceneCast;
-  const liveMaps = storedMaps.length > 0 ? storedMaps : maps;
-  const liveMapTokens = storedMapTokens.length > 0 ? storedMapTokens : mapTokens;
-  const liveAtlasMaps = storedAtlasMaps.length > 0 ? storedAtlasMaps : atlasMaps;
-  const liveAtlasPins = storedAtlasPins.length > 0 ? storedAtlasPins : atlasPins;
+  const session =
+    sessionHasHydrated && sessionStoreScopeKey === sessionScopeKey
+      ? (storedSnapshot ?? snapshot)
+      : snapshot;
+  const roster =
+    presenceHasHydrated && presenceScopeKey === sessionScopeKey ? members : party;
+  const liveAssets =
+    assetsHydrated && assetScopeKey === snapshot.sessionId ? storedAssets : assets;
+  const liveCharacters =
+    charactersHydrated && characterScopeKey === snapshot.sessionId
+      ? storedCharacters
+      : characters;
+  const liveScenes =
+    scenesHydrated && sceneScopeKey === snapshot.sessionId ? storedScenes : scenes;
+  const liveSceneCast =
+    scenesHydrated && sceneScopeKey === snapshot.sessionId
+      ? storedSceneCast
+      : sceneCast;
+  const liveMaps =
+    mapsHydrated && mapScopeKey === snapshot.sessionId ? storedMaps : maps;
+  const liveMapTokens =
+    mapsHydrated && mapScopeKey === snapshot.sessionId
+      ? storedMapTokens
+      : mapTokens;
+  const liveAtlasMaps =
+    atlasHydrated && atlasScopeKey === snapshot.sessionId
+      ? storedAtlasMaps
+      : atlasMaps;
+  const liveAtlasPins =
+    atlasHydrated && atlasScopeKey === snapshot.sessionId
+      ? storedAtlasPins
+      : atlasPins;
   const liveAtlasPinCharacters =
-    storedAtlasPinCharacters.length > 0
+    atlasHydrated && atlasScopeKey === snapshot.sessionId
       ? storedAtlasPinCharacters
       : atlasPinCharacters;
-  const liveTracks = storedTracks.length > 0 ? storedTracks : audioTracks;
-  const livePlayback = storedPlayback ?? audioState;
-  const liveEffects = storedEffects.length > 0 ? storedEffects : effectLayers;
+  const liveTracks =
+    audioHydrated && audioScopeKey === snapshot.sessionId ? storedTracks : audioTracks;
+  const livePlayback =
+    audioHydrated && audioScopeKey === snapshot.sessionId
+      ? storedPlayback
+      : audioState;
+  const liveEffects =
+    effectsHydrated && effectScopeKey === snapshot.sessionId
+      ? storedEffects
+      : effectLayers;
   const liveMemoryEvents =
-    storedMemoryEvents.length > 0 ? storedMemoryEvents : memoryEvents;
+    memoryHydrated && memoryScopeKey === snapshot.code
+      ? storedMemoryEvents
+      : memoryEvents;
   const activeScene = findActiveScene(liveScenes, session.activeSceneId);
   const activeEntries = activeScene
     ? listSceneCastEntries(activeScene.id, liveSceneCast, liveCharacters, liveAssets)
@@ -484,8 +563,8 @@ export function MasterShell({
   );
 
   useEffect(() => {
-    hydrateForScope(`gm:${snapshot.code}`, "gm");
-  }, [hydrateForScope, snapshot.code]);
+    hydrateForScope(sessionScopeKey, "gm");
+  }, [hydrateForScope, sessionScopeKey]);
 
   const handleStageModeChange = (mode: StageMode) => {
     const previousStageMode = session.stageMode;

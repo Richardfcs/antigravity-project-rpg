@@ -24,12 +24,19 @@ function sortTracks(tracks: SessionAudioTrackRecord[]) {
 }
 
 interface AudioState {
+  scopeKey: string | null;
   tracks: SessionAudioTrackRecord[];
   playback: SessionAudioStateRecord | null;
   runtimePositionSeconds: number;
   runtimeError: string | null;
   unlockRequired: boolean;
   unlockNonce: number;
+  hasHydrated: boolean;
+  hydrateForScope: (
+    scopeKey: string,
+    tracks: SessionAudioTrackRecord[],
+    playback: SessionAudioStateRecord | null
+  ) => void;
   setTracks: (tracks: SessionAudioTrackRecord[]) => void;
   upsertTrack: (track: SessionAudioTrackRecord) => void;
   removeTrack: (trackId: string) => void;
@@ -41,24 +48,48 @@ interface AudioState {
 }
 
 export const useAudioStore = create<AudioState>((set) => ({
+  scopeKey: null,
   tracks: [],
   playback: null,
   runtimePositionSeconds: 0,
   runtimeError: null,
   unlockRequired: false,
   unlockNonce: 0,
-  setTracks: (tracks) => set({ tracks: sortTracks(tracks) }),
+  hasHydrated: false,
+  hydrateForScope: (scopeKey, tracks, playback) =>
+    set((state) => {
+      if (state.scopeKey === scopeKey && state.hasHydrated) {
+        return state;
+      }
+
+      return {
+        scopeKey,
+        tracks: sortTracks(tracks),
+        playback,
+        runtimePositionSeconds: playback?.positionSeconds ?? 0,
+        runtimeError: null,
+        unlockRequired: false,
+        unlockNonce: state.unlockNonce,
+        hasHydrated: true
+      };
+    }),
+  setTracks: (tracks) =>
+    set((state) => ({ ...state, tracks: sortTracks(tracks), hasHydrated: true })),
   upsertTrack: (track) =>
     set((state) => ({
-      tracks: sortTracks([...state.tracks.filter((item) => item.id !== track.id), track])
+      ...state,
+      tracks: sortTracks([...state.tracks.filter((item) => item.id !== track.id), track]),
+      hasHydrated: true
     })),
   removeTrack: (trackId) =>
     set((state) => ({
+      ...state,
       tracks: state.tracks.filter((track) => track.id !== trackId),
       playback:
         state.playback?.trackId === trackId
           ? { ...state.playback, trackId: null, status: "stopped", positionSeconds: 0, startedAt: null }
-          : state.playback
+          : state.playback,
+      hasHydrated: true
     })),
   setPlayback: (playback) =>
     set((state) => {
@@ -72,18 +103,23 @@ export const useAudioStore = create<AudioState>((set) => ({
         Math.abs(previous.positionSeconds - playback.positionSeconds) > 0.75;
 
       return {
+        ...state,
         playback,
         runtimePositionSeconds: shouldResetRuntimePosition
           ? playback?.positionSeconds ?? 0
           : state.runtimePositionSeconds,
-        unlockRequired: playback?.status === "playing" ? state.unlockRequired : false
+        unlockRequired: playback?.status === "playing" ? state.unlockRequired : false,
+        hasHydrated: true
       };
     }),
-  setRuntimePosition: (seconds) => set({ runtimePositionSeconds: seconds }),
-  setRuntimeError: (message) => set({ runtimeError: message }),
-  setUnlockRequired: (unlockRequired) => set({ unlockRequired }),
+  setRuntimePosition: (seconds) =>
+    set((state) => ({ ...state, runtimePositionSeconds: seconds })),
+  setRuntimeError: (message) => set((state) => ({ ...state, runtimeError: message })),
+  setUnlockRequired: (unlockRequired) =>
+    set((state) => ({ ...state, unlockRequired })),
   requestUnlock: () =>
     set((state) => ({
+      ...state,
       unlockNonce: state.unlockNonce + 1,
       runtimeError: null
     }))

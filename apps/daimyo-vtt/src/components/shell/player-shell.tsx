@@ -59,6 +59,7 @@ import { useSessionMemory } from "@/hooks/use-session-memory";
 import { useSessionNotes } from "@/hooks/use-session-notes";
 import { useSessionPresence } from "@/hooks/use-session-presence";
 import { useSessionScenes } from "@/hooks/use-session-scenes";
+import { useSessionDiagnostics } from "@/hooks/use-session-diagnostics";
 import { useSessionSnapshot } from "@/hooks/use-session-snapshot";
 import { useMobile } from "@/hooks/use-mobile";
 import { useAssetStore } from "@/stores/asset-store";
@@ -165,34 +166,66 @@ export function PlayerShell({
   memoryEvents,
   viewer
 }: PlayerShellProps) {
-  const storedSnapshot = useSessionStore((state) => state.snapshot);
-  const patchSnapshot = useSessionStore((state) => state.patchSnapshot);
-  const members = usePresenceStore((state) => state.members);
-  const storedAssets = useAssetStore((state) => state.assets);
-  const { storedCharacters, upsertCharacter } = useCharacterStore(
+  const sessionScopeKey = `player:${snapshot.code}`;
+  const {
+    storedSnapshot,
+    sessionStoreScopeKey,
+    sessionHasHydrated,
+    patchSnapshot
+  } = useSessionStore(
+    useShallow((state) => ({
+      storedSnapshot: state.snapshot,
+      sessionStoreScopeKey: state.scopeKey,
+      sessionHasHydrated: state.hasHydrated,
+      patchSnapshot: state.patchSnapshot
+    }))
+  );
+  const { members, presenceScopeKey, presenceHasHydrated } = usePresenceStore(
+    useShallow((state) => ({
+      members: state.members,
+      presenceScopeKey: state.scopeKey,
+      presenceHasHydrated: state.hasHydrated
+    }))
+  );
+  const { storedAssets, assetScopeKey, assetsHydrated } = useAssetStore(
+    useShallow((state) => ({
+      storedAssets: state.assets,
+      assetScopeKey: state.scopeKey,
+      assetsHydrated: state.hasHydrated
+    }))
+  );
+  const { storedCharacters, characterScopeKey, charactersHydrated, upsertCharacter } = useCharacterStore(
     useShallow((state) => ({
       storedCharacters: state.characters,
+      characterScopeKey: state.scopeKey,
+      charactersHydrated: state.hasHydrated,
       upsertCharacter: state.upsertCharacter
     }))
   );
-  const { storedScenes, storedSceneCast } = useSceneStore(
+  const { storedScenes, storedSceneCast, sceneScopeKey, scenesHydrated } = useSceneStore(
     useShallow((state) => ({
       storedScenes: state.scenes,
-      storedSceneCast: state.sceneCast
+      storedSceneCast: state.sceneCast,
+      sceneScopeKey: state.scopeKey,
+      scenesHydrated: state.hasHydrated
     }))
   );
-  const { storedMaps, storedMapTokens, upsertMapToken } = useMapStore(
+  const { storedMaps, storedMapTokens, mapScopeKey, mapsHydrated, upsertMapToken } = useMapStore(
     useShallow((state) => ({
       storedMaps: state.maps,
       storedMapTokens: state.mapTokens,
+      mapScopeKey: state.scopeKey,
+      mapsHydrated: state.hasHydrated,
       upsertMapToken: state.upsertMapToken
     }))
   );
-  const { storedAtlasMaps, storedAtlasPins, storedAtlasPinCharacters } = useAtlasStore(
+  const { storedAtlasMaps, storedAtlasPins, storedAtlasPinCharacters, atlasScopeKey, atlasHydrated } = useAtlasStore(
     useShallow((state) => ({
       storedAtlasMaps: state.atlasMaps,
       storedAtlasPins: state.atlasPins,
-      storedAtlasPinCharacters: state.atlasPinCharacters
+      storedAtlasPinCharacters: state.atlasPinCharacters,
+      atlasScopeKey: state.scopeKey,
+      atlasHydrated: state.hasHydrated
     }))
   );
   const {
@@ -223,6 +256,8 @@ export function PlayerShell({
   const {
     storedTracks,
     storedPlayback,
+    audioScopeKey,
+    audioHydrated,
     audioUnlockRequired,
     audioRuntimeError,
     requestAudioUnlock
@@ -230,6 +265,8 @@ export function PlayerShell({
     useShallow((state) => ({
       storedTracks: state.tracks,
       storedPlayback: state.playback,
+      audioScopeKey: state.scopeKey,
+      audioHydrated: state.hasHydrated,
       audioUnlockRequired: state.unlockRequired,
       audioRuntimeError: state.runtimeError,
       requestAudioUnlock: state.requestUnlock
@@ -257,6 +294,7 @@ export function PlayerShell({
     useState<PresentationMode>(
       snapshot.stageMode === "atlas" ? "standard" : snapshot.presentationMode
     );
+  const [combatHeartbeat, setCombatHeartbeat] = useState(() => Date.now());
   const [, startTransition] = useTransition();
   const isMobile = useMobile();
   const previousMasterFocus = useRef({
@@ -278,8 +316,8 @@ export function PlayerShell({
   });
 
   useEffect(() => {
-    hydrateForScope(`player:${snapshot.code}`, "player");
-  }, [hydrateForScope, snapshot.code]);
+    hydrateForScope(sessionScopeKey, "player");
+  }, [hydrateForScope, sessionScopeKey]);
 
   useSessionPresence({
     sessionCode: snapshot.code,
@@ -365,20 +403,53 @@ export function PlayerShell({
     enabled: Boolean(viewer && realtimeReady)
   });
 
-  const session = storedSnapshot ?? snapshot;
-  const roster = members.length > 0 ? members : party;
-  const syncedTracks = storedTracks.length > 0 ? storedTracks : audioTracks;
-  const syncedPlayback = storedPlayback ?? audioState;
-  const liveAssets = storedAssets.length > 0 ? storedAssets : assets;
-  const liveCharacters = storedCharacters.length > 0 ? storedCharacters : characters;
-  const liveScenes = storedScenes.length > 0 ? storedScenes : scenes;
-  const liveSceneCast = storedSceneCast.length > 0 ? storedSceneCast : sceneCast;
-  const liveMaps = storedMaps.length > 0 ? storedMaps : maps;
-  const liveMapTokens = storedMapTokens.length > 0 ? storedMapTokens : mapTokens;
-  const liveAtlasMaps = storedAtlasMaps.length > 0 ? storedAtlasMaps : atlasMaps;
-  const liveAtlasPins = storedAtlasPins.length > 0 ? storedAtlasPins : atlasPins;
+  useSessionDiagnostics({
+    enabled: true,
+    syncState: sessionHasHydrated && sessionStoreScopeKey === sessionScopeKey
+      ? (storedSnapshot ?? snapshot).syncState
+      : snapshot.syncState
+  });
+
+  const session =
+    sessionHasHydrated && sessionStoreScopeKey === sessionScopeKey
+      ? (storedSnapshot ?? snapshot)
+      : snapshot;
+  const roster =
+    presenceHasHydrated && presenceScopeKey === sessionScopeKey ? members : party;
+  const syncedTracks =
+    audioHydrated && audioScopeKey === snapshot.sessionId ? storedTracks : audioTracks;
+  const syncedPlayback =
+    audioHydrated && audioScopeKey === snapshot.sessionId
+      ? storedPlayback
+      : audioState;
+  const liveAssets =
+    assetsHydrated && assetScopeKey === snapshot.sessionId ? storedAssets : assets;
+  const liveCharacters =
+    charactersHydrated && characterScopeKey === snapshot.sessionId
+      ? storedCharacters
+      : characters;
+  const liveScenes =
+    scenesHydrated && sceneScopeKey === snapshot.sessionId ? storedScenes : scenes;
+  const liveSceneCast =
+    scenesHydrated && sceneScopeKey === snapshot.sessionId
+      ? storedSceneCast
+      : sceneCast;
+  const liveMaps =
+    mapsHydrated && mapScopeKey === snapshot.sessionId ? storedMaps : maps;
+  const liveMapTokens =
+    mapsHydrated && mapScopeKey === snapshot.sessionId
+      ? storedMapTokens
+      : mapTokens;
+  const liveAtlasMaps =
+    atlasHydrated && atlasScopeKey === snapshot.sessionId
+      ? storedAtlasMaps
+      : atlasMaps;
+  const liveAtlasPins =
+    atlasHydrated && atlasScopeKey === snapshot.sessionId
+      ? storedAtlasPins
+      : atlasPins;
   const liveAtlasPinCharacters =
-    storedAtlasPinCharacters.length > 0
+    atlasHydrated && atlasScopeKey === snapshot.sessionId
       ? storedAtlasPinCharacters
       : atlasPinCharacters;
   const orderedCharacters = useMemo(
@@ -427,6 +498,35 @@ export function PlayerShell({
       session.combatTurnIndex
     ]
   );
+  const activeOwnedToken = useMemo(
+    () =>
+      tacticalCombatState.turnOrder.find(
+        (entry) =>
+          entry.token.id === tacticalCombatState.activeTokenId &&
+          entry.ownerParticipantId === viewer?.participantId
+      ) ?? null,
+    [
+      tacticalCombatState.activeTokenId,
+      tacticalCombatState.turnOrder,
+      viewer?.participantId
+    ]
+  );
+  const isAwaitingPlayerCommand =
+    session.combatFlow?.phase === "awaiting-player-command" &&
+    activeOwnedToken !== null;
+  const delegatedTurnStartedAt = session.combatFlow?.updatedAt
+    ? new Date(session.combatFlow.updatedAt).getTime()
+    : null;
+  const delegatedTurnElapsedSeconds =
+    isAwaitingPlayerCommand && delegatedTurnStartedAt
+      ? Math.max(0, Math.floor((combatHeartbeat - delegatedTurnStartedAt) / 1000))
+      : 0;
+  const delegatedTurnWarning =
+    delegatedTurnElapsedSeconds >= 90
+      ? "Seu turno delegado esta parado ha um tempo. Se voce ficou preso, o mestre pode retomar."
+      : delegatedTurnElapsedSeconds >= 45
+        ? "Sua manobra ainda esta aguardando confirmacao."
+        : null;
   const activeMapBackground = activeMap
     ? liveAssets.find((asset) => asset.id === activeMap.backgroundAssetId) ?? null
     : null;
@@ -454,8 +554,7 @@ export function PlayerShell({
     ? liveAssets.find((asset) => asset.id === displayedAtlasMap.assetId) ?? null
     : null;
   const activeTrack = findActiveAudioTrack(syncedTracks, syncedPlayback);
-  const broadcastStageMode =
-    session.stageMode === "atlas" ? lastBroadcastStageMode : session.stageMode;
+  const broadcastStageMode = session.stageMode;
   const broadcastPresentationMode =
     session.stageMode === "atlas"
       ? lastBroadcastPresentationMode
@@ -463,6 +562,7 @@ export function PlayerShell({
 
   useEffect(() => {
     if (session.stageMode === "atlas") {
+      setLastBroadcastPresentationMode(session.presentationMode);
       return;
     }
 
@@ -488,7 +588,7 @@ export function PlayerShell({
 
     const nextNotice =
       session.stageMode === "atlas" && followMaster
-        ? "Mestre abriu o Wiki. Use o botao Wiki para acompanhar sem sair do palco transmitido."
+        ? "Mestre abriu o atlas. Voce foi levado para a visao publica dele."
         : followMaster
           ? `Mestre abriu ${
               session.stageMode === "theater"
@@ -529,6 +629,20 @@ export function PlayerShell({
       window.clearTimeout(timeoutId);
     };
   }, [syncNotice]);
+
+  useEffect(() => {
+    if (!isAwaitingPlayerCommand) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setCombatHeartbeat(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isAwaitingPlayerCommand]);
 
   useEffect(() => {
     if (broadcastPresentationMode !== "standard") {
@@ -629,9 +743,9 @@ export function PlayerShell({
       setLocalStageMode(broadcastStageMode);
       setLocalPresentationMode(broadcastPresentationMode);
       setIsImmersiveMinimized(false);
-      setWikiOpen(false);
+      setWikiOpen(broadcastStageMode === "atlas");
       setCodexOpen(false);
-      setPlayerBottomTab("stage");
+      setPlayerBottomTab(broadcastStageMode === "atlas" ? "wiki" : "stage");
       setPlayerOverlay("none");
       setSyncNotice("Voce voltou a seguir o foco do mestre.");
     } else {
@@ -645,9 +759,9 @@ export function PlayerShell({
     setLocalStageMode(broadcastStageMode);
     setLocalPresentationMode(broadcastPresentationMode);
     setIsImmersiveMinimized(false);
-    setWikiOpen(false);
+    setWikiOpen(broadcastStageMode === "atlas");
     setCodexOpen(false);
-    setPlayerBottomTab("stage");
+    setPlayerBottomTab(broadcastStageMode === "atlas" ? "wiki" : "stage");
     setPlayerOverlay("none");
     setSyncNotice("Sessao alinhada com o foco atual do mestre.");
   };
@@ -992,7 +1106,7 @@ const renderedImmersiveStage =
               }`}
             >
               <RadioTower size={14} />
-              {followMaster ? "seguir" : "livre"}
+              {followMaster ? "seguindo" : "livre"}
             </button>
 
             <button
@@ -1065,6 +1179,26 @@ const renderedImmersiveStage =
                 acompanhar
               </button>
             ) : null}
+          </div>
+        ) : null}
+
+        {isAwaitingPlayerCommand ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-[16px] border border-sky-300/18 bg-sky-300/10 px-3 py-2 text-xs text-sky-50">
+            <span>
+              E sua vez com <strong>{activeOwnedToken?.label ?? "seu token"}</strong>.
+              {delegatedTurnElapsedSeconds > 0
+                ? ` Aguardando ha ${delegatedTurnElapsedSeconds}s.`
+                : " A mesa esta esperando sua manobra."}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-100">
+              turno delegado
+            </span>
+          </div>
+        ) : null}
+
+        {delegatedTurnWarning ? (
+          <div className="rounded-[16px] border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs text-amber-50">
+            {delegatedTurnWarning}
           </div>
         ) : null}
 

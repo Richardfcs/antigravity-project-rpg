@@ -16,6 +16,12 @@ import {
 import { cn } from "@/lib/utils";
 import "@/styles/combat-animations.css";
 
+function getRetreatLabel(defenseOption: CombatDefenseOption) {
+  return defenseOption === "dodge"
+    ? "Recuar (+3 esquiva)"
+    : "Recuar (+1 defesa)";
+}
+
 interface DefensePromptOverlayProps {
   summary: string;
   options: CombatDefenseOption[];
@@ -168,7 +174,9 @@ export function DefensePromptOverlay({
                 )}
               >
                 <Zap size={16} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Recuar (+3)</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  {getRetreatLabel(selected)}
+                </span>
               </button>
             )}
             {canAcrobatic && (

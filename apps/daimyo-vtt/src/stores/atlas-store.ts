@@ -37,9 +37,17 @@ function sortAtlasPinCharacters(atlasPinCharacters: SessionAtlasPinCharacterReco
 }
 
 interface AtlasState {
+  scopeKey: string | null;
   atlasMaps: SessionAtlasMapRecord[];
   atlasPins: SessionAtlasPinRecord[];
   atlasPinCharacters: SessionAtlasPinCharacterRecord[];
+  hasHydrated: boolean;
+  hydrateForScope: (
+    scopeKey: string,
+    atlasMaps: SessionAtlasMapRecord[],
+    atlasPins: SessionAtlasPinRecord[],
+    atlasPinCharacters: SessionAtlasPinCharacterRecord[]
+  ) => void;
   setAtlasMaps: (atlasMaps: SessionAtlasMapRecord[]) => void;
   upsertAtlasMap: (atlasMap: SessionAtlasMapRecord) => void;
   removeAtlasMap: (atlasMapId: string) => void;
@@ -56,16 +64,43 @@ interface AtlasState {
 }
 
 export const useAtlasStore = create<AtlasState>((set) => ({
+  scopeKey: null,
   atlasMaps: [],
   atlasPins: [],
   atlasPinCharacters: [],
-  setAtlasMaps: (atlasMaps) => set({ atlasMaps: sortAtlasMaps(atlasMaps) }),
+  hasHydrated: false,
+  hydrateForScope: (scopeKey, atlasMaps, atlasPins, atlasPinCharacters) =>
+    set((state) => {
+      if (state.scopeKey === scopeKey && state.hasHydrated) {
+        return state;
+      }
+
+      return {
+        scopeKey,
+        atlasMaps: sortAtlasMaps(atlasMaps),
+        atlasPins: sortAtlasPins(atlasPins),
+        atlasPinCharacters: sortAtlasPinCharacters(atlasPinCharacters),
+        hasHydrated: true
+      };
+    }),
+  setAtlasMaps: (atlasMaps) =>
+    set((state) => ({
+      ...state,
+      atlasMaps: sortAtlasMaps(atlasMaps),
+      hasHydrated: true
+    })),
   upsertAtlasMap: (atlasMap) =>
     set((state) => ({
-      atlasMaps: sortAtlasMaps([...state.atlasMaps.filter((item) => item.id !== atlasMap.id), atlasMap])
+      ...state,
+      atlasMaps: sortAtlasMaps([
+        ...state.atlasMaps.filter((item) => item.id !== atlasMap.id),
+        atlasMap
+      ]),
+      hasHydrated: true
     })),
   removeAtlasMap: (atlasMapId) =>
     set((state) => ({
+      ...state,
       atlasMaps: state.atlasMaps.filter((atlasMap) => atlasMap.id !== atlasMapId),
       atlasPins: state.atlasPins.filter((pin) => pin.atlasMapId !== atlasMapId),
       atlasPinCharacters: state.atlasPinCharacters.filter((link) => {
@@ -73,34 +108,54 @@ export const useAtlasStore = create<AtlasState>((set) => ({
         return pin?.atlasMapId !== atlasMapId;
       })
     })),
-  setAtlasPins: (atlasPins) => set({ atlasPins: sortAtlasPins(atlasPins) }),
+  setAtlasPins: (atlasPins) =>
+    set((state) => ({
+      ...state,
+      atlasPins: sortAtlasPins(atlasPins),
+      hasHydrated: true
+    })),
   upsertAtlasPin: (atlasPin) =>
     set((state) => ({
-      atlasPins: sortAtlasPins([...state.atlasPins.filter((item) => item.id !== atlasPin.id), atlasPin])
+      ...state,
+      atlasPins: sortAtlasPins([
+        ...state.atlasPins.filter((item) => item.id !== atlasPin.id),
+        atlasPin
+      ]),
+      hasHydrated: true
     })),
   removeAtlasPin: (pinId) =>
     set((state) => ({
+      ...state,
       atlasPins: state.atlasPins.filter((pin) => pin.id !== pinId),
       atlasPinCharacters: state.atlasPinCharacters.filter((link) => link.pinId !== pinId)
     })),
   setAtlasPinCharacters: (atlasPinCharacters) =>
-    set({ atlasPinCharacters: sortAtlasPinCharacters(atlasPinCharacters) }),
+    set((state) => ({
+      ...state,
+      atlasPinCharacters: sortAtlasPinCharacters(atlasPinCharacters),
+      hasHydrated: true
+    })),
   replaceAtlasPinCharacters: (pinId, atlasPinCharacters) =>
     set((state) => ({
+      ...state,
       atlasPinCharacters: sortAtlasPinCharacters([
         ...state.atlasPinCharacters.filter((link) => link.pinId !== pinId),
         ...atlasPinCharacters
-      ])
+      ]),
+      hasHydrated: true
     })),
   upsertAtlasPinCharacter: (atlasPinCharacter) =>
     set((state) => ({
+      ...state,
       atlasPinCharacters: sortAtlasPinCharacters([
         ...state.atlasPinCharacters.filter((item) => item.id !== atlasPinCharacter.id),
         atlasPinCharacter
-      ])
+      ]),
+      hasHydrated: true
     })),
   removeAtlasPinCharacter: (atlasPinCharacterId) =>
     set((state) => ({
+      ...state,
       atlasPinCharacters: state.atlasPinCharacters.filter(
         (link) => link.id !== atlasPinCharacterId
       )

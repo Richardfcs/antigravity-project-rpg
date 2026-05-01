@@ -26,9 +26,15 @@ export function useSessionPresence({
   initialMembers,
   enabled
 }: UseSessionPresenceOptions) {
+  const hydrateMembers = usePresenceStore((state) => state.hydrateForScope);
   const setMembers = usePresenceStore((state) => state.setMembers);
   const setSyncState = useSessionStore((state) => state.setSyncState);
   const setLatencyLabel = useSessionStore((state) => state.setLatencyLabel);
+  const scopeKey = `${sessionCode}:${viewer?.role ?? "guest"}`;
+
+  useEffect(() => {
+    hydrateMembers(scopeKey, initialMembers);
+  }, [hydrateMembers, initialMembers, scopeKey]);
 
   useEffect(() => {
     if (!enabled || !viewer) {

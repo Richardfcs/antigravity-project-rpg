@@ -89,6 +89,7 @@ export function usePrivateEvents({
           )
           .eq("session_id", sessionId)
           .eq("target_participant_id", participantId)
+          .eq("is_consumed", false)
           .order("created_at", { ascending: true });
 
         if (!nextResult.error && nextResult.data) {
@@ -103,6 +104,7 @@ export function usePrivateEvents({
           )
           .eq("session_id", sessionId)
           .eq("target_participant_id", participantId)
+          .eq("is_consumed", false)
           .order("created_at", { ascending: true });
 
         if (!fallbackResult.error && fallbackResult.data) {

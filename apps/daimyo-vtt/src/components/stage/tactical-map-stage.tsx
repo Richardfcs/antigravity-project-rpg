@@ -1339,7 +1339,10 @@ export function TacticalMapStage({
       {combatFlow && (
         <>
           {/* Turno do Jogador */}
-          {combatFlow.phase === "command" &&
+          {((combatFlow.phase === "command" && canManageCombat) ||
+            ((combatFlow.phase === "command" ||
+              combatFlow.phase === "awaiting-player-command") &&
+              !canManageCombat)) &&
             combatState?.activeTokenId &&
             dismissedPlayerTurnTokenId !== combatState.activeTokenId &&
             (visibleTokens.find(t => t.token.id === combatState.activeTokenId)?.ownerParticipantId === viewerParticipantId || canManageCombat) && (

@@ -78,13 +78,14 @@ export function useSessionCharacters({
   initialCharacters,
   enabled = true
 }: UseSessionCharactersOptions) {
+  const hydrateCharacters = useCharacterStore((state) => state.hydrateForScope);
   const setCharacters = useCharacterStore((state) => state.setCharacters);
   const upsertCharacter = useCharacterStore((state) => state.upsertCharacter);
   const removeCharacter = useCharacterStore((state) => state.removeCharacter);
 
   useEffect(() => {
-    setCharacters(initialCharacters);
-  }, [initialCharacters, setCharacters]);
+    hydrateCharacters(sessionId, initialCharacters);
+  }, [hydrateCharacters, initialCharacters, sessionId]);
 
   useEffect(() => {
     if (!enabled || !sessionId) {

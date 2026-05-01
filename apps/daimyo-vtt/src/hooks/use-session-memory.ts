@@ -16,11 +16,12 @@ export function useSessionMemory({
   initialEvents,
   enabled = true
 }: UseSessionMemoryOptions) {
+  const hydrateEvents = useSessionMemoryStore((state) => state.hydrateForScope);
   const setEvents = useSessionMemoryStore((state) => state.setEvents);
 
   useEffect(() => {
-    setEvents(initialEvents);
-  }, [initialEvents, setEvents]);
+    hydrateEvents(sessionCode, initialEvents);
+  }, [hydrateEvents, initialEvents, sessionCode]);
 
   useEffect(() => {
     if (!enabled || !sessionCode) {

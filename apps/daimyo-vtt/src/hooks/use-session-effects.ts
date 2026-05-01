@@ -49,6 +49,7 @@ export function useSessionEffects({
   initialEffects,
   enabled = true
 }: UseSessionEffectsOptions) {
+  const hydrateEffects = useEffectLayerStore((state) => state.hydrateForScope);
   const effects = useEffectLayerStore((state) => state.effects);
   const setEffects = useEffectLayerStore((state) => state.setEffects);
   const upsertEffect = useEffectLayerStore((state) => state.upsertEffect);
@@ -56,8 +57,8 @@ export function useSessionEffects({
   const pruneExpired = useEffectLayerStore((state) => state.pruneExpired);
 
   useEffect(() => {
-    setEffects(initialEffects);
-  }, [initialEffects, setEffects]);
+    hydrateEffects(sessionId, initialEffects);
+  }, [hydrateEffects, initialEffects, sessionId]);
 
   useEffect(() => {
     if (effects.length === 0) {

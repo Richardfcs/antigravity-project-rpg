@@ -29,8 +29,15 @@ function sortSceneCast(sceneCast: SceneCastRecord[]) {
 }
 
 interface SceneState {
+  scopeKey: string | null;
   scenes: SessionSceneRecord[];
   sceneCast: SceneCastRecord[];
+  hasHydrated: boolean;
+  hydrateForScope: (
+    scopeKey: string,
+    scenes: SessionSceneRecord[],
+    sceneCast: SceneCastRecord[]
+  ) => void;
   setScenes: (scenes: SessionSceneRecord[]) => void;
   upsertScene: (scene: SessionSceneRecord) => void;
   removeScene: (sceneId: string) => void;
@@ -40,31 +47,58 @@ interface SceneState {
 }
 
 export const useSceneStore = create<SceneState>((set) => ({
+  scopeKey: null,
   scenes: [],
   sceneCast: [],
-  setScenes: (scenes) => set({ scenes: sortScenes(scenes) }),
+  hasHydrated: false,
+  hydrateForScope: (scopeKey, scenes, sceneCast) =>
+    set((state) => {
+      if (state.scopeKey === scopeKey && state.hasHydrated) {
+        return state;
+      }
+
+      return {
+        scopeKey,
+        scenes: sortScenes(scenes),
+        sceneCast: sortSceneCast(sceneCast),
+        hasHydrated: true
+      };
+    }),
+  setScenes: (scenes) =>
+    set((state) => ({ ...state, scenes: sortScenes(scenes), hasHydrated: true })),
   upsertScene: (scene) =>
     set((state) => ({
+      ...state,
       scenes: sortScenes([
         ...state.scenes.filter((item) => item.id !== scene.id),
         scene
-      ])
+      ]),
+      hasHydrated: true
     })),
   removeScene: (sceneId) =>
     set((state) => ({
+      ...state,
       scenes: state.scenes.filter((scene) => scene.id !== sceneId),
       sceneCast: state.sceneCast.filter((entry) => entry.sceneId !== sceneId)
     })),
-  setSceneCast: (sceneCast) => set({ sceneCast: sortSceneCast(sceneCast) }),
+  setSceneCast: (sceneCast) =>
+    set((state) => ({
+      ...state,
+      sceneCast: sortSceneCast(sceneCast),
+      hasHydrated: true
+    })),
   upsertSceneCast: (entry) =>
     set((state) => ({
+      ...state,
       sceneCast: sortSceneCast([
         ...state.sceneCast.filter((item) => item.id !== entry.id),
         entry
-      ])
+      ]),
+      hasHydrated: true
     })),
   removeSceneCast: (sceneCastId) =>
     set((state) => ({
+      ...state,
       sceneCast: state.sceneCast.filter((entry) => entry.id !== sceneCastId)
     }))
 }));

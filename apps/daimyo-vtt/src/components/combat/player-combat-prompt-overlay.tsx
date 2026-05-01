@@ -12,6 +12,24 @@ import type {
   CombatPromptPayload
 } from "@/types/combat";
 
+function formatRemainingTime(milliseconds: number) {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes <= 0) {
+    return `${seconds}s`;
+  }
+
+  return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+}
+
+function getRetreatLabel(defenseOption: CombatDefenseOption) {
+  return defenseOption === "dodge"
+    ? "Recuar (+3 esquiva)"
+    : "Recuar (+1 defesa)";
+}
+
 interface PlayerCombatPromptOverlayProps {
   sessionCode: string;
   events: SessionPrivateEventRecord[];
@@ -87,6 +105,8 @@ export function PlayerCombatPromptOverlay({
   const [feverish, setFeverish] = useState(false);
   const [manualModifier, setManualModifier] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [expiredNotice, setExpiredNotice] = useState<string | null>(null);
+  const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const combatEvent = useMemo(
@@ -106,16 +126,77 @@ export function PlayerCombatPromptOverlay({
     setFeverish(false);
     setManualModifier(0);
     setFeedback(null);
+    setRemainingMs(
+      payload?.expiresAt ? Math.max(0, new Date(payload.expiresAt).getTime() - Date.now()) : null
+    );
   }, [combatEvent?.id, payload?.options]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  useEffect(() => {
+    if (!payload?.expiresAt || !combatEvent) {
+      setRemainingMs(null);
+      return;
+    }
+
+    const expiresAt = new Date(payload.expiresAt).getTime();
+    const tick = () => {
+      const nextRemaining = Math.max(0, expiresAt - Date.now());
+      setRemainingMs(nextRemaining);
+
+      if (nextRemaining <= 0) {
+        removeEvent(combatEvent.id);
+        setExpiredNotice("A janela de resposta expirou. O mestre pode retomar a resolucao.");
+      }
+    };
+
+    tick();
+    const intervalId = window.setInterval(tick, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [combatEvent, payload?.expiresAt, removeEvent]);
+
+  useEffect(() => {
+    if (!expiredNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setExpiredNotice(null);
+    }, 4200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [expiredNotice]);
+
   if (!combatEvent || !payload) {
-    return null;
+    return expiredNotice ? (
+      <div className="pointer-events-none fixed inset-x-3 top-4 z-[111] flex justify-center">
+        <div className="rounded-[16px] border border-amber-300/20 bg-[rgba(30,18,4,0.96)] px-4 py-3 text-center text-xs font-semibold text-amber-50 shadow-[0_18px_45px_rgba(0,0,0,0.38)] backdrop-blur">
+          {expiredNotice}
+        </div>
+      </div>
+    ) : null;
   }
 
   const isHtCheck = payload.promptKind === "ht-check";
+  const isExpired = remainingMs !== null && remainingMs <= 0;
+  const countdownTone =
+    remainingMs !== null && remainingMs <= 15000
+      ? "text-rose-300"
+      : remainingMs !== null && remainingMs <= 30000
+        ? "text-amber-200"
+        : "text-emerald-200";
 
   const handleRespond = () => {
+    if (isExpired) {
+      removeEvent(combatEvent.id);
+      setExpiredNotice("A janela de resposta expirou. O mestre pode retomar a resolucao.");
+      return;
+    }
+
     setFeedback(null);
     startTransition(async () => {
       const result = await respondCombatPromptAction({
@@ -179,6 +260,16 @@ export function PlayerCombatPromptOverlay({
               {isHtCheck ? "Resolva o teste do inicio do turno" : "Escolha sua defesa ativa"}
             </p>
           </div>
+          {remainingMs !== null ? (
+            <div className="ml-auto text-right">
+              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/40">
+                tempo restante
+              </p>
+              <p className={cn("text-sm font-black", countdownTone)}>
+                {formatRemainingTime(remainingMs)}
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-4 px-4 py-4">
@@ -303,7 +394,9 @@ export function PlayerCombatPromptOverlay({
                 )}
               >
                 <Zap size={16} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Recuar (+3)</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  {getRetreatLabel(defenseOption)}
+                </span>
               </button>
             )}
             {payload.canAcrobatic && (
@@ -348,7 +441,7 @@ export function PlayerCombatPromptOverlay({
           <button
             type="button"
             onClick={handleRespond}
-            disabled={isPending}
+            disabled={isPending || isExpired}
             className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-[24px] bg-rose-500 py-6 text-sm font-black uppercase tracking-[0.3em] text-white shadow-[0_15px_40px_rgba(244,63,94,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
           >
             {isPending ? (

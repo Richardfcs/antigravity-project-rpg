@@ -153,6 +153,7 @@ export function useSessionAtlas({
   initialAtlasPinCharacters,
   enabled = true
 }: UseSessionAtlasOptions) {
+  const hydrateAtlas = useAtlasStore((state) => state.hydrateForScope);
   const setAtlasMaps = useAtlasStore((state) => state.setAtlasMaps);
   const upsertAtlasMap = useAtlasStore((state) => state.upsertAtlasMap);
   const removeAtlasMap = useAtlasStore((state) => state.removeAtlasMap);
@@ -164,16 +165,18 @@ export function useSessionAtlas({
   const removeAtlasPinCharacter = useAtlasStore((state) => state.removeAtlasPinCharacter);
 
   useEffect(() => {
-    setAtlasMaps(initialAtlasMaps);
-    setAtlasPins(initialAtlasPins);
-    setAtlasPinCharacters(initialAtlasPinCharacters);
+    hydrateAtlas(
+      sessionId,
+      initialAtlasMaps,
+      initialAtlasPins,
+      initialAtlasPinCharacters
+    );
   }, [
+    hydrateAtlas,
     initialAtlasMaps,
     initialAtlasPinCharacters,
     initialAtlasPins,
-    setAtlasMaps,
-    setAtlasPinCharacters,
-    setAtlasPins
+    sessionId
   ]);
 
   useEffect(() => {

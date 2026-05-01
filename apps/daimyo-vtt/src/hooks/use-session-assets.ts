@@ -48,13 +48,14 @@ export function useSessionAssets({
   initialAssets,
   enabled = true
 }: UseSessionAssetsOptions) {
+  const hydrateAssets = useAssetStore((state) => state.hydrateForScope);
   const setAssets = useAssetStore((state) => state.setAssets);
   const upsertAsset = useAssetStore((state) => state.upsertAsset);
   const removeAsset = useAssetStore((state) => state.removeAsset);
 
   useEffect(() => {
-    setAssets(initialAssets);
-  }, [initialAssets, setAssets]);
+    hydrateAssets(sessionId, initialAssets);
+  }, [hydrateAssets, initialAssets, sessionId]);
 
   useEffect(() => {
     if (!enabled || !sessionId) {
