@@ -34,7 +34,8 @@ export function useSessionBootstrap({
   initialSyncState,
   initialLatencyLabel
 }: UseSessionBootstrapOptions) {
-  const sessionScopeKey = `${snapshot.code}:${viewer?.role ?? "guest"}`;
+  const sessionScopeKey = `${viewer?.role ?? "guest"}:${snapshot.code}`;
+  const dataScopeKey = snapshot.sessionId;
   const hydrateAssets = useAssetStore((state) => state.hydrateForScope);
   const hydrateCharacters = useCharacterStore((state) => state.hydrateForScope);
   const hydrateSession = useSessionStore((state) => state.hydrateForScope);
@@ -50,12 +51,13 @@ export function useSessionBootstrap({
         initialLatencyLabel
       });
       hydrateMembers(sessionScopeKey, members);
-      hydrateAssets(sessionScopeKey, assets);
-      hydrateCharacters(sessionScopeKey, characters);
+      hydrateAssets(dataScopeKey, assets);
+      hydrateCharacters(dataScopeKey, characters);
     });
   }, [
     assets,
     characters,
+    dataScopeKey,
     hydrateAssets,
     hydrateCharacters,
     hydrateMembers,
