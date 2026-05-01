@@ -203,7 +203,8 @@ export function PlayerShell({
     playerBottomTab,
     setPlayerBottomTab,
     playerOverlay,
-    setPlayerOverlay
+    setPlayerOverlay,
+    hydrateForScope
   } =
     useUiShellStore(
       useShallow((state) => ({
@@ -214,7 +215,8 @@ export function PlayerShell({
         playerBottomTab: state.playerBottomTab,
         setPlayerBottomTab: state.setPlayerBottomTab,
         playerOverlay: state.playerOverlay,
-        setPlayerOverlay: state.setPlayerOverlay
+        setPlayerOverlay: state.setPlayerOverlay,
+        hydrateForScope: state.hydrateForScope
       }))
     );
   const pendingPrivateEvents = useImmersiveEventStore((state) => state.events);
@@ -261,6 +263,9 @@ export function PlayerShell({
     stageMode: snapshot.stageMode,
     presentationMode: snapshot.presentationMode
   });
+  const realtimeReady = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
 
   useSessionBootstrap({
     snapshot,
@@ -272,42 +277,46 @@ export function PlayerShell({
     initialLatencyLabel: viewer ? "syncing..." : "--"
   });
 
+  useEffect(() => {
+    hydrateForScope(`player:${snapshot.code}`, "player");
+  }, [hydrateForScope, snapshot.code]);
+
   useSessionPresence({
     sessionCode: snapshot.code,
     viewer,
     initialMembers: party,
-    enabled: Boolean(viewer)
+    enabled: Boolean(viewer && realtimeReady)
   });
 
   useSessionSnapshot({
     sessionId: snapshot.sessionId,
-    enabled: true
+    enabled: realtimeReady
   });
 
   useSessionAssets({
     sessionId: snapshot.sessionId,
     initialAssets: assets,
-    enabled: true
+    enabled: realtimeReady
   });
 
   useSessionCharacters({
     sessionId: snapshot.sessionId,
     initialCharacters: characters,
-    enabled: true
+    enabled: realtimeReady
   });
 
   useSessionScenes({
     sessionId: snapshot.sessionId,
     initialScenes: scenes,
     initialSceneCast: sceneCast,
-    enabled: true
+    enabled: realtimeReady
   });
 
   useSessionMaps({
     sessionId: snapshot.sessionId,
     initialMaps: maps,
     initialMapTokens: mapTokens,
-    enabled: true
+    enabled: realtimeReady
   });
 
   useSessionAtlas({
@@ -315,45 +324,45 @@ export function PlayerShell({
     initialAtlasMaps: atlasMaps,
     initialAtlasPins: atlasPins,
     initialAtlasPinCharacters: atlasPinCharacters,
-    enabled: true
+    enabled: realtimeReady
   });
 
   useSessionChat({
     sessionId: snapshot.sessionId,
     initialMessages: messages,
-    enabled: true
+    enabled: realtimeReady
   });
 
   useSessionAudio({
     sessionId: snapshot.sessionId,
     initialTracks: audioTracks,
     initialPlayback: audioState,
-    enabled: true
+    enabled: realtimeReady
   });
 
   usePrivateEvents({
     sessionId: snapshot.sessionId,
     participantId: viewer?.participantId,
     initialEvents: privateEvents,
-    enabled: true
+    enabled: realtimeReady
   });
 
   useSessionEffects({
     sessionId: snapshot.sessionId,
     initialEffects: effectLayers,
-    enabled: true
+    enabled: realtimeReady
   });
 
   useSessionNotes({
     sessionCode: snapshot.code,
     initialNotes: notes,
-    enabled: true
+    enabled: realtimeReady
   });
 
   useSessionMemory({
     sessionCode: snapshot.code,
     initialEvents: memoryEvents,
-    enabled: Boolean(viewer)
+    enabled: Boolean(viewer && realtimeReady)
   });
 
   const session = storedSnapshot ?? snapshot;

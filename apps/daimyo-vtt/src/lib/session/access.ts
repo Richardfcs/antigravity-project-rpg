@@ -20,6 +20,10 @@ export async function requireSessionViewer(
     throw new Error("Sessao nao encontrada.");
   }
 
+  if (session.status === "closed") {
+    throw new Error("Esta sessao foi encerrada.");
+  }
+
   const cookieStore = await cookies();
   const cookieViewer = readSessionViewerCookie(cookieStore, session.code);
 

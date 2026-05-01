@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   MessagesSquare,
   Minimize2,
@@ -192,7 +192,8 @@ export function MasterShell({
     masterDrawer,
     setMasterDrawer,
     supportTrayOpen,
-    setSupportTrayOpen
+    setSupportTrayOpen,
+    hydrateForScope
   } =
     useUiShellStore(
       useShallow((state) => ({
@@ -207,7 +208,8 @@ export function MasterShell({
         masterDrawer: state.masterDrawer,
         setMasterDrawer: state.setMasterDrawer,
         supportTrayOpen: state.supportTrayOpen,
-        setSupportTrayOpen: state.setSupportTrayOpen
+        setSupportTrayOpen: state.setSupportTrayOpen,
+        hydrateForScope: state.hydrateForScope
       }))
     );
   const libraryCollections = useLibraryOrganizationStore(
@@ -480,6 +482,10 @@ export function MasterShell({
       }),
     [libraryCollections, liveAtlasMaps, liveCharacters, liveMaps, liveScenes, liveTracks]
   );
+
+  useEffect(() => {
+    hydrateForScope(`gm:${snapshot.code}`, "gm");
+  }, [hydrateForScope, snapshot.code]);
 
   const handleStageModeChange = (mode: StageMode) => {
     const previousStageMode = session.stageMode;
@@ -850,17 +856,24 @@ export function MasterShell({
     }
 
     setSessionFeedback(null);
-    const result = await advanceCombatTurnAction({
+    let result = await advanceCombatTurnAction({
       sessionCode: session.code,
       direction
     });
-    
+
     if (result.ok && result.session?.combatActiveTokenId && direction === "next") {
-      // Processar efeitos de inicio de turno automaticamente ao avancar
-      await processStartOfTurnAction({
+      // Processar efeitos de inicio de turno automaticamente ao avancar.
+      const startOfTurnResult = await processStartOfTurnAction({
         sessionCode: session.code,
         tokenId: result.session.combatActiveTokenId
       });
+
+      if (!startOfTurnResult.ok) {
+        handleCombatResult(startOfTurnResult, "Falha ao processar o inicio do turno.");
+        return;
+      }
+
+      result = startOfTurnResult;
     }
 
     handleCombatResult(result, "Falha ao avancar a ordem de turno.");

@@ -257,7 +257,10 @@ export interface CombatDraftAction {
   isStyle?: boolean;
   rollMode?: TacticalRollMode;
   inspirationSpent?: boolean;
-  }
+  comboAttackKind?: "rapid-strike" | "dual-weapon" | null;
+  comboAttackStep?: number | null;
+  comboAttackTotal?: number | null;
+}
 
 export interface CombatRollRecord {
   total: number;
@@ -381,6 +384,12 @@ export interface CombatPromptPayload {
     kind: "consciousness" | "survival";
     targetValue: number;
     threshold?: string;
+    remainingChecks?: Array<{
+      kind: "consciousness" | "survival";
+      label: string;
+      targetValue: number;
+      threshold?: string;
+    }>;
   };
 }
 

@@ -41,6 +41,15 @@ export default async function GmSessionPage({ params }: GmPageProps) {
     notFound();
   }
 
+  if (bootstrap.session.status === "closed") {
+    redirect(
+      `/?${new URLSearchParams({
+        error: "Esta mesa foi encerrada.",
+        code: bootstrap.session.code
+      }).toString()}`
+    );
+  }
+
   if (!bootstrap.viewer) {
     redirect(
       `/?${new URLSearchParams({

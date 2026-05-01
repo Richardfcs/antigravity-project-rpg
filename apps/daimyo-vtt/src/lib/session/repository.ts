@@ -158,7 +158,7 @@ export function mapParticipantsToOnlinePresence(
     sessionId: participant.sessionId,
     name: participant.displayName,
     role: participant.role,
-    status: participant.id === currentViewerId ? "online" : "offline",
+    status: participant.id === currentViewerId ? "online" : participant.status,
     connectedAt: participant.joinedAt
   }));
 }
@@ -216,6 +216,25 @@ export async function updateSessionPresentationMode(input: {
 
   if (error || !data) {
     throw error ?? new Error("Falha ao atualizar a apresentacao da sessao.");
+  }
+
+  return mapSessionRow(data);
+}
+
+export async function updateSessionStatus(input: {
+  sessionId: string;
+  status: SessionStatus;
+}) {
+  const { data, error } = await getSessionTable()
+    .update({
+      status: input.status
+    })
+    .eq("id", input.sessionId)
+    .select("*")
+    .single<SessionRow>();
+
+  if (error || !data) {
+    throw error ?? new Error("Falha ao atualizar o status da sessao.");
   }
 
   return mapSessionRow(data);

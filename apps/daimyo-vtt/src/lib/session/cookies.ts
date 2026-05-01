@@ -18,7 +18,6 @@ function getCookieSecret() {
     process.env.DAIMYO_SESSION_COOKIE_SECRET ??
     process.env.SESSION_COOKIE_SECRET ??
     process.env.NEXTAUTH_SECRET ??
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
     "";
 
   if (!secret && process.env.NODE_ENV === "production") {

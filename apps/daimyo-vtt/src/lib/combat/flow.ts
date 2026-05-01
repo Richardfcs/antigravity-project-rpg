@@ -363,6 +363,19 @@ function normalizeDraftAction(raw: unknown): CombatDraftAction | null {
       candidate.roundsNeeded === null || candidate.roundsNeeded === undefined
         ? null
         : Math.max(1, Math.floor(asNumber(candidate.roundsNeeded, 1))),
+    comboAttackKind:
+      candidate.comboAttackKind === "rapid-strike" ||
+      candidate.comboAttackKind === "dual-weapon"
+        ? candidate.comboAttackKind
+        : null,
+    comboAttackStep:
+      candidate.comboAttackStep === null || candidate.comboAttackStep === undefined
+        ? null
+        : Math.max(1, Math.floor(asNumber(candidate.comboAttackStep, 1))),
+    comboAttackTotal:
+      candidate.comboAttackTotal === null || candidate.comboAttackTotal === undefined
+        ? null
+        : Math.max(1, Math.floor(asNumber(candidate.comboAttackTotal, 2))),
     rollMode:
       candidate.rollMode === "advantage" || candidate.rollMode === "disadvantage"
         ? candidate.rollMode
@@ -413,7 +426,29 @@ function normalizePromptPayload(raw: unknown): CombatPromptPayload | null {
           return {
             kind: ht.kind === "survival" ? ("survival" as const) : ("consciousness" as const),
             targetValue: asNumber(ht.targetValue, 10),
-            threshold: asString(ht.threshold) ?? undefined
+            threshold: asString(ht.threshold) ?? undefined,
+            remainingChecks: Array.isArray(ht.remainingChecks)
+              ? ht.remainingChecks
+                  .map((entry) => {
+                    const check = asObject(entry);
+                    const label = asString(check?.label);
+
+                    if (!check || !label) {
+                      return null;
+                    }
+
+                    return {
+                      kind:
+                        check.kind === "survival"
+                          ? ("survival" as const)
+                          : ("consciousness" as const),
+                      label,
+                      targetValue: asNumber(check.targetValue, 10),
+                      threshold: asString(check.threshold) ?? undefined
+                    };
+                  })
+                  .filter(Boolean) as NonNullable<CombatPromptPayload["htCheck"]>["remainingChecks"]
+              : undefined
           };
         })()
       : undefined

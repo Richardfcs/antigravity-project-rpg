@@ -42,7 +42,9 @@ function normalizeCombatPayload(
 
   return {
     promptKind:
-      payload.promptKind === "quick-contest" || payload.promptKind === "regular-contest"
+      payload.promptKind === "quick-contest" ||
+      payload.promptKind === "regular-contest" ||
+      payload.promptKind === "ht-check"
         ? payload.promptKind
         : "defense",
     sessionId: payload.sessionId,
@@ -65,7 +67,11 @@ function normalizeCombatPayload(
       typeof payload.requestedAt === "string"
         ? payload.requestedAt
         : new Date().toISOString(),
-    expiresAt: typeof payload.expiresAt === "string" ? payload.expiresAt : null
+    expiresAt: typeof payload.expiresAt === "string" ? payload.expiresAt : null,
+    htCheck:
+      typeof payload.htCheck === "object" && payload.htCheck !== null
+        ? (payload.htCheck as CombatPromptPayload["htCheck"])
+        : undefined
   };
 }
 
@@ -106,6 +112,8 @@ export function PlayerCombatPromptOverlay({
   if (!combatEvent || !payload) {
     return null;
   }
+
+  const isHtCheck = payload.promptKind === "ht-check";
 
   const handleRespond = () => {
     setFeedback(null);
@@ -164,8 +172,12 @@ export function PlayerCombatPromptOverlay({
             <ShieldAlert size={22} />
           </div>
           <div>
-            <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Sob Ataque!</h2>
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-rose-500 opacity-80">Escolha sua defesa ativa</p>
+            <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">
+              {isHtCheck ? "Teste de HT" : "Sob Ataque!"}
+            </h2>
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-rose-500 opacity-80">
+              {isHtCheck ? "Resolva o teste do inicio do turno" : "Escolha sua defesa ativa"}
+            </p>
           </div>
         </div>
 
@@ -183,7 +195,7 @@ export function PlayerCombatPromptOverlay({
           </div>
 
           {/* Gold Probability Box - Santuário Design */}
-          {payload.options.length > 0 && (
+          {!isHtCheck && payload.options.length > 0 && (
             <div className="overflow-hidden rounded-[18px] bg-gradient-to-br from-amber-200 to-amber-500 p-[1px] shadow-[0_16px_40px_rgba(245,158,11,0.15)]">
               <div className="flex items-center justify-between rounded-[17px] bg-[rgba(20,15,5,0.92)] px-4 py-3 backdrop-blur-md">
                 <div className="space-y-1">
@@ -226,7 +238,17 @@ export function PlayerCombatPromptOverlay({
           )}
 
           {/* Métodos Disponíveis */}
-          <div className="space-y-3">
+          {isHtCheck ? (
+            <div className="rounded-[18px] border border-white/5 bg-white/[0.02] px-4 py-3 text-sm text-[color:var(--ink-2)]">
+              <p className="font-semibold text-white">
+                {heroName ? `${heroName}, faca seu teste de HT.` : "Faca seu teste de HT."}
+              </p>
+              {payload.htCheck?.threshold ? (
+                <p className="mt-1 opacity-70">Limiar: {payload.htCheck.threshold}</p>
+              ) : null}
+            </div>
+          ) : null}
+          <div className={cn("space-y-3", isHtCheck && "hidden")}>
             <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[color:var(--ink-2)]">
               <Shield size={12} /> Métodos Disponíveis
             </p>
@@ -270,7 +292,7 @@ export function PlayerCombatPromptOverlay({
           </div>
 
           {/* Opções Extra */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className={cn("grid grid-cols-4 gap-3", isHtCheck && "hidden")}>
             {payload.canRetreat && (
               <button
                 type="button"
@@ -334,7 +356,7 @@ export function PlayerCombatPromptOverlay({
             ) : (
               <>
                 <Shield size={20} className="transition-transform group-hover:scale-125" />
-                Confirmar Defesa
+                {isHtCheck ? "Rolar HT" : "Confirmar Defesa"}
               </>
             )}
             <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />

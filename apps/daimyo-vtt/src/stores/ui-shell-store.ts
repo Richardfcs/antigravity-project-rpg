@@ -98,6 +98,7 @@ function normalizeDockTab(tab?: string): DockTab {
 }
 
 type PersistedUiShellState = Partial<{
+  scopeKey: string;
   activeSection: ExplorerSection;
   activeDockTab: DockTab;
   masterMode: MasterMode;
@@ -116,6 +117,7 @@ type PersistedUiShellState = Partial<{
 }>;
 
 interface UiShellState {
+  scopeKey: string;
   activeSection: ExplorerSection;
   activeDockTab: DockTab;
   masterMode: MasterMode;
@@ -147,11 +149,13 @@ interface UiShellState {
   setMasterColumns: (sizes: Record<string, number>) => void;
   setMasterRows: (sizes: Record<string, number>) => void;
   resetMasterLayout: () => void;
+  hydrateForScope: (scopeKey: string, role: "gm" | "player") => void;
 }
 
 export const useUiShellStore = create<UiShellState>()(
   persist(
     (set) => ({
+      scopeKey: "global",
       activeSection: "scenes",
       activeDockTab: "chat",
       masterMode: "prep",
@@ -201,6 +205,31 @@ export const useUiShellStore = create<UiShellState>()(
           bottomCollapsed: false,
           masterColumns: DEFAULT_MASTER_COLUMNS,
           masterRows: DEFAULT_MASTER_ROWS
+        }),
+      hydrateForScope: (scopeKey, role) =>
+        set((state) => {
+          if (state.scopeKey === scopeKey) {
+            return state;
+          }
+
+          return {
+            scopeKey,
+            activeSection: "scenes",
+            activeDockTab: "chat",
+            masterMode: role === "gm" ? "prep" : state.masterMode,
+            masterWorkspace: role === "gm" ? "library" : "stage",
+            masterDrawer: "closed",
+            supportTrayOpen: false,
+            liveSupportOpen: false,
+            followMaster: true,
+            playerBottomTab: "stage",
+            playerOverlay: "none",
+            leftCollapsed: false,
+            rightCollapsed: false,
+            bottomCollapsed: false,
+            masterColumns: DEFAULT_MASTER_COLUMNS,
+            masterRows: DEFAULT_MASTER_ROWS
+          };
         })
     }),
     {
@@ -212,6 +241,7 @@ export const useUiShellStore = create<UiShellState>()(
 
         return {
           activeSection: state.activeSection ?? "scenes",
+          scopeKey: state.scopeKey ?? "global",
           activeDockTab: normalizeDockTab(state.activeDockTab),
           masterMode: state.masterMode === "live" ? "live" : "prep",
           masterWorkspace:
